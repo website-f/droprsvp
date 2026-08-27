@@ -20,6 +20,11 @@ class Ticket extends Model
         ];
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'qr_token';
+    }
+
     protected static function booted(): void
     {
         // Every ticket gets a unique, unguessable QR token.

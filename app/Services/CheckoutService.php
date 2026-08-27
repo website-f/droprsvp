@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Mail\TicketsIssued;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\TicketType;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -78,14 +80,14 @@ class CheckoutService
         });
     }
 
-    /** Mark an order paid and issue its tickets. Idempotent + race-safe. */
+    /** Mark an order paid, issue its tickets, and email the buyer. Idempotent + race-safe. */
     public function markPaid(Order $order, ?string $paymentRef = null): void
     {
-        DB::transaction(function () use ($order, $paymentRef) {
+        $newlyPaid = DB::transaction(function () use ($order, $paymentRef): bool {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->first();
             if ($locked->status === 'paid') {
-                return; // already settled — don't double-issue
+                return false; // already settled — don't double-issue
             }
 
             $locked->update([
@@ -105,7 +107,15 @@ class CheckoutService
                     ]);
                 }
             }
+
+            return true;
         });
+
+        // Email the tickets exactly once, after settlement (outside the transaction).
+        if ($newlyPaid && $order->fresh()->buyer_email) {
+            $order->load(['event', 'tickets']);
+            Mail::to($order->buyer_email)->send(new TicketsIssued($order));
+        }
     }
 
     /** Release a still-pending order's reserved stock (abandoned / failed / cancelled). */

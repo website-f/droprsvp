@@ -62,7 +62,7 @@ export default function CheckoutConfirmation({ order }: { order: OrderView }) {
                                 {order.tickets.map((t) => (
                                     <li key={t.qr_token} className="flex items-center justify-between rounded-lg border border-border px-4 py-2 text-sm">
                                         <span>{t.attendee_name ?? 'Guest'}</span>
-                                        <span className="font-mono text-xs text-muted-foreground">{t.qr_token.slice(0, 10)}…</span>
+                                        <Link href={`/tickets/${t.qr_token}`} className="font-medium underline underline-offset-4">View ticket</Link>
                                     </li>
                                 ))}
                             </ul>

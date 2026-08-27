@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Mail\TicketsIssued;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\TicketType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class CheckoutTest extends TestCase
@@ -36,6 +38,7 @@ class CheckoutTest extends TestCase
 
     public function test_paid_checkout_via_fake_gateway_reserves_then_issues_tickets(): void
     {
+        Mail::fake();
         [$event, $tt] = $this->publishedEventWithTicket();
 
         $this->post(route('checkout.start', $event), [
@@ -60,10 +63,13 @@ class CheckoutTest extends TestCase
         $this->assertNotNull($order->paid_at);
         $this->assertSame(2, $order->tickets()->count());
         $this->assertSame(2, $tt->fresh()->sold);
+
+        Mail::assertSent(TicketsIssued::class, fn (TicketsIssued $m) => $m->hasTo('ali@example.com'));
     }
 
     public function test_settlement_is_idempotent(): void
     {
+        Mail::fake();
         [$event, $tt] = $this->publishedEventWithTicket();
         $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]]);
         $order = Order::first();
@@ -72,6 +78,7 @@ class CheckoutTest extends TestCase
         $this->get(route('checkout.fake', $order)); // second hit must not double-issue
 
         $this->assertSame(1, $order->fresh()->tickets()->count());
+        Mail::assertSent(TicketsIssued::class, 1); // emailed exactly once
     }
 
     public function test_oversell_is_prevented(): void
@@ -88,6 +95,7 @@ class CheckoutTest extends TestCase
 
     public function test_free_tickets_settle_without_the_gateway(): void
     {
+        Mail::fake();
         [$event, $tt] = $this->publishedEventWithTicket(['kind' => 'free', 'price' => 0]);
 
         $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]]);
@@ -100,5 +108,6 @@ class CheckoutTest extends TestCase
         $order->refresh();
         $this->assertSame('paid', $order->status);
         $this->assertSame(1, $order->tickets()->count());
+        Mail::assertSent(TicketsIssued::class);
     }
 }
