@@ -20,6 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Payment gateway webhooks are server-to-server (no CSRF token).
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
 
+        // Spatie role/permission middleware aliases (used to gate the CMS to superadmin).
+        $middleware->alias([
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        ]);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

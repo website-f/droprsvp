@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Public\PageController as PublicPageController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Host\SeatingController;
@@ -49,6 +51,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('events/{event}/seating/tables', [SeatingController::class, 'saveTables'])->name('events.seating.tables');
         Route::post('events/{event}/seating/assign', [SeatingController::class, 'assign'])->name('events.seating.assign');
     });
+
+    // Headless CMS — superadmin only.
+    Route::middleware('role:superadmin')->prefix('admin/cms')->name('admin.cms.')->group(function () {
+        Route::get('pages', [CmsPageController::class, 'index'])->name('pages.index');
+        Route::get('pages/create', [CmsPageController::class, 'create'])->name('pages.create');
+        Route::post('pages', [CmsPageController::class, 'store'])->name('pages.store');
+        Route::get('pages/{page:id}/edit', [CmsPageController::class, 'edit'])->name('pages.edit');
+        Route::put('pages/{page:id}', [CmsPageController::class, 'update'])->name('pages.update');
+        Route::delete('pages/{page:id}', [CmsPageController::class, 'destroy'])->name('pages.destroy');
+    });
 });
 
 require __DIR__.'/settings.php';
+
+// CMS pages at their own root slug — declared LAST so it only catches URLs no
+// other route matched. Server-rendered for SEO.
+Route::fallback([PublicPageController::class, 'show']);
