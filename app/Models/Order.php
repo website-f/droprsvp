@@ -10,7 +10,7 @@ class Order extends Model
 {
     protected $fillable = [
         'reference', 'user_id', 'event_id', 'status', 'buyer_name', 'buyer_email', 'buyer_phone',
-        'subtotal', 'discount', 'fees', 'tax', 'total', 'currency', 'payment_ref', 'paid_at', 'meta',
+        'subtotal', 'discount', 'fees', 'tax', 'total', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class Order extends Model
             'tax' => 'decimal:2',
             'total' => 'decimal:2',
             'paid_at' => 'datetime',
+            'refunded_at' => 'datetime',
             'meta' => 'array',
         ];
     }

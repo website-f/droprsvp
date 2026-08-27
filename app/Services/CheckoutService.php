@@ -118,6 +118,27 @@ class CheckoutService
         }
     }
 
+    /**
+     * Refund a paid order: void its tickets and release the seats back to stock.
+     * Idempotent; call the gateway refund BEFORE this. Returns true if it flipped.
+     */
+    public function refund(Order $order): bool
+    {
+        return DB::transaction(function () use ($order): bool {
+            /** @var Order $locked */
+            $locked = Order::whereKey($order->id)->lockForUpdate()->first();
+            if ($locked->status !== 'paid') {
+                return false; // only settled orders can be refunded
+            }
+
+            $locked->update(['status' => 'refunded', 'refunded_at' => now()]);
+            $locked->tickets()->whereIn('status', ['valid', 'checked_in'])->update(['status' => 'refunded']);
+            $this->releaseStock($locked);
+
+            return true;
+        });
+    }
+
     /** Release a still-pending order's reserved stock (abandoned / failed / cancelled). */
     public function release(Order $order): void
     {
@@ -127,15 +148,19 @@ class CheckoutService
             if ($locked->status !== 'pending') {
                 return;
             }
-            foreach ($locked->items as $item) {
-                if ($item->ticket_type_id) {
-                    TicketType::whereKey($item->ticket_type_id)->update([
-                        'sold' => DB::raw('GREATEST(0, sold - '.(int) $item->quantity.')'),
-                    ]);
-                }
-            }
+            $this->releaseStock($locked);
             $locked->update(['status' => 'cancelled']);
         });
+    }
+
+    /** Give each line's reserved seats back to its ticket type (DB-portable, locked). */
+    private function releaseStock(Order $order): void
+    {
+        foreach ($order->items as $item) {
+            if ($item->ticket_type_id && $tt = TicketType::whereKey($item->ticket_type_id)->lockForUpdate()->first()) {
+                $tt->update(['sold' => max(0, $tt->sold - (int) $item->quantity)]);
+            }
+        }
     }
 
     private function uniqueReference(): string

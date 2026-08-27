@@ -65,4 +65,23 @@ class HitPayGateway implements PaymentGateway
             'paid' => ($params['status'] ?? null) === 'completed',
         ];
     }
+
+    public function refund(Order $order): bool
+    {
+        if (! $order->payment_ref) {
+            return false;
+        }
+
+        $response = Http::withHeaders([
+            'X-BUSINESS-API-KEY' => (string) config('services.hitpay.api_key'),
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ])->asForm()->post($this->baseUrl().'/refund', [
+            'payment_id' => $order->payment_ref,
+            'amount' => number_format((float) $order->total, 2, '.', ''),
+        ]);
+
+        return $response->successful();
+    }
 }
+

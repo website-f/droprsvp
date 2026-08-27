@@ -11,6 +11,7 @@ use App\Http\Controllers\Public\PageController as PublicPageController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
+use App\Http\Controllers\Host\OrderController;
 use App\Http\Controllers\Host\SeatingController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
 use App\Http\Controllers\TicketController;
@@ -64,6 +65,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Door check-in console.
         Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');
         Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
+
+        // Orders + refunds.
+        Route::get('events/{event}/orders', [OrderController::class, 'index'])->name('events.orders');
+        Route::post('events/{event}/orders/{order}/refund', [OrderController::class, 'refund'])->name('events.orders.refund');
 
         // Seating & table management.
         Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');

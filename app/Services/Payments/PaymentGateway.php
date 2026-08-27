@@ -22,4 +22,7 @@ interface PaymentGateway
      * ['reference' => <order reference>, 'paid' => bool] or null if invalid.
      */
     public function parseWebhook(Request $request): ?array;
+
+    /** Refund a settled order at the gateway. Returns true on success. */
+    public function refund(Order $order): bool;
 }
