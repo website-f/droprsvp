@@ -74,20 +74,24 @@ Steps:
    ```
    `index.php` already points at `__DIR__.'/../droprsvp'` and sets the public path
    to `public_html` — no edit needed for this layout.
-3. Expose ONLY the public assets (symlinks — they point outside the web root's
-   own tree, so source stays private):
+3. Expose the public assets by symlinking **every** entry of the app's `public/`
+   into the web root (skip the bridge `index.php`). This one loop covers
+   `build/`, `vector/`, `storage`, `og-default.png`, `logo.png`, favicons and
+   anything added later — re-run it after each deploy. The symlinks point outside
+   the web root's own tree, so the app source stays private:
    ```bash
    cd ~/public_html
-   ln -s ../droprsvp/public/build   build
-   ln -s ../droprsvp/public/storage storage      # storage:link makes public/storage first
-   ln -s ../droprsvp/public/og-default.png og-default.png
-   ln -s ../droprsvp/public/logo.png        logo.png
-   ln -s ../droprsvp/public/favicon.ico     favicon.ico
-   ln -s ../droprsvp/public/favicon.svg     favicon.svg
-   ln -s ../droprsvp/public/apple-touch-icon.png apple-touch-icon.png
+   APP_PUBLIC="$HOME/droprsvp/public"     # adjust to your app's public/ folder
+   for f in "$APP_PUBLIC"/*; do
+     n=$(basename "$f")
+     [ "$n" = "index.php" ] && continue
+     ln -sfn "$f" "$n"
+   done
+   ls -la
    ```
-   (If your host disallows symlinks, `cp -r` the same files instead and re-copy
-   `build` after each deploy.)
+   (`php artisan storage:link` first, so `public/storage` exists to be linked.)
+   If your host disallows symlinks, `cp -r "$APP_PUBLIC"/* .` instead — but then
+   re-copy after every deploy.
 4. If the symlinked assets return 403/404, your host isn't following symlinks.
    Add this as the **first line** of `public_html/.htaccess`:
    ```apache
