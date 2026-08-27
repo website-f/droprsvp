@@ -23,12 +23,13 @@ return [
     'twitter' => env('SEO_TWITTER'),
 
     // Fallback social share image (absolute URL or /path) when a page has none.
-    'default_image' => env('SEO_DEFAULT_IMAGE'),
+    // A branded 1200×630 default ships in /public so every share looks good.
+    'default_image' => env('SEO_DEFAULT_IMAGE', '/og-default.png'),
 
     'organization' => [
         'name' => env('SEO_ORG_NAME', env('APP_NAME', 'DropRSVP')),
         // Absolute URL or /path to the logo used in Organization JSON-LD.
-        'logo' => env('SEO_LOGO'),
+        'logo' => env('SEO_LOGO', '/logo.png'),
         // Optional social profile URLs (sameAs), comma-separated in env.
         'same_as' => array_values(array_filter(array_map('trim', explode(',', (string) env('SEO_SAME_AS', ''))))),
     ],

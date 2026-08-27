@@ -43,6 +43,13 @@ class ServerSeoTest extends TestCase
         $res->assertSee('<link rel="canonical"', false);
     }
 
+    public function test_pages_without_an_image_get_the_default_og_image_and_org_logo(): void
+    {
+        $res = $this->get('/')->assertOk();
+        $res->assertSee(url('/og-default.png'), false);  // default share image
+        $res->assertSee(url('/logo.png'), false);        // Organization logo in JSON-LD
+    }
+
     public function test_event_page_has_full_server_rendered_seo(): void
     {
         $event = $this->publishedEvent();
