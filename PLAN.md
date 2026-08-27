@@ -22,14 +22,15 @@ thing **and** publishes marketing pages/blog through an in-house CMS.
 | # | Decision | Choice | Why |
 |---|----------|--------|-----|
 | D1 | Rendering | **Inertia.js v2 (React) + SSR** | One codebase, Laravel-driven routing, server-rendered HTML per page → SEO solved without a separate Next.js runtime. Rich React UI for the seat map / editor. |
-| D2 | Styling | **Tailwind CSS** driven by `DESIGN.md` tokens | Meetup type/spacing/components as tokens; **swap colour tokens to Tiratech** (only colours change). |
+| D2 | Styling | **Tailwind CSS** driven by `DESIGN.md` tokens | Meetup type/spacing/shape (pill buttons); **Tiratech colours = rich black & white monochrome** (done in `app.css`, red kept only for errors). |
 | D3 | Rich text | **TipTap** (ProseMirror) | Self-hosted, React-native, clean HTML+JSON output, extensible → WordPress-like editing, no external CDN. |
-| D4 | Payments | **Gateway abstraction** (start with the MY gateway used on qrpos/portalkahwin — HitPay/Stripe) | Swappable driver; supports webhooks, refunds. |
+| D4 | Payments | **HitPay** (behind a gateway abstraction) | Same gateway as qrpos/portalkahwin; webhooks + refunds; driver stays swappable. |
 | D5 | DB | **MySQL 8** + **Redis** (cache, queues, sessions) | Same as existing stack; queues critical for ticketing spikes. |
 | D6 | Search/discovery | MySQL full-text + filters first; **Meilisearch** optional later | Avoid premature infra; add Meili when catalogue grows. |
 | D7 | Deploy | **Docker Compose behind the shared `/opt/reverse-proxy`** (own port block) | Matches VPS convention; one TLS terminator. |
 
-**Open for confirmation:** exact **Tiratech hex palette** (blocking the colour swap), payment gateway choice, whether recurring/multi-session events are in v1, SST/tax handling.
+**Confirmed:** colours = **rich black & white** (Tiratech); payments = **HitPay**.
+**Still open:** whether recurring/multi-session events are in v1, and SST/tax handling.
 
 ---
 

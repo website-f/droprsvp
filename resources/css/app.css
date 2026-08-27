@@ -69,85 +69,86 @@
 }
 
 /* ============================================================
-   DropRSVP theme — derived from DESIGN.md (Meetup design system).
-   COLOURS ARE MEETUP PLACEHOLDERS (primary #e32359). Swap the values
-   below for the Tiratech palette once confirmed — token NAMES stay,
-   so nothing else needs to change.
+   DropRSVP theme — Tiratech palette: a RICH BLACK & WHITE system.
+   Keeps Meetup's DESIGN.md typography / spacing / shape (pill buttons,
+   generous whitespace) but a monochrome colour story: rich black as the
+   primary, clean whites and greys for surfaces. Only error states keep a
+   red, for legibility. Token NAMES match shadcn so every component inherits.
    ============================================================ */
 :root {
-    --background: #fcfcfd;          /* surface */
-    --foreground: #000000;          /* on-surface */
-    --card: #ffffff;                /* surface-bright */
-    --card-foreground: #000000;
+    --background: #ffffff;
+    --foreground: #0a0a0a;          /* rich black text */
+    --card: #ffffff;
+    --card-foreground: #0a0a0a;
     --popover: #ffffff;
-    --popover-foreground: #000000;
-    --primary: #e32359;             /* PLACEHOLDER (Meetup) → Tiratech primary */
+    --popover-foreground: #0a0a0a;
+    --primary: #111111;             /* rich black — CTAs, active states */
     --primary-foreground: #ffffff;
-    --secondary: #f2f2f3;           /* shadcn secondary surface (light) */
-    --secondary-foreground: #121215;
-    --muted: #f5f5f6;               /* surface-dim */
-    --muted-foreground: #3f3f3f;    /* on-surface-variant */
-    --accent: #ececed;              /* surface-container (subtle hover) */
-    --accent-foreground: #121215;
-    --destructive: #c80000;
+    --secondary: #f4f4f5;           /* light grey surface */
+    --secondary-foreground: #111111;
+    --muted: #f6f6f7;
+    --muted-foreground: #6b6b70;    /* mid grey */
+    --accent: #efeff0;              /* subtle hover */
+    --accent-foreground: #111111;
+    --destructive: #c81e1e;         /* error only (kept legible, not mono) */
     --destructive-foreground: #ffffff;
-    --border: #e6e6e7;              /* surface-container-high */
-    --input: #e6e6e7;
-    --ring: #e32359;                /* focus ring = primary */
-    --chart-1: #e32359;
-    --chart-2: #00798a;
-    --chart-3: #00a6bf;
-    --chart-4: #f8bbd0;
-    --chart-5: #80deea;
+    --border: #e5e5e6;
+    --input: #e5e5e6;
+    --ring: #111111;                /* focus ring = black */
+    --chart-1: #111111;             /* grayscale ramp for charts */
+    --chart-2: #3f3f46;
+    --chart-3: #71717a;
+    --chart-4: #a1a1aa;
+    --chart-5: #d4d4d8;
     --radius: 0.75rem;              /* cards; buttons are pill (rounded-full) */
-    --sidebar: #ffffff;
-    --sidebar-foreground: #000000;
-    --sidebar-primary: #e32359;
+    --sidebar: #fafafa;
+    --sidebar-foreground: #0a0a0a;
+    --sidebar-primary: #111111;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #f2f2f3;
-    --sidebar-accent-foreground: #121215;
-    --sidebar-border: #e6e6e7;
-    --sidebar-ring: #e32359;
-    /* DESIGN.md supporting accents */
-    --brand-secondary: #00798a;     /* teal */
-    --brand-tertiary: #00a6bf;      /* cyan */
+    --sidebar-accent: #efeff0;
+    --sidebar-accent-foreground: #111111;
+    --sidebar-border: #e5e5e6;
+    --sidebar-ring: #111111;
+    /* supporting greys (badges / status), monochrome */
+    --brand-secondary: #3f3f46;
+    --brand-tertiary: #71717a;
 }
 
 .dark {
-    --background: #121215;          /* inverse-surface */
-    --foreground: #f5f5f6;          /* inverse-on-surface */
-    --card: #1b1b1f;
-    --card-foreground: #f5f5f6;
-    --popover: #1b1b1f;
-    --popover-foreground: #f5f5f6;
-    --primary: #ff6b9d;             /* inverse-primary (Meetup) → Tiratech dark tint */
-    --primary-foreground: #2a0a16;
-    --secondary: #26262b;
-    --secondary-foreground: #f5f5f6;
-    --muted: #26262b;
-    --muted-foreground: #b5b5ba;
-    --accent: #2d2d33;
-    --accent-foreground: #f5f5f6;
+    --background: #0a0a0a;          /* rich black */
+    --foreground: #fafafa;
+    --card: #141414;
+    --card-foreground: #fafafa;
+    --popover: #141414;
+    --popover-foreground: #fafafa;
+    --primary: #fafafa;             /* inverts: white CTA on black */
+    --primary-foreground: #0a0a0a;
+    --secondary: #1c1c1f;
+    --secondary-foreground: #fafafa;
+    --muted: #1c1c1f;
+    --muted-foreground: #a1a1aa;
+    --accent: #232326;
+    --accent-foreground: #fafafa;
     --destructive: #ff6b6b;
-    --destructive-foreground: #2a0000;
-    --border: #2d2d33;
-    --input: #2d2d33;
-    --ring: #ff6b9d;
-    --chart-1: #ff6b9d;
-    --chart-2: #4dd0e1;
-    --chart-3: #00a6bf;
-    --chart-4: #f8bbd0;
-    --chart-5: #80deea;
-    --sidebar: #1b1b1f;
-    --sidebar-foreground: #f5f5f6;
-    --sidebar-primary: #ff6b9d;
-    --sidebar-primary-foreground: #2a0a16;
-    --sidebar-accent: #26262b;
-    --sidebar-accent-foreground: #f5f5f6;
-    --sidebar-border: #2d2d33;
-    --sidebar-ring: #ff6b9d;
-    --brand-secondary: #4dd0e1;
-    --brand-tertiary: #00a6bf;
+    --destructive-foreground: #1a0000;
+    --border: #262629;
+    --input: #262629;
+    --ring: #d4d4d8;
+    --chart-1: #fafafa;
+    --chart-2: #d4d4d8;
+    --chart-3: #a1a1aa;
+    --chart-4: #71717a;
+    --chart-5: #3f3f46;
+    --sidebar: #141414;
+    --sidebar-foreground: #fafafa;
+    --sidebar-primary: #fafafa;
+    --sidebar-primary-foreground: #0a0a0a;
+    --sidebar-accent: #232326;
+    --sidebar-accent-foreground: #fafafa;
+    --sidebar-border: #262629;
+    --sidebar-ring: #d4d4d8;
+    --brand-secondary: #d4d4d8;
+    --brand-tertiary: #a1a1aa;
 }
 
 @layer base {
