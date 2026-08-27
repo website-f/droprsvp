@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
@@ -27,7 +28,7 @@ Route::post('webhooks/hitpay', [WebhookController::class, 'hitpay'])->name('webh
 Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Host panel — manage your events, ticket types and sessions.
     Route::prefix('host')->name('host.')->group(function () {

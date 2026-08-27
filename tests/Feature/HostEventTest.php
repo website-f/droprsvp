@@ -44,6 +44,21 @@ class HostEventTest extends TestCase
         $this->assertEquals(0, $event->ticketTypes()->where('name', 'Free RSVP')->value('price'));
     }
 
+    public function test_host_can_view_their_events_index(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        \App\Models\Event::create([
+            'user_id' => $user->id, 'title' => 'Mine', 'slug' => 'mine',
+            'status' => 'draft', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
+        ]);
+
+        $this->actingAs($user)->get(route('host.events.index'))
+            ->assertOk()
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->component('host/events/index')
+                ->has('events', 1));
+    }
+
     public function test_update_syncs_sessions_and_ticket_types(): void
     {
         $user = User::factory()->create();
