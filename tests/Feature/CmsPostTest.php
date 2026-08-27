@@ -64,8 +64,10 @@ class CmsPostTest extends TestCase
             ->assertInertia(fn (Assert $p) => $p
                 ->component('public/blog/show')
                 ->where('post.title', 'Deep Dive')
-                ->where('post.author', 'Writer')
-                ->where('schema.@type', 'BlogPosting'));
+                ->where('post.author', 'Writer'))
+            // Article structured data is server-rendered into the HTML head.
+            ->assertSee('"@type":"BlogPosting"', false)
+            ->assertSee('<meta property="og:type" content="article">', false);
     }
 
     public function test_draft_article_is_404(): void

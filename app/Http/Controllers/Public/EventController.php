@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -26,6 +27,23 @@ class EventController extends Controller
         $cover = $event->cover_image ? $this->absolute($event->cover_image) : null;
         $canonical = url("/e/{$event->slug}");
         $organizer = $event->user?->name ?? 'DropRSVP';
+        $seo = $event->seo;
+        $isPublic = $event->status === 'published' && in_array($event->visibility, ['public', 'unlisted'], true);
+
+        // --- server-rendered SEO (no JS needed) ---
+        $manager = app(SeoManager::class)
+            ->title($seo?->seo_title ?: $event->title)
+            ->description($seo?->meta_description ?: $description)
+            ->canonical($seo?->canonical_url ?: $canonical)
+            ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
+            ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer))
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => url('/')],
+                ['name' => 'Events', 'url' => url('/events')],
+                ['name' => $event->title, 'url' => $canonical],
+            ]);
+        // Draft / owner-preview pages must never be indexed.
+        $isPublic ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true)) : $manager->noindex();
 
         return inertia('public/event', [
             'event' => [
@@ -66,13 +84,8 @@ class EventController extends Controller
                 ]),
             ],
             'seo' => [
-                'title' => $event->seo?->seo_title ?: $event->title,
-                'description' => $description,
-                'canonical' => $event->seo?->canonical_url ?: $canonical,
-                'og_image' => $event->seo?->og_image ? $this->absolute($event->seo->og_image) : $cover,
-                'robots' => $event->seo?->robotsDirective() ?? 'index, follow',
+                'title' => $seo?->seo_title ?: $event->title,
             ],
-            'schema' => $this->eventSchema($event, $description, $cover, $canonical, $organizer),
         ]);
     }
 

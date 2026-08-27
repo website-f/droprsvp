@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Support\SeoManager;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -19,6 +20,23 @@ class HomeController extends Controller
             ->get()
             ->map(fn (Event $e) => $this->card($e))
             ->values();
+
+        $site = config('seo.site_name', 'DropRSVP');
+        app(SeoManager::class)
+            ->title("{$site} — Discover events near you", false)
+            ->description("Find events happening near you and get tickets, or host your own on {$site}. Concerts, conferences, food festivals, workshops and community meetups.")
+            ->canonical(url('/'))
+            ->type('website')
+            ->schema([
+                '@type' => 'ItemList',
+                'name' => 'Featured events',
+                'itemListElement' => $featured->map(fn ($e, $i) => [
+                    '@type' => 'ListItem',
+                    'position' => $i + 1,
+                    'url' => url('/e/'.$e['slug']),
+                    'name' => $e['title'],
+                ])->all(),
+            ]);
 
         return Inertia::render('welcome', [
             'featured' => $featured,

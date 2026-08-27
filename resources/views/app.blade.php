@@ -38,11 +38,14 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet">
 
+        {{-- Server-rendered SEO: title, meta, Open Graph, Twitter, canonical,
+             robots and JSON-LD — emitted by Laravel so crawlers get everything
+             before any JavaScript runs (no Node/SSR needed). --}}
+        {!! app(\App\Support\SeoManager::class)->render() !!}
+
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
-        <x-inertia::head>
-            <title>{{ config('app.name', 'DropRSVP') }}</title>
-        </x-inertia::head>
+        <x-inertia::head />
     </head>
     <body class="font-sans antialiased">
         <x-inertia::app />

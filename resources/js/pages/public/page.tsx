@@ -3,22 +3,13 @@ import { contentClass } from '@/components/rich-editor';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { PageSections, hasSections, type PageSection } from '@/components/cms/page-sections';
 
-interface Seo { title: string; description: string; canonical: string; og_image: string | null; robots: string }
+interface Seo { title: string }
 
-export default function PublicPage({ page, seo, schema }: { page: { title: string; body: string | null; layout: PageSection[] | null }; seo: Seo; schema: Record<string, unknown> }) {
+export default function PublicPage({ page, seo }: { page: { title: string; body: string | null; layout: PageSection[] | null }; seo: Seo }) {
     return (
         <>
-            <Head title={seo.title}>
-                <meta name="description" content={seo.description} head-key="description" />
-                <meta name="robots" content={seo.robots} head-key="robots" />
-                <link rel="canonical" href={seo.canonical} head-key="canonical" />
-                <meta property="og:title" content={seo.title} head-key="ogtitle" />
-                <meta property="og:description" content={seo.description} head-key="ogdesc" />
-                <meta property="og:type" content="website" head-key="ogtype" />
-                <meta property="og:url" content={seo.canonical} head-key="ogurl" />
-                {seo.og_image && <meta property="og:image" content={seo.og_image} head-key="ogimage" />}
-            </Head>
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+            {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
+            <Head title={seo.title} />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

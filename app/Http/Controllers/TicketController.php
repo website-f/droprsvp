@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Support\Qr;
+use App\Support\SeoManager;
 use Inertia\Inertia;
 
 class TicketController extends Controller
@@ -13,6 +14,9 @@ class TicketController extends Controller
     {
         $ticket->load(['event', 'ticketType', 'seatingTable']);
         $event = $ticket->event;
+
+        // The token is a credential — never index a ticket pass.
+        app(SeoManager::class)->title('Your ticket')->noindex();
 
         return Inertia::render('public/ticket', [
             'ticket' => [

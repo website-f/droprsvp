@@ -22,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PaymentGateway::class, fn () => config('services.hitpay.driver') === 'hitpay'
             ? new HitPayGateway()
             : new FakePaymentGateway());
+
+        // Request-scoped server-side SEO (rendered into the <head> by Laravel).
+        $this->app->scoped(\App\Support\SeoManager::class);
     }
 
     /**

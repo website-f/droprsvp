@@ -18,7 +18,7 @@ interface EventView {
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
 }
-interface Seo { title: string; description: string; canonical: string; og_image: string | null; robots: string }
+interface Seo { title: string }
 
 function priceLabel(t: TicketTypeView): string {
     if (t.kind === 'free') return 'Free';
@@ -26,7 +26,7 @@ function priceLabel(t: TicketTypeView): string {
     return `${t.currency} ${t.price.toFixed(2)}`;
 }
 
-export default function PublicEvent({ event, seo, schema }: { event: EventView; seo: Seo; schema: Record<string, unknown> }) {
+export default function PublicEvent({ event, seo }: { event: EventView; seo: Seo }) {
     const [qty, setQty] = useState<Record<number, number>>({});
     const [submitting, setSubmitting] = useState(false);
 
@@ -48,18 +48,9 @@ export default function PublicEvent({ event, seo, schema }: { event: EventView; 
 
     return (
         <>
-            <Head title={seo.title}>
-                <meta name="description" content={seo.description} head-key="description" />
-                <meta name="robots" content={seo.robots} head-key="robots" />
-                <link rel="canonical" href={seo.canonical} head-key="canonical" />
-                <meta property="og:title" content={seo.title} head-key="ogtitle" />
-                <meta property="og:description" content={seo.description} head-key="ogdesc" />
-                <meta property="og:type" content="event" head-key="ogtype" />
-                <meta property="og:url" content={seo.canonical} head-key="ogurl" />
-                {seo.og_image && <meta property="og:image" content={seo.og_image} head-key="ogimage" />}
-                <meta name="twitter:card" content="summary_large_image" head-key="twcard" />
-            </Head>
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+            {/* SEO (title/meta/OG/JSON-LD) is server-rendered by Laravel; keep only
+                the client-side <title> so the browser tab updates on SPA nav. */}
+            <Head title={seo.title} />
 
             <div className="min-h-screen bg-background text-foreground">
                 <PublicHeader />

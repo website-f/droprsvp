@@ -8,7 +8,7 @@ import { CalendarDays, MapPin, Search } from 'lucide-react';
 interface Card { slug: string; title: string; cover_image: string | null; category: string | null; when: string | null; venue: string | null; from_price: number | null; has_free: boolean }
 interface Paginated { data: Card[]; prev_page_url: string | null; next_page_url: string | null }
 interface Category { name: string; slug: string }
-interface Seo { title: string; description: string; canonical: string }
+interface Seo { title: string }
 
 function priceLabel(c: Card): string {
     if (c.from_price !== null) return `From RM ${c.from_price.toFixed(2)}`;
@@ -23,10 +23,8 @@ export default function Discover({ events, categories, filters, seo }: { events:
 
     return (
         <>
-            <Head title={seo.title}>
-                <meta name="description" content={seo.description} head-key="description" />
-                <link rel="canonical" href={seo.canonical} head-key="canonical" />
-            </Head>
+            {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
+            <Head title={seo.title} />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

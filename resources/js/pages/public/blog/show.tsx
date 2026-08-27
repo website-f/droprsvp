@@ -4,23 +4,13 @@ import { contentClass } from '@/components/rich-editor';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 
 interface PostView { title: string; body: string | null; cover_image: string | null; category: string | null; author: string | null; date: string | null }
-interface Seo { title: string; description: string; canonical: string; og_image: string | null; robots: string }
+interface Seo { title: string }
 
-export default function BlogShow({ post, seo, schema }: { post: PostView; seo: Seo; schema: Record<string, unknown> }) {
+export default function BlogShow({ post, seo }: { post: PostView; seo: Seo }) {
     return (
         <>
-            <Head title={seo.title}>
-                <meta name="description" content={seo.description} head-key="description" />
-                <meta name="robots" content={seo.robots} head-key="robots" />
-                <link rel="canonical" href={seo.canonical} head-key="canonical" />
-                <meta property="og:title" content={seo.title} head-key="ogtitle" />
-                <meta property="og:description" content={seo.description} head-key="ogdesc" />
-                <meta property="og:type" content="article" head-key="ogtype" />
-                <meta property="og:url" content={seo.canonical} head-key="ogurl" />
-                {seo.og_image && <meta property="og:image" content={seo.og_image} head-key="ogimage" />}
-                <meta name="twitter:card" content="summary_large_image" head-key="twcard" />
-            </Head>
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+            {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
+            <Head title={seo.title} />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

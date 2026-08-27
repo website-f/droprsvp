@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -30,15 +31,44 @@ class DiscoverController extends Controller
             ->withQueryString()
             ->through(fn (Event $e) => $this->card($e));
 
+        $site = config('seo.site_name', 'DropRSVP');
+        $title = $q !== '' ? "Events matching “{$q}”" : 'Browse events';
+        // A filtered/search result view shouldn't compete with the canonical listing.
+        $canonical = url('/events');
+
+        $manager = app(SeoManager::class)
+            ->title($title)
+            ->description("Discover events happening near you and get tickets on {$site}.")
+            ->canonical($canonical)
+            ->type('website')
+            ->schema([
+                '@type' => 'CollectionPage',
+                'name' => "{$title} · {$site}",
+                'url' => $canonical,
+                'isPartOf' => ['@id' => url('/#website')],
+                'mainEntity' => [
+                    '@type' => 'ItemList',
+                    'itemListElement' => $events->getCollection()->map(fn ($e, $i) => [
+                        '@type' => 'ListItem',
+                        'position' => $i + 1,
+                        'url' => url('/e/'.$e['slug']),
+                        'name' => $e['title'],
+                    ])->values()->all(),
+                ],
+            ])
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => url('/')],
+                ['name' => 'Events', 'url' => url('/events')],
+            ]);
+        if ($q !== '' || $category !== '') {
+            $manager->noindex(); // keep search/filter permutations out of the index
+        }
+
         return Inertia::render('public/events/index', [
             'events' => $events,
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug']),
             'filters' => ['q' => $q, 'category' => $category],
-            'seo' => [
-                'title' => $q !== '' ? "Events matching “{$q}” · DropRSVP" : 'Browse events · DropRSVP',
-                'description' => 'Discover events happening near you and get tickets on DropRSVP.',
-                'canonical' => url('/events'),
-            ],
+            'seo' => ['title' => $title],
         ]);
     }
 

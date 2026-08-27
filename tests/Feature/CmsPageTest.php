@@ -49,11 +49,10 @@ class CmsPageTest extends TestCase
 
         $this->get('/about')
             ->assertOk()
-            ->assertInertia(fn (Assert $p) => $p
-                ->component('public/page')
-                ->where('page.title', 'About')
-                ->where('seo.description', 'Learn about us')
-                ->where('schema.@type', 'WebPage'));
+            ->assertInertia(fn (Assert $p) => $p->component('public/page')->where('page.title', 'About'))
+            // SEO is now server-rendered into the HTML head (no JS needed).
+            ->assertSee('<meta name="description" content="Learn about us">', false)
+            ->assertSee('"@type":"WebPage"', false);
     }
 
     public function test_draft_page_is_404_for_guests(): void

@@ -5,17 +5,13 @@ import { PublicFooter, PublicHeader } from '@/components/public-header';
 
 interface PostCard { title: string; slug: string; excerpt: string | null; cover_image: string | null; category: string | null; date: string | null }
 interface Paginated { data: PostCard[]; prev_page_url: string | null; next_page_url: string | null }
-interface Seo { title: string; description: string; canonical: string }
+interface Seo { title: string }
 
 export default function BlogIndex({ posts, seo }: { posts: Paginated; seo: Seo }) {
     return (
         <>
-            <Head title={seo.title}>
-                <meta name="description" content={seo.description} head-key="description" />
-                <link rel="canonical" href={seo.canonical} head-key="canonical" />
-                <meta property="og:title" content={seo.title} head-key="ogtitle" />
-                <meta property="og:description" content={seo.description} head-key="ogdesc" />
-            </Head>
+            {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
+            <Head title={seo.title} />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

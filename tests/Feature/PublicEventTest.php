@@ -38,10 +38,11 @@ class PublicEventTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('public/event')
                 ->where('event.title', 'Public Show')
-                ->where('schema.@type', 'Event')
                 ->has('event.ticket_types', 1)
-                ->has('seo.description')
-            );
+            )
+            // Event JSON-LD is server-rendered into the HTML head (no JS needed).
+            ->assertSee('"@type":"Event"', false)
+            ->assertSee('<link rel="canonical"', false);
     }
 
     public function test_draft_event_is_hidden_from_guests(): void

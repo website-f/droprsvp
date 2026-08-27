@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\CmsPage;
+use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -17,8 +18,27 @@ class PageController extends Controller
         $page = CmsPage::published()->with('seo')->where('slug', $slug)->first();
         abort_if(! $page, 404);
 
-        $description = $page->seo?->meta_description ?: Str::limit(trim(strip_tags((string) $page->body)), 155);
-        $canonical = $page->seo?->canonical_url ?: url('/'.$page->slug);
+        $seo = $page->seo;
+        $description = $seo?->meta_description ?: Str::limit(trim(strip_tags((string) $page->body)), 155);
+        $canonical = $seo?->canonical_url ?: url('/'.$page->slug);
+
+        app(SeoManager::class)
+            ->title($seo?->seo_title ?: $page->title)
+            ->description($description)
+            ->canonical($canonical)
+            ->image($seo?->og_image)
+            ->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true))
+            ->schema([
+                '@type' => 'WebPage',
+                'name' => $seo?->seo_title ?: $page->title,
+                'description' => $description,
+                'url' => $canonical,
+                'isPartOf' => ['@id' => url('/#website')],
+            ])
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => url('/')],
+                ['name' => $seo?->breadcrumb_title ?: $page->title, 'url' => $canonical],
+            ]);
 
         return Inertia::render('public/page', [
             'page' => [
@@ -26,20 +46,7 @@ class PageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
             ],
-            'seo' => [
-                'title' => $page->seo?->seo_title ?: $page->title,
-                'description' => $description,
-                'canonical' => $canonical,
-                'og_image' => $page->seo?->og_image,
-                'robots' => $page->seo?->robotsDirective() ?? 'index, follow',
-            ],
-            'schema' => array_filter([
-                '@context' => 'https://schema.org',
-                '@type' => 'WebPage',
-                'name' => $page->seo?->seo_title ?: $page->title,
-                'description' => $description,
-                'url' => $canonical,
-            ]),
+            'seo' => ['title' => $seo?->seo_title ?: $page->title],
         ]);
     }
 }

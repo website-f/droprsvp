@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\CmsPost;
+use App\Support\SeoManager;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -25,13 +26,26 @@ class BlogController extends Controller
                 'date' => optional($p->published_at)->format('j M Y'),
             ]);
 
+        $site = config('seo.site_name', 'DropRSVP');
+        app(SeoManager::class)
+            ->title('Blog')
+            ->description("News, guides and stories from {$site}.")
+            ->canonical(url('/blog'))
+            ->type('website')
+            ->schema([
+                '@type' => ['CollectionPage', 'Blog'],
+                'name' => "Blog · {$site}",
+                'url' => url('/blog'),
+                'isPartOf' => ['@id' => url('/#website')],
+            ])
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => url('/')],
+                ['name' => 'Blog', 'url' => url('/blog')],
+            ]);
+
         return Inertia::render('public/blog/index', [
             'posts' => $posts,
-            'seo' => [
-                'title' => 'Blog · DropRSVP',
-                'description' => 'News, guides and stories from DropRSVP.',
-                'canonical' => url('/blog'),
-            ],
+            'seo' => ['title' => 'Blog'],
         ]);
     }
 
@@ -41,36 +55,66 @@ class BlogController extends Controller
         abort_unless($post->status === 'published', 404);
         $post->load(['seo', 'category', 'author']);
 
-        $description = $post->seo?->meta_description ?: ($post->excerpt ?: Str::limit(trim(strip_tags((string) $post->body)), 155));
-        $canonical = $post->seo?->canonical_url ?: url('/blog/'.$post->slug);
-        $cover = $post->cover_image;
+        $seo = $post->seo;
+        $description = $seo?->meta_description ?: ($post->excerpt ?: Str::limit(trim(strip_tags((string) $post->body)), 155));
+        $canonical = $seo?->canonical_url ?: url('/blog/'.$post->slug);
+        $cover = $post->cover_image ? $this->absolute($post->cover_image) : null;
+        $wordCount = str_word_count(strip_tags((string) $post->body));
+
+        app(SeoManager::class)
+            ->title($seo?->seo_title ?: $post->title)
+            ->description($description)
+            ->canonical($canonical)
+            ->image($seo?->og_image ?: $cover)
+            ->article([
+                'published_time' => optional($post->published_at)->toIso8601String(),
+                'modified_time' => optional($post->updated_at)->toIso8601String(),
+                'section' => $post->category?->name,
+                'author' => $post->author?->name,
+            ])
+            ->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true))
+            ->schema($this->postSchema($post, $description, $cover, $canonical, $wordCount))
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => url('/')],
+                ['name' => 'Blog', 'url' => url('/blog')],
+                ['name' => $post->title, 'url' => $canonical],
+            ]);
 
         return Inertia::render('public/blog/show', [
             'post' => [
                 'title' => $post->title,
                 'body' => $post->body,
-                'cover_image' => $cover,
+                'cover_image' => $post->cover_image,
                 'category' => $post->category?->name,
                 'author' => $post->author?->name,
                 'date' => optional($post->published_at)->format('j M Y'),
             ],
-            'seo' => [
-                'title' => $post->seo?->seo_title ?: $post->title,
-                'description' => $description,
-                'canonical' => $canonical,
-                'og_image' => $post->seo?->og_image ?: $cover,
-                'robots' => $post->seo?->robotsDirective() ?? 'index, follow',
-            ],
-            'schema' => array_filter([
-                '@context' => 'https://schema.org',
-                '@type' => 'BlogPosting',
-                'headline' => $post->title,
-                'description' => $description,
-                'url' => $canonical,
-                'image' => $cover ? [$cover] : null,
-                'datePublished' => optional($post->published_at)->toIso8601String(),
-                'author' => $post->author ? ['@type' => 'Person', 'name' => $post->author->name] : null,
-            ], fn ($v) => $v !== null),
+            'seo' => ['title' => $seo?->seo_title ?: $post->title],
         ]);
+    }
+
+    private function postSchema(CmsPost $post, string $description, ?string $cover, string $canonical, int $wordCount): array
+    {
+        return [
+            '@type' => 'BlogPosting',
+            'headline' => $post->title,
+            'description' => $description,
+            'url' => $canonical,
+            'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonical],
+            'image' => $cover ? [$cover] : null,
+            'datePublished' => optional($post->published_at)->toIso8601String(),
+            'dateModified' => optional($post->updated_at)->toIso8601String(),
+            'author' => $post->author ? ['@type' => 'Person', 'name' => $post->author->name] : null,
+            'publisher' => ['@id' => url('/#organization')],
+            'articleSection' => $post->category?->name,
+            'wordCount' => $wordCount ?: null,
+            'timeRequired' => $wordCount ? 'PT'.max(1, (int) ceil($wordCount / 200)).'M' : null, // ~200 wpm
+            'inLanguage' => str_replace('_', '-', (string) config('seo.locale', 'en_US')),
+        ];
+    }
+
+    private function absolute(string $path): string
+    {
+        return Str::startsWith($path, ['http://', 'https://']) ? $path : url($path);
     }
 }
