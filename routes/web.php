@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
+use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
@@ -74,6 +76,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');
         Route::post('events/{event}/seating/tables', [SeatingController::class, 'saveTables'])->name('events.seating.tables');
         Route::post('events/{event}/seating/assign', [SeatingController::class, 'assign'])->name('events.seating.assign');
+
+        // Payouts (the organizer's own balance + requests).
+        Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
+        Route::post('payouts', [PayoutController::class, 'store'])->name('payouts.request');
     });
 
     // Headless CMS — superadmin only.
@@ -93,6 +99,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('posts/{post:id}', [CmsPostController::class, 'destroy'])->name('posts.destroy');
 
         Route::post('media', [MediaController::class, 'store'])->name('media.store');
+    });
+
+    // Superadmin — payout processing across all organizers.
+    Route::middleware('role:superadmin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
+        Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');
     });
 });
 

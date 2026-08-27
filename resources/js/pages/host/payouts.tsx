@@ -1,0 +1,71 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+
+interface Balance { gross: number; fee_percent: number; fee: number; net: number; withdrawn: number; available: number }
+interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
+
+function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+    return (
+        <div className={`flex justify-between py-1.5 ${strong ? 'text-base font-semibold' : 'text-sm text-muted-foreground'}`}>
+            <span>{label}</span><span className={strong ? '' : 'text-foreground'}>{value}</span>
+        </div>
+    );
+}
+
+export default function Payouts({ balance, payouts }: { balance: Balance; payouts: PayoutRow[] }) {
+    const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
+    const errors = usePage().props.errors as Record<string, string>;
+    const rm = (n: number) => `RM ${n.toFixed(2)}`;
+
+    return (
+        <>
+            <Head title="Payouts" />
+            <div className="mx-auto w-full max-w-2xl flex-1 p-4">
+                <h1 className="mb-6 text-2xl font-bold tracking-tight">Payouts</h1>
+
+                {flash?.success && <div className="mb-4 rounded-lg border border-foreground bg-foreground p-3 text-sm text-background">{flash.success}</div>}
+                {errors?.payout && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{errors.payout}</div>}
+
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div className="text-xs uppercase tracking-widest text-muted-foreground">Available to withdraw</div>
+                    <div className="mt-1 text-4xl font-bold tabular-nums">{rm(balance.available)}</div>
+
+                    <div className="mt-5 border-t border-border pt-3">
+                        <Line label="Gross ticket revenue" value={rm(balance.gross)} />
+                        <Line label={`Platform fee (${balance.fee_percent}%)`} value={`− ${rm(balance.fee)}`} />
+                        <Line label="Net earnings" value={rm(balance.net)} strong />
+                        <Line label="Already paid out / requested" value={`− ${rm(balance.withdrawn)}`} />
+                    </div>
+
+                    <Button className="mt-5 w-full" size="lg" disabled={balance.available <= 0} onClick={() => router.post('/host/payouts', {}, { preserveScroll: true })}>
+                        Request payout of {rm(balance.available)}
+                    </Button>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">History</h2>
+                    {payouts.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No payout requests yet.</p>
+                    ) : (
+                        <ul className="grid gap-1.5 text-sm">
+                            {payouts.map((p) => (
+                                <li key={p.reference} className="flex items-center justify-between border-b border-border/60 py-2 last:border-0">
+                                    <div>
+                                        <div className="font-medium">{rm(p.amount)}</div>
+                                        <div className="text-xs text-muted-foreground">{p.reference} · requested {p.requested_at}{p.paid_at ? ` · paid ${p.paid_at}` : ''}</div>
+                                    </div>
+                                    <Badge variant={p.status === 'paid' ? 'default' : 'secondary'} className="capitalize">{p.status}</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+Payouts.layout = {
+    breadcrumbs: [{ title: 'Payouts', href: '/host/payouts' }],
+};

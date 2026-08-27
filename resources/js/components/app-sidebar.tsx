@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, FileText, FolderGit2, LayoutGrid, Newspaper } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, LayoutGrid, Newspaper, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -27,6 +27,11 @@ const mainNavItems: NavItem[] = [
         href: '/host/events',
         icon: CalendarDays,
     },
+    {
+        title: 'Payouts',
+        href: '/host/payouts',
+        icon: Wallet,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
@@ -47,6 +52,7 @@ export function AppSidebar() {
     // The CMS is superadmin-only, so only show it to them.
     const navItems: NavItem[] = auth?.is_superadmin
         ? [...mainNavItems,
+            { title: 'Payout requests', href: '/admin/payouts', icon: Banknote },
             { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
             { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper }]
         : mainNavItems;
