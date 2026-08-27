@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
+use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
 use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
@@ -101,8 +104,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('media', [MediaController::class, 'store'])->name('media.store');
     });
 
-    // Superadmin — payout processing across all organizers.
+    // Superadmin — cross-org platform administration.
     Route::middleware('role:superadmin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
+        Route::post('settings/fee', [AdminOverviewController::class, 'updateFee'])->name('settings.fee');
+        Route::get('all-events', [AdminEventsController::class, 'index'])->name('events.index');
+        Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
+
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');
     });

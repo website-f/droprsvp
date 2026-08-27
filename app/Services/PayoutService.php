@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Payout;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +21,7 @@ class PayoutService
         $eventIds = $organizer->events()->pluck('id');
 
         $gross = (float) Order::whereIn('event_id', $eventIds)->where('status', 'paid')->sum('total');
-        $feePercent = (float) config('droprsvp.platform_fee_percent');
+        $feePercent = (float) Setting::get('platform_fee_percent', config('droprsvp.platform_fee_percent'));
         $fee = round($gross * $feePercent / 100, 2);
         $net = round($gross - $fee, 2);
 
