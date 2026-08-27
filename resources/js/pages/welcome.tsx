@@ -7,7 +7,7 @@ import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
 import { HeroArt } from '@/components/landing/hero-art';
 import { CategoryGrid } from '@/components/landing/category-grid';
-import { ArrowRight, CalendarDays, QrCode, Search, Sparkles, Ticket, Users } from 'lucide-react';
+import { ArrowRight, CalendarDays, Search, Sparkles } from 'lucide-react';
 
 interface FeaturedEvent {
     slug: string;
@@ -67,17 +67,17 @@ export default function Welcome() {
                             onSubmit={(e) => { e.preventDefault(); router.get('/events', q ? { q } : {}); }}
                             className="mx-auto mt-9 flex w-full max-w-2xl flex-col gap-3 sm:flex-row"
                         >
-                            <div className="flex h-14 flex-1 items-center gap-3 rounded-2xl border border-border bg-card px-4 shadow-sm transition-colors focus-within:border-foreground/50 focus-within:ring-4 focus-within:ring-foreground/5 sm:rounded-full">
+                            <div className="flex h-16 flex-1 items-center gap-3 rounded-2xl border border-border bg-card px-5 shadow-sm transition-colors focus-within:border-foreground/50 focus-within:ring-4 focus-within:ring-foreground/5 sm:rounded-full">
                                 <Search className="size-5 shrink-0 text-muted-foreground" />
                                 <input
                                     value={q}
                                     onChange={(e) => setQ(e.target.value)}
-                                    className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
+                                    className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
                                     placeholder="Search events, e.g. “live music”"
                                     aria-label="Search events"
                                 />
                             </div>
-                            <Button type="submit" size="lg" className="h-14 shrink-0 text-base sm:px-10">Search</Button>
+                            <Button type="submit" size="lg" className="h-16 shrink-0 text-base sm:px-10">Search</Button>
                         </form>
 
                         <p className="mt-5 text-xs text-muted-foreground">
@@ -144,28 +144,68 @@ export default function Welcome() {
                     </section>
                 )}
 
+                {/* ------------------------------------------- Gatherings band */}
+                <section className="relative overflow-hidden">
+                    <div aria-hidden className="pointer-events-none absolute -left-24 top-0 size-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
+                    <div aria-hidden className="pointer-events-none absolute -right-24 bottom-0 size-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
+                    <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 sm:py-20 lg:grid-cols-2">
+                        <Reveal className="order-2 lg:order-1">
+                            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: '#6c63ff1f', color: '#6c63ff' }}>
+                                <Sparkles className="size-3.5" /> For every kind of gathering
+                            </span>
+                            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+                                From intimate meetups to sold-out nights.
+                            </h2>
+                            <p className="mt-3 max-w-md text-sm text-muted-foreground sm:text-base">
+                                Concerts, conferences, food festivals, workshops, community runs — if people show up, DropRSVP handles the rest.
+                            </p>
+                            <div className="mt-6 flex flex-wrap gap-2">
+                                {[
+                                    { label: 'Concerts', c: '#6c63ff' }, { label: 'Conferences', c: '#3b82f6' }, { label: 'Food fests', c: '#f5a524' },
+                                    { label: 'Workshops', c: '#a855f7' }, { label: 'Community', c: '#ff6584' }, { label: 'Sports', c: '#22c55e' },
+                                ].map((t) => (
+                                    <span key={t.label} className="rounded-full border px-3 py-1.5 text-sm font-medium" style={{ borderColor: `${t.c}55`, color: t.c, backgroundColor: `${t.c}0f` }}>
+                                        {t.label}
+                                    </span>
+                                ))}
+                            </div>
+                            <Button asChild className="mt-8"><Link href="/events">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
+                        </Reveal>
+                        <Reveal delay={120} className="order-1 lg:order-2">
+                            <div className="relative mx-auto max-w-lg">
+                                <div aria-hidden className="absolute inset-0 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-[#6c63ff1a] via-transparent to-[#ff65841a]" />
+                                <img src="/vector/undraw_having-fun_kkeu.svg" alt="" loading="lazy" className="w-full drsvp-float" />
+                            </div>
+                        </Reveal>
+                    </div>
+                </section>
+
                 {/* ----------------------------------------------- How it works */}
-                <section className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
-                    <Reveal className="mb-10 text-center">
-                        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Everything you need to run the night</h2>
-                        <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">From the first ticket sold to the last guest through the door.</p>
-                    </Reveal>
-                    <div className="grid gap-6 sm:grid-cols-3">
-                        {[
-                            { icon: Users, title: 'Discover & connect', body: 'A community-first marketplace — browse by interest and location and find events worth your time.' },
-                            { icon: Ticket, title: 'Sell tickets', body: 'Multi-tier ticketing, discount codes, seat & table management and secure online payments.' },
-                            { icon: QrCode, title: 'Check them in', body: 'QR entry passes and a fast scanner so your team gets everyone through the door.' },
-                        ].map(({ icon: Icon, title, body }, i) => (
-                            <Reveal key={title} delay={i * 90}>
-                                <div className="h-full rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                                    <div className="flex size-12 items-center justify-center rounded-2xl bg-foreground text-background">
-                                        <Icon className="size-5" />
+                <section className="border-t border-border bg-muted/30">
+                    <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
+                        <Reveal className="mb-10 text-center">
+                            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Everything you need to run the night</h2>
+                            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">From the first ticket sold to the last guest through the door.</p>
+                        </Reveal>
+                        <div className="grid gap-6 sm:grid-cols-3">
+                            {[
+                                { art: 'undraw_conference-call_jgi5', tint: '#6c63ff', title: 'Discover & connect', body: 'A community-first marketplace — browse by interest and location and find events worth your time.' },
+                                { art: 'undraw_festivities_q090', tint: '#f5a524', title: 'Sell tickets', body: 'Multi-tier ticketing, discount codes, seat & table management and secure online payments.' },
+                                { art: 'undraw_public-speaking_m17t', tint: '#ff6584', title: 'Check them in', body: 'QR entry passes and a fast scanner so your team gets everyone through the door.' },
+                            ].map((s, i) => (
+                                <Reveal key={s.title} delay={i * 90}>
+                                    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                                        <div className="flex aspect-[16/10] items-center justify-center p-6" style={{ backgroundColor: `${s.tint}12` }}>
+                                            <img src={`/vector/${s.art}.svg`} alt="" loading="lazy" className="max-h-full w-auto" />
+                                        </div>
+                                        <div className="p-6">
+                                            <h3 className="text-lg font-semibold">{s.title}</h3>
+                                            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                                        </div>
                                     </div>
-                                    <h3 className="mt-5 text-lg font-semibold">{title}</h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-                                </div>
-                            </Reveal>
-                        ))}
+                                </Reveal>
+                            ))}
+                        </div>
                     </div>
                 </section>
 
@@ -173,8 +213,8 @@ export default function Welcome() {
                 <section className="px-6 pb-20">
                     <Reveal>
                         <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-foreground px-8 py-14 text-center text-background sm:px-12 sm:py-16">
-                            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-background/5 blur-2xl" />
-                            <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-10 size-72 rounded-full bg-background/5 blur-2xl" />
+                            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full opacity-50 blur-2xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
+                            <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-80 rounded-full opacity-40 blur-2xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
                             <h2 className="relative text-2xl font-bold tracking-tight sm:text-4xl">Hosting something?</h2>
                             <p className="relative mx-auto mt-3 max-w-xl text-sm text-background/70 sm:text-base">
                                 Create your event in minutes, share one link, and watch the RSVPs roll in. No setup fees.

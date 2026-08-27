@@ -34,8 +34,11 @@ export function HeroArt() {
                 </g>
             </svg>
 
-            {/* Soft glow behind the headline */}
-            <div className="absolute left-1/2 top-[12%] size-[36rem] -translate-x-1/2 rounded-full bg-foreground/[0.04] blur-3xl" />
+            {/* Colourful ambient glows — bring the page to life without hurting legibility */}
+            <div className="absolute left-1/2 top-[12%] size-[36rem] -translate-x-1/2 rounded-full bg-foreground/[0.03] blur-3xl" />
+            <div className="absolute -left-24 top-[8%] size-72 rounded-full opacity-30 blur-3xl sm:opacity-40" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
+            <div className="absolute -right-20 top-[2%] size-72 rounded-full opacity-25 blur-3xl sm:opacity-35" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
+            <div className="absolute bottom-0 left-1/3 size-64 rounded-full opacity-20 blur-3xl sm:opacity-30" style={{ background: 'radial-gradient(circle,#2ec4b6,transparent 70%)' }} />
 
             {/* Floating chips — desktop only, kept off mobile to avoid clutter */}
             <div className="hidden lg:block">
