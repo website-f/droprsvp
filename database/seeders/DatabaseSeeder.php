@@ -25,5 +25,8 @@ class DatabaseSeeder extends Seeder
                 ['name' => $name, 'sort_order' => $i],
             );
         }
+
+        // Showcase events with real cover photos (so the marketplace isn't empty).
+        $this->call(SampleEventsSeeder::class);
     }
 }

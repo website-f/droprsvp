@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\DiscoverController;
@@ -25,7 +26,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Public event discovery / marketplace (SEO).
 Route::get('events', [DiscoverController::class, 'index'])->name('events.browse');

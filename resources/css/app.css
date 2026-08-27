@@ -160,3 +160,54 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* ============================================================
+   Unlayered rules below intentionally sit OUTSIDE @layer so they
+   win over Tailwind utility classes where it matters (the iOS zoom
+   guard must beat text-sm on inputs).
+   ============================================================ */
+
+/* iOS Safari zooms the viewport when a focused form control has a
+   font-size < 16px. Force 16px on phones so focus never zooms. */
+@media (max-width: 640px) {
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
+
+/* Scroll-reveal: elements tagged [data-reveal] fade/slide in once the
+   <Reveal> component marks them visible. Motion is opt-out for users
+   who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+    [data-reveal] {
+        opacity: 0;
+        transform: translateY(1.25rem);
+        transition:
+            opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+            transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        transition-delay: var(--reveal-delay, 0ms);
+        will-change: opacity, transform;
+    }
+    [data-reveal].is-visible {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Ambient float for the decorative hero artwork. */
+@keyframes drsvp-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+}
+@keyframes drsvp-float-slow {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-22px) rotate(2.5deg); }
+}
+.drsvp-float { animation: drsvp-float 6s ease-in-out infinite; }
+.drsvp-float-slow { animation: drsvp-float-slow 9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+    .drsvp-float,
+    .drsvp-float-slow { animation: none; }
+}
