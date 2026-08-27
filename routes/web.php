@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
+use App\Http\Controllers\Public\DiscoverController;
 use App\Http\Controllers\Public\PageController as PublicPageController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\Host\CheckInController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
+
+// Public event discovery / marketplace (SEO).
+Route::get('events', [DiscoverController::class, 'index'])->name('events.browse');
 
 // Public, server-rendered event page (SEO).
 Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');

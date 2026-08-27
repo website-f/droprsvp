@@ -1,7 +1,10 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { dashboard, login, register } from '@/routes';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, MapPin, QrCode, Search, Ticket, Users } from 'lucide-react';
+import { CalendarDays, QrCode, Search, Ticket, Users } from 'lucide-react';
+
+const catSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 /**
  * DropRSVP marketing landing — a placeholder P0 hero that exercises the DESIGN.md
@@ -11,6 +14,7 @@ import { CalendarDays, MapPin, QrCode, Search, Ticket, Users } from 'lucide-reac
  */
 export default function Welcome() {
     const { auth } = usePage().props;
+    const [q, setQ] = useState('');
 
     const categories = ['Music', 'Business', 'Food & Drink', 'Tech', 'Community', 'Sports', 'Arts', 'Wellness'];
 
@@ -46,40 +50,39 @@ export default function Welcome() {
                         check guests in, all from one place.
                     </p>
 
-                    {/* Search (visual placeholder for the discovery bar) */}
-                    <div className="mx-auto mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row">
+                    {/* Search → the discovery page */}
+                    <form onSubmit={(e) => { e.preventDefault(); router.get('/events', q ? { q } : {}); }} className="mx-auto mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row">
                         <label className="flex h-12 flex-1 items-center gap-2 rounded-full border border-border bg-card px-4 shadow-sm">
                             <Search className="size-4 shrink-0 text-muted-foreground" />
                             <input
+                                value={q}
+                                onChange={(e) => setQ(e.target.value)}
                                 className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                                 placeholder="Search events, e.g. 'live music'"
                             />
                         </label>
-                        <label className="flex h-12 items-center gap-2 rounded-full border border-border bg-card px-4 shadow-sm sm:w-56">
-                            <MapPin className="size-4 shrink-0 text-muted-foreground" />
-                            <input
-                                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                                placeholder="Kuala Lumpur"
-                            />
-                        </label>
-                        <Button size="lg" className="h-12">Search</Button>
-                    </div>
+                        <Button type="submit" size="lg" className="h-12">Search</Button>
+                    </form>
 
-                    {/* Category chips */}
+                    {/* Category chips → filtered discovery */}
                     <div className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-2">
                         {categories.map((c) => (
-                            <span
+                            <Link
                                 key={c}
+                                href={`/events?category=${catSlug(c)}`}
                                 className="rounded-full border border-border bg-card px-4 py-1.5 text-sm text-foreground/80 transition-colors hover:border-primary hover:text-primary"
                             >
                                 {c}
-                            </span>
+                            </Link>
                         ))}
                     </div>
 
-                    <div className="mt-12">
+                    <div className="mt-12 flex justify-center gap-3">
                         <Button asChild size="lg" className="h-12 px-8">
                             <Link href={auth?.user ? dashboard() : register()}>Create an event</Link>
+                        </Button>
+                        <Button asChild size="lg" variant="outline" className="h-12 px-8">
+                            <Link href="/events">Browse events</Link>
                         </Button>
                     </div>
                 </section>
