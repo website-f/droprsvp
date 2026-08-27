@@ -24,6 +24,7 @@ class PageController extends Controller
             'page' => [
                 'title' => $page->title,
                 'body' => $page->body,
+                'layout' => $page->layout,
             ],
             'seo' => [
                 'title' => $page->seo?->seo_title ?: $page->title,

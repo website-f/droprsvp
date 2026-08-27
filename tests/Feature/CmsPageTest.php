@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\CmsPage;
+use App\Models\MenuItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -69,5 +71,63 @@ class CmsPageTest extends TestCase
     {
         $user = User::factory()->create();
         $this->actingAs($user)->get(route('admin.cms.pages.index'))->assertForbidden();
+    }
+
+    public function test_page_builder_layout_is_saved_and_rendered(): void
+    {
+        $layout = [[
+            'id' => 's1',
+            'title' => 'Welcome',
+            'columns' => [
+                ['blocks' => [['id' => 'b1', 'type' => 'richtext', 'html' => '<p>Hi there</p>']]],
+                ['blocks' => [['id' => 'b2', 'type' => 'image', 'url' => 'https://example.com/x.jpg', 'alt' => 'pic']]],
+            ],
+        ]];
+
+        $this->actingAs($this->superadmin())->post(route('admin.cms.pages.store'), [
+            'title' => 'Home Layout',
+            'body' => '<h2>Welcome</h2><p>Hi there</p>',
+            'layout' => $layout,
+            'publish' => true,
+            'seo' => ['robots_index' => true, 'robots_follow' => true],
+        ])->assertRedirect(route('admin.cms.pages.index'));
+
+        $page = CmsPage::first();
+        $this->assertIsArray($page->layout);
+        $this->assertCount(1, $page->layout);
+        $this->assertSame('Welcome', $page->layout[0]['title']);
+        $this->assertCount(2, $page->layout[0]['columns']);
+
+        $this->get('/'.$page->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('public/page')->has('page.layout', 1));
+    }
+
+    public function test_publishing_with_add_to_menu_creates_a_header_link(): void
+    {
+        Cache::flush();
+
+        $this->actingAs($this->superadmin())->post(route('admin.cms.pages.store'), [
+            'title' => 'Contact',
+            'body' => '<p>Reach us</p>',
+            'publish' => true,
+            'add_to_menu' => true,
+            'seo' => ['robots_index' => true, 'robots_follow' => true],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('menu_items', ['location' => 'header', 'url' => '/contact', 'label' => 'Contact']);
+    }
+
+    public function test_add_to_menu_without_publish_does_not_create_a_link(): void
+    {
+        $this->actingAs($this->superadmin())->post(route('admin.cms.pages.store'), [
+            'title' => 'Later',
+            'body' => '<p>x</p>',
+            'publish' => false,
+            'add_to_menu' => true,
+            'seo' => ['robots_index' => true, 'robots_follow' => true],
+        ])->assertRedirect();
+
+        $this->assertDatabaseMissing('menu_items', ['url' => '/later']);
     }
 }

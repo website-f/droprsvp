@@ -1,10 +1,11 @@
 import { Head } from '@inertiajs/react';
 import { contentClass } from '@/components/rich-editor';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { PageSections, hasSections, type PageSection } from '@/components/cms/page-sections';
 
 interface Seo { title: string; description: string; canonical: string; og_image: string | null; robots: string }
 
-export default function PublicPage({ page, seo, schema }: { page: { title: string; body: string | null }; seo: Seo; schema: Record<string, unknown> }) {
+export default function PublicPage({ page, seo, schema }: { page: { title: string; body: string | null; layout: PageSection[] | null }; seo: Seo; schema: Record<string, unknown> }) {
     return (
         <>
             <Head title={seo.title}>
@@ -24,7 +25,9 @@ export default function PublicPage({ page, seo, schema }: { page: { title: strin
 
                 <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
                     <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
-                    <article className={`mt-6 ${contentClass}`} dangerouslySetInnerHTML={{ __html: page.body ?? '' }} />
+                    {hasSections(page.layout)
+                        ? <div className="mt-8"><PageSections sections={page.layout!} /></div>
+                        : <article className={`mt-6 ${contentClass}`} dangerouslySetInnerHTML={{ __html: page.body ?? '' }} />}
                 </main>
 
                 <PublicFooter />

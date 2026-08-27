@@ -44,6 +44,8 @@ function Sep() {
 }
 
 function Toolbar({ editor }: { editor: Editor }) {
+    'use no memo'; // active-state highlights read the live (mutating) editor
+
     const imgRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
@@ -95,6 +97,11 @@ function Toolbar({ editor }: { editor: Editor }) {
 }
 
 export function RichEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
+    // TipTap's editor instance mutates in place, which the React Compiler's
+    // memoisation breaks — the toolbar renders but the editable surface goes
+    // dead. This directive opts the component out of the compiler.
+    'use no memo';
+
     const editor = useEditor({
         // immediatelyRender:false is required for SSR to avoid a hydration mismatch.
         immediatelyRender: false,

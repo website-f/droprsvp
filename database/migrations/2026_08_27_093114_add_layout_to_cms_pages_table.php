@@ -1,0 +1,24 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('cms_pages', function (Blueprint $table) {
+            // Structured section/column layout from the page builder. Null = the
+            // page still uses the legacy `body` HTML field.
+            $table->json('layout')->nullable()->after('body');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('cms_pages', function (Blueprint $table) {
+            $table->dropColumn('layout');
+        });
+    }
+};
