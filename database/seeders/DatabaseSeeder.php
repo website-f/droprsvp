@@ -17,5 +17,13 @@ class DatabaseSeeder extends Seeder
     {
         // Roles + first superadmin (the platform owner).
         $this->call(RolesSeeder::class);
+
+        // Starter event categories for the marketplace + event builder.
+        foreach (['Music', 'Business', 'Food & Drink', 'Tech', 'Community', 'Sports', 'Arts', 'Wellness'] as $i => $name) {
+            \App\Models\EventCategory::firstOrCreate(
+                ['slug' => \Illuminate\Support\Str::slug($name)],
+                ['name' => $name, 'sort_order' => $i],
+            );
+        }
     }
 }
