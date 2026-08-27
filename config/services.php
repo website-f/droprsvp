@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'hitpay' => [
+        // driver: 'hitpay' (real API) or 'fake' (dev — instantly settles, no keys).
+        // Defaults to fake until real credentials are configured.
+        'driver' => env('HITPAY_DRIVER', env('HITPAY_API_KEY') ? 'hitpay' : 'fake'),
+        'api_key' => env('HITPAY_API_KEY'),
+        'salt' => env('HITPAY_SALT'),                 // webhook HMAC secret
+        'mode' => env('HITPAY_MODE', 'sandbox'),      // sandbox | live
+        'currency' => env('HITPAY_CURRENCY', 'MYR'),
+    ],
+
 ];

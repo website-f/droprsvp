@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\Payments\FakePaymentGateway;
+use App\Services\Payments\HitPayGateway;
+use App\Services\Payments\PaymentGateway;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +18,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Payment driver: real HitPay when configured, the fake gateway otherwise.
+        $this->app->bind(PaymentGateway::class, fn () => config('services.hitpay.driver') === 'hitpay'
+            ? new HitPayGateway()
+            : new FakePaymentGateway());
     }
 
     /**

@@ -1,13 +1,25 @@
 <?php
 
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
 // Public, server-rendered event page (SEO).
 Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
+
+// Checkout (guest-friendly). `checkout/return` is declared before `checkout/{order}`
+// so the literal path wins over the {order} binding.
+Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->name('checkout.start');
+Route::get('checkout/return', [CheckoutController::class, 'return'])->name('checkout.return');
+Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('checkout.pay');
+Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
+Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
+Route::post('webhooks/hitpay', [WebhookController::class, 'hitpay'])->name('webhooks.hitpay');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

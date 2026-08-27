@@ -60,6 +60,9 @@ class EventController extends Controller
                     'currency' => $t->currency,
                     'on_sale' => $t->isOnSale(),
                     'sold_out' => $t->remaining() === 0,
+                    'min_per_order' => $t->min_per_order,
+                    'max_per_order' => $t->max_per_order,
+                    'remaining' => $t->remaining(),
                 ]),
             ],
             'seo' => [

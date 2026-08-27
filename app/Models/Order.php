@@ -26,6 +26,11 @@ class Order extends Model
         ];
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'reference';
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
