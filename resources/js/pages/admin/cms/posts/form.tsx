@@ -1,10 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RichEditor } from '@/components/rich-editor';
 import { SeoFields, type SeoData } from '@/components/seo-fields';
-import { ArrowLeft } from 'lucide-react';
+import { uploadImage } from '@/lib/upload';
+import { ArrowLeft, Upload } from 'lucide-react';
 
 interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; seo: SeoData }
 
@@ -28,6 +29,20 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
         seo: post?.seo ?? emptySeo(),
     });
     const { data, setData, processing, errors } = form;
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+
+    const onPickCover = async (file: File | undefined) => {
+        if (!file) return;
+        setUploading(true);
+        try {
+            setData('cover_image', await uploadImage(file));
+        } catch {
+            /* surfaced via the empty field; keep it simple */
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
@@ -69,8 +84,15 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
                                     <datalist id="cms-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="cover">Cover image URL</Label>
-                                    <input id="cover" className={field} value={data.cover_image} onChange={(e) => setData('cover_image', e.target.value)} placeholder="https://…" />
+                                    <Label htmlFor="cover">Cover image</Label>
+                                    <div className="flex gap-2">
+                                        <input id="cover" className={field} value={data.cover_image} onChange={(e) => setData('cover_image', e.target.value)} placeholder="https://… or upload" />
+                                        <Button type="button" variant="outline" className="shrink-0" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                                            <Upload className="size-4" /> {uploading ? '…' : 'Upload'}
+                                        </Button>
+                                        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onPickCover(e.target.files?.[0])} />
+                                    </div>
+                                    {data.cover_image && <img src={data.cover_image} alt="" className="mt-1 aspect-[16/9] w-full rounded-lg object-cover" />}
                                 </div>
                             </div>
                         </div>

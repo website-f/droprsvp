@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
+use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\PageController as PublicPageController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Host\SeatingController;
@@ -22,6 +24,13 @@ Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.sh
 // Public blog (SEO).
 Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+
+// SEO plumbing.
+Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+Route::get('robots.txt', function () {
+    return response("User-agent: *\nAllow: /\nSitemap: ".url('/sitemap.xml')."\n", 200)
+        ->header('Content-Type', 'text/plain');
+})->name('robots');
 
 // Checkout (guest-friendly). `checkout/return` is declared before `checkout/{order}`
 // so the literal path wins over the {order} binding.
@@ -73,6 +82,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('posts/{post:id}/edit', [CmsPostController::class, 'edit'])->name('posts.edit');
         Route::put('posts/{post:id}', [CmsPostController::class, 'update'])->name('posts.update');
         Route::delete('posts/{post:id}', [CmsPostController::class, 'destroy'])->name('posts.destroy');
+
+        Route::post('media', [MediaController::class, 'store'])->name('media.store');
     });
 });
 
