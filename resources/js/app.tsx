@@ -14,6 +14,8 @@ createInertiaApp({
         switch (true) {
             case name === 'welcome':
                 return null;
+            case name.startsWith('public/'):
+                return null; // public marketing/event pages carry their own chrome
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

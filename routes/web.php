@@ -1,9 +1,13 @@
 <?php
 
 use App\Http\Controllers\Host\EventController;
+use App\Http\Controllers\Public\EventController as PublicEventController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
+
+// Public, server-rendered event page (SEO).
+Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
