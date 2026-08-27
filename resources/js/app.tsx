@@ -14,6 +14,9 @@ createInertiaApp({
         switch (true) {
             case name === 'welcome':
                 return null;
+            case name === 'admin/cms/pages/form':
+            case name === 'admin/cms/posts/form':
+                return null; // WordPress-style full-screen editor (own chrome)
             case name.startsWith('public/'):
             case name.startsWith('checkout/'):
                 return null; // public + checkout pages carry their own chrome
