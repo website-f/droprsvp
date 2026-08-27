@@ -16,7 +16,11 @@ return [
     */
 
     'ssr' => [
-        'enabled' => true,
+        // Off by default so hosts without Node (e.g. cPanel) render client-side
+        // with the committed /public/build assets. Set INERTIA_SSR_ENABLED=true
+        // (and run `php artisan inertia:start-ssr`) on a Node-capable server for
+        // server-rendered HTML + best SEO.
+        'enabled' => env('INERTIA_SSR_ENABLED', false),
         'url' => 'http://127.0.0.1:13714',
         // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
 
