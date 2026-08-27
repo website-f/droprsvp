@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, FileText, FolderGit2, LayoutGrid } from 'lucide-react';
+import { BookOpen, CalendarDays, FileText, FolderGit2, LayoutGrid, Newspaper } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -46,7 +46,9 @@ export function AppSidebar() {
     const { auth } = usePage().props;
     // The CMS is superadmin-only, so only show it to them.
     const navItems: NavItem[] = auth?.is_superadmin
-        ? [...mainNavItems, { title: 'Pages', href: '/admin/cms/pages', icon: FileText }]
+        ? [...mainNavItems,
+            { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
+            { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper }]
         : mainNavItems;
 
     return (

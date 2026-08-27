@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\CmsPageController;
+use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\PageController as PublicPageController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
@@ -16,6 +18,10 @@ Route::inertia('/', 'welcome')->name('home');
 
 // Public, server-rendered event page (SEO).
 Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
+
+// Public blog (SEO).
+Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
 
 // Checkout (guest-friendly). `checkout/return` is declared before `checkout/{order}`
 // so the literal path wins over the {order} binding.
@@ -60,6 +66,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('pages/{page:id}/edit', [CmsPageController::class, 'edit'])->name('pages.edit');
         Route::put('pages/{page:id}', [CmsPageController::class, 'update'])->name('pages.update');
         Route::delete('pages/{page:id}', [CmsPageController::class, 'destroy'])->name('pages.destroy');
+
+        Route::get('posts', [CmsPostController::class, 'index'])->name('posts.index');
+        Route::get('posts/create', [CmsPostController::class, 'create'])->name('posts.create');
+        Route::post('posts', [CmsPostController::class, 'store'])->name('posts.store');
+        Route::get('posts/{post:id}/edit', [CmsPostController::class, 'edit'])->name('posts.edit');
+        Route::put('posts/{post:id}', [CmsPostController::class, 'update'])->name('posts.update');
+        Route::delete('posts/{post:id}', [CmsPostController::class, 'destroy'])->name('posts.destroy');
     });
 });
 
