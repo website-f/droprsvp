@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
 use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
@@ -61,6 +62,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Image uploads (event covers, CMS media) — any signed-in user.
     Route::post('uploads', [MediaController::class, 'store'])->name('uploads');
+
+    // Buyer account — purchase history + re-download/re-send tickets.
+    Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');
+    Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
 
     // Host panel — manage your events, ticket types and sessions.
     Route::prefix('host')->name('host.')->group(function () {

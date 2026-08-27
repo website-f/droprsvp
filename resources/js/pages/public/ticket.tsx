@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, MapPin, Video } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CalendarDays, Download, MapPin, Video } from 'lucide-react';
 
 interface TicketView {
     qr_token: string;
@@ -73,7 +74,14 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                     </div>
                 </div>
 
-                <Link href={`/e/${ticket.event.slug}`} className="mt-6 text-sm text-muted-foreground underline underline-offset-4">View event</Link>
+                <div className="mt-6 flex items-center gap-3 print:hidden">
+                    {!voided && (
+                        <Button variant="outline" size="sm" onClick={() => window.print()}>
+                            <Download className="size-4" /> Save / print
+                        </Button>
+                    )}
+                    <Link href={`/e/${ticket.event.slug}`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
+                </div>
             </div>
         </>
     );

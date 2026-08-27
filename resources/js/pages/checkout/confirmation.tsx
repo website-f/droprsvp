@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Clock, Ticket } from 'lucide-react';
 
@@ -12,6 +12,7 @@ interface OrderView {
 
 export default function CheckoutConfirmation({ order }: { order: OrderView }) {
     const paid = order.status === 'paid';
+    const { auth } = usePage().props;
 
     return (
         <>
@@ -69,7 +70,8 @@ export default function CheckoutConfirmation({ order }: { order: OrderView }) {
                         </div>
                     )}
 
-                    <div className="mt-8 flex justify-center">
+                    <div className="mt-8 flex justify-center gap-3">
+                        {auth?.user && <Button asChild><Link href="/my/tickets">My tickets</Link></Button>}
                         <Button asChild variant="outline"><Link href={`/e/${order.event.slug}`}>Back to event</Link></Button>
                     </div>
                 </main>

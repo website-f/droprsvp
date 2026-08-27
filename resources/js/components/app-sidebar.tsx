@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, Menu, Newspaper, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, Menu, Newspaper, Ticket, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -21,6 +21,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'My tickets',
+        href: '/my/tickets',
+        icon: Ticket,
     },
     {
         title: 'Events',
