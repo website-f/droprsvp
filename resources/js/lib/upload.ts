@@ -11,7 +11,7 @@ export async function uploadImage(file: File): Promise<string> {
     const body = new FormData();
     body.append('file', file);
 
-    const res = await fetch('/admin/cms/media', {
+    const res = await fetch('/uploads', {
         method: 'POST',
         headers: { 'X-XSRF-TOKEN': token, Accept: 'application/json' },
         body,

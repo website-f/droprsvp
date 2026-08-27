@@ -1,7 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { uploadImage } from '@/lib/upload';
+import { ArrowLeft, ImagePlus, Plus, Trash2 } from 'lucide-react';
 
 interface Category { id: number; name: string }
 interface SessionRow { id?: number; title: string; starts_at: string; ends_at: string; capacity: string }
@@ -46,6 +48,20 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
     });
     const { data, setData, errors, processing } = form;
+    const coverRef = useRef<HTMLInputElement>(null);
+    const [uploadingCover, setUploadingCover] = useState(false);
+
+    const onPickCover = async (file: File | undefined) => {
+        if (!file) return;
+        setUploadingCover(true);
+        try {
+            setData('cover_image', await uploadImage(file));
+        } catch {
+            /* keep the existing value on failure */
+        } finally {
+            setUploadingCover(false);
+        }
+    };
 
     const patchSession = (i: number, key: keyof SessionRow, val: string) =>
         setData('sessions', data.sessions.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
@@ -71,6 +87,28 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Details</h2>
                     <div className="grid gap-4">
+                        {/* Cover image */}
+                        <div className="grid gap-1.5">
+                            <Label>Cover image</Label>
+                            {data.cover_image
+                                ? (
+                                    <div className="relative overflow-hidden rounded-lg border border-border">
+                                        <img src={data.cover_image} alt="" className="aspect-[16/9] w-full object-cover" />
+                                        <div className="absolute right-2 top-2 flex gap-2">
+                                            <Button type="button" size="sm" variant="secondary" disabled={uploadingCover} onClick={() => coverRef.current?.click()}>Replace</Button>
+                                            <Button type="button" size="sm" variant="secondary" onClick={() => setData('cover_image', '')}>Remove</Button>
+                                        </div>
+                                    </div>
+                                )
+                                : (
+                                    <button type="button" onClick={() => coverRef.current?.click()} disabled={uploadingCover}
+                                        className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground">
+                                        <ImagePlus className="size-6" />
+                                        {uploadingCover ? 'Uploading…' : 'Upload a cover image (shown on cards & the event page)'}
+                                    </button>
+                                )}
+                            <input ref={coverRef} type="file" accept="image/*" hidden onChange={(e) => onPickCover(e.target.files?.[0])} />
+                        </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="title">Event title</Label>
                             <input id="title" className={field} value={data.title} onChange={(e) => setData('title', e.target.value)} placeholder="e.g. KL Indie Music Night" />

@@ -58,6 +58,9 @@ Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Image uploads (event covers, CMS media) — any signed-in user.
+    Route::post('uploads', [MediaController::class, 'store'])->name('uploads');
+
     // Host panel — manage your events, ticket types and sessions.
     Route::prefix('host')->name('host.')->group(function () {
         Route::get('events', [EventController::class, 'index'])->name('events.index');
@@ -100,8 +103,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('posts/{post:id}/edit', [CmsPostController::class, 'edit'])->name('posts.edit');
         Route::put('posts/{post:id}', [CmsPostController::class, 'update'])->name('posts.update');
         Route::delete('posts/{post:id}', [CmsPostController::class, 'destroy'])->name('posts.destroy');
-
-        Route::post('media', [MediaController::class, 'store'])->name('media.store');
     });
 
     // Superadmin — cross-org platform administration.

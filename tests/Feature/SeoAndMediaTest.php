@@ -37,28 +37,24 @@ class SeoAndMediaTest extends TestCase
         $this->get('/robots.txt')->assertOk()->assertSee('Sitemap:', false)->assertSee('/sitemap.xml', false);
     }
 
-    public function test_superadmin_can_upload_an_image(): void
+    public function test_authenticated_user_can_upload_an_image(): void
     {
         Storage::fake('public');
-        Role::findOrCreate('superadmin', 'web');
-        $admin = User::factory()->create();
-        $admin->assignRole('superadmin');
+        $user = User::factory()->create();
 
-        $this->actingAs($admin)
-            ->post(route('admin.cms.media.store'), ['file' => UploadedFile::fake()->image('cover.jpg', 800, 450)])
+        $this->actingAs($user)
+            ->post(route('uploads'), ['file' => UploadedFile::fake()->image('cover.jpg', 800, 450)])
             ->assertOk()
             ->assertJsonStructure(['url']);
 
         $this->assertCount(1, Storage::disk('public')->allFiles('cms'));
     }
 
-    public function test_non_superadmin_cannot_upload(): void
+    public function test_guests_cannot_upload(): void
     {
         Storage::fake('public');
-        $user = User::factory()->create();
 
-        $this->actingAs($user)
-            ->post(route('admin.cms.media.store'), ['file' => UploadedFile::fake()->image('x.jpg')])
-            ->assertForbidden();
+        $this->post(route('uploads'), ['file' => UploadedFile::fake()->image('x.jpg')])
+            ->assertRedirect(); // auth middleware → login
     }
 }
