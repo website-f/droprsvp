@@ -4,6 +4,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
+use App\Http\Controllers\Host\SeatingController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WebhookController;
@@ -42,6 +43,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Door check-in console.
         Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');
         Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
+
+        // Seating & table management.
+        Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');
+        Route::post('events/{event}/seating/tables', [SeatingController::class, 'saveTables'])->name('events.seating.tables');
+        Route::post('events/{event}/seating/assign', [SeatingController::class, 'assign'])->name('events.seating.assign');
     });
 });
 

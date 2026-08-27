@@ -11,7 +11,7 @@ class TicketController extends Controller
     /** The public ticket pass — the token in the URL is the credential. */
     public function show(Ticket $ticket)
     {
-        $ticket->load(['event', 'ticketType']);
+        $ticket->load(['event', 'ticketType', 'seatingTable']);
         $event = $ticket->event;
 
         return Inertia::render('public/ticket', [
@@ -20,6 +20,7 @@ class TicketController extends Controller
                 'attendee_name' => $ticket->attendee_name,
                 'status' => $ticket->status,
                 'type' => $ticket->ticketType?->name,
+                'table' => $ticket->seatingTable?->name,
                 'event' => [
                     'title' => $event->title,
                     'slug' => $event->slug,

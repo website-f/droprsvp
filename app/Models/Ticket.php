@@ -9,8 +9,8 @@ use Illuminate\Support\Str;
 class Ticket extends Model
 {
     protected $fillable = [
-        'order_id', 'ticket_type_id', 'event_id', 'qr_token', 'attendee_name', 'attendee_email',
-        'status', 'seat_label', 'checked_in_at', 'checked_in_by',
+        'order_id', 'ticket_type_id', 'event_id', 'seating_table_id', 'qr_token', 'attendee_name',
+        'attendee_email', 'status', 'seat_label', 'checked_in_at', 'checked_in_by',
     ];
 
     protected function casts(): array
@@ -48,6 +48,11 @@ class Ticket extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function seatingTable(): BelongsTo
+    {
+        return $this->belongsTo(SeatingTable::class, 'seating_table_id');
     }
 
     public function checkedInBy(): BelongsTo

@@ -56,6 +56,11 @@ class Event extends Model
         return $this->hasMany(EventSession::class)->orderBy('starts_at');
     }
 
+    public function seatingTables(): HasMany
+    {
+        return $this->hasMany(SeatingTable::class)->orderBy('sort_order');
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
