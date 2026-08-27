@@ -1,8 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, register } from '@/routes';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, QrCode, Search, Ticket, Users } from 'lucide-react';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { QrCode, Search, Ticket, Users } from 'lucide-react';
 
 const catSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -23,22 +24,7 @@ export default function Welcome() {
             <Head title="Find your people — DropRSVP" />
 
             <div className="min-h-screen bg-background text-foreground">
-                {/* Nav */}
-                <header className="mx-auto flex max-w-[1280px] items-center justify-between px-6 py-5">
-                    <span className="text-2xl font-bold tracking-tight">
-                        Drop<span className="text-primary">RSVP</span>
-                    </span>
-                    <nav className="flex items-center gap-2">
-                        {auth?.user ? (
-                            <Button asChild><Link href={dashboard()}>Dashboard</Link></Button>
-                        ) : (
-                            <>
-                                <Button asChild variant="ghost"><Link href={login()}>Log in</Link></Button>
-                                <Button asChild><Link href={register()}>Sign up</Link></Button>
-                            </>
-                        )}
-                    </nav>
-                </header>
+                <PublicHeader />
 
                 {/* Hero */}
                 <section className="mx-auto max-w-[1280px] px-6 pt-10 pb-16 text-center lg:pt-20 lg:pb-24">
@@ -106,13 +92,7 @@ export default function Welcome() {
                     </div>
                 </section>
 
-                {/* Footer */}
-                <footer className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-3 px-6 py-10 text-sm text-muted-foreground sm:flex-row">
-                    <span className="flex items-center gap-2">
-                        <CalendarDays className="size-4" /> DropRSVP
-                    </span>
-                    <span>&copy; {new Date().getFullYear()} DropRSVP. All rights reserved.</span>
-                </footer>
+                <PublicFooter />
             </div>
         </>
     );

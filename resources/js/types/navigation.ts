@@ -12,3 +12,10 @@ export type NavItem = {
     icon?: LucideIcon | null;
     isActive?: boolean;
 };
+
+/** A public-site navigation entry, managed under Admin → Menu. */
+export type PublicNavItem = {
+    label: string;
+    url: string;
+    new_tab: boolean;
+};

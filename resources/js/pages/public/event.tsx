@@ -1,7 +1,8 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { CalendarDays, Clock, MapPin, Minus, Plus, Ticket, Video } from 'lucide-react';
 
 interface TicketTypeView {
@@ -26,7 +27,6 @@ function priceLabel(t: TicketTypeView): string {
 }
 
 export default function PublicEvent({ event, seo, schema }: { event: EventView; seo: Seo; schema: Record<string, unknown> }) {
-    const { auth } = usePage().props;
     const [qty, setQty] = useState<Record<number, number>>({});
     const [submitting, setSubmitting] = useState(false);
 
@@ -62,21 +62,7 @@ export default function PublicEvent({ event, seo, schema }: { event: EventView; 
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
             <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b border-border">
-                    <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-                        <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
-                        <nav className="flex items-center gap-2">
-                            {auth?.user ? (
-                                <Button asChild variant="ghost"><Link href="/host/events">My events</Link></Button>
-                            ) : (
-                                <>
-                                    <Button asChild variant="ghost"><Link href="/login">Log in</Link></Button>
-                                    <Button asChild><Link href="/register">Sign up</Link></Button>
-                                </>
-                            )}
-                        </nav>
-                    </div>
-                </header>
+                <PublicHeader />
 
                 {event.status !== 'published' && (
                     <div className="bg-foreground px-6 py-2 text-center text-xs font-medium text-background">
@@ -174,9 +160,7 @@ export default function PublicEvent({ event, seo, schema }: { event: EventView; 
                     </aside>
                 </main>
 
-                <footer className="border-t border-border">
-                    <div className="mx-auto max-w-5xl px-6 py-8 text-sm text-muted-foreground">&copy; {new Date().getFullYear()} DropRSVP</div>
-                </footer>
+                <PublicFooter />
             </div>
         </>
     );

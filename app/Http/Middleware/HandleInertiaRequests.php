@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\MenuItem;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -43,6 +44,8 @@ class HandleInertiaRequests extends Middleware
                 'is_superadmin' => (bool) $request->user()?->hasRole('superadmin'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Public site navigation (cached; edited under Admin → Menu).
+            'nav' => MenuItem::header(),
             'flash' => [
                 'success' => $request->session()->get('success') ?? $request->session()->get('flash_success'),
                 'error' => $request->session()->get('flash_error'),

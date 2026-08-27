@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
 use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -96,6 +97,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('pages/{page:id}/edit', [CmsPageController::class, 'edit'])->name('pages.edit');
         Route::put('pages/{page:id}', [CmsPageController::class, 'update'])->name('pages.update');
         Route::delete('pages/{page:id}', [CmsPageController::class, 'destroy'])->name('pages.destroy');
+
+        // Navigation menu (what shows in the public site header).
+        Route::get('menu', [MenuController::class, 'index'])->name('menu.index');
+        Route::post('menu', [MenuController::class, 'store'])->name('menu.store');
+        Route::post('menu/reorder', [MenuController::class, 'reorder'])->name('menu.reorder');
+        Route::put('menu/{menuItem}', [MenuController::class, 'update'])->name('menu.update');
+        Route::delete('menu/{menuItem}', [MenuController::class, 'destroy'])->name('menu.destroy');
 
         Route::get('posts', [CmsPostController::class, 'index'])->name('posts.index');
         Route::get('posts/create', [CmsPostController::class, 'create'])->name('posts.create');

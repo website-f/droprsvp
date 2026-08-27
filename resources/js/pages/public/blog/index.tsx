@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
 
 interface PostCard { title: string; slug: string; excerpt: string | null; cover_image: string | null; category: string | null; date: string | null }
 interface Paginated { data: PostCard[]; prev_page_url: string | null; next_page_url: string | null }
@@ -16,15 +17,10 @@ export default function BlogIndex({ posts, seo }: { posts: Paginated; seo: Seo }
                 <meta property="og:description" content={seo.description} head-key="ogdesc" />
             </Head>
 
-            <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b border-border">
-                    <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-                        <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
-                        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
-                    </div>
-                </header>
+            <div className="flex min-h-screen flex-col bg-background text-foreground">
+                <PublicHeader />
 
-                <main className="mx-auto max-w-4xl px-6 py-12">
+                <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-12">
                     <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Blog</h1>
 
                     {posts.data.length === 0 ? (
@@ -59,9 +55,7 @@ export default function BlogIndex({ posts, seo }: { posts: Paginated; seo: Seo }
                     )}
                 </main>
 
-                <footer className="border-t border-border">
-                    <div className="mx-auto max-w-4xl px-6 py-8 text-sm text-muted-foreground">&copy; {new Date().getFullYear()} DropRSVP</div>
-                </footer>
+                <PublicFooter />
             </div>
         </>
     );

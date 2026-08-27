@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { contentClass } from '@/components/rich-editor';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
 
 interface Seo { title: string; description: string; canonical: string; og_image: string | null; robots: string }
 
@@ -18,22 +19,15 @@ export default function PublicPage({ page, seo, schema }: { page: { title: strin
             </Head>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
-            <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b border-border">
-                    <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-                        <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
-                        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
-                    </div>
-                </header>
+            <div className="flex min-h-screen flex-col bg-background text-foreground">
+                <PublicHeader />
 
-                <main className="mx-auto max-w-3xl px-6 py-12">
+                <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
                     <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
                     <article className={`mt-6 ${contentClass}`} dangerouslySetInnerHTML={{ __html: page.body ?? '' }} />
                 </main>
 
-                <footer className="border-t border-border">
-                    <div className="mx-auto max-w-3xl px-6 py-8 text-sm text-muted-foreground">&copy; {new Date().getFullYear()} DropRSVP</div>
-                </footer>
+                <PublicFooter />
             </div>
         </>
     );

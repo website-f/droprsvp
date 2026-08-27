@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, Newspaper, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, Menu, Newspaper, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -57,7 +57,8 @@ export function AppSidebar() {
             { title: 'Users', href: '/admin/users', icon: Users },
             { title: 'Payout requests', href: '/admin/payouts', icon: Banknote },
             { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
-            { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper }]
+            { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
+            { title: 'Menu', href: '/admin/cms/menu', icon: Menu }]
         : mainNavItems;
 
     return (

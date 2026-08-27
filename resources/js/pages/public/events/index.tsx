@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { CalendarDays, MapPin, Search } from 'lucide-react';
 
 interface Card { slug: string; title: string; cover_image: string | null; category: string | null; when: string | null; venue: string | null; from_price: number | null; has_free: boolean }
@@ -27,15 +28,10 @@ export default function Discover({ events, categories, filters, seo }: { events:
                 <link rel="canonical" href={seo.canonical} head-key="canonical" />
             </Head>
 
-            <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b border-border">
-                    <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                        <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
-                        <Button asChild variant="ghost"><Link href="/login">Log in</Link></Button>
-                    </div>
-                </header>
+            <div className="flex min-h-screen flex-col bg-background text-foreground">
+                <PublicHeader />
 
-                <main className="mx-auto max-w-6xl px-6 py-10">
+                <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
                     <h1 className="text-3xl font-bold tracking-tight">Browse events</h1>
 
                     {/* Search */}
@@ -89,9 +85,7 @@ export default function Discover({ events, categories, filters, seo }: { events:
                     )}
                 </main>
 
-                <footer className="border-t border-border">
-                    <div className="mx-auto max-w-6xl px-6 py-8 text-sm text-muted-foreground">&copy; {new Date().getFullYear()} DropRSVP</div>
-                </footer>
+                <PublicFooter />
             </div>
         </>
     );
