@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Pencil, Plus, Ticket, Trash2 } from 'lucide-react';
+import { CalendarDays, Pencil, Plus, ScanLine, Ticket, Trash2 } from 'lucide-react';
 
 interface HostEvent {
     id: number;
@@ -77,6 +77,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                         <td className="px-4 py-3"><span className="inline-flex items-center gap-1 text-muted-foreground"><Ticket className="size-3.5" /> {e.ticket_types_count}</span></td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-2">
+                                                <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/checkin`}><ScanLine className="size-3.5" /> Check-in</Link></Button>
                                                 <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/edit`}><Pencil className="size-3.5" /> Edit</Link></Button>
                                                 <Button variant="ghost" size="sm" onClick={() => remove(e)}><Trash2 className="size-3.5" /></Button>
                                             </div>

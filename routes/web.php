@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
 use App\Http\Controllers\TicketController;
@@ -36,6 +37,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('events/{event}/edit', [EventController::class, 'edit'])->name('events.edit');
         Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
+
+        // Door check-in console.
+        Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');
+        Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
     });
 });
 
