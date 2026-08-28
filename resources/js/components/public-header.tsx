@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Wordmark } from '@/components/brand';
 import { Footer } from '@/components/cms/footer-blocks';
 import type { FooterData } from '@/components/cms/footer-blocks';
@@ -42,6 +43,7 @@ export function PublicHeader() {
                 </nav>
 
                 <div className="flex items-center gap-2">
+                    <AppearanceToggle />
                     <div className="hidden items-center gap-2 md:flex">
                         <Link href="/help" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
                         {auth?.user ? (
