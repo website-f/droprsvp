@@ -72,34 +72,51 @@ class CmsPageTest extends TestCase
         $this->actingAs($user)->get(route('admin.cms.pages.index'))->assertForbidden();
     }
 
-    public function test_drop_builder_saves_html_css_and_renders_publicly(): void
+    public function test_drop_builder_saves_puck_data_and_renders_publicly(): void
     {
         $admin = $this->superadmin();
         $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-x', 'status' => 'published', 'published_at' => now(), 'author_id' => $admin->id]);
 
+        $data = ['root' => [], 'content' => [
+            ['type' => 'Hero', 'props' => ['id' => 'hero-1', 'title' => 'Welcome to DropRSVP', 'subtitle' => 'Find events']],
+        ]];
+
         $this->actingAs($admin)->post(route('admin.cms.pages.builder.save', $page->id), [
-            'title' => 'Home updated',
-            'html' => '<section id="hero"><h1>Welcome</h1></section>',
-            'css' => '#hero{background:#111;color:#fff}',
+            'data' => $data,
         ])->assertRedirect(route('admin.cms.pages.edit', $page->id));
 
         $page->refresh();
-        $this->assertSame('Home updated', $page->title);
-        $this->assertStringContainsString('Welcome', (string) $page->body);
-        $this->assertStringContainsString('#hero', (string) $page->builder_css);
+        $this->assertSame('Hero', $page->puck_data['content'][0]['type']);
+        $this->assertSame('Welcome to DropRSVP', $page->puck_data['content'][0]['props']['title']);
+        // A plain-text snapshot is stored for search/excerpts/SEO.
+        $this->assertStringContainsString('Welcome to DropRSVP', (string) $page->body);
         $this->assertNotNull($page->builder_edited_at);
 
-        // Public page receives the builder HTML + CSS to render full-bleed.
+        // Public page receives the structured Puck data to render with the shared widgets.
         $this->get('/'.$page->slug)
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/page')
-                ->where('page.css', '#hero{background:#111;color:#fff}'));
+                ->where('page.puck.content.0.props.title', 'Welcome to DropRSVP'));
+    }
+
+    public function test_drop_builder_save_returns_json_for_the_fetch_client(): void
+    {
+        $admin = $this->superadmin();
+        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-json', 'status' => 'draft', 'author_id' => $admin->id]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.cms.pages.builder.save', $page->id), [
+                'data' => ['root' => [], 'content' => []],
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
     }
 
     public function test_metadata_save_does_not_wipe_builder_content(): void
     {
         $admin = $this->superadmin();
-        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-y', 'status' => 'draft', 'author_id' => $admin->id, 'body' => '<h1>Built</h1>', 'builder_css' => 'h1{color:red}', 'builder_edited_at' => now()]);
+        $puck = ['root' => [], 'content' => [['type' => 'Text', 'props' => ['id' => 't1', 'text' => 'Built body']]]];
+        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-y', 'status' => 'draft', 'author_id' => $admin->id, 'body' => 'Built body', 'puck_data' => $puck, 'builder_edited_at' => now()]);
         $page->seo()->create(['robots_index' => true, 'robots_follow' => true]);
 
         $this->actingAs($admin)->put(route('admin.cms.pages.update', $page->id), [
@@ -108,8 +125,8 @@ class CmsPageTest extends TestCase
 
         $page->refresh();
         $this->assertSame('Home renamed', $page->title);
-        $this->assertSame('<h1>Built</h1>', $page->body);        // preserved
-        $this->assertSame('h1{color:red}', $page->builder_css);  // preserved
+        $this->assertSame('Built body', $page->body);                                    // preserved
+        $this->assertSame('Built body', $page->puck_data['content'][0]['props']['text']); // preserved
     }
 
     public function test_publishing_with_add_to_menu_creates_a_header_link(): void

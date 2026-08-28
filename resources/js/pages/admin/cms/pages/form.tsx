@@ -1,19 +1,22 @@
 import { Head, useForm } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { SeoFields, type SeoData } from '@/components/seo-fields';
-import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
+import { Render  } from '@measured/puck';
+import type {Data} from '@measured/puck';
 import { ExternalLink, LayoutTemplate } from 'lucide-react';
+import { useState } from 'react';
+import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
+import { config } from '@/components/cms/puck-config';
+import { SeoFields  } from '@/components/seo-fields';
+import type {SeoData} from '@/components/seo-fields';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface PageProp { id: number; title: string; slug: string; body: string | null; builder_css: string | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
+interface PageProp { id: number; title: string; slug: string; puck: Data | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
 
 export default function PageForm({ page }: { page: PageProp | null }) {
     const isEdit = !!page;
-    const [baseUrl, setBaseUrl] = useState('');
-    useEffect(() => setBaseUrl(window.location.origin), []);
+    const [baseUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
 
     const form = useForm({
         title: page?.title ?? '',
@@ -24,16 +27,26 @@ export default function PageForm({ page }: { page: PageProp | null }) {
     });
     const { data, setData, processing, errors } = form;
     const published = page?.status === 'published';
-    const built = !!(page && (page.builder_css || (page.body && page.builder_edited_at)));
+    const built = !!(page && page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
 
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
-        isEdit ? form.put(`/admin/cms/pages/${page!.id}`) : form.post('/admin/cms/pages');
+
+        if (isEdit) {
+            form.put(`/admin/cms/pages/${page!.id}`);
+        } else {
+            form.post('/admin/cms/pages');
+        }
     };
 
     // Open the full-screen Drop Builder. New pages save a draft first.
     const openBuilder = () => {
-        if (isEdit) { window.location.href = `/admin/cms/pages/${page!.id}/builder`; return; }
+        if (isEdit) {
+ window.location.href = `/admin/cms/pages/${page!.id}/builder`;
+
+ return; 
+}
+
         form.transform((d) => ({ ...d, publish: false, open_builder: true }));
         form.post('/admin/cms/pages');
     };
@@ -103,11 +116,10 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                 <span className="flex items-center gap-2 text-sm font-medium"><LayoutTemplate className="size-4" /> Built with Drop Builder{page?.builder_edited_at ? ` · ${page.builder_edited_at}` : ''}</span>
                                 <Button size="sm" onClick={openBuilder}><LayoutTemplate className="size-4" /> Continue in Drop Builder</Button>
                             </div>
-                            <iframe
-                                title="Page preview"
-                                className="h-[70vh] w-full bg-white"
-                                srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${page?.builder_css ?? ''}</style></head><body>${page?.body ?? ''}</body></html>`}
-                            />
+                            {/* Live preview using the exact same widgets visitors see. */}
+                            <div className="pointer-events-none max-h-[70vh] overflow-hidden bg-background">
+                                <Render config={config} data={page!.puck!} />
+                            </div>
                         </div>
                     ) : (
                         // Not built yet — big entry point into the builder.

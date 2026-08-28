@@ -123,6 +123,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('pages/{page:id}/edit', [CmsPageController::class, 'edit'])->name('pages.edit');
         Route::get('pages/{page:id}/builder', [CmsPageController::class, 'builder'])->name('pages.builder');
         Route::post('pages/{page:id}/builder', [CmsPageController::class, 'saveBuilder'])->name('pages.builder.save');
+        Route::get('pages/{page:id}/preview', [CmsPageController::class, 'preview'])->name('pages.preview');
         Route::put('pages/{page:id}', [CmsPageController::class, 'update'])->name('pages.update');
         Route::delete('pages/{page:id}', [CmsPageController::class, 'destroy'])->name('pages.destroy');
 

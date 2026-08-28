@@ -45,7 +45,7 @@ class PageController extends Controller
                 'title' => $page->title,
                 'body' => $page->body,
                 'layout' => $page->layout,
-                'css' => $page->builder_css,
+                'puck' => $page->puck_data,
             ],
             'seo' => ['title' => $seo?->seo_title ?: $page->title],
         ]);

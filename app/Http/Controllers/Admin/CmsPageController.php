@@ -72,7 +72,7 @@ class CmsPageController extends Controller
         return redirect()->route('admin.cms.pages.index')->with('success', 'Page deleted.');
     }
 
-    /** Full-screen GrapesJS "Drop Builder". */
+    /** Full-screen Puck "Drop Builder". */
     public function builder(CmsPage $page)
     {
         return inertia('admin/cms/pages/builder', [
@@ -81,8 +81,7 @@ class CmsPageController extends Controller
                 'title' => $page->title,
                 'slug' => $page->slug,
                 'status' => $page->status,
-                'html' => $page->body ?? '',
-                'css' => $page->builder_css ?? '',
+                'data' => $page->puck_data,
             ],
         ]);
     }
@@ -90,20 +89,40 @@ class CmsPageController extends Controller
     public function saveBuilder(Request $request, CmsPage $page)
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'html' => ['nullable', 'string'],
-            'css' => ['nullable', 'string'],
+            'data' => ['required', 'array'],
+            'data.content' => ['array'],
+            'data.root' => ['array'],
         ]);
 
         $page->update([
-            'title' => $data['title'],
-            'body' => $data['html'] ?? '',
-            'builder_css' => $data['css'] ?? '',
-            'layout' => null, // GrapesJS pages render from body + css, not the section layout
+            'puck_data' => $data['data'],
+            // A plain-text snapshot powers search, excerpts and SEO fallbacks.
+            'body' => $this->plainTextFromPuck($data['data']),
+            'layout' => null,
             'builder_edited_at' => now(),
         ]);
 
+        // The builder saves via fetch and stays put; only non-JS clients redirect.
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'edited_at' => $page->builder_edited_at->diffForHumans()]);
+        }
+
         return redirect()->route('admin.cms.pages.edit', $page->id)->with('success', 'Saved from the Drop Builder.');
+    }
+
+    /** Superadmin preview of a page (even a draft) exactly as visitors see it. */
+    public function preview(CmsPage $page)
+    {
+        return inertia('public/page', [
+            'page' => [
+                'title' => $page->title,
+                'body' => $page->body,
+                'layout' => $page->layout,
+                'puck' => $page->puck_data,
+            ],
+            'seo' => ['title' => $page->title],
+            'preview' => true,
+        ]);
     }
 
     // ---- helpers -----------------------------------------------------------
@@ -113,16 +132,8 @@ class CmsPageController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:180'],
             'slug' => ['nullable', 'string', 'max:180', Rule::unique('cms_pages', 'slug')->ignore($ignoreId)],
-            'body' => ['nullable', 'string'],
-            // The page-builder layout is a nested section/column/widget tree,
-            // authored only by the superadmin, so it's stored as-is (validated
-            // for shape, not every widget field).
-            'layout' => ['nullable', 'array'],
-            'layout.*.id' => ['nullable', 'string', 'max:60'],
-            'layout.*.title' => ['nullable', 'string', 'max:180'],
-            'layout.*.columns' => ['array'],
-            'layout.*.columns.*.blocks' => ['array'],
-            'layout.*.settings' => ['nullable', 'array'],
+            // Page content is owned by the Puck builder (saveBuilder); this form
+            // only edits metadata, so it never touches puck_data/body.
             'publish' => ['boolean'],
             'add_to_menu' => ['boolean'],
             'seo' => ['array'],
@@ -140,14 +151,39 @@ class CmsPageController extends Controller
 
     private function pageAttributes(array $data): array
     {
-        // Note: body/layout/builder_css are NOT touched here — page content is
-        // owned by the Drop Builder (saveBuilder). This form only edits metadata,
-        // so saving it never wipes the built content.
+        // Note: puck_data/body are NOT touched here — page content is owned by
+        // the Drop Builder (saveBuilder). This form only edits metadata, so
+        // saving it never wipes the built content.
         return [
             'title' => $data['title'],
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
             'published_at' => ($data['publish'] ?? false) ? now() : null,
         ];
+    }
+
+    /** Flatten a Puck document into readable plain text for search/excerpts/SEO. */
+    private function plainTextFromPuck(array $data): string
+    {
+        // Keys that hold human-readable copy (everything else — ids, urls,
+        // icons, alignment flags — is skipped).
+        $textKeys = ['title', 'subtitle', 'text', 'label', 'caption', 'q', 'a'];
+
+        $walk = function ($node) use (&$walk, $textKeys): array {
+            $out = [];
+            if (is_array($node)) {
+                foreach ($node as $key => $value) {
+                    if (is_array($value)) {
+                        $out = array_merge($out, $walk($value));
+                    } elseif (is_string($value) && in_array($key, $textKeys, true) && trim($value) !== '') {
+                        $out[] = trim($value);
+                    }
+                }
+            }
+
+            return $out;
+        };
+
+        return trim(implode(' ', $walk($data['content'] ?? [])));
     }
 
     /** When "add to menu" is ticked on a published page, ensure a header link exists. */
@@ -198,9 +234,8 @@ class CmsPageController extends Controller
             'id' => $page->id,
             'title' => $page->title,
             'slug' => $page->slug,
-            'body' => $page->body,
+            'puck' => $page->puck_data,
             'layout' => $page->layout,
-            'builder_css' => $page->builder_css,
             'status' => $page->status,
             'builder_edited_at' => optional($page->builder_edited_at)->diffForHumans(),
             'in_menu' => MenuItem::where('location', 'header')->where('url', '/'.$page->slug)->exists(),

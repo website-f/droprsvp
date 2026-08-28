@@ -1,13 +1,17 @@
 import { Head } from '@inertiajs/react';
-import { contentClass } from '@/components/rich-editor';
+import { Render  } from '@measured/puck';
+import type {Data} from '@measured/puck';
+import { PageSections, hasSections  } from '@/components/cms/page-sections';
+import type {PageSection} from '@/components/cms/page-sections';
+import { config } from '@/components/cms/puck-config';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
-import { PageSections, hasSections, type PageSection } from '@/components/cms/page-sections';
+import { contentClass } from '@/components/rich-editor';
 
 interface Seo { title: string }
-interface Page { title: string; body: string | null; layout: PageSection[] | null; css: string | null }
+interface Page { title: string; body: string | null; layout: PageSection[] | null; puck: Data | null }
 
-export default function PublicPage({ page, seo }: { page: Page; seo: Seo }) {
-    const builtWithBuilder = !!page.css;
+export default function PublicPage({ page, seo, preview }: { page: Page; seo: Seo; preview?: boolean }) {
+    const built = !!(page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
 
     return (
         <>
@@ -15,13 +19,17 @@ export default function PublicPage({ page, seo }: { page: Page; seo: Seo }) {
             <Head title={seo.title} />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
+                {preview && (
+                    <div className="bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-black">
+                        Preview — this is a draft. Only you can see it.
+                    </div>
+                )}
                 <PublicHeader />
 
-                {builtWithBuilder ? (
-                    // GrapesJS page: its own HTML + CSS, rendered full-bleed.
+                {built ? (
+                    // Puck page: rendered from structured data with the same widgets as the editor.
                     <main className="flex-1">
-                        <style dangerouslySetInnerHTML={{ __html: page.css ?? '' }} />
-                        <div dangerouslySetInnerHTML={{ __html: page.body ?? '' }} />
+                        <Render config={config} data={page.puck!} />
                     </main>
                 ) : (
                     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
