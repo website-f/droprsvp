@@ -15,7 +15,7 @@ import {
 
 const uid = (p = 'b') => `${p}_${Math.random().toString(36).slice(2, 9)}`;
 
-function newBlock(type: PageBlock['type']): PageBlock {
+export function newBlock(type: PageBlock['type']): PageBlock {
     switch (type) {
         case 'heading': return { id: uid(), type: 'heading', text: 'Heading', level: 2, align: 'left' };
         case 'image': return { id: uid(), type: 'image', url: '', alt: '', rounded: true };
@@ -78,7 +78,7 @@ const COL_PRESETS: Record<number, { label: string; widths: string[] }[]> = {
     ],
 };
 
-const WIDGETS: { type: PageBlock['type']; label: string; icon: typeof Type }[] = [
+export const WIDGETS: { type: PageBlock['type']; label: string; icon: typeof Type }[] = [
     { type: 'heading', label: 'Heading', icon: Heading },
     { type: 'richtext', label: 'Text', icon: Type },
     { type: 'image', label: 'Image', icon: ImageIcon },
@@ -291,7 +291,7 @@ function SortableSection(p: SectionProps) {
 
 /* ---------------------------------------------------------- block editor */
 
-function BlockEditor({ block, first, last, onPatch, onMove, onDup, onDel }: {
+export function BlockEditor({ block, first, last, onPatch, onMove, onDup, onDel }: {
     block: PageBlock;
     first: boolean;
     last: boolean;
@@ -384,7 +384,7 @@ function ImageFields({ url, alt, rounded, onPatch }: { url: string; alt: string;
 
 /* -------------------------------------------------------------- controls */
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+export function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
     return (
         <div className={`grid gap-1.5 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
             <span className="text-xs font-medium text-muted-foreground">{label}</span>
@@ -393,7 +393,7 @@ function Field({ label, children, full }: { label: string; children: React.React
     );
 }
 
-function Segment({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
+export function Segment({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
     return (
         <div className="flex items-center rounded-lg border border-border p-0.5">
             {options.map(([val, lbl]) => (
@@ -403,7 +403,7 @@ function Segment({ value, onChange, options }: { value: string; onChange: (v: st
     );
 }
 
-function AlignSeg({ value, onChange }: { value: Align; onChange: (v: Align) => void }) {
+export function AlignSeg({ value, onChange }: { value: Align; onChange: (v: Align) => void }) {
     const opts: [Align, typeof AlignLeft][] = [['left', AlignLeft], ['center', AlignCenter], ['right', AlignRight]];
     return (
         <div className="flex items-center rounded-lg border border-border p-0.5">

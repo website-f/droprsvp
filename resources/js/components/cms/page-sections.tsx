@@ -13,6 +13,9 @@ export interface SectionSettings {
     align: Align;
     valign: 'top' | 'center' | 'bottom';
     bg: string;                   // '' or hex
+    borderW?: number;             // px border width (0 = none)
+    borderColor?: string;         // hex
+    radius?: number;              // px corner radius
     colWidths?: string[];         // ratio per column, e.g. ['1','2']
 }
 
@@ -30,6 +33,7 @@ export interface PageSection { id: string; title?: string; columns: PageColumn[]
 
 export const DEFAULT_SETTINGS: SectionSettings = {
     cols: 1, gap: 'md', padY: 'md', width: 'boxed', align: 'left', valign: 'top', bg: '',
+    borderW: 0, borderColor: '#e5e5e6', radius: 0,
 };
 
 /* ------------------------------------------------------------- style maps */
@@ -114,7 +118,13 @@ export function PageSections({ sections }: { sections: PageSection[] }) {
         <div className="grid gap-0">
             {sections.map((s) => {
                 const set = { ...DEFAULT_SETTINGS, ...s.settings };
-                const outerStyle: CSSProperties = set.bg ? { backgroundColor: set.bg } : {};
+                const outerStyle: CSSProperties = {
+                    backgroundColor: set.bg || undefined,
+                    borderWidth: set.borderW ? `${set.borderW}px` : undefined,
+                    borderStyle: set.borderW ? 'solid' : undefined,
+                    borderColor: set.borderW ? set.borderColor : undefined,
+                    borderRadius: set.radius ? `${set.radius}px` : undefined,
+                };
                 const gridStyle = { '--drsvp-cols': colTemplate(set) } as CSSProperties;
                 return (
                     <section key={s.id} className={PAD_Y[set.padY]} style={outerStyle}>

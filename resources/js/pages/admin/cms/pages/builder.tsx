@@ -1,7 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PageBuilder, normalizeSections, sectionsToHtml } from '@/components/cms/page-builder';
+import { normalizeSections, sectionsToHtml } from '@/components/cms/page-builder';
+import { ElementorBuilder } from '@/components/cms/elementor-builder';
 import { PageSections, hasSections, type PageSection } from '@/components/cms/page-sections';
 import { ArrowLeft, Eye, Monitor, Pencil, Smartphone, Tablet } from 'lucide-react';
 
@@ -60,12 +61,12 @@ export default function DropBuilder({ page }: { page: PageProp }) {
                 </header>
 
                 {/* Canvas */}
-                <div className="flex-1 overflow-auto p-4 sm:p-6">
-                    {mode === 'edit' ? (
-                        <div className="mx-auto max-w-5xl">
-                            <PageBuilder value={data.layout} onChange={(s) => setData('layout', s)} />
-                        </div>
-                    ) : (
+                {mode === 'edit' ? (
+                    <div className="min-h-0 flex-1 p-3">
+                        <ElementorBuilder value={data.layout} onChange={(s) => setData('layout', s)} />
+                    </div>
+                ) : (
+                    <div className="flex-1 overflow-auto p-4 sm:p-6">
                         <div className={`mx-auto w-full ${DEVICE_W[device]} transition-[max-width] duration-300`}>
                             <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
                                 <h1 className="px-6 pt-8 text-3xl font-bold tracking-tight sm:px-10">{data.title || 'Untitled page'}</h1>
@@ -77,8 +78,8 @@ export default function DropBuilder({ page }: { page: PageProp }) {
                             </div>
                             {device !== 'desktop' && <p className="mt-3 text-center text-xs text-muted-foreground">{device === 'mobile' ? 'Mobile' : 'Tablet'} preview — {device === 'mobile' ? '390' : '768'}px</p>}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </>
     );
