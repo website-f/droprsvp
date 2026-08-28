@@ -47,18 +47,24 @@ class SiteContent
         return array_replace($defaults, $saved);
     }
 
-    /** Footer config (cached — rendered on every public page). */
+    /**
+     * Footer content as a Puck-shaped document (cached — shared on every page).
+     * Rendered by a plain (no-Puck) renderer on the public side; authored via a
+     * Puck editor in the admin.
+     */
     public static function footer(): array
     {
-        return Cache::rememberForever('site.footer', fn () => array_replace(
-            self::defaultFooter(),
-            Setting::getArray('footer', []),
-        ));
+        // v2 key: the footer moved from a columns array to a Puck document.
+        return Cache::rememberForever('site.footer_v2', function () {
+            $saved = Setting::getArray('footer', []);
+
+            return ! empty($saved['content']) ? $saved : self::defaultFooter();
+        });
     }
 
     public static function forgetFooter(): void
     {
-        Cache::forget('site.footer');
+        Cache::forget('site.footer_v2');
     }
 
     public static function defaultLanding(): array
@@ -96,23 +102,24 @@ class SiteContent
         ];
     }
 
+    /** Default footer as a Puck document (Brand + link columns). */
     public static function defaultFooter(): array
     {
         return [
-            'tagline' => 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.',
-            'columns' => [
-                ['title' => 'Discover', 'links' => [
+            'root' => (object) [],
+            'content' => [
+                ['type' => 'Brand', 'props' => ['id' => 'brand', 'tagline' => 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.', 'ctaLabel' => 'Create an event', 'ctaUrl' => '/get-started']],
+                ['type' => 'Column', 'props' => ['id' => 'col-1', 'title' => 'Discover', 'links' => [
                     ['label' => 'Browse events', 'url' => '/en-my'],
                     ['label' => 'Blog', 'url' => '/blog'],
                     ['label' => 'Help center', 'url' => '/help'],
-                ]],
-                ['title' => 'For hosts', 'links' => [
+                ]]],
+                ['type' => 'Column', 'props' => ['id' => 'col-2', 'title' => 'For hosts', 'links' => [
                     ['label' => 'Create an event', 'url' => '/get-started'],
                     ['label' => 'My tickets', 'url' => '/my/tickets'],
                     ['label' => 'Log in', 'url' => '/login'],
-                ]],
+                ]]],
             ],
-            'copyright' => '© '.config('app.name').'. All rights reserved.',
         ];
     }
 }

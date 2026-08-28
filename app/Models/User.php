@@ -57,6 +57,21 @@ class User extends Authenticatable implements PasskeyUser
         return $this->premium_until !== null && $this->premium_until->isFuture();
     }
 
+    /**
+     * Premium-level access for gating (full member lists, posting in discussions).
+     * Superadmins always have it (platform owner); they never subscribe.
+     */
+    public function hasPremiumAccess(): bool
+    {
+        return $this->hasRole('superadmin') || $this->isPremium();
+    }
+
+    /** Superadmins run the platform and don't buy the consumer Premium membership. */
+    public function canSubscribeToPremium(): bool
+    {
+        return ! $this->hasRole('superadmin');
+    }
+
     /** Events this user hosts. */
     public function events(): HasMany
     {

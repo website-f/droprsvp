@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label';
+import { TagInput } from '@/components/ui/tag-input';
 
 export interface SeoData {
     seo_title: string | null;
@@ -69,8 +70,8 @@ export function SeoFields({
                 </div>
                 <div className="grid gap-1.5">
                     <Label>Keywords</Label>
-                    <input className={field} value={seo.meta_keywords ?? ''} onChange={(e) => onChange({ meta_keywords: e.target.value })} placeholder="events, tickets, kuala lumpur" />
-                    <p className="text-xs text-muted-foreground">Comma-separated. Rendered as the <code>meta keywords</code> tag.</p>
+                    <TagInput value={seo.meta_keywords ?? ''} onChange={(v) => onChange({ meta_keywords: v })} placeholder="Type a keyword, press Enter…" />
+                    <p className="text-xs text-muted-foreground">Type each keyword and press Enter. Rendered as the <code>meta keywords</code> tag.</p>
                 </div>
 
                 <div className="flex flex-wrap gap-5">

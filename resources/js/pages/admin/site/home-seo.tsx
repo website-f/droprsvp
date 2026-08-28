@@ -2,6 +2,7 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { TagInput } from '@/components/ui/tag-input';
 
 interface HomeSeo { title: string; description: string; keywords: string }
 
@@ -55,8 +56,8 @@ export default function HomeSeoSettings({ seo }: { seo: HomeSeo }) {
                         </div>
                         <div className="grid gap-1.5">
                             <Label>Keywords</Label>
-                            <input className={field} value={data.keywords} onChange={(e) => setData('keywords', e.target.value)} placeholder="events, tickets, kuala lumpur, concerts" />
-                            <p className="text-xs text-muted-foreground">Comma-separated. Rendered as the <code>meta keywords</code> tag. Leave any field blank to use the built-in default.</p>
+                            <TagInput value={data.keywords} onChange={(v) => setData('keywords', v)} placeholder="Type a keyword, press Enter…" />
+                            <p className="text-xs text-muted-foreground">Type each keyword and press Enter. Rendered as the <code>meta keywords</code> tag. Leave blank to use the default.</p>
                         </div>
                     </div>
                 </section>

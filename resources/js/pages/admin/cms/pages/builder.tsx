@@ -5,8 +5,20 @@ import '@measured/puck/puck.css';
 import { ArrowLeft, Eye } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { config, emptyData } from '@/components/cms/puck-config';
+import { COMPONENT_ICONS, config, emptyData } from '@/components/cms/puck-config';
 import { Button } from '@/components/ui/button';
+
+/** Component-drawer item with a per-widget icon (Puck's drawer shows only text by default). */
+function DrawerItem({ name }: { name: string }) {
+    const Icon = COMPONENT_ICONS[name];
+
+    return (
+        <span className="flex items-center gap-2">
+            {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
+            {name}
+        </span>
+    );
+}
 
 interface PageProp { id: number; title: string; slug: string; status: string; data: Data | null }
 
@@ -80,7 +92,7 @@ export default function DropBuilder({ page }: { page: PageProp }) {
                     headerTitle={page.title}
                     headerPath={`/${page.slug}`}
                     onPublish={() => {}}
-                    overrides={{ headerActions: () => <HeaderActions page={page} /> }}
+                    overrides={{ headerActions: () => <HeaderActions page={page} />, drawerItem: ({ name }) => <DrawerItem name={name} /> }}
                 />
             </div>
         </>

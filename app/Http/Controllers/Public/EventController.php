@@ -54,11 +54,13 @@ class EventController extends Controller
         $isPublic ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true)) : $manager->noindex();
 
         // --- social: members + discussion (with free/premium gating) ---
+        // Superadmins + the organizer always have full access; everyone else needs Premium.
         $user = $request->user();
         $isOwner = $user?->id === $event->user_id;
         $isPremium = (bool) $user?->isPremium();
-        $canSeeAllMembers = $isPremium || $isOwner;
-        $canPost = $user && ($isPremium || $isOwner);
+        $hasAccess = (bool) $user?->hasPremiumAccess();
+        $canSeeAllMembers = $hasAccess || $isOwner;
+        $canPost = $user && ($hasAccess || $isOwner);
 
         return inertia('public/event', [
             'event' => [

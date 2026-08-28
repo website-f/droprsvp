@@ -105,6 +105,24 @@ class MembershipTest extends TestCase
         $this->assertDatabaseHas('subscriptions', ['user_id' => $user->id, 'status' => 'paid']);
     }
 
+    public function test_superadmin_cannot_subscribe_and_has_full_access(): void
+    {
+        \Spatie\Permission\Models\Role::findOrCreate('superadmin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        // Superadmins are redirected away from the subscribe page and blocked from paying.
+        $this->actingAs($admin)->get('/premium')->assertRedirect(route('dashboard'));
+        $this->actingAs($admin)->post('/premium/subscribe')->assertForbidden();
+        $admin->refresh();
+        $this->assertFalse($admin->isPremium());
+
+        // …but they still get premium-level access (post in discussions) for free.
+        $event = $this->event();
+        $this->actingAs($admin)->post("/e/{$event->slug}/comments", ['body' => 'Admin note'])->assertRedirect();
+        $this->assertDatabaseHas('event_comments', ['body' => 'Admin note', 'user_id' => $admin->id]);
+    }
+
     public function test_premium_page_lists_benefits(): void
     {
         $user = User::factory()->create();

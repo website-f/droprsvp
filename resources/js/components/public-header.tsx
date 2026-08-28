@@ -1,9 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
 import { CalendarDays, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { FooterContent  } from '@/components/cms/footer-blocks';
+import type {FooterBlock} from '@/components/cms/footer-blocks';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
-import type { FooterConfig, PublicNavItem } from '@/types';
+import type { PublicNavItem } from '@/types';
 
 function NavLink({ item, onClick }: { item: PublicNavItem; onClick?: () => void }) {
     const cls = 'text-sm font-medium text-foreground/70 transition-colors hover:text-foreground';
@@ -87,42 +89,15 @@ export function PublicHeader() {
     );
 }
 
-function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
-    const cls = 'text-sm text-muted-foreground transition-colors hover:text-foreground';
-
-    return href.startsWith('/')
-        ? <Link href={href} className={cls}>{children}</Link>
-        : <a href={href} className={cls}>{children}</a>;
-}
-
 export function PublicFooter() {
-    const { auth, footer } = usePage().props;
-    const cfg = footer as FooterConfig | undefined;
-    const columns = cfg?.columns ?? [];
+    const { footer } = usePage().props;
+    const content = (footer as { content?: FooterBlock[] } | undefined)?.content ?? [];
 
     return (
         <footer className="mt-auto border-t border-border bg-muted/30">
+            {/* Puck-authored footer, rendered with the plain (no-Puck) renderer. */}
             <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Brand */}
-                <div className="max-w-xs">
-                    <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {cfg?.tagline ?? 'Find your people, fill your events.'}
-                    </p>
-                    <Button asChild size="sm" className="mt-5">
-                        <Link href={auth?.user ? '/dashboard' : '/get-started'}>Create an event</Link>
-                    </Button>
-                </div>
-
-                {/* Admin-editable columns */}
-                {columns.map((col, ci) => (
-                    <div key={ci}>
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{col.title}</h3>
-                        <nav className="mt-4 flex flex-col gap-2.5">
-                            {col.links.filter((l) => l.label && l.url).map((l, li) => <FooterLink key={li} href={l.url}>{l.label}</FooterLink>)}
-                        </nav>
-                    </div>
-                ))}
+                <FooterContent content={content} />
             </div>
 
             <div className="border-t border-border">
@@ -133,7 +108,7 @@ export function PublicFooter() {
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                         <Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link>
                         <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
-                        <span>{cfg?.copyright ?? `© ${new Date().getFullYear()} DropRSVP. All rights reserved.`}</span>
+                        <span>© {new Date().getFullYear()} DropRSVP. All rights reserved.</span>
                     </div>
                 </div>
             </div>

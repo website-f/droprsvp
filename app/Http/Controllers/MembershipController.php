@@ -16,6 +16,11 @@ class MembershipController extends Controller
     {
         $user = $request->user();
 
+        // Superadmins already have full access and never subscribe.
+        if (! $user->canSubscribeToPremium()) {
+            return redirect()->route('dashboard')->with('success', 'Superadmins already have full access — no membership needed.');
+        }
+
         return Inertia::render('premium', [
             'price' => $this->membership->price(),
             'days' => $this->membership->days(),
@@ -27,6 +32,8 @@ class MembershipController extends Controller
     /** Purchase premium (settles instantly in dev; redirects to HitPay in production). */
     public function subscribe(Request $request, PaymentGateway $gateway)
     {
+        abort_unless($request->user()->canSubscribeToPremium(), 403);
+
         $url = $this->membership->start($request->user(), $gateway);
 
         if ($url) {

@@ -16,8 +16,8 @@ class EventCommentController extends Controller
         $user = $request->user();
         $isOwner = $user->id === $event->user_id;
 
-        // Gating: posting in discussions is a Premium benefit (the organizer is exempt).
-        if (! $user->isPremium() && ! $isOwner) {
+        // Gating: posting in discussions is a Premium benefit (the organizer + superadmin are exempt).
+        if (! $user->hasPremiumAccess() && ! $isOwner) {
             throw ValidationException::withMessages([
                 'body' => 'Posting in the discussion is a Premium benefit. Upgrade to join the conversation.',
             ]);

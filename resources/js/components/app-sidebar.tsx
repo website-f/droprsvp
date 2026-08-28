@@ -19,8 +19,10 @@ import type { NavItem } from '@/types';
 const youNav: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'My tickets', href: '/my/tickets', icon: Ticket },
-    { title: 'Go Premium', href: '/premium', icon: Crown },
 ];
+
+// Consumer membership — not shown to superadmins (they already have full access).
+const premiumNav: NavItem = { title: 'Go Premium', href: '/premium', icon: Crown };
 
 const organizingNav: NavItem[] = [
     { title: 'Events', href: '/host/events', icon: CalendarDays },
@@ -83,7 +85,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 {/* Grouped so the CMS / platform-admin areas are clearly separated. */}
-                <NavMain items={youNav} label="You" />
+                <NavMain items={isAdmin ? youNav : [...youNav, premiumNav]} label="You" />
                 <NavMain items={organizingNav} label="Organizing" />
                 {isAdmin && <NavMain items={platformNav} label="Platform admin" />}
                 {isAdmin && <NavMain items={cmsNav} label="Content (CMS)" />}

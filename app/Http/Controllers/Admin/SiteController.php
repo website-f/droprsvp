@@ -70,23 +70,23 @@ class SiteController extends Controller
 
     public function footer()
     {
-        return inertia('admin/site/footer', ['footer' => SiteContent::footer()]);
+        return inertia('admin/site/footer', ['data' => SiteContent::footer()]);
     }
 
     public function saveFooter(Request $request)
     {
         $data = $request->validate([
-            'tagline' => ['nullable', 'string', 'max:400'],
-            'copyright' => ['nullable', 'string', 'max:200'],
-            'columns' => ['array', 'max:4'],
-            'columns.*.title' => ['nullable', 'string', 'max:60'],
-            'columns.*.links' => ['array', 'max:10'],
-            'columns.*.links.*.label' => ['nullable', 'string', 'max:60'],
-            'columns.*.links.*.url' => ['nullable', 'string', 'max:2048'],
+            'data' => ['required', 'array'],
+            'data.content' => ['array'],
+            'data.root' => ['array'],
         ]);
 
-        Setting::putArray('footer', $data);
+        Setting::putArray('footer', $data['data']);
         SiteContent::forgetFooter();
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
 
         return back()->with('success', 'Footer saved.');
     }
