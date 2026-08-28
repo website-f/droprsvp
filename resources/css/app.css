@@ -215,6 +215,13 @@
 }
 *::-webkit-scrollbar-corner { background: transparent; }
 
+/* Page-builder columns: stack on mobile, apply the custom template on md+.
+   The template (e.g. "1fr 1fr" or "1fr 2fr") is passed via --drsvp-cols. */
+.drsvp-cols { display: grid; grid-template-columns: 1fr; }
+@media (min-width: 768px) {
+    .drsvp-cols { grid-template-columns: var(--drsvp-cols, 1fr); }
+}
+
 /* Ambient float for the decorative hero artwork. */
 @keyframes drsvp-float {
     0%, 100% { transform: translateY(0); }

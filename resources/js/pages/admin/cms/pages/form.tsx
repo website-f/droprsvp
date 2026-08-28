@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { SeoFields, type SeoData } from '@/components/seo-fields';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import { PageBuilder, normalizeSections, sectionsToHtml } from '@/components/cms/page-builder';
-import { PageSections, type PageSection } from '@/components/cms/page-sections';
+import { DEFAULT_SETTINGS, PageSections, type PageSection } from '@/components/cms/page-sections';
 import { Eye, ExternalLink, Pencil } from 'lucide-react';
 
 interface PageProp { id: number; title: string; slug: string; body: string | null; layout: PageSection[] | null; status: string; in_menu: boolean; seo: SeoData }
@@ -16,7 +16,7 @@ const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focu
 function initialSections(page: PageProp | null): PageSection[] {
     const norm = normalizeSections(page?.layout);
     if (norm.length > 0) return norm;
-    if (page?.body) return [{ id: 's_legacy', title: '', columns: [{ blocks: [{ id: 'b_legacy', type: 'richtext', html: page.body }] }] }];
+    if (page?.body) return [{ id: 's_legacy', columns: [{ blocks: [{ id: 'b_legacy', type: 'richtext', html: page.body }] }], settings: { ...DEFAULT_SETTINGS } }];
     return [];
 }
 
