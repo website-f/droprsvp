@@ -2,6 +2,8 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { AppSelect } from '@/components/ui/app-select';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { uploadImage } from '@/lib/upload';
 import { ArrowLeft, ImagePlus, Plus, Trash2 } from 'lucide-react';
 
@@ -121,18 +123,21 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="category">Category</Label>
-                                <select id="category" className={field} value={data.category_id} onChange={(e) => setData('category_id', e.target.value)}>
-                                    <option value="">— None —</option>
-                                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                                <AppSelect
+                                    id="category"
+                                    value={data.category_id || 'none'}
+                                    onChange={(v) => setData('category_id', v === 'none' ? '' : v)}
+                                    options={[{ value: 'none', label: '— None —' }, ...categories.map((c) => ({ value: String(c.id), label: c.name }))]}
+                                />
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="visibility">Visibility</Label>
-                                <select id="visibility" className={field} value={data.visibility} onChange={(e) => setData('visibility', e.target.value)}>
-                                    <option value="public">Public</option>
-                                    <option value="unlisted">Unlisted</option>
-                                    <option value="private">Private</option>
-                                </select>
+                                <AppSelect
+                                    id="visibility"
+                                    value={data.visibility}
+                                    onChange={(v) => setData('visibility', v)}
+                                    options={[{ value: 'public', label: 'Public' }, { value: 'unlisted', label: 'Unlisted' }, { value: 'private', label: 'Private' }]}
+                                />
                             </div>
                         </div>
                         <div className="grid gap-1.5">
@@ -181,12 +186,12 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                             <div key={i} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
                                 <div className="grid gap-1.5">
                                     <Label>Starts</Label>
-                                    <input type="datetime-local" className={field} value={s.starts_at} onChange={(e) => patchSession(i, 'starts_at', e.target.value)} />
+                                    <DateTimePicker value={s.starts_at} onChange={(v) => patchSession(i, 'starts_at', v)} />
                                     {errors[`sessions.${i}.starts_at` as keyof typeof errors] && <p className="text-xs text-destructive">Required</p>}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <Label>Ends</Label>
-                                    <input type="datetime-local" className={field} value={s.ends_at} onChange={(e) => patchSession(i, 'ends_at', e.target.value)} />
+                                    <DateTimePicker value={s.ends_at} onChange={(v) => patchSession(i, 'ends_at', v)} />
                                 </div>
                                 <div className="grid gap-1.5">
                                     <Label>Capacity</Label>
@@ -218,11 +223,11 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                                     </div>
                                     <div className="grid gap-1.5">
                                         <Label>Type</Label>
-                                        <select className={field} value={t.kind} onChange={(e) => patchTicket(i, 'kind', e.target.value)}>
-                                            <option value="paid">Paid</option>
-                                            <option value="free">Free</option>
-                                            <option value="donation">Donation</option>
-                                        </select>
+                                        <AppSelect
+                                            value={t.kind}
+                                            onChange={(v) => patchTicket(i, 'kind', v)}
+                                            options={[{ value: 'paid', label: 'Paid' }, { value: 'free', label: 'Free' }, { value: 'donation', label: 'Donation' }]}
+                                        />
                                     </div>
                                     <div className="grid gap-1.5">
                                         <Label>Price (RM)</Label>

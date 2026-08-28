@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { AppSelect } from '@/components/ui/app-select';
 import { ArmchairIcon, ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 
 interface TableView { id: number; name: string; capacity: number; assigned: number }
@@ -96,14 +97,17 @@ export default function Seating({ event, tables, tickets }: Props) {
                                         <span className="font-medium">{t.name}</span>
                                         {t.type && <span className="text-xs text-muted-foreground">· {t.type}</span>}
                                     </div>
-                                    <select className={`${field} w-48`} value={t.table_id ?? ''} onChange={(e) => assign(t.id, e.target.value)}>
-                                        <option value="">— Unassigned —</option>
-                                        {tables.map((tb) => (
-                                            <option key={tb.id} value={tb.id} disabled={tb.assigned >= tb.capacity && t.table_id !== tb.id}>
-                                                {tb.name} ({tb.assigned}/{tb.capacity})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="w-48 shrink-0">
+                                        <AppSelect
+                                            value={t.table_id ? String(t.table_id) : 'none'}
+                                            onChange={(v) => assign(t.id, v === 'none' ? '' : v)}
+                                            options={[
+                                                { value: 'none', label: '— Unassigned —' },
+                                                ...tables.map((tb) => ({ value: String(tb.id), label: `${tb.name} (${tb.assigned}/${tb.capacity})`, disabled: tb.assigned >= tb.capacity && t.table_id !== tb.id })),
+                                            ]}
+                                            className="h-10"
+                                        />
+                                    </div>
                                 </li>
                             ))}
                         </ul>

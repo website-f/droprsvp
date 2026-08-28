@@ -2,6 +2,7 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { AppSelect } from '@/components/ui/app-select';
 import { uploadImage } from '@/lib/upload';
 import { Plus, Trash2, Upload } from 'lucide-react';
 
@@ -101,9 +102,14 @@ export default function LandingSettings({ sections }: { sections: Sections }) {
                             {data.event_time.items.map((it, i) => (
                                 <div key={i} className="flex gap-2">
                                     <input className={field} value={it.label} placeholder="Label e.g. This weekend" onChange={(e) => { const items = [...data.event_time.items]; items[i] = { ...it, label: e.target.value }; patch('event_time', { items }); }} />
-                                    <select className={field + ' max-w-[160px]'} value={it.value} onChange={(e) => { const items = [...data.event_time.items]; items[i] = { ...it, value: e.target.value }; patch('event_time', { items }); }}>
-                                        {['today', 'weekend', 'week', 'month'].map((v) => <option key={v} value={v}>{v}</option>)}
-                                    </select>
+                                    <div className="w-[160px] shrink-0">
+                                        <AppSelect
+                                            value={it.value}
+                                            onChange={(v) => { const items = [...data.event_time.items]; items[i] = { ...it, value: v }; patch('event_time', { items }); }}
+                                            options={[{ value: 'today', label: 'Today' }, { value: 'weekend', label: 'Weekend' }, { value: 'week', label: 'This week' }, { value: 'month', label: 'This month' }]}
+                                            className="h-10"
+                                        />
+                                    </div>
                                     <button type="button" onClick={() => patch('event_time', { items: data.event_time.items.filter((_, j) => j !== i) })} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"><Trash2 className="size-4" /></button>
                                 </div>
                             ))}
