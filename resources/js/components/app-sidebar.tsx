@@ -16,27 +16,28 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'My tickets',
-        href: '/my/tickets',
-        icon: Ticket,
-    },
-    {
-        title: 'Events',
-        href: '/host/events',
-        icon: CalendarDays,
-    },
-    {
-        title: 'Payouts',
-        href: '/host/payouts',
-        icon: Wallet,
-    },
+const youNav: NavItem[] = [
+    { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+    { title: 'My tickets', href: '/my/tickets', icon: Ticket },
+];
+
+const organizingNav: NavItem[] = [
+    { title: 'Events', href: '/host/events', icon: CalendarDays },
+    { title: 'Payouts', href: '/host/payouts', icon: Wallet },
+];
+
+// Superadmin-only groups.
+const platformNav: NavItem[] = [
+    { title: 'Overview', href: '/admin/overview', icon: Gauge },
+    { title: 'All events', href: '/admin/all-events', icon: CalendarDays },
+    { title: 'Users', href: '/admin/users', icon: Users },
+    { title: 'Payout requests', href: '/admin/payouts', icon: Banknote },
+];
+
+const cmsNav: NavItem[] = [
+    { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
+    { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
+    { title: 'Menu', href: '/admin/cms/menu', icon: Menu },
 ];
 
 const footerNavItems: NavItem[] = [
@@ -54,17 +55,7 @@ const footerNavItems: NavItem[] = [
 
 export function AppSidebar() {
     const { auth } = usePage().props;
-    // The CMS is superadmin-only, so only show it to them.
-    const navItems: NavItem[] = auth?.is_superadmin
-        ? [...mainNavItems,
-            { title: 'Overview', href: '/admin/overview', icon: Gauge },
-            { title: 'All events', href: '/admin/all-events', icon: CalendarDays },
-            { title: 'Users', href: '/admin/users', icon: Users },
-            { title: 'Payout requests', href: '/admin/payouts', icon: Banknote },
-            { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
-            { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
-            { title: 'Menu', href: '/admin/cms/menu', icon: Menu }]
-        : mainNavItems;
+    const isAdmin = auth?.is_superadmin;
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -81,7 +72,11 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={navItems} />
+                {/* Grouped so the CMS / platform-admin areas are clearly separated. */}
+                <NavMain items={youNav} label="You" />
+                <NavMain items={organizingNav} label="Organizing" />
+                {isAdmin && <NavMain items={platformNav} label="Platform admin" />}
+                {isAdmin && <NavMain items={cmsNav} label="Content (CMS)" />}
             </SidebarContent>
 
             <SidebarFooter>

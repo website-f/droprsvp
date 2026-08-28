@@ -1,13 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/confirm-dialog';
 import { ExternalLink, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 
 interface PageRow { id: number; title: string; slug: string; status: string; updated_at: string }
 
 export default function PagesIndex({ pages }: { pages: PageRow[] }) {
-    const remove = (p: PageRow) => {
-        if (confirm(`Delete "${p.title}"?`)) router.delete(`/admin/cms/pages/${p.id}`, { preserveScroll: true });
+    const confirm = useConfirm();
+    const remove = async (p: PageRow) => {
+        if (await confirm({ title: `Delete “${p.title}”?`, description: 'This page will be removed.', confirmText: 'Delete', destructive: true })) {
+            router.delete(`/admin/cms/pages/${p.id}`, { preserveScroll: true });
+        }
     };
 
     return (

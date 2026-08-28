@@ -2,6 +2,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/components/confirm-dialog';
 import { ArrowDown, ArrowUp, ExternalLink, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 interface Item { id: number; label: string; url: string; new_tab: boolean; sort: number }
@@ -12,6 +13,7 @@ const field = 'h-10 w-full rounded-lg border border-input bg-background px-3 tex
 export default function MenuManager({ items, pages, builtins }: { items: Item[]; pages: Quick[]; builtins: Quick[] }) {
     const add = useForm({ label: '', url: '', new_tab: false });
     const [editingId, setEditingId] = useState<number | null>(null);
+    const confirm = useConfirm();
 
     const quickAdd = (q: Quick) => {
         add.setData({ label: q.label, url: q.url, new_tab: false });
@@ -30,8 +32,8 @@ export default function MenuManager({ items, pages, builtins }: { items: Item[];
         router.post('/admin/cms/menu/reorder', { ids }, { preserveScroll: true });
     };
 
-    const remove = (id: number) => {
-        if (!confirm('Remove this menu item?')) return;
+    const remove = async (id: number) => {
+        if (!await confirm({ title: 'Remove this menu item?', confirmText: 'Remove', destructive: true })) return;
         router.delete(`/admin/cms/menu/${id}`, { preserveScroll: true });
     };
 

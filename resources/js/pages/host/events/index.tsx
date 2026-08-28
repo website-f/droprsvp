@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/confirm-dialog';
 import { ArmchairIcon, CalendarDays, Pencil, Plus, Receipt, ScanLine, Ticket, Trash2 } from 'lucide-react';
 
 interface HostEvent {
@@ -27,8 +28,9 @@ function formatDate(value: string | null): string {
 }
 
 export default function EventsIndex({ events }: { events: HostEvent[] }) {
-    const remove = (e: HostEvent) => {
-        if (confirm(`Delete "${e.title}"? This cannot be undone.`)) {
+    const confirm = useConfirm();
+    const remove = async (e: HostEvent) => {
+        if (await confirm({ title: `Delete “${e.title}”?`, description: 'This cannot be undone.', confirmText: 'Delete', destructive: true })) {
             router.delete(`/host/events/${e.slug}`, { preserveScroll: true });
         }
     };

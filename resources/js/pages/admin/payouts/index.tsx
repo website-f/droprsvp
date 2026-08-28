@@ -1,15 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Banknote } from 'lucide-react';
 
 interface PayoutRow { reference: string; organizer: string | null; email: string | null; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
 
 export default function AdminPayouts({ payouts }: { payouts: PayoutRow[] }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
+    const confirm = useConfirm();
 
-    const markPaid = (p: PayoutRow) => {
-        if (confirm(`Mark ${p.reference} (RM ${p.amount.toFixed(2)}) to ${p.organizer} as paid?`)) {
+    const markPaid = async (p: PayoutRow) => {
+        if (await confirm({ title: 'Mark payout as paid?', description: `${p.reference} · RM ${p.amount.toFixed(2)} to ${p.organizer}.`, confirmText: 'Mark paid' })) {
             router.post(`/admin/payouts/${p.reference}/paid`, {}, { preserveScroll: true });
         }
     };

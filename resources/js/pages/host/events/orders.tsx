@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/confirm-dialog';
 import { ArrowLeft, Receipt } from 'lucide-react';
 
 interface OrderRow { reference: string; buyer: string | null; email: string | null; tickets: number; total: number; currency: string; status: string; date: string | null }
@@ -8,9 +9,10 @@ interface Props { event: { title: string; slug: string }; orders: OrderRow[] }
 
 export default function Orders({ event, orders }: Props) {
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
+    const confirm = useConfirm();
 
-    const refund = (o: OrderRow) => {
-        if (confirm(`Refund ${o.reference} (${o.currency} ${o.total.toFixed(2)})? Tickets will be voided.`)) {
+    const refund = async (o: OrderRow) => {
+        if (await confirm({ title: `Refund ${o.reference}?`, description: `${o.currency} ${o.total.toFixed(2)} will be refunded and the tickets voided.`, confirmText: 'Refund', destructive: true })) {
             router.post(`/host/events/${event.slug}/orders/${o.reference}/refund`, {}, { preserveScroll: true });
         }
     };

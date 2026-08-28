@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Search, ShieldCheck } from 'lucide-react';
 
 interface Row { id: number; name: string; email: string; roles: string[]; events: number; is_superadmin: boolean }
@@ -10,10 +11,13 @@ interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: 
 export default function AdminUsers({ users, filters }: { users: Paginated; filters: { q: string } }) {
     const [q, setQ] = useState(filters.q);
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
+    const confirm = useConfirm();
 
-    const toggle = (u: Row) => {
+    const toggle = async (u: Row) => {
         const verb = u.is_superadmin ? 'Revoke superadmin from' : 'Grant superadmin to';
-        if (confirm(`${verb} ${u.name}?`)) router.post(`/admin/users/${u.id}/superadmin`, {}, { preserveScroll: true });
+        if (await confirm({ title: `${verb} ${u.name}?`, confirmText: u.is_superadmin ? 'Revoke' : 'Grant', destructive: u.is_superadmin })) {
+            router.post(`/admin/users/${u.id}/superadmin`, {}, { preserveScroll: true });
+        }
     };
 
     return (

@@ -1,13 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/confirm-dialog';
 import { ExternalLink, Newspaper, Pencil, Plus, Trash2 } from 'lucide-react';
 
 interface PostRow { id: number; title: string; slug: string; status: string; category: string | null; updated_at: string }
 
 export default function PostsIndex({ posts }: { posts: PostRow[] }) {
-    const remove = (p: PostRow) => {
-        if (confirm(`Delete "${p.title}"?`)) router.delete(`/admin/cms/posts/${p.id}`, { preserveScroll: true });
+    const confirm = useConfirm();
+    const remove = async (p: PostRow) => {
+        if (await confirm({ title: `Delete “${p.title}”?`, description: 'This post will be removed.', confirmText: 'Delete', destructive: true })) {
+            router.delete(`/admin/cms/posts/${p.id}`, { preserveScroll: true });
+        }
     };
 
     return (

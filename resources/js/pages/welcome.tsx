@@ -174,7 +174,7 @@ export default function Welcome() {
                         <Reveal delay={120} className="order-1 lg:order-2">
                             <div className="relative mx-auto max-w-lg">
                                 <div aria-hidden className="absolute inset-0 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-[#6c63ff1a] via-transparent to-[#ff65841a]" />
-                                <img src="/vector/undraw_having-fun_kkeu.svg" alt="" loading="lazy" className="w-full drsvp-float" />
+                                <img src="/vector/undraw_having-fun_kkeu.svg" alt="" loading="lazy" className="mx-auto block h-auto w-full max-w-[22rem] sm:max-w-md drsvp-float" />
                             </div>
                         </Reveal>
                     </div>
@@ -196,7 +196,7 @@ export default function Welcome() {
                                 <Reveal key={s.title} delay={i * 90}>
                                     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                                         <div className="flex aspect-[16/10] items-center justify-center p-6" style={{ backgroundColor: `${s.tint}12` }}>
-                                            <img src={`/vector/${s.art}.svg`} alt="" loading="lazy" className="max-h-full w-auto" />
+                                            <img src={`/vector/${s.art}.svg`} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
                                         </div>
                                         <div className="p-6">
                                             <h3 className="text-lg font-semibold">{s.title}</h3>
