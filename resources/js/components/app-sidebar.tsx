@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, LayoutTemplate, Menu, Newspaper, PanelBottom, Ticket, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, PanelBottom, Ticket, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -37,6 +37,7 @@ const platformNav: NavItem[] = [
 const cmsNav: NavItem[] = [
     { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
     { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
+    { title: 'Help center', href: '/admin/cms/help', icon: LifeBuoy },
     { title: 'Menu', href: '/admin/cms/menu', icon: Menu },
 ];
 

@@ -28,5 +28,8 @@ class DatabaseSeeder extends Seeder
 
         // Showcase events with real cover photos (so the marketplace isn't empty).
         $this->call(SampleEventsSeeder::class);
+
+        // Default help-center content.
+        $this->call(HelpArticlesSeeder::class);
     }
 }

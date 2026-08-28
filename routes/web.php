@@ -17,6 +17,8 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\DiscoverController;
+use App\Http\Controllers\Public\HelpController;
+use App\Http\Controllers\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Public\PageController as PublicPageController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\Host\CheckInController;
@@ -39,6 +41,10 @@ Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.sh
 // Public blog (SEO).
 Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+
+// Public help center (SEO).
+Route::get('help', [HelpController::class, 'index'])->name('help.index');
+Route::get('help/{article}', [HelpController::class, 'show'])->name('help.show');
 
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
@@ -124,6 +130,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('menu/reorder', [MenuController::class, 'reorder'])->name('menu.reorder');
         Route::put('menu/{menuItem}', [MenuController::class, 'update'])->name('menu.update');
         Route::delete('menu/{menuItem}', [MenuController::class, 'destroy'])->name('menu.destroy');
+
+        // Help center articles.
+        Route::get('help', [AdminHelpController::class, 'index'])->name('help.index');
+        Route::get('help/create', [AdminHelpController::class, 'create'])->name('help.create');
+        Route::post('help', [AdminHelpController::class, 'store'])->name('help.store');
+        Route::get('help/{help}/edit', [AdminHelpController::class, 'edit'])->name('help.edit');
+        Route::put('help/{help}', [AdminHelpController::class, 'update'])->name('help.update');
+        Route::delete('help/{help}', [AdminHelpController::class, 'destroy'])->name('help.destroy');
 
         Route::get('posts', [CmsPostController::class, 'index'])->name('posts.index');
         Route::get('posts/create', [CmsPostController::class, 'create'])->name('posts.create');
