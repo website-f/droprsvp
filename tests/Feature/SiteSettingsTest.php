@@ -46,14 +46,14 @@ class SiteSettingsTest extends TestCase
     public function test_footer_saves_as_puck_data_and_is_shared_site_wide(): void
     {
         $data = ['root' => [], 'content' => [
-            ['type' => 'Column', 'props' => ['id' => 'c', 'title' => 'Discover', 'links' => [['label' => 'Events', 'url' => '/en-my']]]],
+            ['type' => 'Footer', 'props' => ['id' => 'f', 'tagline' => 'Hi', 'ctaLabel' => 'Go', 'ctaUrl' => '/x', 'columns' => [['title' => 'Discover', 'links' => [['label' => 'Events', 'url' => '/en-my']]]]]],
         ]];
 
         $this->actingAs($this->superadmin())->post(route('admin.site.footer.save'), ['data' => $data])->assertRedirect();
 
         $this->get('/')->assertInertia(fn (Assert $p) => $p
-            ->where('footer.content.0.type', 'Column')
-            ->where('footer.content.0.props.title', 'Discover'));
+            ->where('footer.content.0.type', 'Footer')
+            ->where('footer.content.0.props.columns.0.title', 'Discover'));
     }
 
     public function test_non_superadmin_cannot_edit_site(): void

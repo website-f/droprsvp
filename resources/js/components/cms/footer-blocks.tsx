@@ -1,53 +1,51 @@
 import { Link } from '@inertiajs/react';
+import { CalendarDays } from 'lucide-react';
 
 /**
- * Plain (no-Puck) footer building blocks + renderer. Used by the public footer
- * on every page — so we render the Puck-authored footer WITHOUT shipping the
- * Puck runtime to visitors. The admin editor (footer-puck-config) reuses these
- * same components for its canvas.
+ * The complete site footer as a single component. Rendered identically by the
+ * public site AND the admin Puck editor (footer-puck-config), so the builder
+ * canvas mirrors the live footer exactly. No Puck runtime is imported here, so
+ * the public footer stays lightweight.
  */
 
 export interface FooterLink { label: string; url: string }
-export interface FooterBlock { type: string; props: { tagline?: string; ctaLabel?: string; ctaUrl?: string; title?: string; links?: FooterLink[] } }
+export interface FooterColumnData { title: string; links: FooterLink[] }
+export interface FooterData { tagline: string; ctaLabel: string; ctaUrl: string; columns: FooterColumnData[] }
 
-export function FooterBrand({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-started' }: { tagline?: string; ctaLabel?: string; ctaUrl?: string }) {
+export function Footer({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-started', columns = [] }: Partial<FooterData>) {
     return (
-        <div className="max-w-xs">
-            <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
-            {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
-            {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
-        </div>
-    );
-}
+        <footer className="mt-auto border-t border-border bg-muted/30">
+            <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Brand */}
+                <div className="max-w-xs">
+                    <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
+                    {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
+                    {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
+                </div>
 
-export function FooterColumn({ title, links }: { title?: string; links?: FooterLink[] }) {
-    return (
-        <div>
-            {title && <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{title}</h3>}
-            <nav className="mt-4 flex flex-col gap-2.5">
-                {(links ?? []).filter((l) => l.label && l.url).map((l, i) => (
-                    <Link key={i} href={l.url} className="text-sm text-muted-foreground transition-colors hover:text-foreground">{l.label}</Link>
+                {/* Link columns */}
+                {(columns ?? []).map((col, i) => (
+                    <div key={i}>
+                        {col.title && <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{col.title}</h3>}
+                        <nav className="mt-4 flex flex-col gap-2.5">
+                            {(col.links ?? []).filter((l) => l.label && l.url).map((l, j) => (
+                                <Link key={j} href={l.url} className="text-sm text-muted-foreground transition-colors hover:text-foreground">{l.label}</Link>
+                            ))}
+                        </nav>
+                    </div>
                 ))}
-            </nav>
-        </div>
-    );
-}
+            </div>
 
-/** Render a Puck-shaped footer content array with plain React (no Puck runtime). */
-export function FooterContent({ content }: { content: FooterBlock[] }) {
-    return (
-        <>
-            {(content ?? []).map((b, i) => {
-                if (b.type === 'Brand') {
-return <FooterBrand key={i} {...b.props} />;
-}
-
-                if (b.type === 'Column') {
-return <FooterColumn key={i} {...b.props} />;
-}
-
-                return null;
-            })}
-        </>
+            <div className="border-t border-border">
+                <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
+                    <span className="flex items-center gap-2 font-medium text-foreground"><CalendarDays className="size-4" /> DropRSVP</span>
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                        <Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link>
+                        <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
+                        <span>© {new Date().getFullYear()} DropRSVP. All rights reserved.</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
     );
 }

@@ -1,41 +1,51 @@
 import type { Config, Data } from '@measured/puck';
-import { FooterBrand, FooterColumn  } from '@/components/cms/footer-blocks';
+import { Footer  } from '@/components/cms/footer-blocks';
 import type {FooterLink} from '@/components/cms/footer-blocks';
 
 /**
- * Footer-only Puck config. Deliberately tiny — the footer editor exposes just
- * the brand/tagline and link columns, nothing else. Rendered on the admin canvas
- * with the same components the public footer uses (footer-blocks).
+ * Footer-only Puck config — a single Footer component whose render IS the live
+ * footer, so the editor canvas mirrors the site exactly. Columns (and their
+ * links) are editable, reorderable array fields.
  */
 
 type FooterProps = {
-    Brand: { tagline: string; ctaLabel: string; ctaUrl: string };
-    Column: { title: string; links: FooterLink[] };
+    Footer: { tagline: string; ctaLabel: string; ctaUrl: string; columns: { title: string; links: FooterLink[] }[] };
 };
+
+const DEFAULT_COLUMNS = [
+    { title: 'Discover', links: [{ label: 'Browse events', url: '/en-my' }, { label: 'Blog', url: '/blog' }, { label: 'Help center', url: '/help' }] },
+    { title: 'For hosts', links: [{ label: 'Create an event', url: '/get-started' }, { label: 'My tickets', url: '/my/tickets' }, { label: 'Log in', url: '/login' }] },
+];
 
 export const footerConfig: Config<FooterProps> = {
     components: {
-        Brand: {
+        Footer: {
             fields: {
                 tagline: { type: 'textarea' },
                 ctaLabel: { type: 'text' },
                 ctaUrl: { type: 'text' },
-            },
-            defaultProps: { tagline: 'Find your people, fill your events.', ctaLabel: 'Create an event', ctaUrl: '/get-started' },
-            render: ({ tagline, ctaLabel, ctaUrl }) => <div className="p-2"><FooterBrand tagline={tagline} ctaLabel={ctaLabel} ctaUrl={ctaUrl} /></div>,
-        },
-        Column: {
-            fields: {
-                title: { type: 'text' },
-                links: {
+                columns: {
                     type: 'array',
-                    arrayFields: { label: { type: 'text' }, url: { type: 'text' } },
-                    defaultItemProps: { label: 'Link', url: '/' },
-                    getItemSummary: (item: { label: string }) => item.label || 'Link',
+                    arrayFields: {
+                        title: { type: 'text' },
+                        links: {
+                            type: 'array',
+                            arrayFields: { label: { type: 'text' }, url: { type: 'text' } },
+                            defaultItemProps: { label: 'Link', url: '/' },
+                            getItemSummary: (item: { label: string }) => item.label || 'Link',
+                        },
+                    },
+                    defaultItemProps: { title: 'Column', links: [{ label: 'Link', url: '/' }] },
+                    getItemSummary: (item: { title: string }) => item.title || 'Column',
                 },
             },
-            defaultProps: { title: 'Column', links: [{ label: 'Browse events', url: '/en-my' }] },
-            render: ({ title, links }) => <div className="p-2"><FooterColumn title={title} links={links} /></div>,
+            defaultProps: {
+                tagline: 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.',
+                ctaLabel: 'Create an event',
+                ctaUrl: '/get-started',
+                columns: DEFAULT_COLUMNS,
+            },
+            render: ({ tagline, ctaLabel, ctaUrl, columns }) => <Footer tagline={tagline} ctaLabel={ctaLabel} ctaUrl={ctaUrl} columns={columns} />,
         },
     },
 };
@@ -43,8 +53,6 @@ export const footerConfig: Config<FooterProps> = {
 export const emptyFooterData: Data = {
     root: {},
     content: [
-        { type: 'Brand', props: { id: 'brand', tagline: 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.', ctaLabel: 'Create an event', ctaUrl: '/get-started' } },
-        { type: 'Column', props: { id: 'col-1', title: 'Discover', links: [{ label: 'Browse events', url: '/en-my' }, { label: 'Blog', url: '/blog' }, { label: 'Help center', url: '/help' }] } },
-        { type: 'Column', props: { id: 'col-2', title: 'For hosts', links: [{ label: 'Create an event', url: '/get-started' }, { label: 'My tickets', url: '/my/tickets' }, { label: 'Log in', url: '/login' }] } },
+        { type: 'Footer', props: { id: 'footer', tagline: 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.', ctaLabel: 'Create an event', ctaUrl: '/get-started', columns: DEFAULT_COLUMNS } },
     ],
 } as Data;

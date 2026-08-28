@@ -1,8 +1,8 @@
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarDays, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import { FooterContent  } from '@/components/cms/footer-blocks';
-import type {FooterBlock} from '@/components/cms/footer-blocks';
+import { Footer  } from '@/components/cms/footer-blocks';
+import type {FooterData} from '@/components/cms/footer-blocks';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
 import type { PublicNavItem } from '@/types';
@@ -91,27 +91,9 @@ export function PublicHeader() {
 
 export function PublicFooter() {
     const { footer } = usePage().props;
-    const content = (footer as { content?: FooterBlock[] } | undefined)?.content ?? [];
+    // Footer is a single Puck block; render its props with the shared Footer component.
+    const content = (footer as { content?: { type: string; props: Partial<FooterData> }[] } | undefined)?.content ?? [];
+    const props = content.find((b) => b.type === 'Footer')?.props ?? {};
 
-    return (
-        <footer className="mt-auto border-t border-border bg-muted/30">
-            {/* Puck-authored footer, rendered with the plain (no-Puck) renderer. */}
-            <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
-                <FooterContent content={content} />
-            </div>
-
-            <div className="border-t border-border">
-                <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
-                    <span className="flex items-center gap-2 font-medium text-foreground">
-                        <CalendarDays className="size-4" /> DropRSVP
-                    </span>
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                        <Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link>
-                        <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
-                        <span>© {new Date().getFullYear()} DropRSVP. All rights reserved.</span>
-                    </div>
-                </div>
-            </div>
-        </footer>
-    );
+    return <Footer {...props} />;
 }

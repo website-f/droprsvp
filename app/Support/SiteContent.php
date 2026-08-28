@@ -102,24 +102,32 @@ class SiteContent
         ];
     }
 
-    /** Default footer as a Puck document (Brand + link columns). */
+    /** Default footer as a Puck document (a single Footer block). */
     public static function defaultFooter(): array
     {
         return [
             'root' => (object) [],
-            'content' => [
-                ['type' => 'Brand', 'props' => ['id' => 'brand', 'tagline' => 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.', 'ctaLabel' => 'Create an event', 'ctaUrl' => '/get-started']],
-                ['type' => 'Column', 'props' => ['id' => 'col-1', 'title' => 'Discover', 'links' => [
-                    ['label' => 'Browse events', 'url' => '/en-my'],
-                    ['label' => 'Blog', 'url' => '/blog'],
-                    ['label' => 'Help center', 'url' => '/help'],
-                ]]],
-                ['type' => 'Column', 'props' => ['id' => 'col-2', 'title' => 'For hosts', 'links' => [
-                    ['label' => 'Create an event', 'url' => '/get-started'],
-                    ['label' => 'My tickets', 'url' => '/my/tickets'],
-                    ['label' => 'Log in', 'url' => '/login'],
-                ]]],
-            ],
+            'content' => [[
+                'type' => 'Footer',
+                'props' => [
+                    'id' => 'footer',
+                    'tagline' => 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.',
+                    'ctaLabel' => 'Create an event',
+                    'ctaUrl' => '/get-started',
+                    'columns' => [
+                        ['title' => 'Discover', 'links' => [
+                            ['label' => 'Browse events', 'url' => '/en-my'],
+                            ['label' => 'Blog', 'url' => '/blog'],
+                            ['label' => 'Help center', 'url' => '/help'],
+                        ]],
+                        ['title' => 'For hosts', 'links' => [
+                            ['label' => 'Create an event', 'url' => '/get-started'],
+                            ['label' => 'My tickets', 'url' => '/my/tickets'],
+                            ['label' => 'Log in', 'url' => '/login'],
+                        ]],
+                    ],
+                ],
+            ]],
         ];
     }
 }
