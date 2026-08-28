@@ -64,6 +64,7 @@ class BlogController extends Controller
         app(SeoManager::class)
             ->title($seo?->seo_title ?: $post->title)
             ->description($description)
+            ->keywords($seo?->meta_keywords)
             ->canonical($canonical)
             ->image($seo?->og_image ?: $cover)
             ->article([

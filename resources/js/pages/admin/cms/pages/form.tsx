@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 
 interface PageProp { id: number; title: string; slug: string; puck: Data | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
 
-const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
+const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, meta_keywords: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
 
 export default function PageForm({ page }: { page: PageProp | null }) {
     const isEdit = !!page;

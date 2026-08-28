@@ -1,8 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { ArmchairIcon, CalendarDays, ChartColumn, Pencil, Plus, Receipt, ScanLine, Ticket, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
-import { ArmchairIcon, CalendarDays, Pencil, Plus, Receipt, ScanLine, Ticket, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface HostEvent {
     id: number;
@@ -17,13 +17,22 @@ interface HostEvent {
 }
 
 function statusTone(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
-    if (status === 'published') return 'default';
-    if (status === 'cancelled') return 'destructive';
+    if (status === 'published') {
+return 'default';
+}
+
+    if (status === 'cancelled') {
+return 'destructive';
+}
+
     return 'secondary';
 }
 
 function formatDate(value: string | null): string {
-    if (!value) return 'No date set';
+    if (!value) {
+return 'No date set';
+}
+
     return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
@@ -79,6 +88,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                         <td className="px-4 py-3"><span className="inline-flex items-center gap-1 text-muted-foreground"><Ticket className="size-3.5" /> {e.ticket_types_count}</span></td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-2">
+                                                <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/analytics`}><ChartColumn className="size-3.5" /> Analytics</Link></Button>
                                                 <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/orders`}><Receipt className="size-3.5" /> Orders</Link></Button>
                                                 <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/seating`}><ArmchairIcon className="size-3.5" /> Seating</Link></Button>
                                                 <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/checkin`}><ScanLine className="size-3.5" /> Check-in</Link></Button>

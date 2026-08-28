@@ -31,5 +31,8 @@ class DatabaseSeeder extends Seeder
 
         // Default help-center content.
         $this->call(HelpArticlesSeeder::class);
+
+        // Privacy Policy + Terms pages (editable under Admin → Legal pages).
+        $this->call(LegalPagesSeeder::class);
     }
 }

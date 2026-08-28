@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Models\User;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use Inertia\Inertia;
@@ -22,10 +23,12 @@ class HomeController extends Controller
             ->map(fn (Event $e) => $this->card($e))
             ->values();
 
-        $site = config('seo.site_name', 'DropRSVP');
+        // Homepage SEO is superadmin-editable (title/description/keywords only).
+        $home = SiteContent::homeSeo();
         app(SeoManager::class)
-            ->title("{$site} — Discover events near you", false)
-            ->description("Find events happening near you and get tickets, or host your own on {$site}. Concerts, conferences, food festivals, workshops and community meetups.")
+            ->title($home['title'], false)
+            ->description($home['description'])
+            ->keywords($home['keywords'] ?: null)
             ->canonical(url('/'))
             ->type('website')
             ->schema([
@@ -43,7 +46,32 @@ class HomeController extends Controller
             'featured' => $featured,
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug']),
             'sections' => SiteContent::landing(),
+            'organizers' => $this->featuredOrganizers(),
         ]);
+    }
+
+    /** Top organizers by number of published events, with their soonest event. */
+    private function featuredOrganizers(): \Illuminate\Support\Collection
+    {
+        return User::query()
+            ->whereHas('events', fn ($q) => $q->published())
+            ->withCount(['events as events_count' => fn ($q) => $q->published()])
+            ->orderByDesc('events_count')
+            ->limit(6)
+            ->get()
+            ->map(function (User $u) {
+                $next = $u->events()->published()
+                    ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+                    ->orderByRaw('starts_at is null, starts_at asc')
+                    ->first(['slug']);
+
+                return [
+                    'name' => $u->name,
+                    'events_count' => $u->events_count,
+                    'next_slug' => $next?->slug,
+                ];
+            })
+            ->values();
     }
 
     private function card(Event $event): array

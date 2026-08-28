@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\CmsPage;
 use App\Models\CmsPost;
 use App\Models\Event;
+use App\Models\EventCategory;
+use App\Support\Cities;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
@@ -13,11 +15,22 @@ class SitemapController extends Controller
     /** XML sitemap (with image entries) of every public, indexable URL. */
     public function index(): Response
     {
+        $locale = 'en-my';
         $urls = [
             ['loc' => url('/'), 'lastmod' => null, 'image' => null],
-            ['loc' => url('/events'), 'lastmod' => null, 'image' => null],
+            ['loc' => url("/{$locale}"), 'lastmod' => null, 'image' => null],
             ['loc' => url('/blog'), 'lastmod' => null, 'image' => null],
         ];
+
+        // City + category discovery landing pages (only cities that actually have events).
+        $cityNames = Event::published()->whereNotNull('city')->distinct()->pluck('city');
+        $categories = EventCategory::orderBy('name')->get(['slug']);
+        foreach ($cityNames as $name) {
+            $urls[] = ['loc' => url("/{$locale}/".Cities::slugForName($name)), 'lastmod' => null, 'image' => null];
+        }
+        foreach ($categories as $cat) {
+            $urls[] = ['loc' => url("/{$locale}/".Cities::ANY.'/'.$cat->slug), 'lastmod' => null, 'image' => null];
+        }
 
         foreach (Event::published()->get(['slug', 'cover_image', 'updated_at']) as $e) {
             $urls[] = ['loc' => url('/e/'.$e->slug), 'lastmod' => $e->updated_at?->toDateString(), 'image' => $this->abs($e->cover_image)];

@@ -1,15 +1,19 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
+import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { AppSelect } from '@/components/ui/app-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { uploadImage } from '@/lib/upload';
-import { Plus, Trash2, Upload } from 'lucide-react';
+
+interface City { name: string; slug: string }
 
 interface Sections {
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: string[] };
+    featured_organizers: { enabled: boolean; heading: string; subheading: string };
 }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -40,7 +44,7 @@ function Card({ children }: { children: React.ReactNode }) {
     );
 }
 
-export default function LandingSettings({ sections }: { sections: Sections }) {
+export default function LandingSettings({ sections, cities = [] }: { sections: Sections; cities?: City[] }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const form = useForm<Sections>(sections);
     const { data, setData, processing } = form;
@@ -49,9 +53,17 @@ export default function LandingSettings({ sections }: { sections: Sections }) {
     const patch = <K extends keyof Sections>(key: K, val: Partial<Sections[K]>) => setData({ ...data, [key]: { ...data[key], ...val } });
 
     const uploadOrg = async (file?: File) => {
-        if (!file) return;
+        if (!file) {
+return;
+}
+
         setUploading(true);
-        try { patch('organizer', { image: await uploadImage(file) }); } catch { /* keep */ } finally { setUploading(false); }
+
+        try {
+ patch('organizer', { image: await uploadImage(file) }); 
+} catch { /* keep */ } finally {
+ setUploading(false); 
+}
     };
 
     const save = () => form.post('/admin/site/landing', { preserveScroll: true });
@@ -106,11 +118,15 @@ export default function LandingSettings({ sections }: { sections: Sections }) {
                             <Label>Chips (label + when filter)</Label>
                             {data.event_time.items.map((it, i) => (
                                 <div key={i} className="flex gap-2">
-                                    <input className={field} value={it.label} placeholder="Label e.g. This weekend" onChange={(e) => { const items = [...data.event_time.items]; items[i] = { ...it, label: e.target.value }; patch('event_time', { items }); }} />
+                                    <input className={field} value={it.label} placeholder="Label e.g. This weekend" onChange={(e) => {
+ const items = [...data.event_time.items]; items[i] = { ...it, label: e.target.value }; patch('event_time', { items }); 
+}} />
                                     <div className="w-[160px] shrink-0">
                                         <AppSelect
                                             value={it.value}
-                                            onChange={(v) => { const items = [...data.event_time.items]; items[i] = { ...it, value: v }; patch('event_time', { items }); }}
+                                            onChange={(v) => {
+ const items = [...data.event_time.items]; items[i] = { ...it, value: v }; patch('event_time', { items }); 
+}}
                                             options={[{ value: 'today', label: 'Today' }, { value: 'weekend', label: 'Weekend' }, { value: 'week', label: 'This week' }, { value: 'month', label: 'This month' }]}
                                             className="h-10"
                                         />
@@ -130,9 +146,26 @@ export default function LandingSettings({ sections }: { sections: Sections }) {
                         </div>
                         <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.nearby_cities.heading} onChange={(e) => patch('nearby_cities', { heading: e.target.value })} /></div>
                         <div className="grid gap-1.5">
-                            <Label>Cities (one per line)</Label>
-                            <textarea rows={5} className={area} value={data.nearby_cities.cities.join('\n')} onChange={(e) => patch('nearby_cities', { cities: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) })} />
+                            <Label>Cities</Label>
+                            <MultiSelect
+                                values={data.nearby_cities.cities}
+                                onChange={(vals) => patch('nearby_cities', { cities: vals })}
+                                options={cities.map((c) => ({ value: c.name, label: c.name }))}
+                                placeholder="Choose cities to feature…"
+                            />
+                            <p className="text-xs text-muted-foreground">Each links to its city page (e.g. /en-my/kuala-lumpur).</p>
                         </div>
+                    </Card>
+
+                    {/* Featured organizers */}
+                    <Card>
+                        <div className="flex items-center justify-between">
+                            <h2 className="font-semibold">Featured organizers</h2>
+                            <Toggle on={data.featured_organizers.enabled} onChange={(v) => patch('featured_organizers', { enabled: v })} label={data.featured_organizers.enabled ? 'Shown' : 'Hidden'} />
+                        </div>
+                        <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.featured_organizers.heading} onChange={(e) => patch('featured_organizers', { heading: e.target.value })} /></div>
+                        <div className="grid gap-1.5"><Label>Subheading</Label><input className={field} value={data.featured_organizers.subheading} onChange={(e) => patch('featured_organizers', { subheading: e.target.value })} /></div>
+                        <p className="text-xs text-muted-foreground">Automatically shows your most active organizers (by number of published events).</p>
                     </Card>
                 </div>
 

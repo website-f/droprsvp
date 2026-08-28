@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Services\CheckoutService;
 use App\Services\Payments\PaymentGateway;
@@ -23,6 +24,9 @@ class CheckoutController extends Controller
             'items.*.ticket_type_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:0'],
         ]);
+
+        // Intent-to-buy = a click on this event.
+        EventDailyStat::bump($event->id, 'clicks');
 
         $order = $this->checkout->start($event, $data['items'], $request->user()?->id);
 
@@ -53,6 +57,11 @@ class CheckoutController extends Controller
             'buyer_name' => ['required', 'string', 'max:120'],
             'buyer_email' => ['required', 'email', 'max:180'],
             'buyer_phone' => ['nullable', 'string', 'max:40'],
+            // Optional demographics — power the organizer's audience analytics.
+            'buyer_gender' => ['nullable', 'in:female,male,other,na'],
+            'buyer_age_band' => ['nullable', 'in:under-18,18-24,25-34,35-44,45-54,55+'],
+            'buyer_city' => ['nullable', 'string', 'max:80'],
+            'buyer_source' => ['nullable', 'in:instagram,facebook,tiktok,friend,search,email,other'],
         ]);
         $order->update($data);
 

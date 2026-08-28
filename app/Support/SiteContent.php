@@ -26,6 +26,27 @@ class SiteContent
         return $defaults;
     }
 
+    /**
+     * Homepage SEO. The landing page itself is premade and not content-editable —
+     * the superadmin can only tune its title / description / keywords here.
+     */
+    public static function homeSeo(): array
+    {
+        $site = config('seo.site_name', 'DropRSVP');
+
+        $defaults = [
+            'title' => "{$site} — Discover events near you",
+            'description' => "Find events happening near you and get tickets, or host your own on {$site}. Concerts, conferences, food festivals, workshops and community meetups.",
+            'keywords' => '',
+        ];
+
+        // Only non-blank saved values override the defaults (a cleared title still
+        // falls back to a sensible default rather than an empty <title>).
+        $saved = array_filter(Setting::getArray('home_seo', []), fn ($v) => filled($v));
+
+        return array_replace($defaults, $saved);
+    }
+
     /** Footer config (cached — rendered on every public page). */
     public static function footer(): array
     {
@@ -52,7 +73,7 @@ class SiteContent
                 'image' => '',
             ],
             'event_time' => [
-                'enabled' => false,
+                'enabled' => true,
                 'heading' => 'Find events by when',
                 'items' => [
                     ['label' => 'Today', 'value' => 'today'],
@@ -62,9 +83,15 @@ class SiteContent
                 ],
             ],
             'nearby_cities' => [
-                'enabled' => false,
+                'enabled' => true,
                 'heading' => 'Popular near you',
-                'cities' => ['Kuala Lumpur', 'Petaling Jaya', 'Shah Alam', 'Penang', 'Johor Bahru', 'Ipoh'],
+                // City names must match the canonical Cities list so their slugs resolve.
+                'cities' => ['Kuala Lumpur', 'Petaling Jaya', 'Shah Alam', 'George Town', 'Johor Bahru', 'Ipoh'],
+            ],
+            'featured_organizers' => [
+                'enabled' => true,
+                'heading' => 'Featured organizers',
+                'subheading' => 'The people behind the events you love.',
             ],
         ];
     }
@@ -75,7 +102,7 @@ class SiteContent
             'tagline' => 'Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.',
             'columns' => [
                 ['title' => 'Discover', 'links' => [
-                    ['label' => 'Browse events', 'url' => '/events'],
+                    ['label' => 'Browse events', 'url' => '/en-my'],
                     ['label' => 'Blog', 'url' => '/blog'],
                     ['label' => 'Help center', 'url' => '/help'],
                 ]],

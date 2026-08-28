@@ -25,6 +25,7 @@ class PageController extends Controller
         app(SeoManager::class)
             ->title($seo?->seo_title ?: $page->title)
             ->description($description)
+            ->keywords($seo?->meta_keywords)
             ->canonical($canonical)
             ->image($seo?->og_image)
             ->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true))

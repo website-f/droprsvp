@@ -1,9 +1,9 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { Head, router } from '@inertiajs/react';
 import { CalendarDays, Clock, MapPin, Minus, Plus, Ticket, Video } from 'lucide-react';
+import { useState } from 'react';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface TicketTypeView {
     id: number; name: string; description: string | null; kind: 'paid' | 'free' | 'donation';
@@ -12,7 +12,7 @@ interface TicketTypeView {
 }
 interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
-    cover_image: string | null; category: string | null; is_online: boolean;
+    cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
     when: string | null; organizer: string; status: string;
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
@@ -21,8 +21,14 @@ interface EventView {
 interface Seo { title: string }
 
 function priceLabel(t: TicketTypeView): string {
-    if (t.kind === 'free') return 'Free';
-    if (t.kind === 'donation') return 'Donation';
+    if (t.kind === 'free') {
+return 'Free';
+}
+
+    if (t.kind === 'donation') {
+return 'Donation';
+}
+
     return `${t.currency} ${t.price.toFixed(2)}`;
 }
 
@@ -41,7 +47,11 @@ export default function PublicEvent({ event, seo }: { event: EventView; seo: Seo
         const items = Object.entries(qty)
             .filter(([, q]) => q > 0)
             .map(([id, q]) => ({ ticket_type_id: Number(id), quantity: q }));
-        if (items.length === 0) return;
+
+        if (items.length === 0) {
+return;
+}
+
         setSubmitting(true);
         router.post(`/e/${event.slug}/checkout`, { items }, { onFinish: () => setSubmitting(false) });
     };
@@ -87,6 +97,17 @@ export default function PublicEvent({ event, seo }: { event: EventView; seo: Seo
                             <div className="mt-8">
                                 <h2 className="text-lg font-semibold">About this event</h2>
                                 <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground/80">{event.description}</p>
+                            </div>
+                        )}
+
+                        {event.gallery.length > 0 && (
+                            <div className="mt-8">
+                                <h2 className="text-lg font-semibold">Gallery</h2>
+                                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                    {event.gallery.map((src, i) => (
+                                        <img key={i} src={src} alt={`${event.title} photo ${i + 1}`} className="aspect-square w-full rounded-xl border border-border object-cover" loading="lazy" />
+                                    ))}
+                                </div>
                             </div>
                         )}
 

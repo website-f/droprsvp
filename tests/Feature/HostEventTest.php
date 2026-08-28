@@ -44,6 +44,28 @@ class HostEventTest extends TestCase
         $this->assertEquals(0, $event->ticketTypes()->where('name', 'Free RSVP')->value('price'));
     }
 
+    public function test_host_can_save_an_event_gallery(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/host/events', [
+            'title' => 'Gallery Event', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
+            'cover_image' => '/uploads/cover.jpg',
+            'gallery' => ['/uploads/one.jpg', '/uploads/two.jpg'],
+            'sessions' => [['starts_at' => now()->addDay()->toDateTimeString()]],
+            'ticketTypes' => [],
+            'publish' => true,
+        ])->assertRedirect('/host/events');
+
+        $event = Event::first();
+        $this->assertSame(['/uploads/one.jpg', '/uploads/two.jpg'], $event->gallery);
+
+        // Public event page receives the gallery (absolute URLs).
+        $this->get('/e/'.$event->slug)->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->component('public/event')
+            ->has('event.gallery', 2));
+    }
+
     public function test_host_can_view_their_events_index(): void
     {
         $user = \App\Models\User::factory()->create();

@@ -14,8 +14,8 @@ class Event extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image',
-        'status', 'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address',
+        'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'gallery',
+        'status', 'cancelled_reason', 'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address', 'city',
         'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at',
     ];
 
@@ -23,6 +23,7 @@ class Event extends Model
     {
         return [
             'is_online' => 'boolean',
+            'gallery' => 'array',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'published_at' => 'datetime',
@@ -69,6 +70,11 @@ class Event extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function dailyStats(): HasMany
+    {
+        return $this->hasMany(EventDailyStat::class);
     }
 
     public function seo(): MorphOne

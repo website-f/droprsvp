@@ -1,13 +1,14 @@
 import { Link, usePage } from '@inertiajs/react';
+import { CalendarDays, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
-import { CalendarDays, Menu, X } from 'lucide-react';
 import type { FooterConfig, PublicNavItem } from '@/types';
 
 function NavLink({ item, onClick }: { item: PublicNavItem; onClick?: () => void }) {
     const cls = 'text-sm font-medium text-foreground/70 transition-colors hover:text-foreground';
     const isInternal = item.url.startsWith('/') && !item.new_tab;
+
     return isInternal ? (
         <Link href={item.url} className={cls} onClick={onClick}>{item.label}</Link>
     ) : (
@@ -88,6 +89,7 @@ export function PublicHeader() {
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
     const cls = 'text-sm text-muted-foreground transition-colors hover:text-foreground';
+
     return href.startsWith('/')
         ? <Link href={href} className={cls}>{children}</Link>
         : <a href={href} className={cls}>{children}</a>;
@@ -128,7 +130,11 @@ export function PublicFooter() {
                     <span className="flex items-center gap-2 font-medium text-foreground">
                         <CalendarDays className="size-4" /> DropRSVP
                     </span>
-                    <span>{cfg?.copyright ?? `© ${new Date().getFullYear()} DropRSVP. All rights reserved.`}</span>
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                        <Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link>
+                        <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
+                        <span>{cfg?.copyright ?? `© ${new Date().getFullYear()} DropRSVP. All rights reserved.`}</span>
+                    </div>
                 </div>
             </div>
         </footer>

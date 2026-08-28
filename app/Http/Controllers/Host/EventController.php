@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Host;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Support\Cities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -26,6 +27,7 @@ class EventController extends Controller
         return inertia('host/events/form', [
             'event' => null,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
+            'cities' => Cities::all(),
         ]);
     }
 
@@ -53,6 +55,7 @@ class EventController extends Controller
         return inertia('host/events/form', [
             'event' => $event,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
+            'cities' => Cities::all(),
         ]);
     }
 
@@ -87,11 +90,14 @@ class EventController extends Controller
             'category_id' => ['nullable', 'exists:event_categories,id'],
             'description' => ['nullable', 'string'],
             'cover_image' => ['nullable', 'string', 'max:2048'],
+            'gallery' => ['array', 'max:12'],
+            'gallery.*' => ['string', 'max:2048'],
             'visibility' => ['required', 'in:public,unlisted,private'],
             'timezone' => ['required', 'string', 'max:64'],
             'is_online' => ['boolean'],
             'venue_name' => ['nullable', 'string', 'max:180'],
             'venue_address' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:80'],
             'online_url' => ['nullable', 'url', 'max:2048'],
             'capacity' => ['nullable', 'integer', 'min:0'],
             'publish' => ['boolean'],
@@ -127,11 +133,13 @@ class EventController extends Controller
             'category_id' => $data['category_id'] ?? null,
             'description' => $data['description'] ?? null,
             'cover_image' => $data['cover_image'] ?? null,
+            'gallery' => $data['gallery'] ?? [],
             'visibility' => $data['visibility'],
             'timezone' => $data['timezone'],
             'is_online' => $data['is_online'] ?? false,
             'venue_name' => $data['venue_name'] ?? null,
             'venue_address' => $data['venue_address'] ?? null,
+            'city' => ($data['is_online'] ?? false) ? null : ($data['city'] ?? null),
             'online_url' => $data['online_url'] ?? null,
             'capacity' => $data['capacity'] ?? null,
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',

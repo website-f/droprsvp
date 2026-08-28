@@ -11,10 +11,13 @@ use Illuminate\Validation\Rule;
 
 class CmsPageController extends Controller
 {
+    /** Pages edited elsewhere (Privacy/Terms → the Legal editor), hidden from the generic list. */
+    private const SYSTEM_SLUGS = ['privacy-policy', 'terms'];
+
     public function index()
     {
         return inertia('admin/cms/pages/index', [
-            'pages' => CmsPage::latest()->get()->map(fn ($p) => [
+            'pages' => CmsPage::whereNotIn('slug', self::SYSTEM_SLUGS)->latest()->get()->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
                 'updated_at' => $p->updated_at->format('j M Y'),
             ]),
@@ -47,6 +50,10 @@ class CmsPageController extends Controller
 
     public function edit(CmsPage $page)
     {
+        if (in_array($page->slug, self::SYSTEM_SLUGS, true)) {
+            return redirect()->route('admin.site.legal');
+        }
+
         $page->load('seo');
 
         return inertia('admin/cms/pages/form', ['page' => $this->formPayload($page)]);
@@ -75,6 +82,10 @@ class CmsPageController extends Controller
     /** Full-screen Puck "Drop Builder". */
     public function builder(CmsPage $page)
     {
+        if (in_array($page->slug, self::SYSTEM_SLUGS, true)) {
+            return redirect()->route('admin.site.legal');
+        }
+
         return inertia('admin/cms/pages/builder', [
             'page' => [
                 'id' => $page->id,
@@ -140,6 +151,7 @@ class CmsPageController extends Controller
             'seo.seo_title' => ['nullable', 'string', 'max:70'],
             'seo.meta_description' => ['nullable', 'string', 'max:320'],
             'seo.focus_keyphrase' => ['nullable', 'string', 'max:120'],
+            'seo.meta_keywords' => ['nullable', 'string', 'max:500'],
             'seo.canonical_url' => ['nullable', 'url', 'max:2048'],
             'seo.robots_index' => ['boolean'],
             'seo.robots_follow' => ['boolean'],
@@ -207,6 +219,7 @@ class CmsPageController extends Controller
             'seo_title' => $seo['seo_title'] ?? null,
             'meta_description' => $seo['meta_description'] ?? null,
             'focus_keyphrase' => $seo['focus_keyphrase'] ?? null,
+            'meta_keywords' => $seo['meta_keywords'] ?? null,
             'canonical_url' => $seo['canonical_url'] ?? null,
             'robots_index' => $seo['robots_index'] ?? true,
             'robots_follow' => $seo['robots_follow'] ?? true,
@@ -243,6 +256,7 @@ class CmsPageController extends Controller
                 'seo_title' => $page->seo?->seo_title,
                 'meta_description' => $page->seo?->meta_description,
                 'focus_keyphrase' => $page->seo?->focus_keyphrase,
+                'meta_keywords' => $page->seo?->meta_keywords,
                 'canonical_url' => $page->seo?->canonical_url,
                 'robots_index' => $page->seo?->robots_index ?? true,
                 'robots_follow' => $page->seo?->robots_follow ?? true,

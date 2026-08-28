@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
+use App\Http\Controllers\Admin\LegalController as AdminLegalController;
 use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
@@ -21,6 +23,7 @@ use App\Http\Controllers\Public\HelpController;
 use App\Http\Controllers\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Public\PageController as PublicPageController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\Host\AnalyticsController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Host\OrderController;
@@ -32,11 +35,18 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// Public event discovery / marketplace (SEO).
-Route::get('events', [DiscoverController::class, 'index'])->name('events.browse');
+// Public event discovery / marketplace (SEO). Legacy /events?… → 301 to the
+// canonical locale path (/en-my/…).
+Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('events.browse');
 
 // Public, server-rendered event page (SEO).
 Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
+
+// SEO-friendly discovery paths: /en-my, /en-my/{city}, /en-my/{city}/{category}.
+// The locale constraint keeps these from swallowing CMS slugs / other routes.
+Route::get('{locale}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover');
+Route::get('{locale}/{city}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover.city');
+Route::get('{locale}/{city}/{category}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover.city.category');
 
 // Public blog (SEO).
 Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
@@ -97,6 +107,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
 
+        // Per-event analytics (reach, sales, audience demographics).
+        Route::get('events/{event}/analytics', [AnalyticsController::class, 'show'])->name('events.analytics');
+
         // Door check-in console.
         Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');
         Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
@@ -153,8 +166,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Superadmin — cross-org platform administration.
     Route::middleware('role:superadmin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
+        Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
         Route::post('settings/fee', [AdminOverviewController::class, 'updateFee'])->name('settings.fee');
         Route::get('all-events', [AdminEventsController::class, 'index'])->name('events.index');
+        Route::get('all-events/{event}', [AdminEventsController::class, 'show'])->name('events.show');
+        Route::post('all-events/{event}/cancel', [AdminEventsController::class, 'cancel'])->name('events.cancel');
+        Route::post('all-events/{event}/restore', [AdminEventsController::class, 'restore'])->name('events.restore');
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
 
@@ -166,6 +183,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('site/landing', [AdminSiteController::class, 'saveLanding'])->name('site.landing.save');
         Route::get('site/footer', [AdminSiteController::class, 'footer'])->name('site.footer');
         Route::post('site/footer', [AdminSiteController::class, 'saveFooter'])->name('site.footer.save');
+        // Homepage SEO — the landing page is premade, so only its SEO is editable.
+        Route::get('site/home-seo', [AdminSiteController::class, 'homeSeo'])->name('site.home-seo');
+        Route::post('site/home-seo', [AdminSiteController::class, 'saveHomeSeo'])->name('site.home-seo.save');
+        // Legal pages — Privacy Policy + Terms (rich text; live at /privacy-policy, /terms).
+        Route::get('site/legal', [AdminLegalController::class, 'edit'])->name('site.legal');
+        Route::post('site/legal', [AdminLegalController::class, 'update'])->name('site.legal.save');
     });
 });
 

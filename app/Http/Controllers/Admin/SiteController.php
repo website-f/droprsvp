@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Support\Cities;
 use App\Support\SiteContent;
 use Illuminate\Http\Request;
 
@@ -11,7 +12,10 @@ class SiteController extends Controller
 {
     public function landing()
     {
-        return inertia('admin/site/landing', ['sections' => SiteContent::landing()]);
+        return inertia('admin/site/landing', [
+            'sections' => SiteContent::landing(),
+            'cities' => Cities::all(),
+        ]);
     }
 
     public function saveLanding(Request $request)
@@ -35,11 +39,33 @@ class SiteController extends Controller
             'nearby_cities.heading' => ['nullable', 'string', 'max:120'],
             'nearby_cities.cities' => ['array'],
             'nearby_cities.cities.*' => ['nullable', 'string', 'max:60'],
+            'featured_organizers' => ['array'],
+            'featured_organizers.enabled' => ['boolean'],
+            'featured_organizers.heading' => ['nullable', 'string', 'max:120'],
+            'featured_organizers.subheading' => ['nullable', 'string', 'max:200'],
         ]);
 
         Setting::putArray('landing_sections', $data);
 
         return back()->with('success', 'Landing sections saved.');
+    }
+
+    public function homeSeo()
+    {
+        return inertia('admin/site/home-seo', ['seo' => SiteContent::homeSeo()]);
+    }
+
+    public function saveHomeSeo(Request $request)
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:70'],
+            'description' => ['nullable', 'string', 'max:320'],
+            'keywords' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        Setting::putArray('home_seo', $data);
+
+        return back()->with('success', 'Homepage SEO saved.');
     }
 
     public function footer()

@@ -4,6 +4,7 @@ export interface SeoData {
     seo_title: string | null;
     meta_description: string | null;
     focus_keyphrase: string | null;
+    meta_keywords: string | null;
     canonical_url: string | null;
     robots_index: boolean;
     robots_follow: boolean;
@@ -17,6 +18,7 @@ const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm ou
 
 function Count({ value, max }: { value: string | null; max: number }) {
     const len = (value ?? '').length;
+
     return <span className={`text-xs ${len > max ? 'text-destructive' : 'text-muted-foreground'}`}>{len}/{max}</span>;
 }
 
@@ -64,6 +66,11 @@ export function SeoFields({
                 <div className="grid gap-1.5">
                     <Label>Focus keyphrase</Label>
                     <input className={field} value={seo.focus_keyphrase ?? ''} onChange={(e) => onChange({ focus_keyphrase: e.target.value })} />
+                </div>
+                <div className="grid gap-1.5">
+                    <Label>Keywords</Label>
+                    <input className={field} value={seo.meta_keywords ?? ''} onChange={(e) => onChange({ meta_keywords: e.target.value })} placeholder="events, tickets, kuala lumpur" />
+                    <p className="text-xs text-muted-foreground">Comma-separated. Rendered as the <code>meta keywords</code> tag.</p>
                 </div>
 
                 <div className="flex flex-wrap gap-5">

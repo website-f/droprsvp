@@ -10,6 +10,7 @@ class Order extends Model
 {
     protected $fillable = [
         'reference', 'user_id', 'event_id', 'status', 'buyer_name', 'buyer_email', 'buyer_phone',
+        'buyer_gender', 'buyer_age_band', 'buyer_city', 'buyer_source',
         'subtotal', 'discount', 'fees', 'tax', 'total', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
     ];
 

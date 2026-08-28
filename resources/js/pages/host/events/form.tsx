@@ -1,13 +1,14 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { AppSelect } from '@/components/ui/app-select';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
-import { uploadImage } from '@/lib/upload';
 import { ArrowLeft, ImagePlus, Plus, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { AppSelect } from '@/components/ui/app-select';
+import { Button } from '@/components/ui/button';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { Label } from '@/components/ui/label';
+import { uploadImage } from '@/lib/upload';
 
 interface Category { id: number; name: string }
+interface City { name: string; slug: string }
 interface SessionRow { id?: number; title: string; starts_at: string; ends_at: string; capacity: string }
 interface TicketRow {
     id?: number; name: string; description: string; kind: 'paid' | 'free' | 'donation';
@@ -16,8 +17,8 @@ interface TicketRow {
 }
 interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
-    description: string | null; cover_image: string | null; visibility: string; timezone: string;
-    is_online: boolean; venue_name: string | null; venue_address: string | null; online_url: string | null;
+    description: string | null; cover_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
+    is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
@@ -26,10 +27,41 @@ interface EventProp {
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const dt = (v: string | null | undefined) => (v ? v.slice(0, 16) : '');
 
+const RECOMMEND_COVER = 'Recommended: 1600×900px (16:9) · JPG or PNG · under 5 MB';
+const RECOMMEND_GALLERY = 'Recommended: 1200×800px or larger · JPG or PNG · under 5 MB each · up to 12 images';
+const MAX_GALLERY = 12;
+
+function formatBytes(n: number): string {
+    if (n < 1024) {
+return `${n} B`;
+}
+
+    if (n < 1024 * 1024) {
+return `${Math.round(n / 1024)} KB`;
+}
+
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Read an image's natural dimensions + file size for the "uploaded 1600×900 · 240 KB" hint. */
+function readImageMeta(file: File): Promise<{ w: number; h: number; size: number }> {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+ resolve({ w: img.naturalWidth, h: img.naturalHeight, size: file.size }); URL.revokeObjectURL(url); 
+};
+        img.onerror = () => {
+ resolve({ w: 0, h: 0, size: file.size }); URL.revokeObjectURL(url); 
+};
+        img.src = url;
+    });
+}
+
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
 const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
-export default function EventForm({ event, categories }: { event: EventProp | null; categories: Category[] }) {
+export default function EventForm({ event, categories, cities = [] }: { event: EventProp | null; categories: Category[]; cities?: City[] }) {
     const isEdit = !!event;
 
     const form = useForm({
@@ -38,11 +70,13 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
         category_id: event?.category_id ? String(event.category_id) : '',
         description: event?.description ?? '',
         cover_image: event?.cover_image ?? '',
+        gallery: (event?.gallery ?? []) as string[],
         visibility: event?.visibility ?? 'public',
         timezone: event?.timezone ?? 'Asia/Kuala_Lumpur',
         is_online: event?.is_online ?? false,
         venue_name: event?.venue_name ?? '',
         venue_address: event?.venue_address ?? '',
+        city: event?.city ?? '',
         online_url: event?.online_url ?? '',
         capacity: event?.capacity ? String(event.capacity) : '',
         publish: false,
@@ -51,19 +85,51 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
     });
     const { data, setData, errors, processing } = form;
     const coverRef = useRef<HTMLInputElement>(null);
+    const galleryRef = useRef<HTMLInputElement>(null);
     const [uploadingCover, setUploadingCover] = useState(false);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
+    const [coverMeta, setCoverMeta] = useState<{ w: number; h: number; size: number } | null>(null);
 
     const onPickCover = async (file: File | undefined) => {
-        if (!file) return;
+        if (!file) {
+return;
+}
+
         setUploadingCover(true);
+
         try {
-            setData('cover_image', await uploadImage(file));
+            const [url, meta] = await Promise.all([uploadImage(file), readImageMeta(file)]);
+            setData('cover_image', url);
+            setCoverMeta(meta);
         } catch {
             /* keep the existing value on failure */
         } finally {
             setUploadingCover(false);
         }
     };
+
+    const onPickGallery = async (files: FileList | null) => {
+        if (!files || files.length === 0) {
+return;
+}
+
+        setUploadingGallery(true);
+
+        try {
+            const urls = await Promise.all(Array.from(files).map((f) => uploadImage(f)));
+            setData('gallery', [...data.gallery, ...urls].slice(0, MAX_GALLERY));
+        } catch {
+            /* keep what uploaded */
+        } finally {
+            setUploadingGallery(false);
+
+            if (galleryRef.current) {
+galleryRef.current.value = '';
+}
+        }
+    };
+
+    const removeGalleryImage = (i: number) => setData('gallery', data.gallery.filter((_, idx) => idx !== i));
 
     const patchSession = (i: number, key: keyof SessionRow, val: string) =>
         setData('sessions', data.sessions.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
@@ -72,14 +138,20 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
 
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
-        if (isEdit) form.put(`/host/events/${event!.slug}`);
-        else form.post('/host/events');
+
+        if (isEdit) {
+form.put(`/host/events/${event!.slug}`);
+} else {
+form.post('/host/events');
+}
     };
 
     return (
         <>
             <Head title={isEdit ? 'Edit event' : 'Create event'} />
-            <form onSubmit={(e) => { e.preventDefault(); save(false); }} className="mx-auto w-full max-w-3xl flex-1 p-4">
+            <form onSubmit={(e) => {
+ e.preventDefault(); save(false); 
+}} className="mx-auto w-full max-w-3xl flex-1 p-4">
                 <div className="mb-6 flex items-center gap-3">
                     <Button asChild variant="ghost" size="icon"><Link href="/host/events"><ArrowLeft className="size-4" /></Link></Button>
                     <h1 className="text-2xl font-bold tracking-tight">{isEdit ? 'Edit event' : 'Create event'}</h1>
@@ -110,6 +182,10 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                                     </button>
                                 )}
                             <input ref={coverRef} type="file" accept="image/*" hidden onChange={(e) => onPickCover(e.target.files?.[0])} />
+                            <p className="text-xs text-muted-foreground">
+                                {RECOMMEND_COVER}
+                                {coverMeta && coverMeta.w > 0 ? ` · uploaded ${coverMeta.w}×${coverMeta.h}px, ${formatBytes(coverMeta.size)}` : ''}
+                            </p>
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="title">Event title</Label>
@@ -147,6 +223,33 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                     </div>
                 </section>
 
+                {/* Gallery (optional) */}
+                <section className="mb-6 rounded-xl border border-border bg-card p-5">
+                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        Gallery <span className="text-xs font-normal normal-case">(optional)</span>
+                    </h2>
+                    <p className="mb-4 mt-1 text-xs text-muted-foreground">{RECOMMEND_GALLERY}</p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {data.gallery.map((src, i) => (
+                            <div key={i} className="group relative overflow-hidden rounded-lg border border-border">
+                                <img src={src} alt="" className="aspect-square w-full object-cover" />
+                                <button type="button" onClick={() => removeGalleryImage(i)} aria-label="Remove image"
+                                    className="absolute right-1.5 top-1.5 rounded-md bg-background/90 p-1.5 text-destructive opacity-0 shadow transition-opacity group-hover:opacity-100">
+                                    <Trash2 className="size-4" />
+                                </button>
+                            </div>
+                        ))}
+                        {data.gallery.length < MAX_GALLERY && (
+                            <button type="button" onClick={() => galleryRef.current?.click()} disabled={uploadingGallery}
+                                className="flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground">
+                                <ImagePlus className="size-5" />
+                                {uploadingGallery ? 'Uploading…' : 'Add images'}
+                            </button>
+                        )}
+                    </div>
+                    <input ref={galleryRef} type="file" accept="image/*" multiple hidden onChange={(e) => onPickGallery(e.target.files)} />
+                </section>
+
                 {/* Location */}
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
@@ -162,9 +265,21 @@ export default function EventForm({ event, categories }: { event: EventProp | nu
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="venue_name">Venue name</Label>
-                                <input id="venue_name" className={field} value={data.venue_name} onChange={(e) => setData('venue_name', e.target.value)} placeholder="e.g. The Bee, Publika" />
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="venue_name">Venue name</Label>
+                                    <input id="venue_name" className={field} value={data.venue_name} onChange={(e) => setData('venue_name', e.target.value)} placeholder="e.g. The Bee, Publika" />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="city">City</Label>
+                                    <AppSelect
+                                        id="city"
+                                        value={data.city || 'none'}
+                                        onChange={(v) => setData('city', v === 'none' ? '' : v)}
+                                        options={[{ value: 'none', label: '— Select city —' }, ...cities.map((c) => ({ value: c.name, label: c.name }))]}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Used for search &amp; the city landing pages.</p>
+                                </div>
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="venue_address">Address</Label>

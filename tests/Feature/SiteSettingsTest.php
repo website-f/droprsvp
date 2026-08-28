@@ -61,13 +61,38 @@ class SiteSettingsTest extends TestCase
         $this->actingAs(User::factory()->create())->get(route('admin.site.landing'))->assertForbidden();
     }
 
+    public function test_homepage_seo_saves_and_renders_in_head(): void
+    {
+        $this->actingAs($this->superadmin())->post(route('admin.site.home-seo.save'), [
+            'title' => 'Custom Home Title',
+            'description' => 'Custom home description for search.',
+            'keywords' => 'events, tickets, kl',
+        ])->assertRedirect();
+
+        // Server-rendered into the <head> (no JS needed).
+        $this->get('/')
+            ->assertSee('<title>Custom Home Title</title>', false)
+            ->assertSee('<meta name="description" content="Custom home description for search.">', false)
+            ->assertSee('<meta name="keywords" content="events, tickets, kl">', false);
+    }
+
+    public function test_homepage_seo_blank_fields_fall_back_to_defaults(): void
+    {
+        $this->actingAs($this->superadmin())->post(route('admin.site.home-seo.save'), [
+            'title' => '', 'description' => '', 'keywords' => '',
+        ])->assertRedirect();
+
+        // A cleared title must not produce an empty <title>.
+        $this->get('/')->assertDontSee('<title></title>', false);
+    }
+
     public function test_discover_when_filter_limits_by_date(): void
     {
         $host = User::factory()->create();
         $today = \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Today Ev', 'slug' => 'today-ev', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addHours(2)]);
         \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Next Month', 'slug' => 'next-month', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addMonths(1)->addDays(2)]);
 
-        $this->get('/events?when=today')->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my?when=today')->assertInertia(fn (Assert $p) => $p
             ->component('public/events/index')
             ->has('events.data', 1)
             ->where('events.data.0.slug', 'today-ev'));

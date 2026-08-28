@@ -1,13 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { ArrowRight, CalendarDays, Search, Sparkles } from 'lucide-react';
 import { useState } from 'react';
-import { dashboard } from '@/routes';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { CategoryGrid } from '@/components/landing/category-grid';
+import { HeroArt } from '@/components/landing/hero-art';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
-import { HeroArt } from '@/components/landing/hero-art';
-import { CategoryGrid } from '@/components/landing/category-grid';
-import { ArrowRight, CalendarDays, Search, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { dashboard } from '@/routes';
 
 interface FeaturedEvent {
     slug: string;
@@ -22,30 +22,47 @@ interface FeaturedEvent {
 
 const money = (n: number) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR', maximumFractionDigits: 0 }).format(n);
 
+/** Client-side slug matching Laravel's Str::slug for our ASCII city names. */
+const citySlug = (name: string) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
 function priceLabel(e: FeaturedEvent) {
-    if (e.from_price != null) return `From ${money(e.from_price)}`;
-    if (e.has_free) return 'Free';
+    if (e.from_price != null) {
+return `From ${money(e.from_price)}`;
+}
+
+    if (e.has_free) {
+return 'Free';
+}
+
     return null;
 }
+
+interface Organizer { name: string; events_count: number; next_slug: string | null }
 
 interface LandingSections {
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: string[] };
+    featured_organizers: { enabled: boolean; heading: string; subheading: string };
 }
 
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
+const AVATAR_TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7'];
+
 export default function Welcome() {
-    const { auth, featured = [], categories = [], sections } = usePage().props as unknown as {
+    const { auth, featured = [], categories = [], sections, organizers = [] } = usePage().props as unknown as {
         auth?: { user?: unknown };
         featured?: FeaturedEvent[];
         categories?: { name: string; slug: string }[];
         sections?: LandingSections;
+        organizers?: Organizer[];
     };
     const [q, setQ] = useState('');
     const signedIn = !!auth?.user;
     const org = sections?.organizer;
     const eventTime = sections?.event_time;
     const nearby = sections?.nearby_cities;
+    const featuredOrgs = sections?.featured_organizers;
 
     return (
         <>
@@ -74,7 +91,9 @@ export default function Welcome() {
 
                         {/* Search — big, tappable, and never zooms on iOS (16px input) */}
                         <form
-                            onSubmit={(e) => { e.preventDefault(); router.get('/events', q ? { q } : {}); }}
+                            onSubmit={(e) => {
+ e.preventDefault(); router.get('/en-my', q ? { q } : {}); 
+}}
                             className="mx-auto mt-9 flex w-full max-w-2xl flex-col gap-3 sm:flex-row"
                         >
                             <div className="flex h-16 flex-1 items-center gap-3 rounded-2xl border border-border bg-card px-5 shadow-sm transition-colors focus-within:border-foreground/50 focus-within:ring-4 focus-within:ring-foreground/5 sm:rounded-full">
@@ -102,7 +121,7 @@ export default function Welcome() {
                         <Reveal className="flex flex-wrap items-center gap-3">
                             <h2 className="mr-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{eventTime.heading}</h2>
                             {eventTime.items.filter((i) => i.label && i.value).map((i) => (
-                                <Link key={i.value} href={`/events?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
+                                <Link key={i.value} href={`/en-my?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
                             ))}
                         </Reveal>
                     </section>
@@ -116,7 +135,7 @@ export default function Welcome() {
                                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Browse by category</h2>
                                 <p className="mt-1.5 text-sm text-muted-foreground">Pick a vibe — we’ll show you what’s on.</p>
                             </div>
-                            <Link href="/events" className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
+                            <Link href="/en-my" className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
                                 All events <ArrowRight className="size-4" />
                             </Link>
                         </Reveal>
@@ -131,7 +150,7 @@ export default function Welcome() {
                             <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">{nearby.heading}</h2>
                             <div className="flex flex-wrap gap-2.5">
                                 {nearby.cities.filter(Boolean).map((c) => (
-                                    <Link key={c} href={`/events?q=${encodeURIComponent(c)}`} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">{c}</Link>
+                                    <Link key={c} href={`/en-my/${citySlug(c)}`} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">{c}</Link>
                                 ))}
                             </div>
                         </Reveal>
@@ -148,7 +167,7 @@ export default function Welcome() {
                                     <p className="mt-1.5 text-sm text-muted-foreground">Hand-picked events worth showing up for.</p>
                                 </div>
                                 <Button asChild variant="outline" className="hidden shrink-0 sm:inline-flex">
-                                    <Link href="/events">See all</Link>
+                                    <Link href="/en-my">See all</Link>
                                 </Button>
                             </Reveal>
 
@@ -180,6 +199,36 @@ export default function Welcome() {
                     </section>
                 )}
 
+                {/* --------------------------------------- Featured organizers */}
+                {(featuredOrgs?.enabled ?? true) && organizers.length > 0 && (
+                    <section className="mx-auto w-full max-w-6xl px-6 py-14 sm:py-16">
+                        <Reveal className="mb-7">
+                            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{featuredOrgs?.heading ?? 'Featured organizers'}</h2>
+                            {featuredOrgs?.subheading && <p className="mt-1.5 text-sm text-muted-foreground">{featuredOrgs.subheading}</p>}
+                        </Reveal>
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                            {organizers.map((o, i) => {
+                                const tint = AVATAR_TINTS[i % AVATAR_TINTS.length];
+                                const href = o.next_slug ? `/e/${o.next_slug}` : '/en-my';
+
+                                return (
+                                    <Reveal key={o.name + i} delay={i * 60}>
+                                        <Link href={href} className="group flex h-full flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                                            <span className="flex size-14 items-center justify-center rounded-full text-lg font-bold text-white transition-transform duration-300 group-hover:scale-105" style={{ backgroundColor: tint }}>
+                                                {initials(o.name)}
+                                            </span>
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-sm font-semibold">{o.name}</span>
+                                                <span className="mt-0.5 block text-xs text-muted-foreground">{o.events_count} event{o.events_count === 1 ? '' : 's'}</span>
+                                            </span>
+                                        </Link>
+                                    </Reveal>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
+
                 {/* ------------------------------------------- Gatherings band */}
                 <section className="relative overflow-hidden">
                     <div aria-hidden className="pointer-events-none absolute -left-24 top-0 size-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
@@ -205,7 +254,7 @@ export default function Welcome() {
                                     </span>
                                 ))}
                             </div>
-                            <Button asChild className="mt-8"><Link href="/events">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
+                            <Button asChild className="mt-8"><Link href="/en-my">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
                         </Reveal>
                         <Reveal delay={120} className="order-1 lg:order-2">
                             <div className="relative mx-auto max-w-lg">
@@ -260,7 +309,7 @@ export default function Welcome() {
                                             <Link href={signedIn ? dashboard() : (org?.cta_url || '/get-started')}>{org?.cta_label || 'Create an event'}</Link>
                                         </Button>
                                         <Button asChild size="lg" variant="ghost" className="h-12 px-8 text-background hover:bg-background/10 hover:text-background">
-                                            <Link href="/events">Browse events</Link>
+                                            <Link href="/en-my">Browse events</Link>
                                         </Button>
                                     </div>
                                 </div>

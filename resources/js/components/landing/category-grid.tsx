@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
-import type { CSSProperties } from 'react';
 import {
-    Briefcase, Cpu, Dumbbell, HeartPulse, Music2, Palette, Sparkles, Tag, Users2, UtensilsCrossed,
-    type LucideIcon,
+    Briefcase, Cpu, Dumbbell, HeartPulse, Music2, Palette, Sparkles, Tag, Users2, UtensilsCrossed
+    
 } from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { Reveal } from '@/components/reveal';
 
 /** Distinct, non-generic icon per category (keyed by slug), with a fallback. */
@@ -48,10 +49,11 @@ export function CategoryGrid({ categories }: { categories: { name: string; slug:
             {categories.map((c, i) => {
                 const Icon = ICONS[c.slug] ?? Tag;
                 const accent = ACCENT[c.slug] ?? FALLBACK_ACCENT;
+
                 return (
                     <Reveal key={c.slug} delay={i * 45}>
                         <Link
-                            href={`/events?category=${c.slug}`}
+                            href={`/en-my/all/${c.slug}`}
                             className="group flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent)] hover:shadow-md"
                             style={{ '--accent': accent } as CSSProperties}
                         >

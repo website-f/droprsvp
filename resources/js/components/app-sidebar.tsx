@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, PanelBottom, Ticket, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, ChartColumn, FileText, FolderGit2, Gauge, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, PanelBottom, ScrollText, Search, Ticket, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -29,6 +29,7 @@ const organizingNav: NavItem[] = [
 // Superadmin-only groups.
 const platformNav: NavItem[] = [
     { title: 'Overview', href: '/admin/overview', icon: Gauge },
+    { title: 'Analytics', href: '/admin/analytics', icon: ChartColumn },
     { title: 'All events', href: '/admin/all-events', icon: CalendarDays },
     { title: 'Users', href: '/admin/users', icon: Users },
     { title: 'Payout requests', href: '/admin/payouts', icon: Banknote },
@@ -38,6 +39,8 @@ const cmsNav: NavItem[] = [
     { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
     { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
     { title: 'Help center', href: '/admin/cms/help', icon: LifeBuoy },
+    { title: 'Legal pages', href: '/admin/site/legal', icon: ScrollText },
+    { title: 'Homepage SEO', href: '/admin/site/home-seo', icon: Search },
     { title: 'Menu', href: '/admin/cms/menu', icon: Menu },
 ];
 

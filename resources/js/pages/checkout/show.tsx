@@ -1,7 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Lock } from 'lucide-react';
+import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Lock } from 'lucide-react';
 
 interface OrderView {
     reference: string; currency: string; total: number;
@@ -11,8 +12,12 @@ interface OrderView {
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
+const GENDERS = [{ value: 'na', label: 'Prefer not to say' }, { value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'other', label: 'Other' }];
+const AGE_BANDS = [{ value: '', label: '—' }, { value: 'under-18', label: 'Under 18' }, { value: '18-24', label: '18–24' }, { value: '25-34', label: '25–34' }, { value: '35-44', label: '35–44' }, { value: '45-54', label: '45–54' }, { value: '55+', label: '55+' }];
+const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'tiktok', label: 'TikTok' }, { value: 'friend', label: 'A friend' }, { value: 'search', label: 'Search' }, { value: 'email', label: 'Email' }, { value: 'other', label: 'Other' }];
+
 export default function CheckoutShow({ order }: { order: OrderView }) {
-    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '' });
+    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '', buyer_gender: 'na', buyer_age_band: '', buyer_city: '', buyer_source: '' });
     const isFree = order.total <= 0;
 
     const submit = (e: React.FormEvent) => {
@@ -50,6 +55,29 @@ export default function CheckoutShow({ order }: { order: OrderView }) {
                             <div className="grid gap-1.5">
                                 <Label htmlFor="buyer_phone">Phone (optional)</Label>
                                 <input id="buyer_phone" className={field} value={form.data.buyer_phone} onChange={(e) => form.setData('buyer_phone', e.target.value)} />
+                            </div>
+
+                            {/* About you (optional) — helps the organizer understand who's coming. */}
+                            <div className="rounded-xl border border-border bg-muted/30 p-4">
+                                <p className="mb-3 text-xs font-medium text-muted-foreground">About you <span className="font-normal">(optional — helps the organizer)</span></p>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="grid gap-1.5">
+                                        <Label>Gender</Label>
+                                        <AppSelect value={form.data.buyer_gender} onChange={(v) => form.setData('buyer_gender', v)} options={GENDERS} />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label>Age</Label>
+                                        <AppSelect value={form.data.buyer_age_band || ''} onChange={(v) => form.setData('buyer_age_band', v)} options={AGE_BANDS} />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="buyer_city">City</Label>
+                                        <input id="buyer_city" className={field} value={form.data.buyer_city} onChange={(e) => form.setData('buyer_city', e.target.value)} placeholder="e.g. Kuala Lumpur" />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label>How did you hear about it?</Label>
+                                        <AppSelect value={form.data.buyer_source || ''} onChange={(v) => form.setData('buyer_source', v)} options={SOURCES} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

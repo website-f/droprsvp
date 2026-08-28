@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\EventDailyStat;
 use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -30,10 +31,16 @@ class EventController extends Controller
         $seo = $event->seo;
         $isPublic = $event->status === 'published' && in_array($event->visibility, ['public', 'unlisted'], true);
 
+        // Count a public impression (not the organizer previewing their own event).
+        if ($isPublic && $request->user()?->id !== $event->user_id) {
+            EventDailyStat::bump($event->id, 'impressions');
+        }
+
         // --- server-rendered SEO (no JS needed) ---
         $manager = app(SeoManager::class)
             ->title($seo?->seo_title ?: $event->title)
             ->description($seo?->meta_description ?: $description)
+            ->keywords($seo?->meta_keywords)
             ->canonical($seo?->canonical_url ?: $canonical)
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
             ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer))
@@ -52,6 +59,7 @@ class EventController extends Controller
                 'subtitle' => $event->subtitle,
                 'description' => $event->description,
                 'cover_image' => $cover,
+                'gallery' => collect($event->gallery ?? [])->map(fn ($g) => $this->absolute($g))->values()->all(),
                 'category' => $event->category?->name,
                 'is_online' => $event->is_online,
                 'venue_name' => $event->venue_name,

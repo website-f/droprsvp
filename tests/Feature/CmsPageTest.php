@@ -42,6 +42,22 @@ class CmsPageTest extends TestCase
         $this->assertSame('About our company', $page->seo->meta_description);
     }
 
+    public function test_page_seo_keywords_are_saved_and_rendered(): void
+    {
+        $admin = $this->superadmin();
+
+        $this->actingAs($admin)->post(route('admin.cms.pages.store'), [
+            'title' => 'Keyworded',
+            'publish' => true,
+            'seo' => ['meta_keywords' => 'alpha, beta, gamma', 'robots_index' => true, 'robots_follow' => true],
+        ])->assertRedirect(route('admin.cms.pages.index'));
+
+        $page = CmsPage::where('slug', 'keyworded')->first();
+        $this->assertSame('alpha, beta, gamma', $page->seo->meta_keywords);
+
+        $this->get('/'.$page->slug)->assertSee('<meta name="keywords" content="alpha, beta, gamma">', false);
+    }
+
     public function test_published_page_renders_at_its_root_slug_with_seo(): void
     {
         $page = CmsPage::create(['title' => 'About', 'slug' => 'about', 'body' => '<p>x</p>', 'status' => 'published', 'published_at' => now()]);
