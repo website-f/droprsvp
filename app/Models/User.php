@@ -47,7 +47,14 @@ class User extends Authenticatable implements PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'premium_until' => 'datetime',
         ];
+    }
+
+    /** Whether the user currently holds an active premium membership. */
+    public function isPremium(): bool
+    {
+        return $this->premium_until !== null && $this->premium_until->isFuture();
     }
 
     /** Events this user hosts. */

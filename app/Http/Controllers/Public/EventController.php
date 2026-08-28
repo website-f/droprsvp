@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventDailyStat;
+use App\Models\Order;
 use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -52,6 +53,13 @@ class EventController extends Controller
         // Draft / owner-preview pages must never be indexed.
         $isPublic ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true)) : $manager->noindex();
 
+        // --- social: members + discussion (with free/premium gating) ---
+        $user = $request->user();
+        $isOwner = $user?->id === $event->user_id;
+        $isPremium = (bool) $user?->isPremium();
+        $canSeeAllMembers = $isPremium || $isOwner;
+        $canPost = $user && ($isPremium || $isOwner);
+
         return inertia('public/event', [
             'event' => [
                 'slug' => $event->slug,
@@ -94,7 +102,50 @@ class EventController extends Controller
             'seo' => [
                 'title' => $seo?->seo_title ?: $event->title,
             ],
+            'members' => $this->members($event, $canSeeAllMembers),
+            'discussion' => $this->discussion($event),
+            'viewer' => [
+                'authed' => (bool) $user,
+                'premium' => $isPremium,
+                'is_owner' => $isOwner,
+                'can_post' => $canPost,
+                'can_see_all_members' => $canSeeAllMembers,
+            ],
         ]);
+    }
+
+    /** People who got tickets. Free/guest see the first 4; premium sees everyone. */
+    private function members(Event $event, bool $canSeeAll): array
+    {
+        $paid = Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_email');
+        $total = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
+        $rows = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])->unique('buyer_email')->values();
+        $visible = $canSeeAll ? $rows : $rows->take(4);
+
+        return [
+            'count' => $total,
+            'all_visible' => $canSeeAll,
+            'list' => $visible->map(fn ($m) => ['name' => $m->buyer_name ?: 'Guest'])->values(),
+        ];
+    }
+
+    /** Threaded discussion — top-level questions with the organizer's replies. */
+    private function discussion(Event $event): array
+    {
+        return $event->comments()->with(['user:id,name', 'replies.user:id,name'])->get()->map(fn ($c) => [
+            'id' => $c->id,
+            'author' => $c->user?->name ?? 'User',
+            'body' => $c->body,
+            'when' => $c->created_at->diffForHumans(),
+            'is_organizer' => $c->user_id === $event->user_id,
+            'replies' => $c->replies->map(fn ($r) => [
+                'id' => $r->id,
+                'author' => $r->user?->name ?? 'User',
+                'body' => $r->body,
+                'when' => $r->created_at->diffForHumans(),
+                'is_organizer' => $r->user_id === $event->user_id,
+            ])->all(),
+        ])->all();
     }
 
     /** Published public/unlisted events are visible to all; the owner can preview any of their own. */

@@ -16,7 +16,7 @@ class Event extends Model
     protected $fillable = [
         'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'gallery',
         'status', 'cancelled_reason', 'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address', 'city',
-        'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at',
+        'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at', 'boosted_until',
     ];
 
     protected function casts(): array
@@ -27,9 +27,16 @@ class Event extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'published_at' => 'datetime',
+            'boosted_until' => 'datetime',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
+    }
+
+    /** Currently within a paid boost window. */
+    public function isBoosted(): bool
+    {
+        return $this->boosted_until !== null && $this->boosted_until->isFuture();
     }
 
     public function getRouteKeyName(): string
@@ -75,6 +82,12 @@ class Event extends Model
     public function dailyStats(): HasMany
     {
         return $this->hasMany(EventDailyStat::class);
+    }
+
+    /** Top-level discussion comments (replies hang off each). */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(EventComment::class)->whereNull('parent_id')->latest();
     }
 
     public function seo(): MorphOne

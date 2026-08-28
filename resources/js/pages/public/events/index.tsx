@@ -1,12 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, MapPin, Search } from 'lucide-react';
+import { CalendarDays, MapPin, Rocket, Search } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; when: string | null; venue: string | null; from_price: number | null; has_free: boolean }
+interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; has_free: boolean }
 interface Paginated { data: Card[]; prev_page_url: string | null; next_page_url: string | null }
 interface Category { name: string; slug: string }
 interface City { name: string; slug: string }
@@ -98,10 +98,11 @@ export default function Discover({ events, categories, cities, active, filters, 
                         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {events.data.map((e) => (
                                 <Link key={e.slug} href={`/e/${e.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
-                                    <div className="aspect-[16/9] w-full overflow-hidden bg-muted">
+                                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                                         {e.cover_image
                                             ? <img src={e.cover_image} alt={e.title} className="size-full object-cover" />
                                             : <div className="flex size-full items-center justify-center text-muted-foreground"><CalendarDays className="size-8" /></div>}
+                                        {e.boosted && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[#6c63ff] px-2 py-0.5 text-[11px] font-semibold text-white shadow"><Rocket className="size-3" /> Promoted</span>}
                                     </div>
                                     <div className="p-4">
                                         {e.category && <Badge variant="secondary" className="mb-2">{e.category}</Badge>}

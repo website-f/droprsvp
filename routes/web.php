@@ -16,6 +16,8 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\Public\EventCommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\DiscoverController;
@@ -27,6 +29,7 @@ use App\Http\Controllers\Host\AnalyticsController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Host\OrderController;
+use App\Http\Controllers\Host\PromotionController;
 use App\Http\Controllers\Host\SeatingController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
 use App\Http\Controllers\TicketController;
@@ -72,6 +75,8 @@ Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('c
 Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
 Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
 Route::post('webhooks/hitpay', [WebhookController::class, 'hitpay'])->name('webhooks.hitpay');
+Route::post('webhooks/promotions', [WebhookController::class, 'promotions'])->name('promotions.webhook');
+Route::post('webhooks/subscriptions', [WebhookController::class, 'subscriptions'])->name('subscriptions.webhook');
 
 // Public ticket pass (the qr_token in the URL is the credential).
 Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
@@ -94,6 +99,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Image uploads (event covers, CMS media) — any signed-in user.
     Route::post('uploads', [MediaController::class, 'store'])->name('uploads');
 
+    // Premium membership.
+    Route::get('premium', [MembershipController::class, 'show'])->name('premium');
+    Route::post('premium/subscribe', [MembershipController::class, 'subscribe'])->name('premium.subscribe');
+    Route::get('premium/return', [MembershipController::class, 'return'])->name('premium.return');
+
+    // Event discussion — post a question / reply (premium or organizer).
+    Route::post('e/{event}/comments', [EventCommentController::class, 'store'])->name('events.comments.store');
+
     // Buyer account — purchase history + re-download/re-send tickets.
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');
     Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
@@ -109,6 +122,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Per-event analytics (reach, sales, audience demographics).
         Route::get('events/{event}/analytics', [AnalyticsController::class, 'show'])->name('events.analytics');
+
+        // Promote / boost an event.
+        Route::get('events/{event}/promote', [PromotionController::class, 'create'])->name('events.promote');
+        Route::post('events/{event}/promote', [PromotionController::class, 'store'])->name('events.promote.store');
+        Route::get('events/{event}/promote/return', [PromotionController::class, 'return'])->name('events.promote.return');
 
         // Door check-in console.
         Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');

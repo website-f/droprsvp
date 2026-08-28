@@ -23,11 +23,7 @@ class HitPayGateway implements PaymentGateway
 
     public function createCheckout(Order $order): string
     {
-        $response = Http::withHeaders([
-            'X-BUSINESS-API-KEY' => (string) config('services.hitpay.api_key'),
-            'X-Requested-With' => 'XMLHttpRequest',
-            'Accept' => 'application/json',
-        ])->asForm()->post($this->baseUrl().'/payment-requests', [
+        $res = $this->createRequest([
             'amount' => number_format((float) $order->total, 2, '.', ''),
             'currency' => $order->currency,
             'reference_number' => $order->reference,
@@ -35,11 +31,21 @@ class HitPayGateway implements PaymentGateway
             'webhook' => route('webhooks.hitpay'),
             'name' => $order->buyer_name,
             'email' => $order->buyer_email,
-        ])->throw()->json();
+        ]);
 
-        $order->update(['payment_ref' => $response['id'] ?? null]);
+        $order->update(['payment_ref' => $res['id'] ?? null]);
 
-        return $response['url'];
+        return $res['url'];
+    }
+
+    /** Low-level payment-request call, reused for ticket orders + promotions. */
+    public function createRequest(array $payload): array
+    {
+        return Http::withHeaders([
+            'X-BUSINESS-API-KEY' => (string) config('services.hitpay.api_key'),
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ])->asForm()->post($this->baseUrl().'/payment-requests', $payload)->throw()->json();
     }
 
     public function parseWebhook(Request $request): ?array

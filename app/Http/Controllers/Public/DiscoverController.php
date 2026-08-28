@@ -58,6 +58,8 @@ class DiscoverController extends Controller
                 ->orWhere('venue_name', 'like', "%{$q}%")))
             ->when($from && $to, fn ($query) => $query->whereBetween('starts_at', [$from, $to]))
             ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            // Boosted (paid) events surface first.
+            ->orderByRaw('(boosted_until is not null and boosted_until > ?) desc', [now()])
             ->orderByRaw('starts_at is null, starts_at asc')
             ->paginate(12)
             ->withQueryString()
@@ -216,6 +218,7 @@ class DiscoverController extends Controller
             'cover_image' => $event->cover_image,
             'category' => $event->category?->name,
             'city' => $event->city,
+            'boosted' => $event->isBoosted(),
             'when' => optional($event->starts_at)?->setTimezone($event->timezone)->format('D, j M Y'),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,

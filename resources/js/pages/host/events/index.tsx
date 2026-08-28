@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArmchairIcon, CalendarDays, ChartColumn, Pencil, Plus, Receipt, ScanLine, Ticket, Trash2 } from 'lucide-react';
+import { ArmchairIcon, CalendarDays, ChartColumn, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                         <td className="px-4 py-3"><span className="inline-flex items-center gap-1 text-muted-foreground"><Ticket className="size-3.5" /> {e.ticket_types_count}</span></td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-2">
+                                                <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/promote`}><Rocket className="size-3.5" /> Promote</Link></Button>
                                                 <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/analytics`}><ChartColumn className="size-3.5" /> Analytics</Link></Button>
                                                 <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/orders`}><Receipt className="size-3.5" /> Orders</Link></Button>
                                                 <Button asChild variant="ghost" size="sm"><Link href={`/host/events/${e.slug}/seating`}><ArmchairIcon className="size-3.5" /> Seating</Link></Button>
