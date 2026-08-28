@@ -2,8 +2,8 @@
 export default function AppLogo() {
     return (
         <>
-            <img src="/logo-mark.png" alt="DropRSVP" className="hidden size-8 shrink-0 rounded-md object-contain dark:invert group-data-[collapsible=icon]:block" />
-            <img src="/logo-full.png" alt="DropRSVP" className="ml-1 h-7 w-auto object-contain dark:invert group-data-[collapsible=icon]:hidden" />
+            <img src="/logo-mark.png" alt="DropRSVP" className="hidden size-9 shrink-0 rounded-md object-contain dark:invert group-data-[collapsible=icon]:block" />
+            <img src="/logo-full.png" alt="DropRSVP" className="ml-1 h-10 w-auto object-contain dark:invert group-data-[collapsible=icon]:hidden" />
         </>
     );
 }

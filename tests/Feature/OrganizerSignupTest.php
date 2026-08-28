@@ -64,6 +64,30 @@ class OrganizerSignupTest extends TestCase
             ->assertSessionHasErrors('code');
     }
 
+    public function test_public_registration_creates_a_free_buyer(): void
+    {
+        $this->post(route('register.store'), [
+            'name' => 'Free User', 'email' => 'free@example.com',
+            'password' => 'password', 'password_confirmation' => 'password',
+        ])->assertRedirect(route('dashboard', absolute: false));
+
+        $user = User::where('email', 'free@example.com')->firstOrFail();
+        $this->assertTrue($user->hasRole('buyer'));
+        $this->assertFalse($user->hasRole('organizer'));
+    }
+
+    public function test_signed_in_user_can_upgrade_to_a_vendor(): void
+    {
+        Role::findOrCreate('buyer', 'web');
+        $user = User::factory()->create();
+        $user->assignRole('buyer');
+
+        $this->actingAs($user)->post('/become-a-vendor')
+            ->assertRedirect(route('organizer.welcome'));
+
+        $this->assertTrue($user->fresh()->hasRole('organizer'));
+    }
+
     public function test_onboarding_saves_a_profile(): void
     {
         Role::findOrCreate('organizer', 'web');

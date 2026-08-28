@@ -146,4 +146,20 @@ class OrganizerSignupController extends Controller
 
         return redirect()->route('dashboard')->with('success', 'You’re all set — welcome to DropRSVP!');
     }
+
+    /**
+     * Upgrade a signed-in free/attendee account to a vendor (organizer) so they
+     * can host & sell tickets — the logged-in equivalent of the guest
+     * "Register as a vendor" flow. Runs the onboarding wizard afterwards.
+     */
+    public function becomeVendor(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->hasRole('organizer')) {
+            $user->assignRole(Role::firstOrCreate(['name' => 'organizer', 'guard_name' => 'web']));
+        }
+
+        return redirect()->route('organizer.welcome');
+    }
 }

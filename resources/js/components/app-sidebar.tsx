@@ -69,6 +69,9 @@ const footerNavItems: NavItem[] = [
 export function AppSidebar() {
     const { auth } = usePage().props;
     const isAdmin = auth?.is_superadmin;
+    // Organizing tools (create events, payouts) are for vendors — public/free
+    // attendee accounts don't see them. Superadmins always do.
+    const isOrganizer = auth?.is_organizer;
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -87,7 +90,7 @@ export function AppSidebar() {
             <SidebarContent>
                 {/* Grouped so the CMS / platform-admin areas are clearly separated. */}
                 <NavMain items={isAdmin ? youNav : [...youNav, premiumNav]} label="You" />
-                <NavMain items={organizingNav} label="Organizing" />
+                {isOrganizer && <NavMain items={organizingNav} label="Organizing" />}
                 {isAdmin && <NavMain items={platformNav} label="Platform admin" />}
                 {isAdmin && <NavMain items={cmsNav} label="Content (CMS)" />}
                 {isAdmin && <NavMain items={siteNav} label="Appearance" />}

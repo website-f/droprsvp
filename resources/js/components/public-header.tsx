@@ -33,7 +33,7 @@ export function PublicHeader() {
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
             <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-6 py-4">
                 <Link href="/" aria-label="DropRSVP home">
-                    <Wordmark className="h-9" />
+                    <Wordmark className="h-11" />
                 </Link>
 
                 {/* Desktop nav */}

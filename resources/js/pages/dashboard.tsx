@@ -1,8 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
-import { dashboard } from '@/routes';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { CalendarDays, CheckCircle2, Compass, Plus, Store, Ticket, Wallet } from 'lucide-react';
+import { EventCalendar  } from '@/components/event-calendar';
+import type {CalendarEvent} from '@/components/event-calendar';
 import { Button } from '@/components/ui/button';
-import { EventCalendar, type CalendarEvent } from '@/components/event-calendar';
-import { CalendarDays, CheckCircle2, Plus, Ticket, Wallet } from 'lucide-react';
+import { dashboard } from '@/routes';
 
 interface Props {
     stats: { events: number; published: number; tickets_sold: number; checked_in: number; revenue: number };
@@ -23,8 +24,40 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
 
 export default function Dashboard({ stats, sales_by_day, upcoming, calendar, recent_orders }: Props) {
     const peak = Math.max(1, ...sales_by_day.map((d) => d.total));
+    const { auth } = usePage().props;
+    const isOrganizer = auth?.is_organizer;
 
     if (stats.events === 0) {
+        // Free attendee accounts don't host — point them at discovery + a clear
+        // path to become a vendor. Organizers get the create-event nudge.
+        if (!isOrganizer) {
+            return (
+                <>
+                    <Head title="Dashboard" />
+                    <div className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
+                        <Compass className="size-10 text-muted-foreground" />
+                        <h1 className="text-2xl font-bold tracking-tight">Find your next event</h1>
+                        <p className="text-sm text-muted-foreground">Browse events and grab tickets — they’ll show up under My tickets, ready to re-download anytime.</p>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                            <Button asChild><Link href="/en-my"><Compass className="size-4" /> Browse events</Link></Button>
+                            <Button asChild variant="outline"><Link href="/my/tickets"><Ticket className="size-4" /> My tickets</Link></Button>
+                        </div>
+                        <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                            <p className="font-medium text-foreground">Want to host &amp; sell tickets?</p>
+                            <p className="mt-0.5 text-muted-foreground">Become a vendor to create events, take payments and get payouts.</p>
+                            <Button
+                                variant="secondary"
+                                className="mt-3"
+                                onClick={() => router.post('/become-a-vendor')}
+                            >
+                                <Store className="size-4" /> Become a vendor
+                            </Button>
+                        </div>
+                    </div>
+                </>
+            );
+        }
+
         return (
             <>
                 <Head title="Dashboard" />

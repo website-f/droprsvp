@@ -97,6 +97,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('host/welcome', [OrganizerSignupController::class, 'welcome'])->name('organizer.welcome');
     Route::post('host/welcome', [OrganizerSignupController::class, 'saveOnboarding'])->name('organizer.onboarding');
 
+    // Upgrade a signed-in free account to a vendor (organizer).
+    Route::post('become-a-vendor', [OrganizerSignupController::class, 'becomeVendor'])->name('organizer.become');
+
     // Image uploads (event covers, CMS media) — any signed-in user.
     Route::post('uploads', [MediaController::class, 'store'])->name('uploads');
 

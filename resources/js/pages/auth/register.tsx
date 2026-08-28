@@ -1,4 +1,5 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { Store } from 'lucide-react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -107,6 +108,24 @@ export default function Register({ passwordRules }: Props) {
                                 Log in
                             </TextLink>
                         </div>
+
+                        <div className="rounded-xl border border-border bg-muted/40 p-4">
+                            <div className="flex items-start gap-3">
+                                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
+                                    <Store className="size-4" />
+                                </span>
+                                <div className="text-sm">
+                                    <p className="font-medium text-foreground">Want to host &amp; sell tickets?</p>
+                                    <p className="mt-0.5 text-muted-foreground">
+                                        This is a free attendee account.{' '}
+                                        <Link href="/get-started" className="font-medium text-foreground underline underline-offset-4">
+                                            Register as a vendor
+                                        </Link>{' '}
+                                        to organize events.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </>
                 )}
             </Form>
@@ -115,6 +134,6 @@ export default function Register({ passwordRules }: Props) {
 }
 
 Register.layout = {
-    title: 'Create an account',
-    description: 'Enter your details below to create your account',
+    title: 'Create your free account',
+    description: 'Discover events, buy tickets and manage them in one place',
 };

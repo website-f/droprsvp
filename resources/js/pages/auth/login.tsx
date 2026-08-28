@@ -1,4 +1,5 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { Store } from 'lucide-react';
 import InputError from '@/components/input-error';
 import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
@@ -92,11 +93,29 @@ export default function Login({ status, canResetPassword }: Props) {
                             </Button>
                         </div>
 
-                        <div className="text-center text-sm text-muted-foreground">
-                            Don't have an account?{' '}
-                            <TextLink href={register()} tabIndex={5}>
-                                Sign up
-                            </TextLink>
+                        <div className="flex flex-col gap-3">
+                            <p className="text-center text-sm text-muted-foreground">
+                                New to DropRSVP?{' '}
+                                <TextLink href={register()} tabIndex={6}>
+                                    Create a free account
+                                </TextLink>
+                            </p>
+
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span className="h-px flex-1 bg-border" />
+                                <span>or</span>
+                                <span className="h-px flex-1 bg-border" />
+                            </div>
+
+                            <Button asChild variant="outline" className="w-full" tabIndex={7}>
+                                <Link href="/get-started">
+                                    <Store className="size-4" />
+                                    Register as a vendor
+                                </Link>
+                            </Button>
+                            <p className="text-center text-xs text-muted-foreground">
+                                Host events &amp; sell tickets on DropRSVP.
+                            </p>
                         </div>
                     </>
                 )}

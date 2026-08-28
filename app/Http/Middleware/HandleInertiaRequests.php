@@ -43,6 +43,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'is_superadmin' => (bool) $request->user()?->hasRole('superadmin'),
+                'is_organizer' => (bool) $request->user()?->hasAnyRole(['organizer', 'superadmin']),
                 'is_premium' => (bool) $request->user()?->isPremium(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

@@ -13,6 +13,8 @@ export type User = {
 export type Auth = {
     user: User;
     is_superadmin?: boolean;
+    is_organizer?: boolean;
+    is_premium?: boolean;
 };
 
 export type Passkey = {
