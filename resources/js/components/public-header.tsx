@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, login } from '@/routes';
 import { CalendarDays, Menu, X } from 'lucide-react';
 import type { PublicNavItem } from '@/types';
 
@@ -44,7 +44,7 @@ export function PublicHeader() {
                         ) : (
                             <>
                                 <Button asChild variant="ghost"><Link href={login()}>Log in</Link></Button>
-                                <Button asChild><Link href={register()}>Sign up</Link></Button>
+                                <Button asChild><Link href="/get-started">Sign up</Link></Button>
                             </>
                         )}
                     </div>
@@ -74,7 +74,7 @@ export function PublicHeader() {
                             ) : (
                                 <>
                                     <Button asChild variant="outline" className="flex-1"><Link href={login()}>Log in</Link></Button>
-                                    <Button asChild className="flex-1"><Link href={register()}>Sign up</Link></Button>
+                                    <Button asChild className="flex-1"><Link href="/get-started">Sign up</Link></Button>
                                 </>
                             )}
                         </div>
@@ -107,7 +107,7 @@ export function PublicFooter() {
                         Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.
                     </p>
                     <Button asChild size="sm" className="mt-5">
-                        <Link href={auth?.user ? '/dashboard' : '/register'}>Create an event</Link>
+                        <Link href={auth?.user ? '/dashboard' : '/get-started'}>Create an event</Link>
                     </Button>
                 </div>
 
@@ -125,7 +125,7 @@ export function PublicFooter() {
                 <div>
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">For hosts</h3>
                     <nav className="mt-4 flex flex-col gap-2.5">
-                        <FooterLink href={auth?.user ? '/dashboard' : '/register'}>Create an event</FooterLink>
+                        <FooterLink href={auth?.user ? '/dashboard' : '/get-started'}>Create an event</FooterLink>
                         <FooterLink href="/my/tickets">My tickets</FooterLink>
                         {!auth?.user && <FooterLink href="/login">Log in</FooterLink>}
                     </nav>

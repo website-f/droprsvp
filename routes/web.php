@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\DashboardController;
@@ -58,8 +59,20 @@ Route::post('webhooks/hitpay', [WebhookController::class, 'hitpay'])->name('webh
 // Public ticket pass (the qr_token in the URL is the credential).
 Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
 
+// Organizer sign-up (email → code → name), guests only.
+Route::middleware('guest')->group(function () {
+    Route::get('get-started', [OrganizerSignupController::class, 'start'])->name('organizer.start');
+    Route::post('get-started/code', [OrganizerSignupController::class, 'sendCode'])->name('organizer.code');
+    Route::post('get-started/verify', [OrganizerSignupController::class, 'verifyCode'])->name('organizer.verify');
+    Route::post('get-started/complete', [OrganizerSignupController::class, 'complete'])->name('organizer.complete');
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Post-signup onboarding (skippable).
+    Route::get('host/welcome', [OrganizerSignupController::class, 'welcome'])->name('organizer.welcome');
+    Route::post('host/welcome', [OrganizerSignupController::class, 'saveOnboarding'])->name('organizer.onboarding');
 
     // Image uploads (event covers, CMS media) — any signed-in user.
     Route::post('uploads', [MediaController::class, 'store'])->name('uploads');

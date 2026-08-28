@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { dashboard, register } from '@/routes';
+import { dashboard } from '@/routes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
@@ -221,7 +221,7 @@ export default function Welcome() {
                             </p>
                             <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                                 <Button asChild size="lg" variant="secondary" className="h-12 px-8">
-                                    <Link href={signedIn ? dashboard() : register()}>Create an event</Link>
+                                    <Link href={signedIn ? dashboard() : '/get-started'}>Create an event</Link>
                                 </Button>
                                 <Button asChild size="lg" variant="ghost" className="h-12 px-8 text-background hover:bg-background/10 hover:text-background">
                                     <Link href="/events">Browse events</Link>

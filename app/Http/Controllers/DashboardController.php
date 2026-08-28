@@ -41,6 +41,19 @@ class DashboardController extends Controller
                     'when' => optional($e->starts_at)->setTimezone($e->timezone)->format('D, j M · g:i A'),
                     'sold' => $e->sold_count,
                 ]),
+            'calendar' => $user->events()
+                ->whereNotNull('starts_at')
+                ->orderBy('starts_at')
+                ->get(['id', 'title', 'slug', 'starts_at', 'timezone', 'venue_name', 'is_online', 'status'])
+                ->map(fn ($e) => [
+                    'id' => $e->id,
+                    'title' => $e->title,
+                    'date' => optional($e->starts_at)->setTimezone($e->timezone)->toDateString(),
+                    'time' => optional($e->starts_at)->setTimezone($e->timezone)->format('g:i A'),
+                    'venue' => $e->is_online ? 'Online' : $e->venue_name,
+                    'url' => "/host/events/{$e->slug}/edit",
+                    'tone' => $e->status === 'published' ? 'default' : 'muted',
+                ]),
             'recent_orders' => Order::whereIn('event_id', $eventIds)
                 ->where('status', 'paid')
                 ->latest('paid_at')

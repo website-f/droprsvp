@@ -1,12 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
 import { dashboard } from '@/routes';
 import { Button } from '@/components/ui/button';
+import { EventCalendar, type CalendarEvent } from '@/components/event-calendar';
 import { CalendarDays, CheckCircle2, Plus, Ticket, Wallet } from 'lucide-react';
 
 interface Props {
     stats: { events: number; published: number; tickets_sold: number; checked_in: number; revenue: number };
     sales_by_day: Array<{ label: string; total: number }>;
     upcoming: Array<{ title: string; slug: string; when: string | null; sold: number }>;
+    calendar: CalendarEvent[];
     recent_orders: Array<{ reference: string; buyer: string | null; event: string | null; total: number; at: string | null }>;
 }
 
@@ -19,7 +21,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
     );
 }
 
-export default function Dashboard({ stats, sales_by_day, upcoming, recent_orders }: Props) {
+export default function Dashboard({ stats, sales_by_day, upcoming, calendar, recent_orders }: Props) {
     const peak = Math.max(1, ...sales_by_day.map((d) => d.total));
 
     if (stats.events === 0) {
@@ -64,6 +66,11 @@ export default function Dashboard({ stats, sales_by_day, upcoming, recent_orders
                             </div>
                         ))}
                     </div>
+                </div>
+
+                {/* Calendar */}
+                <div className="mt-6">
+                    <EventCalendar events={calendar} />
                 </div>
 
                 <div className="mt-6 grid gap-6 lg:grid-cols-2">

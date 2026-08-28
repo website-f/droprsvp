@@ -55,4 +55,9 @@ class User extends Authenticatable implements PasskeyUser
     {
         return $this->hasMany(Event::class);
     }
+
+    public function organizerProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(OrganizerProfile::class);
+    }
 }
