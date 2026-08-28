@@ -17,13 +17,18 @@ const area = 'w-full rounded-lg border border-input bg-background px-3 py-2 text
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
     return (
-        <label className="flex items-center gap-2 text-sm font-medium">
-            <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
-                className={`relative h-6 w-11 rounded-full transition-colors ${on ? 'bg-foreground' : 'bg-input'}`}>
-                <span className={`absolute top-0.5 size-5 rounded-full bg-background transition-transform ${on ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+        <div className="flex shrink-0 items-center gap-2">
+            <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">{label}</span>
+            <button
+                type="button"
+                role="switch"
+                aria-checked={on}
+                onClick={() => onChange(!on)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-foreground' : 'bg-input'}`}
+            >
+                <span className={`inline-block size-5 rounded-full bg-background shadow transition-transform ${on ? 'translate-x-[1.375rem]' : 'translate-x-0.5'}`} />
             </button>
-            {label}
-        </label>
+        </div>
     );
 }
 

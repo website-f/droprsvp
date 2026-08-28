@@ -113,13 +113,26 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
         ],
         content: value || '',
         onUpdate: ({ editor }) => onChange(editor.getHTML()),
-        editorProps: { attributes: { class: `${contentClass} min-h-[420px] px-5 py-4 focus:outline-none` } },
+        editorProps: { attributes: { class: `${contentClass} px-5 py-4 focus:outline-none` } },
     });
 
     return (
-        <div className="overflow-hidden rounded-xl border border-input bg-card shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-input bg-card shadow-sm transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
             {editor && <Toolbar editor={editor} />}
-            <EditorContent editor={editor} />
+            {/* The whole content zone is clickable → clicking anywhere (even the
+                empty space below the text) focuses the editor so you can type. */}
+            <div
+                className="min-h-[360px] cursor-text"
+                onMouseDown={(e) => {
+                    const el = e.target as HTMLElement;
+                    if (editor && !el.closest('.ProseMirror')) {
+                        e.preventDefault();
+                        editor.commands.focus('end');
+                    }
+                }}
+            >
+                <EditorContent editor={editor} />
+            </div>
         </div>
     );
 }
