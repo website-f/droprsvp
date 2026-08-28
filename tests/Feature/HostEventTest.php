@@ -13,7 +13,7 @@ class HostEventTest extends TestCase
 
     public function test_host_can_create_event_with_sessions_and_ticket_types(): void
     {
-        $user = User::factory()->create();
+        $user = $this->organizer();
 
         $response = $this->actingAs($user)->post('/host/events', [
             'title' => 'KL Indie Night',
@@ -46,7 +46,7 @@ class HostEventTest extends TestCase
 
     public function test_host_can_save_an_event_gallery(): void
     {
-        $user = User::factory()->create();
+        $user = $this->organizer();
 
         $this->actingAs($user)->post('/host/events', [
             'title' => 'Gallery Event', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
@@ -68,7 +68,7 @@ class HostEventTest extends TestCase
 
     public function test_host_can_view_their_events_index(): void
     {
-        $user = \App\Models\User::factory()->create();
+        $user = $this->organizer();
         \App\Models\Event::create([
             'user_id' => $user->id, 'title' => 'Mine', 'slug' => 'mine',
             'status' => 'draft', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
@@ -83,7 +83,7 @@ class HostEventTest extends TestCase
 
     public function test_update_syncs_sessions_and_ticket_types(): void
     {
-        $user = User::factory()->create();
+        $user = $this->organizer();
         $this->actingAs($user)->post('/host/events', [
             'title' => 'Sync Test', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
             'sessions' => [['starts_at' => now()->addDay()->toDateTimeString()]],
@@ -110,8 +110,8 @@ class HostEventTest extends TestCase
 
     public function test_cannot_edit_an_event_you_do_not_own(): void
     {
-        $owner = User::factory()->create();
-        $intruder = User::factory()->create();
+        $owner = $this->organizer();
+        $intruder = $this->organizer();
         $this->actingAs($owner)->post('/host/events', [
             'title' => 'Owned', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
             'sessions' => [['starts_at' => now()->addDay()->toDateTimeString()]],

@@ -16,7 +16,7 @@ class RefundTest extends TestCase
     /** @return array{0: Event, 1: Order, 2: TicketType} */
     private function paidOrder(): array
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = Event::create([
             'user_id' => $host->id, 'title' => 'Refundable', 'slug' => 'refundable',
             'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
@@ -57,7 +57,7 @@ class RefundTest extends TestCase
     public function test_non_owner_cannot_refund(): void
     {
         [$event, $order] = $this->paidOrder();
-        $intruder = User::factory()->create();
+        $intruder = $this->organizer();
 
         $this->actingAs($intruder)->post(route('host.events.orders.refund', [$event, $order]))->assertForbidden();
         $this->assertSame('paid', $order->fresh()->status);

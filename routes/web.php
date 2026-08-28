@@ -116,7 +116,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
 
     // Host panel — manage your events, ticket types and sessions.
-    Route::prefix('host')->name('host.')->group(function () {
+    // Hard-gated to vendors: a free attendee account must upgrade (become a
+    // vendor) before it can create or manage events.
+    Route::middleware('role:organizer|superadmin')->prefix('host')->name('host.')->group(function () {
         Route::get('events', [EventController::class, 'index'])->name('events.index');
         Route::get('events/create', [EventController::class, 'create'])->name('events.create');
         Route::post('events', [EventController::class, 'store'])->name('events.store');

@@ -16,7 +16,7 @@ class CheckInTest extends TestCase
     /** @return array{0: Event, 1: Ticket} */
     private function eventWithTicket(): array
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = Event::create([
             'user_id' => $host->id, 'title' => 'Door Event', 'slug' => 'door-event',
             'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
@@ -66,7 +66,7 @@ class CheckInTest extends TestCase
     public function test_non_owner_cannot_check_in(): void
     {
         [$event, $ticket] = $this->eventWithTicket();
-        $intruder = User::factory()->create();
+        $intruder = $this->organizer();
 
         $this->actingAs($intruder)
             ->post(route('host.events.checkin.scan', $event), ['token' => $ticket->qr_token])
@@ -76,7 +76,7 @@ class CheckInTest extends TestCase
     /** @return array{0: Event, 1: Ticket} */
     private function makeOtherEventTicket(): array
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = Event::create([
             'user_id' => $host->id, 'title' => 'Other', 'slug' => 'other-event',
             'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',

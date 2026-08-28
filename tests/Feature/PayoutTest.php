@@ -18,7 +18,7 @@ class PayoutTest extends TestCase
 
     private function hostWithRevenue(float $gross): User
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
         Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => $gross, 'paid_at' => now()]);
 

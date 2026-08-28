@@ -16,7 +16,7 @@ class SeatingTest extends TestCase
     /** @return array{0: Event, 1: Ticket} */
     private function eventWithTicket(): array
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = Event::create([
             'user_id' => $host->id, 'title' => 'Gala', 'slug' => 'gala',
             'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
@@ -76,7 +76,7 @@ class SeatingTest extends TestCase
     public function test_non_owner_cannot_manage_seating(): void
     {
         [$event] = $this->eventWithTicket();
-        $intruder = User::factory()->create();
+        $intruder = $this->organizer();
 
         $this->actingAs($intruder)->get(route('host.events.seating', $event))->assertForbidden();
     }

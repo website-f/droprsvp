@@ -25,7 +25,7 @@ class PromotionTest extends TestCase
 
     public function test_organizer_sees_the_promote_page_with_price_and_fee(): void
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         Setting::put('boost_price', 49);
         Setting::put('platform_fee_percent', 5);
         $event = $this->event($host);
@@ -39,7 +39,7 @@ class PromotionTest extends TestCase
 
     public function test_boosting_via_fake_gateway_settles_instantly_and_features_the_event(): void
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         Setting::put('boost_price', 49);
         Setting::put('boost_days', 7);
         $event = $this->event($host);
@@ -55,13 +55,13 @@ class PromotionTest extends TestCase
 
     public function test_a_non_owner_cannot_boost_an_event(): void
     {
-        $event = $this->event(User::factory()->create());
-        $this->actingAs(User::factory()->create())->post(route('host.events.promote.store', $event))->assertForbidden();
+        $event = $this->event($this->organizer());
+        $this->actingAs($this->organizer())->post(route('host.events.promote.store', $event))->assertForbidden();
     }
 
     public function test_boosted_events_surface_first_in_discovery(): void
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         Event::create(['user_id' => $host->id, 'title' => 'Plain', 'slug' => 'plain', 'status' => 'published', 'published_at' => now(), 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDay()]);
         Event::create(['user_id' => $host->id, 'title' => 'Boosted', 'slug' => 'boosted-ev', 'status' => 'published', 'published_at' => now(), 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(5), 'boosted_until' => now()->addDays(3)]);
 

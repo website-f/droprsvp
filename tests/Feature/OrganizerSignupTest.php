@@ -76,6 +76,16 @@ class OrganizerSignupTest extends TestCase
         $this->assertFalse($user->hasRole('organizer'));
     }
 
+    public function test_free_attendee_is_blocked_from_the_host_area(): void
+    {
+        Role::findOrCreate('buyer', 'web');
+        $buyer = User::factory()->create();
+        $buyer->assignRole('buyer');
+
+        $this->actingAs($buyer)->get(route('host.events.index'))->assertForbidden();
+        $this->actingAs($buyer)->get(route('host.events.create'))->assertForbidden();
+    }
+
     public function test_signed_in_user_can_upgrade_to_a_vendor(): void
     {
         Role::findOrCreate('buyer', 'web');

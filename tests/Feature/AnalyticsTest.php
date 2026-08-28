@@ -37,7 +37,7 @@ class AnalyticsTest extends TestCase
 
     public function test_the_organizer_previewing_their_own_event_does_not_count(): void
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = $this->publishedEvent($host);
 
         $this->actingAs($host)->get('/e/'.$event->slug)->assertOk();
@@ -71,7 +71,7 @@ class AnalyticsTest extends TestCase
 
     public function test_organizer_can_view_event_analytics(): void
     {
-        $host = User::factory()->create();
+        $host = $this->organizer();
         $event = $this->publishedEvent($host);
 
         $this->actingAs($host)->get("/host/events/{$event->slug}/analytics")
@@ -83,7 +83,7 @@ class AnalyticsTest extends TestCase
     {
         $event = $this->publishedEvent();
 
-        $this->actingAs(User::factory()->create())->get("/host/events/{$event->slug}/analytics")->assertForbidden();
+        $this->actingAs($this->organizer())->get("/host/events/{$event->slug}/analytics")->assertForbidden();
     }
 
     public function test_superadmin_can_view_platform_analytics(): void
