@@ -215,6 +215,15 @@
 }
 *::-webkit-scrollbar-corner { background: transparent; }
 
+/* Rich-text editor placeholder (contentEditable). */
+.rte-content[data-empty='true']::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    pointer-events: none;
+    position: absolute;
+}
+.rte-content { position: relative; }
+
 /* Page-builder columns: stack on mobile, apply the custom template on md+.
    The template (e.g. "1fr 1fr" or "1fr 2fr") is passed via --drsvp-cols. */
 .drsvp-cols { display: grid; grid-template-columns: 1fr; }
