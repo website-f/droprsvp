@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Lock } from 'lucide-react';
+import { Wordmark } from '@/components/brand';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -31,7 +32,7 @@ export default function CheckoutShow({ order }: { order: OrderView }) {
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
                     <div className="mx-auto max-w-3xl px-6 py-4">
-                        <Link href={`/e/${order.event.slug}`} className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
+                        <Link href={`/e/${order.event.slug}`} aria-label="DropRSVP"><Wordmark className="h-8" /></Link>
                     </div>
                 </header>
 

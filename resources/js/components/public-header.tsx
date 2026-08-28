@@ -1,8 +1,9 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import { Footer  } from '@/components/cms/footer-blocks';
-import type {FooterData} from '@/components/cms/footer-blocks';
+import { Wordmark } from '@/components/brand';
+import { Footer } from '@/components/cms/footer-blocks';
+import type { FooterData } from '@/components/cms/footer-blocks';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
 import type { PublicNavItem } from '@/types';
@@ -31,8 +32,8 @@ export function PublicHeader() {
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
             <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-6 py-4">
-                <Link href="/" className="text-2xl font-bold tracking-tight">
-                    Drop<span className="text-primary">RSVP</span>
+                <Link href="/" aria-label="DropRSVP home">
+                    <Wordmark className="h-9" />
                 </Link>
 
                 {/* Desktop nav */}

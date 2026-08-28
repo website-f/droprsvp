@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { CalendarDays } from 'lucide-react';
+import { LogoMark, Wordmark } from '@/components/brand';
 
 /**
  * The complete site footer as a single component. Rendered identically by the
@@ -18,7 +18,7 @@ export function Footer({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-s
             <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Brand */}
                 <div className="max-w-xs">
-                    <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
+                    <Link href="/" aria-label="DropRSVP home"><Wordmark className="h-9" /></Link>
                     {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
                     {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
                 </div>
@@ -38,7 +38,7 @@ export function Footer({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-s
 
             <div className="border-t border-border">
                 <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
-                    <span className="flex items-center gap-2 font-medium text-foreground"><CalendarDays className="size-4" /> DropRSVP</span>
+                    <LogoMark className="size-6" />
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                         <Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link>
                         <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>

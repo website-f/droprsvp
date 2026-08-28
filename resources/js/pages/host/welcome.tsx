@@ -1,7 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { ArrowLeft, Check } from 'lucide-react';
+import { useState } from 'react';
+import { Wordmark } from '@/components/brand';
+import { Button } from '@/components/ui/button';
 
 interface Profile { event_types: string[] | null; revenue_band: string | null; events_per_year: string | null; audience_size: string | null; age_range: string | null }
 
@@ -39,15 +40,23 @@ export default function OrganizerWelcome({ profile }: { profile: Profile | null 
     const selected = (opt: string) => q.multi ? answers.event_types.includes(opt) : answers[q.key] === opt;
     const pick = (opt: string) => q.multi ? toggleMulti(opt) : setAnswers((a) => ({ ...a, [q.key]: opt }));
 
-    const next = () => { if (isLast) finish(); else setStep((s) => s + 1); };
-    const finish = () => { setSaving(true); router.post('/host/welcome', answers, { onFinish: () => setSaving(false) }); };
+    const next = () => {
+ if (isLast) {
+finish();
+} else {
+setStep((s) => s + 1);
+} 
+};
+    const finish = () => {
+ setSaving(true); router.post('/host/welcome', answers, { onFinish: () => setSaving(false) }); 
+};
 
     return (
         <>
             <Head title="Welcome to DropRSVP" />
             <div className="flex min-h-screen flex-col bg-muted/30">
                 <header className="flex items-center justify-between px-6 py-5">
-                    <span className="text-xl font-bold tracking-tight">Drop<span className="text-primary">RSVP</span></span>
+                    <Wordmark className="h-8" />
                     <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">Skip for now</Link>
                 </header>
 

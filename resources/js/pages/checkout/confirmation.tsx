@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
 import { CheckCircle2, Clock, Ticket } from 'lucide-react';
+import { Wordmark } from '@/components/brand';
+import { Button } from '@/components/ui/button';
 
 interface OrderView {
     reference: string; status: string; currency: string; total: number;
@@ -20,7 +21,7 @@ export default function CheckoutConfirmation({ order }: { order: OrderView }) {
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
                     <div className="mx-auto max-w-2xl px-6 py-4">
-                        <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
+                        <Link href="/" aria-label="DropRSVP home"><Wordmark className="h-8" /></Link>
                     </div>
                 </header>
 

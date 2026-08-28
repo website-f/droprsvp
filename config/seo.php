@@ -29,7 +29,7 @@ return [
     'organization' => [
         'name' => env('SEO_ORG_NAME', env('APP_NAME', 'DropRSVP')),
         // Absolute URL or /path to the logo used in Organization JSON-LD.
-        'logo' => env('SEO_LOGO', '/logo.png'),
+        'logo' => env('SEO_LOGO', '/logo-mark.png'),
         // Optional social profile URLs (sameAs), comma-separated in env.
         'same_as' => array_values(array_filter(array_map('trim', explode(',', (string) env('SEO_SAME_AS', ''))))),
     ],

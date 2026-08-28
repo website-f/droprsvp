@@ -1,9 +1,10 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { ArrowLeft, CalendarDays, CheckCircle2, Mail, QrCode, Ticket } from 'lucide-react';
+import { useState } from 'react';
+import { Wordmark } from '@/components/brand';
+import { Button } from '@/components/ui/button';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Label } from '@/components/ui/label';
 
 const field = 'h-12 w-full rounded-xl border border-input bg-background px-4 text-base outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
@@ -12,9 +13,15 @@ export default function GetStarted() {
     const form = useForm({ email: '', code: '', first_name: '', last_name: '', password: '', password_confirmation: '' });
     const { data, setData, processing, errors } = form;
 
-    const sendCode = (e: React.FormEvent) => { e.preventDefault(); form.post('/get-started/code', { preserveScroll: true, onSuccess: () => setStep(2) }); };
-    const verify = (e: React.FormEvent) => { e.preventDefault(); form.post('/get-started/verify', { preserveScroll: true, onSuccess: () => setStep(3) }); };
-    const complete = (e: React.FormEvent) => { e.preventDefault(); form.post('/get-started/complete'); };
+    const sendCode = (e: React.FormEvent) => {
+ e.preventDefault(); form.post('/get-started/code', { preserveScroll: true, onSuccess: () => setStep(2) }); 
+};
+    const verify = (e: React.FormEvent) => {
+ e.preventDefault(); form.post('/get-started/verify', { preserveScroll: true, onSuccess: () => setStep(3) }); 
+};
+    const complete = (e: React.FormEvent) => {
+ e.preventDefault(); form.post('/get-started/complete'); 
+};
     const resend = () => form.post('/get-started/code', { preserveScroll: true });
 
     return (
@@ -25,7 +32,7 @@ export default function GetStarted() {
                 <div className="relative hidden overflow-hidden bg-foreground p-12 text-background lg:flex lg:flex-col">
                     <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full opacity-40 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
                     <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 size-96 rounded-full opacity-30 blur-3xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
-                    <Link href="/" className="relative text-2xl font-bold tracking-tight">Drop<span className="text-[#8b83ff]">RSVP</span></Link>
+                    <Link href="/" className="relative" aria-label="DropRSVP home"><Wordmark className="h-9" onDark /></Link>
                     <div className="relative mt-auto max-w-md">
                         <h1 className="text-4xl font-bold leading-tight tracking-tight">Start selling tickets in minutes.</h1>
                         <p className="mt-4 text-background/70">Create events, manage seating, take payments and check guests in — all in one place.</p>
@@ -40,7 +47,7 @@ export default function GetStarted() {
                 {/* Form panel */}
                 <div className="flex flex-col px-6 py-8 sm:px-10">
                     <div className="flex items-center justify-between">
-                        <Link href="/" className="text-xl font-bold tracking-tight lg:hidden">Drop<span className="text-primary">RSVP</span></Link>
+                        <Link href="/" className="lg:hidden" aria-label="DropRSVP home"><Wordmark className="h-8" /></Link>
                         <span className="ml-auto text-sm text-muted-foreground">Have an account? <Link href="/login" className="font-medium text-foreground underline underline-offset-4">Log in</Link></span>
                     </div>
 
