@@ -4,48 +4,37 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SeoFields, type SeoData } from '@/components/seo-fields';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
-import { PageBuilder, normalizeSections, sectionsToHtml } from '@/components/cms/page-builder';
-import { DEFAULT_SETTINGS, PageSections, type PageSection } from '@/components/cms/page-sections';
-import { Eye, ExternalLink, LayoutTemplate, Pencil, Sparkles } from 'lucide-react';
+import { ExternalLink, LayoutTemplate } from 'lucide-react';
 
-interface PageProp { id: number; title: string; slug: string; body: string | null; layout: PageSection[] | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
+interface PageProp { id: number; title: string; slug: string; body: string | null; builder_css: string | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
-
-/** Start from the saved layout; migrate a legacy body into one text section. */
-function initialSections(page: PageProp | null): PageSection[] {
-    const norm = normalizeSections(page?.layout);
-    if (norm.length > 0) return norm;
-    if (page?.body) return [{ id: 's_legacy', columns: [{ blocks: [{ id: 'b_legacy', type: 'richtext', html: page.body }] }], settings: { ...DEFAULT_SETTINGS } }];
-    return [];
-}
 
 export default function PageForm({ page }: { page: PageProp | null }) {
     const isEdit = !!page;
     const [baseUrl, setBaseUrl] = useState('');
-    const [mode, setMode] = useState<'edit' | 'preview'>('edit');
     useEffect(() => setBaseUrl(window.location.origin), []);
 
     const form = useForm({
         title: page?.title ?? '',
         slug: page?.slug ?? '',
-        layout: initialSections(page),
         add_to_menu: page?.in_menu ?? false,
         publish: false,
         seo: page?.seo ?? emptySeo(),
     });
     const { data, setData, processing, errors } = form;
     const published = page?.status === 'published';
+    const built = !!(page && (page.builder_css || (page.body && page.builder_edited_at)));
 
     const save = (publish: boolean) => {
-        form.transform((d) => ({ ...d, publish, body: sectionsToHtml(d.layout) }));
+        form.transform((d) => ({ ...d, publish }));
         isEdit ? form.put(`/admin/cms/pages/${page!.id}`) : form.post('/admin/cms/pages');
     };
 
-    // Open the full-screen Drop Builder. New pages are saved as a draft first.
-    const openDropBuilder = () => {
+    // Open the full-screen Drop Builder. New pages save a draft first.
+    const openBuilder = () => {
         if (isEdit) { window.location.href = `/admin/cms/pages/${page!.id}/builder`; return; }
-        form.transform((d) => ({ ...d, publish: false, body: sectionsToHtml(d.layout), open_builder: true }));
+        form.transform((d) => ({ ...d, publish: false, open_builder: true }));
         form.post('/admin/cms/pages');
     };
 
@@ -59,27 +48,12 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                 status={<Badge variant={published ? 'default' : 'secondary'}>{published ? 'Published' : 'Draft'}</Badge>}
                 actions={
                     <>
-                        <Button variant="ghost" size="sm" disabled={processing} onClick={openDropBuilder} title="Full-screen drag-and-drop builder"><LayoutTemplate className="size-4" /> Drop Builder</Button>
                         <Button variant="outline" size="sm" disabled={processing} onClick={() => save(false)}>Save draft</Button>
                         <Button size="sm" disabled={processing} onClick={() => save(true)}>{published ? 'Update' : 'Publish'}</Button>
                     </>
                 }
                 sidebar={
                     <>
-                        <SettingsCard title="Design">
-                            {page?.builder_edited_at ? (
-                                <div className="flex items-start gap-2 rounded-lg border border-border bg-secondary/50 p-3 text-sm">
-                                    <Sparkles className="mt-0.5 size-4 shrink-0 text-foreground" />
-                                    <span><span className="font-medium">Edited via Drop Builder</span><span className="mt-0.5 block text-xs text-muted-foreground">Last built {page.builder_edited_at}.</span></span>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">Design this page section-by-section here, or open the full-screen Drop Builder for drag-and-drop editing with a live device preview.</p>
-                            )}
-                            <Button type="button" variant="outline" className="w-full" onClick={openDropBuilder} disabled={processing}>
-                                <LayoutTemplate className="size-4" /> {page?.builder_edited_at ? 'Reopen Drop Builder' : 'Open Drop Builder'}
-                            </Button>
-                        </SettingsCard>
-
                         <SettingsCard title="Publish">
                             <p className="text-sm text-muted-foreground">
                                 {published ? 'This page is live.' : 'This page is a draft and not visible publicly.'}
@@ -88,7 +62,7 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                 <input type="checkbox" className="mt-0.5 size-4 rounded border-input" checked={data.add_to_menu} onChange={(e) => setData('add_to_menu', e.target.checked)} />
                                 <span>
                                     <span className="font-medium">Show in header menu</span>
-                                    <span className="mt-0.5 block text-xs text-muted-foreground">Adds this page to the site navigation when you publish, so visitors can find it from the landing page.</span>
+                                    <span className="mt-0.5 block text-xs text-muted-foreground">Adds this page to the site navigation when you publish.</span>
                                 </span>
                             </label>
                             {isEdit && published && data.slug && (
@@ -111,33 +85,39 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                 }
             >
                 <div className="grid gap-4">
-                    <div className="flex items-start justify-between gap-3">
+                    <div>
                         <input
                             aria-label="Page title"
-                            className="min-w-0 flex-1 border-0 bg-transparent px-1 text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/50"
+                            className="w-full border-0 bg-transparent px-1 text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/50"
                             value={data.title}
                             onChange={(e) => setData('title', e.target.value)}
                             placeholder="Add a page title…"
                         />
-                        <div className="flex shrink-0 items-center rounded-lg border border-border p-0.5">
-                            <button type="button" onClick={() => setMode('edit')} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${mode === 'edit' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent'}`}><Pencil className="size-3.5" /> Edit</button>
-                            <button type="button" onClick={() => setMode('preview')} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${mode === 'preview' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent'}`}><Eye className="size-3.5" /> Preview</button>
-                        </div>
+                        {errors.title && <p className="mt-1 px-1 text-xs text-destructive">{errors.title}</p>}
                     </div>
-                    {errors.title && <p className="px-1 text-xs text-destructive">{errors.title}</p>}
 
-                    {mode === 'edit' ? (
-                        <PageBuilder value={data.layout} onChange={(s) => setData('layout', s)} />
-                    ) : (
-                        <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
-                            <div className="mx-auto max-w-3xl">
-                                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{data.title || 'Untitled page'}</h1>
-                                <div className="mt-8">
-                                    {data.layout.length > 0
-                                        ? <PageSections sections={data.layout} />
-                                        : <p className="text-sm text-muted-foreground">Nothing to preview yet — add a section in Edit mode.</p>}
-                                </div>
+                    {built ? (
+                        // Built with the Drop Builder — show the page big in the centre; continue from there.
+                        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
+                                <span className="flex items-center gap-2 text-sm font-medium"><LayoutTemplate className="size-4" /> Built with Drop Builder{page?.builder_edited_at ? ` · ${page.builder_edited_at}` : ''}</span>
+                                <Button size="sm" onClick={openBuilder}><LayoutTemplate className="size-4" /> Continue in Drop Builder</Button>
                             </div>
+                            <iframe
+                                title="Page preview"
+                                className="h-[70vh] w-full bg-white"
+                                srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${page?.builder_css ?? ''}</style></head><body>${page?.body ?? ''}</body></html>`}
+                            />
+                        </div>
+                    ) : (
+                        // Not built yet — big entry point into the builder.
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card p-16 text-center shadow-sm">
+                            <span className="flex size-14 items-center justify-center rounded-2xl bg-foreground text-background"><LayoutTemplate className="size-7" /></span>
+                            <h2 className="text-xl font-bold tracking-tight">Design your page</h2>
+                            <p className="max-w-md text-sm text-muted-foreground">Open the Drop Builder for full drag-and-drop editing — blocks, columns, backgrounds, borders and a live desktop / tablet / mobile preview.</p>
+                            <Button size="lg" className="mt-2" onClick={openBuilder}>
+                                <LayoutTemplate className="size-4" /> {isEdit ? 'Open Drop Builder' : 'Save & open Drop Builder'}
+                            </Button>
                         </div>
                     )}
                 </div>

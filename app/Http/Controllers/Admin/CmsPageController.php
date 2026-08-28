@@ -72,11 +72,18 @@ class CmsPageController extends Controller
         return redirect()->route('admin.cms.pages.index')->with('success', 'Page deleted.');
     }
 
-    /** Full-screen Elementor-style "Drop Builder". */
+    /** Full-screen GrapesJS "Drop Builder". */
     public function builder(CmsPage $page)
     {
         return inertia('admin/cms/pages/builder', [
-            'page' => ['id' => $page->id, 'title' => $page->title, 'slug' => $page->slug, 'status' => $page->status, 'layout' => $page->layout],
+            'page' => [
+                'id' => $page->id,
+                'title' => $page->title,
+                'slug' => $page->slug,
+                'status' => $page->status,
+                'html' => $page->body ?? '',
+                'css' => $page->builder_css ?? '',
+            ],
         ]);
     }
 
@@ -84,14 +91,15 @@ class CmsPageController extends Controller
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:180'],
-            'layout' => ['nullable', 'array'],
-            'body' => ['nullable', 'string'],
+            'html' => ['nullable', 'string'],
+            'css' => ['nullable', 'string'],
         ]);
 
         $page->update([
             'title' => $data['title'],
-            'layout' => $data['layout'] ?? null,
-            'body' => $data['body'] ?? $page->body,
+            'body' => $data['html'] ?? '',
+            'builder_css' => $data['css'] ?? '',
+            'layout' => null, // GrapesJS pages render from body + css, not the section layout
             'builder_edited_at' => now(),
         ]);
 
@@ -132,10 +140,11 @@ class CmsPageController extends Controller
 
     private function pageAttributes(array $data): array
     {
+        // Note: body/layout/builder_css are NOT touched here — page content is
+        // owned by the Drop Builder (saveBuilder). This form only edits metadata,
+        // so saving it never wipes the built content.
         return [
             'title' => $data['title'],
-            'body' => $data['body'] ?? null,
-            'layout' => $data['layout'] ?? null,
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
             'published_at' => ($data['publish'] ?? false) ? now() : null,
         ];
@@ -191,6 +200,7 @@ class CmsPageController extends Controller
             'slug' => $page->slug,
             'body' => $page->body,
             'layout' => $page->layout,
+            'builder_css' => $page->builder_css,
             'status' => $page->status,
             'builder_edited_at' => optional($page->builder_edited_at)->diffForHumans(),
             'in_menu' => MenuItem::where('location', 'header')->where('url', '/'.$page->slug)->exists(),

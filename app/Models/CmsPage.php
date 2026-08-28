@@ -12,7 +12,7 @@ class CmsPage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'status', 'published_at', 'builder_edited_at'];
+    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'builder_css', 'status', 'published_at', 'builder_edited_at'];
 
     protected function casts(): array
     {

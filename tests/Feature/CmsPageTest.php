@@ -72,50 +72,44 @@ class CmsPageTest extends TestCase
         $this->actingAs($user)->get(route('admin.cms.pages.index'))->assertForbidden();
     }
 
-    public function test_page_builder_layout_is_saved_and_rendered(): void
-    {
-        $layout = [[
-            'id' => 's1',
-            'title' => 'Welcome',
-            'columns' => [
-                ['blocks' => [['id' => 'b1', 'type' => 'richtext', 'html' => '<p>Hi there</p>']]],
-                ['blocks' => [['id' => 'b2', 'type' => 'image', 'url' => 'https://example.com/x.jpg', 'alt' => 'pic']]],
-            ],
-        ]];
-
-        $this->actingAs($this->superadmin())->post(route('admin.cms.pages.store'), [
-            'title' => 'Home Layout',
-            'body' => '<h2>Welcome</h2><p>Hi there</p>',
-            'layout' => $layout,
-            'publish' => true,
-            'seo' => ['robots_index' => true, 'robots_follow' => true],
-        ])->assertRedirect(route('admin.cms.pages.index'));
-
-        $page = CmsPage::first();
-        $this->assertIsArray($page->layout);
-        $this->assertCount(1, $page->layout);
-        $this->assertSame('Welcome', $page->layout[0]['title']);
-        $this->assertCount(2, $page->layout[0]['columns']);
-
-        $this->get('/'.$page->slug)
-            ->assertOk()
-            ->assertInertia(fn (Assert $p) => $p->component('public/page')->has('page.layout', 1));
-    }
-
-    public function test_drop_builder_saves_layout_and_flags_the_page(): void
+    public function test_drop_builder_saves_html_css_and_renders_publicly(): void
     {
         $admin = $this->superadmin();
-        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-x', 'status' => 'draft', 'author_id' => $admin->id]);
-        $layout = [['id' => 's1', 'title' => 'Hero', 'columns' => [['blocks' => [['id' => 'b1', 'type' => 'richtext', 'html' => '<p>Hi</p>']]]], 'settings' => ['cols' => 1]]];
+        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-x', 'status' => 'published', 'published_at' => now(), 'author_id' => $admin->id]);
 
         $this->actingAs($admin)->post(route('admin.cms.pages.builder.save', $page->id), [
-            'title' => 'Home updated', 'layout' => $layout, 'body' => '<p>Hi</p>',
+            'title' => 'Home updated',
+            'html' => '<section id="hero"><h1>Welcome</h1></section>',
+            'css' => '#hero{background:#111;color:#fff}',
         ])->assertRedirect(route('admin.cms.pages.edit', $page->id));
 
         $page->refresh();
         $this->assertSame('Home updated', $page->title);
-        $this->assertIsArray($page->layout);
+        $this->assertStringContainsString('Welcome', (string) $page->body);
+        $this->assertStringContainsString('#hero', (string) $page->builder_css);
         $this->assertNotNull($page->builder_edited_at);
+
+        // Public page receives the builder HTML + CSS to render full-bleed.
+        $this->get('/'.$page->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('public/page')
+                ->where('page.css', '#hero{background:#111;color:#fff}'));
+    }
+
+    public function test_metadata_save_does_not_wipe_builder_content(): void
+    {
+        $admin = $this->superadmin();
+        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-y', 'status' => 'draft', 'author_id' => $admin->id, 'body' => '<h1>Built</h1>', 'builder_css' => 'h1{color:red}', 'builder_edited_at' => now()]);
+        $page->seo()->create(['robots_index' => true, 'robots_follow' => true]);
+
+        $this->actingAs($admin)->put(route('admin.cms.pages.update', $page->id), [
+            'title' => 'Home renamed', 'publish' => true, 'seo' => ['robots_index' => true, 'robots_follow' => true],
+        ])->assertRedirect(route('admin.cms.pages.index'));
+
+        $page->refresh();
+        $this->assertSame('Home renamed', $page->title);
+        $this->assertSame('<h1>Built</h1>', $page->body);        // preserved
+        $this->assertSame('h1{color:red}', $page->builder_css);  // preserved
     }
 
     public function test_publishing_with_add_to_menu_creates_a_header_link(): void
