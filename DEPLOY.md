@@ -150,14 +150,32 @@ HITPAY_SALT=...
 
 ## Update routine
 
+**Use the script — it does everything, including re-exposing assets:**
+
+```bash
+bash ~/droprsvp/deploy/deploy.sh      # override with APP_DIR=… WEB_ROOT=… if needed
+```
+
+It runs `git pull` → `composer install` → `migrate --force` → `storage:link` →
+`config:cache`/`route:cache`, then **re-runs the symlink loop** so any file newly
+added to `public/` (a logo, image, or build chunk) is exposed. **This last step
+is the one people forget** — without it, new public files 404 even though
+`git pull` fetched them (they exist in the app's `public/`, but no symlink points
+to them from the web root yet).
+
+Manual equivalent (Option B / symlink layout):
+
 ```bash
 cd ~/droprsvp   # or public_html/droprsvp
 git pull
 composer install --no-dev --optimize-autoloader
 php artisan migrate --force
 php artisan config:cache && php artisan route:cache
-# Option B with copies (not symlinks): also refresh assets:
-# rm -rf ~/public_html/build && cp -r public/build ~/public_html/build
+# RE-EXPOSE public/ into the web root (adds symlinks for any new files):
+cd ~/public_html
+APP_PUBLIC="$HOME/droprsvp/public"
+for f in "$APP_PUBLIC"/*; do n=$(basename "$f"); [ "$n" = "index.php" ] && continue; ln -sfn "$f" "$n"; done
+# If your host uses copies instead of symlinks: cp -r "$APP_PUBLIC"/* ~/public_html/
 ```
 
 ## Verify (no browser needed)
