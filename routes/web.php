@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
 use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
+use App\Http\Controllers\Admin\SiteController as AdminSiteController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\AccountController;
@@ -142,6 +143,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');
+
+        // Site appearance — landing sections + footer builder.
+        Route::get('site/landing', [AdminSiteController::class, 'landing'])->name('site.landing');
+        Route::post('site/landing', [AdminSiteController::class, 'saveLanding'])->name('site.landing.save');
+        Route::get('site/footer', [AdminSiteController::class, 'footer'])->name('site.footer');
+        Route::post('site/footer', [AdminSiteController::class, 'saveFooter'])->name('site.footer.save');
     });
 });
 

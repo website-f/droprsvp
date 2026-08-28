@@ -19,3 +19,7 @@ export type PublicNavItem = {
     url: string;
     new_tab: boolean;
 };
+
+/** Footer config, edited under Admin → Footer. */
+export type FooterColumn = { title: string; links: { label: string; url: string }[] };
+export type FooterConfig = { tagline: string; columns: FooterColumn[]; copyright: string };

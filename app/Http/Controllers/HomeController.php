@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Support\SeoManager;
+use App\Support\SiteContent;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -41,6 +42,7 @@ class HomeController extends Controller
         return Inertia::render('welcome', [
             'featured' => $featured,
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug']),
+            'sections' => SiteContent::landing(),
         ]);
     }
 

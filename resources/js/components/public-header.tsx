@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
 import { CalendarDays, Menu, X } from 'lucide-react';
-import type { PublicNavItem } from '@/types';
+import type { FooterConfig, PublicNavItem } from '@/types';
 
 function NavLink({ item, onClick }: { item: PublicNavItem; onClick?: () => void }) {
     const cls = 'text-sm font-medium text-foreground/70 transition-colors hover:text-foreground';
@@ -93,53 +93,33 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
 }
 
 export function PublicFooter() {
-    const { auth, nav } = usePage().props;
-    const items = (nav ?? []) as PublicNavItem[];
-    const year = new Date().getFullYear();
+    const { auth, footer } = usePage().props;
+    const cfg = footer as FooterConfig | undefined;
+    const columns = cfg?.columns ?? [];
 
     return (
         <footer className="mt-auto border-t border-border bg-muted/30">
-            <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
+            <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Brand */}
                 <div className="max-w-xs">
                     <Link href="/" className="text-xl font-bold tracking-tight">Drop<span className="text-muted-foreground">RSVP</span></Link>
                     <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        Find your people, fill your events. Discovery, ticketing, seating and QR check-in — all in one place.
+                        {cfg?.tagline ?? 'Find your people, fill your events.'}
                     </p>
                     <Button asChild size="sm" className="mt-5">
                         <Link href={auth?.user ? '/dashboard' : '/get-started'}>Create an event</Link>
                     </Button>
                 </div>
 
-                {/* Discover */}
-                <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">Discover</h3>
-                    <nav className="mt-4 flex flex-col gap-2.5">
-                        <FooterLink href="/events">Browse events</FooterLink>
-                        <FooterLink href="/blog">Blog</FooterLink>
-                        <FooterLink href="/events">Categories</FooterLink>
-                    </nav>
-                </div>
-
-                {/* For hosts */}
-                <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">For hosts</h3>
-                    <nav className="mt-4 flex flex-col gap-2.5">
-                        <FooterLink href={auth?.user ? '/dashboard' : '/get-started'}>Create an event</FooterLink>
-                        <FooterLink href="/my/tickets">My tickets</FooterLink>
-                        {!auth?.user && <FooterLink href="/login">Log in</FooterLink>}
-                    </nav>
-                </div>
-
-                {/* Menu (from the CMS nav) */}
-                <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{items.length > 0 ? 'Explore' : 'Company'}</h3>
-                    <nav className="mt-4 flex flex-col gap-2.5">
-                        {items.length > 0
-                            ? items.map((item, i) => <FooterLink key={`f-${item.url}-${i}`} href={item.url}>{item.label}</FooterLink>)
-                            : <FooterLink href="/">Home</FooterLink>}
-                    </nav>
-                </div>
+                {/* Admin-editable columns */}
+                {columns.map((col, ci) => (
+                    <div key={ci}>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{col.title}</h3>
+                        <nav className="mt-4 flex flex-col gap-2.5">
+                            {col.links.filter((l) => l.label && l.url).map((l, li) => <FooterLink key={li} href={l.url}>{l.label}</FooterLink>)}
+                        </nav>
+                    </div>
+                ))}
             </div>
 
             <div className="border-t border-border">
@@ -147,7 +127,7 @@ export function PublicFooter() {
                     <span className="flex items-center gap-2 font-medium text-foreground">
                         <CalendarDays className="size-4" /> DropRSVP
                     </span>
-                    <span>&copy; {year} DropRSVP. All rights reserved.</span>
+                    <span>{cfg?.copyright ?? `© ${new Date().getFullYear()} DropRSVP. All rights reserved.`}</span>
                 </div>
             </div>
         </footer>

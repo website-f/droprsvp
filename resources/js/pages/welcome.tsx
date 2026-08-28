@@ -28,14 +28,24 @@ function priceLabel(e: FeaturedEvent) {
     return null;
 }
 
+interface LandingSections {
+    organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
+    event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
+    nearby_cities: { enabled: boolean; heading: string; cities: string[] };
+}
+
 export default function Welcome() {
-    const { auth, featured = [], categories = [] } = usePage().props as unknown as {
+    const { auth, featured = [], categories = [], sections } = usePage().props as unknown as {
         auth?: { user?: unknown };
         featured?: FeaturedEvent[];
         categories?: { name: string; slug: string }[];
+        sections?: LandingSections;
     };
     const [q, setQ] = useState('');
     const signedIn = !!auth?.user;
+    const org = sections?.organizer;
+    const eventTime = sections?.event_time;
+    const nearby = sections?.nearby_cities;
 
     return (
         <>
@@ -86,6 +96,18 @@ export default function Welcome() {
                     </div>
                 </section>
 
+                {/* ------------------------------------------ Event-time chips */}
+                {eventTime?.enabled && eventTime.items.length > 0 && (
+                    <section className="mx-auto w-full max-w-6xl px-6 pt-10">
+                        <Reveal className="flex flex-wrap items-center gap-3">
+                            <h2 className="mr-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{eventTime.heading}</h2>
+                            {eventTime.items.filter((i) => i.label && i.value).map((i) => (
+                                <Link key={i.value} href={`/events?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
+                            ))}
+                        </Reveal>
+                    </section>
+                )}
+
                 {/* ------------------------------------------------- Categories */}
                 {categories.length > 0 && (
                     <section className="mx-auto w-full max-w-6xl px-6 py-14 sm:py-16">
@@ -99,6 +121,20 @@ export default function Welcome() {
                             </Link>
                         </Reveal>
                         <CategoryGrid categories={categories} />
+                    </section>
+                )}
+
+                {/* ---------------------------------------------- Nearby cities */}
+                {nearby?.enabled && nearby.cities.length > 0 && (
+                    <section className="mx-auto w-full max-w-6xl px-6 py-4">
+                        <Reveal>
+                            <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">{nearby.heading}</h2>
+                            <div className="flex flex-wrap gap-2.5">
+                                {nearby.cities.filter(Boolean).map((c) => (
+                                    <Link key={c} href={`/events?q=${encodeURIComponent(c)}`} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">{c}</Link>
+                                ))}
+                            </div>
+                        </Reveal>
                     </section>
                 )}
 
@@ -209,27 +245,34 @@ export default function Welcome() {
                     </div>
                 </section>
 
-                {/* --------------------------------------------- Host CTA band */}
-                <section className="px-6 pb-20">
-                    <Reveal>
-                        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-foreground px-8 py-14 text-center text-background sm:px-12 sm:py-16">
-                            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full opacity-50 blur-2xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
-                            <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-80 rounded-full opacity-40 blur-2xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
-                            <h2 className="relative text-2xl font-bold tracking-tight sm:text-4xl">Hosting something?</h2>
-                            <p className="relative mx-auto mt-3 max-w-xl text-sm text-background/70 sm:text-base">
-                                Create your event in minutes, share one link, and watch the RSVPs roll in. No setup fees.
-                            </p>
-                            <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                                <Button asChild size="lg" variant="secondary" className="h-12 px-8">
-                                    <Link href={signedIn ? dashboard() : '/get-started'}>Create an event</Link>
-                                </Button>
-                                <Button asChild size="lg" variant="ghost" className="h-12 px-8 text-background hover:bg-background/10 hover:text-background">
-                                    <Link href="/events">Browse events</Link>
-                                </Button>
+                {/* -------------------------------------------- Organizer band */}
+                {(org?.enabled ?? true) && (
+                    <section className="px-6 pb-20">
+                        <Reveal>
+                            <div className="relative mx-auto grid max-w-6xl items-center gap-8 overflow-hidden rounded-3xl bg-foreground px-8 py-14 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
+                                <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full opacity-50 blur-2xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
+                                <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-80 rounded-full opacity-40 blur-2xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
+                                <div className="relative">
+                                    <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">{org?.heading ?? 'Hosting an event?'}</h2>
+                                    <p className="mt-3 max-w-xl text-sm text-background/70 sm:text-base">{org?.body}</p>
+                                    <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                                        <Button asChild size="lg" variant="secondary" className="h-12 px-8">
+                                            <Link href={signedIn ? dashboard() : (org?.cta_url || '/get-started')}>{org?.cta_label || 'Create an event'}</Link>
+                                        </Button>
+                                        <Button asChild size="lg" variant="ghost" className="h-12 px-8 text-background hover:bg-background/10 hover:text-background">
+                                            <Link href="/events">Browse events</Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                                {org?.image && (
+                                    <div className="relative hidden lg:block">
+                                        <img src={org.image} alt="" className="ml-auto max-h-64 w-auto rounded-2xl object-cover" />
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </Reveal>
-                </section>
+                        </Reveal>
+                    </section>
+                )}
 
                 <PublicFooter />
             </div>

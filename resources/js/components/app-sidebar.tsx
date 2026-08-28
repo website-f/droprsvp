@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, Menu, Newspaper, Ticket, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, FileText, FolderGit2, Gauge, LayoutGrid, LayoutTemplate, Menu, Newspaper, PanelBottom, Ticket, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -40,6 +40,11 @@ const cmsNav: NavItem[] = [
     { title: 'Menu', href: '/admin/cms/menu', icon: Menu },
 ];
 
+const siteNav: NavItem[] = [
+    { title: 'Landing', href: '/admin/site/landing', icon: LayoutTemplate },
+    { title: 'Footer', href: '/admin/site/footer', icon: PanelBottom },
+];
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -77,6 +82,7 @@ export function AppSidebar() {
                 <NavMain items={organizingNav} label="Organizing" />
                 {isAdmin && <NavMain items={platformNav} label="Platform admin" />}
                 {isAdmin && <NavMain items={cmsNav} label="Content (CMS)" />}
+                {isAdmin && <NavMain items={siteNav} label="Appearance" />}
             </SidebarContent>
 
             <SidebarFooter>
