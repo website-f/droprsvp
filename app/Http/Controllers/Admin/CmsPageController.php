@@ -37,6 +37,11 @@ class CmsPageController extends Controller
         $page->seo()->create($this->seoAttributes($data));
         $this->syncMenu($data, $page);
 
+        // "Save & open Drop Builder" from the new-page form.
+        if ($request->boolean('open_builder')) {
+            return redirect()->route('admin.cms.pages.builder', $page->id);
+        }
+
         return redirect()->route('admin.cms.pages.index')->with('success', 'Page created.');
     }
 
@@ -65,6 +70,32 @@ class CmsPageController extends Controller
         $page->delete();
 
         return redirect()->route('admin.cms.pages.index')->with('success', 'Page deleted.');
+    }
+
+    /** Full-screen Elementor-style "Drop Builder". */
+    public function builder(CmsPage $page)
+    {
+        return inertia('admin/cms/pages/builder', [
+            'page' => ['id' => $page->id, 'title' => $page->title, 'slug' => $page->slug, 'status' => $page->status, 'layout' => $page->layout],
+        ]);
+    }
+
+    public function saveBuilder(Request $request, CmsPage $page)
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:180'],
+            'layout' => ['nullable', 'array'],
+            'body' => ['nullable', 'string'],
+        ]);
+
+        $page->update([
+            'title' => $data['title'],
+            'layout' => $data['layout'] ?? null,
+            'body' => $data['body'] ?? $page->body,
+            'builder_edited_at' => now(),
+        ]);
+
+        return redirect()->route('admin.cms.pages.edit', $page->id)->with('success', 'Saved from the Drop Builder.');
     }
 
     // ---- helpers -----------------------------------------------------------
@@ -161,6 +192,7 @@ class CmsPageController extends Controller
             'body' => $page->body,
             'layout' => $page->layout,
             'status' => $page->status,
+            'builder_edited_at' => optional($page->builder_edited_at)->diffForHumans(),
             'in_menu' => MenuItem::where('location', 'header')->where('url', '/'.$page->slug)->exists(),
             'seo' => [
                 'seo_title' => $page->seo?->seo_title,

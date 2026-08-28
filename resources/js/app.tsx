@@ -17,6 +17,7 @@ createInertiaApp({
                 return null;
             case name === 'admin/cms/pages/form':
             case name === 'admin/cms/posts/form':
+            case name === 'admin/cms/pages/builder':
                 return null; // WordPress-style full-screen editor (own chrome)
             case name === 'auth/get-started':
             case name === 'host/welcome':

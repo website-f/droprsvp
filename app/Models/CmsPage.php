@@ -12,11 +12,11 @@ class CmsPage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'status', 'published_at'];
+    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'status', 'published_at', 'builder_edited_at'];
 
     protected function casts(): array
     {
-        return ['published_at' => 'datetime', 'layout' => 'array'];
+        return ['published_at' => 'datetime', 'builder_edited_at' => 'datetime', 'layout' => 'array'];
     }
 
     public function getRouteKeyName(): string

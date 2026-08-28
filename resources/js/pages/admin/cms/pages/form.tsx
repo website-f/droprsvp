@@ -6,9 +6,9 @@ import { SeoFields, type SeoData } from '@/components/seo-fields';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import { PageBuilder, normalizeSections, sectionsToHtml } from '@/components/cms/page-builder';
 import { DEFAULT_SETTINGS, PageSections, type PageSection } from '@/components/cms/page-sections';
-import { Eye, ExternalLink, Pencil } from 'lucide-react';
+import { Eye, ExternalLink, LayoutTemplate, Pencil, Sparkles } from 'lucide-react';
 
-interface PageProp { id: number; title: string; slug: string; body: string | null; layout: PageSection[] | null; status: string; in_menu: boolean; seo: SeoData }
+interface PageProp { id: number; title: string; slug: string; body: string | null; layout: PageSection[] | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
 
@@ -42,6 +42,13 @@ export default function PageForm({ page }: { page: PageProp | null }) {
         isEdit ? form.put(`/admin/cms/pages/${page!.id}`) : form.post('/admin/cms/pages');
     };
 
+    // Open the full-screen Drop Builder. New pages are saved as a draft first.
+    const openDropBuilder = () => {
+        if (isEdit) { window.location.href = `/admin/cms/pages/${page!.id}/builder`; return; }
+        form.transform((d) => ({ ...d, publish: false, body: sectionsToHtml(d.layout), open_builder: true }));
+        form.post('/admin/cms/pages');
+    };
+
     return (
         <>
             <Head title={isEdit ? 'Edit page' : 'New page'} />
@@ -52,12 +59,27 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                 status={<Badge variant={published ? 'default' : 'secondary'}>{published ? 'Published' : 'Draft'}</Badge>}
                 actions={
                     <>
+                        <Button variant="ghost" size="sm" disabled={processing} onClick={openDropBuilder} title="Full-screen drag-and-drop builder"><LayoutTemplate className="size-4" /> Drop Builder</Button>
                         <Button variant="outline" size="sm" disabled={processing} onClick={() => save(false)}>Save draft</Button>
                         <Button size="sm" disabled={processing} onClick={() => save(true)}>{published ? 'Update' : 'Publish'}</Button>
                     </>
                 }
                 sidebar={
                     <>
+                        <SettingsCard title="Design">
+                            {page?.builder_edited_at ? (
+                                <div className="flex items-start gap-2 rounded-lg border border-border bg-secondary/50 p-3 text-sm">
+                                    <Sparkles className="mt-0.5 size-4 shrink-0 text-foreground" />
+                                    <span><span className="font-medium">Edited via Drop Builder</span><span className="mt-0.5 block text-xs text-muted-foreground">Last built {page.builder_edited_at}.</span></span>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Design this page section-by-section here, or open the full-screen Drop Builder for drag-and-drop editing with a live device preview.</p>
+                            )}
+                            <Button type="button" variant="outline" className="w-full" onClick={openDropBuilder} disabled={processing}>
+                                <LayoutTemplate className="size-4" /> {page?.builder_edited_at ? 'Reopen Drop Builder' : 'Open Drop Builder'}
+                            </Button>
+                        </SettingsCard>
+
                         <SettingsCard title="Publish">
                             <p className="text-sm text-muted-foreground">
                                 {published ? 'This page is live.' : 'This page is a draft and not visible publicly.'}

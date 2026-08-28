@@ -102,6 +102,22 @@ class CmsPageTest extends TestCase
             ->assertInertia(fn (Assert $p) => $p->component('public/page')->has('page.layout', 1));
     }
 
+    public function test_drop_builder_saves_layout_and_flags_the_page(): void
+    {
+        $admin = $this->superadmin();
+        $page = CmsPage::create(['title' => 'Home', 'slug' => 'home-x', 'status' => 'draft', 'author_id' => $admin->id]);
+        $layout = [['id' => 's1', 'title' => 'Hero', 'columns' => [['blocks' => [['id' => 'b1', 'type' => 'richtext', 'html' => '<p>Hi</p>']]]], 'settings' => ['cols' => 1]]];
+
+        $this->actingAs($admin)->post(route('admin.cms.pages.builder.save', $page->id), [
+            'title' => 'Home updated', 'layout' => $layout, 'body' => '<p>Hi</p>',
+        ])->assertRedirect(route('admin.cms.pages.edit', $page->id));
+
+        $page->refresh();
+        $this->assertSame('Home updated', $page->title);
+        $this->assertIsArray($page->layout);
+        $this->assertNotNull($page->builder_edited_at);
+    }
+
     public function test_publishing_with_add_to_menu_creates_a_header_link(): void
     {
         Cache::flush();
