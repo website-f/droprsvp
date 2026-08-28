@@ -11,4 +11,8 @@ return [
     // Premium membership price (per month) + duration in days. Superadmin-editable.
     'premium_price' => (float) env('DROPRSVP_PREMIUM_PRICE', 19),
     'premium_days' => (int) env('DROPRSVP_PREMIUM_DAYS', 30),
+
+    // Tax applied at checkout (0 = off). Superadmin-editable under Admin → Settings.
+    'tax_percent' => (float) env('DROPRSVP_TAX_PERCENT', 0),
+    'tax_label' => env('DROPRSVP_TAX_LABEL', 'SST'),
 ];

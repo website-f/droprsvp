@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\CmsPage;
+use App\Support\PostCards;
 use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -47,6 +48,7 @@ class PageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
                 'puck' => $page->puck_data,
+                'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $seo?->seo_title ?: $page->title],
         ]);

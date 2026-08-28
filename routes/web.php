@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
 use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SiteController as AdminSiteController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
@@ -169,9 +170,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('help', [AdminHelpController::class, 'index'])->name('help.index');
         Route::get('help/create', [AdminHelpController::class, 'create'])->name('help.create');
         Route::post('help', [AdminHelpController::class, 'store'])->name('help.store');
-        Route::get('help/{help}/edit', [AdminHelpController::class, 'edit'])->name('help.edit');
-        Route::put('help/{help}', [AdminHelpController::class, 'update'])->name('help.update');
-        Route::delete('help/{help}', [AdminHelpController::class, 'destroy'])->name('help.destroy');
+        Route::get('help/{help:id}/edit', [AdminHelpController::class, 'edit'])->name('help.edit');
+        Route::put('help/{help:id}', [AdminHelpController::class, 'update'])->name('help.update');
+        Route::delete('help/{help:id}', [AdminHelpController::class, 'destroy'])->name('help.destroy');
 
         Route::get('posts', [CmsPostController::class, 'index'])->name('posts.index');
         Route::get('posts/create', [CmsPostController::class, 'create'])->name('posts.create');
@@ -185,7 +186,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:superadmin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
-        Route::post('settings/fee', [AdminOverviewController::class, 'updateFee'])->name('settings.fee');
+        // Central platform settings (fees, tax, general) — tabbed.
+        Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
+        Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
         Route::get('all-events', [AdminEventsController::class, 'index'])->name('events.index');
         Route::get('all-events/{event}', [AdminEventsController::class, 'show'])->name('events.show');
         Route::post('all-events/{event}/cancel', [AdminEventsController::class, 'cancel'])->name('events.cancel');

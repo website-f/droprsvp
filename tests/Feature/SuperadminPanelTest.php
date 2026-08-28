@@ -38,7 +38,9 @@ class SuperadminPanelTest extends TestCase
     {
         $admin = $this->superadmin();
 
-        $this->actingAs($admin)->post(route('admin.settings.fee'), ['fee_percent' => 8.5])->assertRedirect();
+        $this->actingAs($admin)->post(route('admin.settings.save'), [
+            'fee_percent' => 8.5, 'boost_price' => 49, 'boost_days' => 7, 'premium_price' => 19, 'premium_days' => 30, 'tax_percent' => 0,
+        ])->assertRedirect();
         $this->assertEquals('8.5', Setting::get('platform_fee_percent'));
     }
 

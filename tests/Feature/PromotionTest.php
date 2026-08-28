@@ -76,12 +76,13 @@ class PromotionTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('superadmin');
 
-        $this->actingAs($admin)->post(route('admin.settings.fee'), [
-            'fee_percent' => 8, 'boost_price' => 99, 'boost_days' => 14, 'premium_price' => 25,
+        $this->actingAs($admin)->post(route('admin.settings.save'), [
+            'fee_percent' => 8, 'boost_price' => 99, 'boost_days' => 14, 'premium_price' => 25, 'premium_days' => 30, 'tax_percent' => 6, 'tax_label' => 'SST',
         ])->assertRedirect();
 
         $this->assertSame('99', Setting::get('boost_price'));
         $this->assertSame('14', Setting::get('boost_days'));
         $this->assertSame('25', Setting::get('premium_price'));
+        $this->assertSame('6', Setting::get('tax_percent'));
     }
 }

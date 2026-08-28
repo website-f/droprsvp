@@ -2,7 +2,7 @@ import { FieldLabel } from '@measured/puck';
 import type { Config, CustomField, Data } from '@measured/puck';
 import {
     BarChart3, Building2, CalendarDays, ChevronLeft, ChevronRight, HelpCircle, Image as ImageIcon, Images,
-    ImageUp, LayoutGrid, Loader2, Megaphone, Minus, MousePointerClick, Pilcrow, QrCode, Quote, ListOrdered,
+    ImageUp, LayoutGrid, Loader2, Megaphone, Minus, MousePointerClick, Newspaper, Pilcrow, QrCode, Quote, ListOrdered,
     Sparkles, StretchVertical, Ticket, Trash2, Type, Users, Video as VideoIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -196,15 +196,19 @@ export type Props = {
     Stats: { items: { value: string; label: string }[] };
     Steps: { title: string; items: { title: string; text: string }[] };
     Logos: { title: string; images: { image: string }[] };
+    Posts: { heading: string; limit: number };
     Spacer: { size: 'sm' | 'md' | 'lg' | 'xl' };
     Divider: { width: 'narrow' | 'wide' };
 };
+
+/** A blog-post card, provided to the Posts widget via Puck metadata. */
+export interface PostCard { title: string; slug: string; excerpt: string; cover_image: string | null; category: string | null; date: string | null }
 
 /* ---- config ------------------------------------------------------------ */
 
 export const config: Config<Props> = {
     categories: {
-        sections: { title: 'Sections', components: ['Hero', 'Features', 'Steps', 'CTA', 'FAQ', 'Carousel', 'Video'] },
+        sections: { title: 'Sections', components: ['Hero', 'Features', 'Steps', 'CTA', 'FAQ', 'Carousel', 'Video', 'Posts'] },
         content: { title: 'Content', components: ['Heading', 'Text', 'Button', 'Image', 'Gallery', 'Testimonial', 'Stats', 'Logos'] },
         layout: { title: 'Layout', components: ['Spacer', 'Divider'] },
     },
@@ -469,6 +473,49 @@ export const config: Config<Props> = {
                 );
             },
         },
+        Posts: {
+            fields: { heading: { type: 'text' }, limit: { type: 'number', min: 1, max: 12 } },
+            defaultProps: { heading: 'Latest from the blog', limit: 6 },
+            render: ({ heading, limit, puck }) => {
+                const posts = ((puck?.metadata?.posts as PostCard[] | undefined) ?? []).slice(0, limit || 6);
+
+                if (posts.length === 0) {
+                    return (
+                        <section className="mx-auto max-w-6xl px-6 py-12">
+                            {heading && <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>}
+                            <div className="flex h-40 items-center justify-center rounded-2xl border border-dashed border-border text-sm text-muted-foreground">
+                                Your published blog posts will appear here automatically.
+                            </div>
+                        </section>
+                    );
+                }
+
+                return (
+                    <section className="mx-auto max-w-6xl px-6 py-12">
+                        {heading && <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>}
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {posts.map((p) => (
+                                <a key={p.slug} href={`/blog/${p.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+                                    <div className="aspect-[16/10] overflow-hidden bg-muted">
+                                        {p.cover_image
+                                            ? <img src={p.cover_image} alt={p.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                            : <div className="flex size-full items-center justify-center text-muted-foreground"><Newspaper className="size-8" /></div>}
+                                    </div>
+                                    <div className="flex flex-1 flex-col p-5">
+                                        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                            {p.category && <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-foreground">{p.category}</span>}
+                                            {p.date && <span>{p.date}</span>}
+                                        </div>
+                                        <h3 className="font-semibold leading-snug group-hover:underline">{p.title}</h3>
+                                        {p.excerpt && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.excerpt}</p>}
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </section>
+                );
+            },
+        },
         Spacer: {
             fields: { size: { type: 'select', options: [{ label: 'Small', value: 'sm' }, { label: 'Medium', value: 'md' }, { label: 'Large', value: 'lg' }, { label: 'Extra large', value: 'xl' }] } },
             defaultProps: { size: 'md' },
@@ -491,6 +538,7 @@ export const COMPONENT_ICONS: Record<string, LucideIcon> = {
     FAQ: HelpCircle,
     Carousel: Images,
     Video: VideoIcon,
+    Posts: Newspaper,
     Heading: Type,
     Text: Pilcrow,
     Button: MousePointerClick,

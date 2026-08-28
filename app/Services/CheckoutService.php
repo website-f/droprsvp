@@ -65,13 +65,18 @@ class CheckoutService
                 $lines[] = ['ticket_type_id' => $tt->id, 'name' => $tt->name, 'unit_price' => $unit, 'quantity' => $row['quantity'], 'line_total' => $lineTotal];
             }
 
+            // Tax is superadmin-configurable (0 by default → no change to totals).
+            $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
+            $tax = round($subtotal * $taxPercent / 100, 2);
+
             $order = Order::create([
                 'reference' => $this->uniqueReference(),
                 'user_id' => $userId,
                 'event_id' => $event->id,
                 'status' => 'pending',
                 'subtotal' => $subtotal,
-                'total' => $subtotal,
+                'tax' => $tax,
+                'total' => $subtotal + $tax,
                 'currency' => $currency,
             ]);
             $order->items()->createMany($lines);

@@ -4,13 +4,14 @@ import type {Data} from '@measured/puck';
 import { ExternalLink, LayoutTemplate } from 'lucide-react';
 import { useState } from 'react';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
-import { config } from '@/components/cms/puck-config';
+import { config  } from '@/components/cms/puck-config';
+import type {PostCard} from '@/components/cms/puck-config';
 import { SeoFields  } from '@/components/seo-fields';
 import type {SeoData} from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-interface PageProp { id: number; title: string; slug: string; puck: Data | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData }
+interface PageProp { id: number; title: string; slug: string; puck: Data | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[] }
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, meta_keywords: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
 
@@ -118,7 +119,7 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                             </div>
                             {/* Live preview using the exact same widgets visitors see. */}
                             <div className="pointer-events-none max-h-[70vh] overflow-hidden bg-background">
-                                <Render config={config} data={page!.puck!} />
+                                <Render config={config} data={page!.puck!} metadata={{ posts: page!.posts ?? [] }} />
                             </div>
                         </div>
                     ) : (

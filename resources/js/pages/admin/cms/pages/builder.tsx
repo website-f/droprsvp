@@ -5,7 +5,8 @@ import '@measured/puck/puck.css';
 import { ArrowLeft, Eye } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { COMPONENT_ICONS, config, emptyData } from '@/components/cms/puck-config';
+import { COMPONENT_ICONS, config, emptyData  } from '@/components/cms/puck-config';
+import type {PostCard} from '@/components/cms/puck-config';
 import { Button } from '@/components/ui/button';
 
 /** Component-drawer item with a per-widget icon (Puck's drawer shows only text by default). */
@@ -20,7 +21,7 @@ function DrawerItem({ name }: { name: string }) {
     );
 }
 
-interface PageProp { id: number; title: string; slug: string; status: string; data: Data | null }
+interface PageProp { id: number; title: string; slug: string; status: string; data: Data | null; posts?: PostCard[] }
 
 function cookie(name: string): string | undefined {
     return document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))?.split('=')[1];
@@ -89,6 +90,7 @@ export default function DropBuilder({ page }: { page: PageProp }) {
                 <Puck
                     config={config}
                     data={page.data ?? emptyData}
+                    metadata={{ posts: page.posts ?? [] }}
                     headerTitle={page.title}
                     headerPath={`/${page.slug}`}
                     onPublish={() => {}}

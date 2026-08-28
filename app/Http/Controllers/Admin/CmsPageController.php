@@ -93,6 +93,7 @@ class CmsPageController extends Controller
                 'slug' => $page->slug,
                 'status' => $page->status,
                 'data' => $page->puck_data,
+                'posts' => \App\Support\PostCards::recent(),
             ],
         ]);
     }
@@ -130,6 +131,7 @@ class CmsPageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
                 'puck' => $page->puck_data,
+                'posts' => \App\Support\PostCards::recent(),
             ],
             'seo' => ['title' => $page->title],
             'preview' => true,
@@ -248,6 +250,7 @@ class CmsPageController extends Controller
             'title' => $page->title,
             'slug' => $page->slug,
             'puck' => $page->puck_data,
+            'posts' => \App\Support\PostCards::recent(),
             'layout' => $page->layout,
             'status' => $page->status,
             'builder_edited_at' => optional($page->builder_edited_at)->diffForHumans(),

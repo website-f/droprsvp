@@ -58,6 +58,16 @@ class HelpCenterTest extends TestCase
         $this->assertDatabaseHas('help_articles', ['slug' => 'how-to-check-in', 'status' => 'published']);
     }
 
+    public function test_superadmin_can_open_the_help_edit_page(): void
+    {
+        $article = HelpArticle::create(['category' => 'Tickets', 'title' => 'Editable', 'slug' => 'editable', 'body' => '<p>x</p>', 'status' => 'published', 'published_at' => now()]);
+
+        // Admin edit binds by id (public routes bind by slug) — regression for a 404.
+        $this->actingAs($this->superadmin())->get(route('admin.cms.help.edit', $article->id))
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/cms/help/form')->where('article.title', 'Editable'));
+    }
+
     public function test_non_superadmin_cannot_manage_help(): void
     {
         $this->actingAs(User::factory()->create())->get(route('admin.cms.help.index'))->assertForbidden();
