@@ -215,14 +215,34 @@
 }
 *::-webkit-scrollbar-corner { background: transparent; }
 
-/* Rich-text editor placeholder (contentEditable). */
-.rte-content[data-empty='true']::before {
-    content: attr(data-placeholder);
-    color: var(--muted-foreground);
-    pointer-events: none;
-    position: absolute;
+/* Quill rich-text editor — themed to match the app. */
+.rte .ql-toolbar.ql-snow {
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 95%, transparent);
+    padding: 8px 10px;
 }
-.rte-content { position: relative; }
+.rte .ql-container.ql-snow { border: 0; font-family: inherit; }
+.rte .ql-editor {
+    min-height: 340px;
+    font-size: 15px;
+    line-height: 1.65;
+    padding: 18px 20px;
+    color: var(--foreground);
+}
+.rte .ql-editor.ql-blank::before { color: var(--muted-foreground); font-style: normal; left: 20px; }
+.rte .ql-editor h2 { font-size: 1.5rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
+.rte .ql-editor h3 { font-size: 1.2rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+.rte .ql-editor blockquote { border-left: 2px solid var(--border); padding-left: 1rem; color: var(--muted-foreground); }
+.rte .ql-editor img { border-radius: 0.75rem; border: 1px solid var(--border); }
+.rte:focus-within { outline: 3px solid color-mix(in srgb, var(--ring) 20%, transparent); outline-offset: 0; border-color: var(--ring); }
+/* Quill icons/strokes follow the theme foreground. */
+.rte .ql-snow .ql-stroke { stroke: var(--foreground); }
+.rte .ql-snow .ql-fill { fill: var(--foreground); }
+.rte .ql-snow .ql-picker { color: var(--foreground); }
+.rte .ql-snow.ql-toolbar button:hover .ql-stroke,
+.rte .ql-snow .ql-toolbar button:hover .ql-stroke { stroke: var(--primary); }
+.rte .ql-snow .ql-picker-options { background: var(--popover); border-color: var(--border); }
 
 /* Page-builder columns: stack on mobile, apply the custom template on md+.
    The template (e.g. "1fr 1fr" or "1fr 2fr") is passed via --drsvp-cols. */
