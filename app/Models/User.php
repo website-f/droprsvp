@@ -73,6 +73,30 @@ class User extends Authenticatable implements PasskeyUser
         return ! $this->hasRole('superadmin');
     }
 
+    /** A URL-safe organizer handle derived from the name, de-duplicated with a count. */
+    public static function uniqueSlug(string $name): string
+    {
+        $base = \Illuminate\Support\Str::slug($name) ?: 'organizer';
+        $slug = $base;
+        $i = 2;
+        while (static::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i++;
+        }
+
+        return $slug;
+    }
+
+    /** Return this user's organizer slug, generating + saving one if missing. */
+    public function ensureSlug(): string
+    {
+        if (blank($this->slug)) {
+            $this->slug = static::uniqueSlug($this->name);
+            $this->save();
+        }
+
+        return $this->slug;
+    }
+
     /** Events this user hosts. */
     public function events(): HasMany
     {

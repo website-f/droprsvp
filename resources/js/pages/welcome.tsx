@@ -37,7 +37,7 @@ return 'Free';
     return null;
 }
 
-interface Organizer { id: number; name: string; events_count: number; next_slug: string | null }
+interface Organizer { slug: string; name: string; events_count: number; next_slug: string | null }
 
 interface LandingSections {
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
@@ -252,7 +252,7 @@ export default function Welcome() {
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                             {organizers.map((o, i) => {
                                 const tint = AVATAR_TINTS[i % AVATAR_TINTS.length];
-                                const href = `/o/${o.id}`;
+                                const href = `/o/${o.slug}`;
 
                                 return (
                                     <Reveal key={o.name + i} delay={i * 60}>

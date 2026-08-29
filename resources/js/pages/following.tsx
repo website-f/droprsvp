@@ -2,7 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDays, Compass, UserRoundCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-interface Organizer { id: number; name: string; followers: number }
+interface Organizer { id: number; slug: string; name: string; followers: number }
 interface UpcomingEvent { slug: string; title: string; organizer: string | null; cover_image: string | null; when: string | null }
 interface Props { organizers: Organizer[]; upcoming: UpcomingEvent[] }
 
@@ -37,7 +37,7 @@ export default function Following({ organizers, upcoming }: Props) {
                                     <div key={o.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                                         <span className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: TINTS[i % TINTS.length] }}>{initials(o.name)}</span>
                                         <div className="min-w-0 flex-1">
-                                            <Link href={`/o/${o.id}`} className="truncate font-medium hover:underline">{o.name}</Link>
+                                            <Link href={`/o/${o.slug}`} className="truncate font-medium hover:underline">{o.name}</Link>
                                             <div className="flex items-center gap-1 text-xs text-muted-foreground"><Users className="size-3" /> {o.followers} follower{o.followers === 1 ? '' : 's'}</div>
                                         </div>
                                         <Button variant="outline" size="sm" onClick={() => unfollow(o.id)}>Following</Button>

@@ -39,17 +39,17 @@ class FollowTest extends TestCase
             'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addWeek(),
         ]);
 
-        $this->get("/o/{$organizer->id}")->assertOk()
+        $this->get('/o/'.$organizer->ensureSlug())->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
-                ->where('organizer.id', $organizer->id)
                 ->where('organizer.name', 'Star Org')
+                ->where('organizer.slug', 'star-org')
                 ->has('upcoming', 1));
     }
 
     public function test_a_user_with_no_events_has_no_public_profile(): void
     {
         $u = User::factory()->create();
-        $this->get("/o/{$u->id}")->assertNotFound();
+        $this->get('/o/'.$u->ensureSlug())->assertNotFound();
     }
 
     public function test_the_following_feed_lists_followed_organizers_upcoming_events(): void

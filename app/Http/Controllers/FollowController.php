@@ -32,6 +32,7 @@ class FollowController extends Controller
 
         $organizers = $user->following()->withCount('followers')->orderBy('name')->get()->map(fn (User $o) => [
             'id' => $o->id,
+            'slug' => $o->ensureSlug(),
             'name' => $o->name,
             'followers' => $o->followers_count,
         ]);

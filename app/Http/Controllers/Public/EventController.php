@@ -90,6 +90,7 @@ class EventController extends Controller
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
                 'organizer' => $organizer,
                 'organizer_id' => $event->user_id,
+                'organizer_slug' => $event->user?->ensureSlug(),
                 'organizer_followers' => (int) ($event->user?->followers()->count() ?? 0),
                 'status' => $event->status,
                 'show_participants' => (bool) $event->show_participants,

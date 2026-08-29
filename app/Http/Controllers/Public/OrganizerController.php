@@ -30,7 +30,7 @@ class OrganizerController extends Controller
         [$upcoming, $past] = $events->partition(fn ($e) => ! $e['is_past']);
 
         $user = $request->user();
-        $canonical = url("/o/{$organizer->id}");
+        $canonical = url("/o/{$organizer->slug}");
 
         app(SeoManager::class)
             ->title("{$organizer->name} — events on ".config('seo.site_name', 'DropRSVP'))
@@ -41,6 +41,7 @@ class OrganizerController extends Controller
         return inertia('public/organizer', [
             'organizer' => [
                 'id' => $organizer->id,
+                'slug' => $organizer->slug,
                 'name' => $organizer->name,
                 'followers' => (int) $organizer->followers()->count(),
                 'events_count' => $events->count(),

@@ -16,7 +16,7 @@ interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
     cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
-    when: string | null; organizer: string; organizer_id: number; organizer_followers: number; status: string;
+    when: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
@@ -158,7 +158,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                             )}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <span className="text-muted-foreground">Hosted by</span>
-                                <Link href={`/o/${event.organizer_id}`} className="font-medium hover:underline">{event.organizer}</Link>
+                                <Link href={`/o/${event.organizer_slug}`} className="font-medium hover:underline">{event.organizer}</Link>
                                 {event.organizer_followers > 0 && <span className="text-xs text-muted-foreground">· {event.organizer_followers} follower{event.organizer_followers === 1 ? '' : 's'}</span>}
                                 {!viewer.is_owner && (
                                     viewer.authed ? (
