@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, ChartColumn, Crown, FileText, FolderGit2, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, PanelBottom, ScrollText, Search, Settings2, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, ChartColumn, Crown, FileSearch, FileText, FolderGit2, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, PanelBottom, ScrollText, Search, Settings2, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -48,6 +48,7 @@ const cmsNav: NavItem[] = [
     { title: 'Help center', href: '/admin/cms/help', icon: LifeBuoy },
     { title: 'Legal pages', href: '/admin/site/legal', icon: ScrollText },
     { title: 'Homepage SEO', href: '/admin/site/home-seo', icon: Search },
+    { title: 'Events SEO', href: '/admin/seo/events', icon: FileSearch },
     { title: 'Menu', href: '/admin/cms/menu', icon: Menu },
 ];
 

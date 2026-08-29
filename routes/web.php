@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
+use App\Http\Controllers\Admin\EventSeoController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\LegalController as AdminLegalController;
 use App\Http\Controllers\Admin\MediaController;
@@ -220,6 +221,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
+
+        // Per-event SEO manager.
+        Route::get('seo/events', [EventSeoController::class, 'index'])->name('seo.events');
+        Route::get('seo/events/{event}', [EventSeoController::class, 'edit'])->name('seo.events.edit');
+        Route::put('seo/events/{event}', [EventSeoController::class, 'update'])->name('seo.events.update');
         Route::get('all-events', [AdminEventsController::class, 'index'])->name('events.index');
         Route::get('all-events/{event}', [AdminEventsController::class, 'show'])->name('events.show');
         Route::post('all-events/{event}/cancel', [AdminEventsController::class, 'cancel'])->name('events.cancel');
