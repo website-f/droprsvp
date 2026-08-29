@@ -90,28 +90,10 @@ class Event extends Model
         return $this->hasMany(EventComment::class)->whereNull('parent_id')->latest();
     }
 
-    /** Attendee ratings & reviews. */
+    /** Ratings & reviews (any signed-in user, except the organizer). */
     public function reviews(): HasMany
     {
         return $this->hasMany(EventReview::class)->latest();
-    }
-
-    /**
-     * Whether the user attended (holds a paid order for this event, tied to their
-     * account or placed as a guest with their email). Gates who can leave a review.
-     */
-    public function hasAttendee(?User $user): bool
-    {
-        if (! $user) {
-            return false;
-        }
-
-        return $this->orders()
-            ->where('status', 'paid')
-            ->where(fn ($q) => $q
-                ->where('user_id', $user->id)
-                ->when($user->email, fn ($w) => $w->orWhere('buyer_email', $user->email)))
-            ->exists();
     }
 
     public function seo(): MorphOne

@@ -67,9 +67,8 @@ class EventController extends Controller
         $canSeeAllMembers = $hasAccess || $isOwner;
         $canPost = $user && ($hasAccess || $isOwner);
 
-        // Reviews: only attendees (a paid ticket) may rate, never their own event.
-        $hasTicket = $event->hasAttendee($user);
-        $canReview = $hasTicket && ! $isOwner;
+        // Reviews: any signed-in user may rate, except the organizer of the event.
+        $canReview = (bool) $user && ! $isOwner;
         $myReview = $user ? $event->reviews()->where('user_id', $user->id)->first() : null;
         $participantsPage = max(1, (int) $request->query('participants_page', 1));
 

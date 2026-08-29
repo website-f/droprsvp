@@ -370,10 +370,6 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                                 <textarea value={review.data.body} onChange={(e) => review.setData('body', e.target.value)} rows={3} placeholder="Share what you thought (optional)…" className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
                                                 <div><Button type="submit" size="sm" disabled={review.processing || review.data.rating < 1}><Star className="size-3.5" /> {viewer.has_reviewed ? 'Update review' : 'Submit review'}</Button></div>
                                             </form>
-                                        ) : !viewer.is_owner ? (
-                                            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                                                <Ticket className="size-4" /> Only people who got a ticket for this event can leave a review.
-                                            </div>
                                         ) : null}
 
                                         {/* List */}
