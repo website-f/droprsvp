@@ -14,6 +14,7 @@ interface Sections {
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: string[] };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
+    contact: { enabled: boolean; heading: string; subheading: string };
 }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -166,6 +167,17 @@ return;
                         <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.featured_organizers.heading} onChange={(e) => patch('featured_organizers', { heading: e.target.value })} /></div>
                         <div className="grid gap-1.5"><Label>Subheading</Label><input className={field} value={data.featured_organizers.subheading} onChange={(e) => patch('featured_organizers', { subheading: e.target.value })} /></div>
                         <p className="text-xs text-muted-foreground">Automatically shows your most active organizers (by number of published events).</p>
+                    </Card>
+
+                    {/* Contact us */}
+                    <Card>
+                        <div className="flex items-center justify-between">
+                            <h2 className="font-semibold">Contact us</h2>
+                            <Toggle on={data.contact.enabled} onChange={(v) => patch('contact', { enabled: v })} label={data.contact.enabled ? 'Shown' : 'Hidden'} />
+                        </div>
+                        <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.contact.heading} onChange={(e) => patch('contact', { heading: e.target.value })} /></div>
+                        <div className="grid gap-1.5"><Label>Subheading</Label><textarea className={area} rows={2} value={data.contact.subheading} onChange={(e) => patch('contact', { subheading: e.target.value })} /></div>
+                        <p className="text-xs text-muted-foreground">A contact form on the home page; submissions appear under Contact messages.</p>
                     </Card>
                 </div>
 

@@ -131,6 +131,11 @@ class SiteContent
                 'heading' => 'Featured organizers',
                 'subheading' => 'The people behind the events you love.',
             ],
+            'contact' => [
+                'enabled' => true,
+                'heading' => 'Get in touch',
+                'subheading' => 'Questions about tickets, your events, or working with us? Send a message and the right team will get back to you.',
+            ],
         ];
     }
 

@@ -1,5 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowRight, CalendarDays, MapPin, Search, Sparkles } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Search, Send, Sparkles, Tag } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
@@ -44,6 +44,7 @@ interface LandingSections {
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; lat: number | null; lng: number | null }> };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
+    contact: { enabled: boolean; heading: string; subheading: string };
 }
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -63,6 +64,7 @@ export default function Welcome() {
     const eventTime = sections?.event_time;
     const nearby = sections?.nearby_cities;
     const featuredOrgs = sections?.featured_organizers;
+    const contact = sections?.contact;
 
     // Ask for the visitor's location (once) so nearby cities can show distance.
     const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
@@ -364,8 +366,94 @@ export default function Welcome() {
                     </section>
                 )}
 
+                {/* ----------------------------------------------- Contact us */}
+                {(contact?.enabled ?? true) && (
+                    <section id="contact" className="border-t border-border bg-muted/30">
+                        <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-16 sm:py-20 lg:grid-cols-[1fr_1.15fr]">
+                            <Reveal>
+                                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"><Headset className="size-3.5" /> We’re here to help</span>
+                                <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">{contact?.heading ?? 'Get in touch'}</h2>
+                                <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">{contact?.subheading}</p>
+                                <ul className="mt-8 grid gap-4 text-sm">
+                                    {[[Headset, 'Support', 'Help with tickets, check-in and your account'], [Tag, 'Sales', 'Pricing, demos and partnerships'], [MessageSquare, 'General enquiry', 'Anything else on your mind']].map(([Icon, t, d], i) => (
+                                        <li key={i} className="flex items-start gap-3">
+                                            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background"><Icon className="size-4" /></span>
+                                            <div><div className="font-medium">{t as string}</div><div className="text-muted-foreground">{d as string}</div></div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Reveal>
+                            <Reveal delay={120}>
+                                <ContactForm />
+                            </Reveal>
+                        </div>
+                    </section>
+                )}
+
                 <PublicFooter />
             </div>
         </>
+    );
+}
+
+const CONTACT_CATEGORIES = [{ value: 'support', label: 'Support' }, { value: 'sales', label: 'Sales' }, { value: 'enquiry', label: 'General enquiry' }];
+const cfield = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
+
+/** Contact form embedded in the landing page — posts to /contact. */
+function ContactForm() {
+    const [sent, setSent] = useState(false);
+    const form = useForm({ name: '', email: '', phone: '', category: 'enquiry', message: '' });
+    const { data, setData, processing, errors } = form;
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        form.post('/contact', { preserveScroll: true, onSuccess: () => {
+            form.reset(); setSent(true);
+        } });
+    };
+
+    if (sent) {
+        return (
+            <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+                <span className="flex size-14 items-center justify-center rounded-2xl bg-foreground text-background"><CheckCircle2 className="size-7" /></span>
+                <h3 className="text-xl font-bold tracking-tight">Message sent</h3>
+                <p className="max-w-sm text-sm text-muted-foreground">Thanks for reaching out — we’ll get back to you soon.</p>
+                <Button variant="outline" className="mt-2" onClick={() => setSent(false)}>Send another message</Button>
+            </div>
+        );
+    }
+
+    return (
+        <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+            <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-1.5 sm:col-span-2">
+                    <label htmlFor="c-name" className="text-sm font-medium">Name</label>
+                    <input id="c-name" className={cfield} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Your name" />
+                    {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                </div>
+                <div className="grid gap-1.5">
+                    <label htmlFor="c-email" className="text-sm font-medium">Email</label>
+                    <input id="c-email" type="email" className={cfield} value={data.email} onChange={(e) => setData('email', e.target.value)} placeholder="you@example.com" />
+                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                </div>
+                <div className="grid gap-1.5">
+                    <label htmlFor="c-phone" className="text-sm font-medium">Phone</label>
+                    <input id="c-phone" className={cfield} value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="+60 12-345 6789" />
+                    {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+                </div>
+            </div>
+            <div className="grid gap-1.5">
+                <label htmlFor="c-cat" className="text-sm font-medium">How can we help?</label>
+                <select id="c-cat" className={cfield} value={data.category} onChange={(e) => setData('category', e.target.value)}>
+                    {CONTACT_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+            </div>
+            <div className="grid gap-1.5">
+                <label htmlFor="c-msg" className="text-sm font-medium">Message</label>
+                <textarea id="c-msg" rows={4} className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" value={data.message} onChange={(e) => setData('message', e.target.value)} placeholder="Tell us a bit more…" />
+                {errors.message && <p className="text-xs text-destructive">{errors.message}</p>}
+            </div>
+            <Button type="submit" size="lg" disabled={processing}><Send className="size-4" /> Send message</Button>
+        </form>
     );
 }

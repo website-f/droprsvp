@@ -43,6 +43,10 @@ class SiteController extends Controller
             'featured_organizers.enabled' => ['boolean'],
             'featured_organizers.heading' => ['nullable', 'string', 'max:120'],
             'featured_organizers.subheading' => ['nullable', 'string', 'max:200'],
+            'contact' => ['array'],
+            'contact.enabled' => ['boolean'],
+            'contact.heading' => ['nullable', 'string', 'max:120'],
+            'contact.subheading' => ['nullable', 'string', 'max:300'],
         ]);
 
         Setting::putArray('landing_sections', $data);
