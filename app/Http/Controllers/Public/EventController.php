@@ -89,6 +89,8 @@ class EventController extends Controller
                 'ends_at' => optional($event->ends_at)->toIso8601String(),
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
                 'organizer' => $organizer,
+                'organizer_id' => $event->user_id,
+                'organizer_followers' => (int) ($event->user?->followers()->count() ?? 0),
                 'status' => $event->status,
                 'show_participants' => (bool) $event->show_participants,
                 'show_reviews' => (bool) $event->show_reviews,
@@ -128,6 +130,7 @@ class EventController extends Controller
                 'can_see_all_members' => $canSeeAllMembers,
                 'can_review' => $canReview,
                 'has_reviewed' => (bool) $myReview,
+                'is_following' => $user && ! $isOwner ? $user->isFollowing($event->user) : false,
             ],
         ]);
     }

@@ -19,6 +19,7 @@ use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\FollowController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EventCommentController;
 use App\Http\Controllers\Public\EventReviewController;
@@ -120,6 +121,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Event rating + review (attendees only).
     Route::post('e/{event}/reviews', [EventReviewController::class, 'store'])->name('events.reviews.store');
+
+    // Follow organizers + the following feed.
+    Route::post('organizers/{organizer}/follow', [FollowController::class, 'toggle'])->name('organizers.follow');
+    Route::get('following', [FollowController::class, 'index'])->name('following');
 
     // Buyer account — purchase history + re-download/re-send tickets.
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');

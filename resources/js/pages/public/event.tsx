@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Ticket, Users, Video } from 'lucide-react';
+import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,7 @@ interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
     cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
-    when: string | null; organizer: string; status: string;
+    when: string | null; organizer: string; organizer_id: number; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
@@ -24,7 +24,7 @@ interface EventView {
 interface Participants { count: number; unlocked: boolean; list: { name: string }[]; page: number; pages: number }
 interface Review { id: number; author: string; rating: number; body: string | null; when: string; mine: boolean }
 interface Reviews { average: number; count: number; distribution: Record<string, number>; list: Review[]; mine: { rating: number; body: string | null } | null }
-interface Viewer { authed: boolean; premium: boolean; is_owner: boolean; can_post: boolean; can_see_all_members: boolean; can_review: boolean; has_reviewed: boolean }
+interface Viewer { authed: boolean; premium: boolean; is_owner: boolean; can_post: boolean; can_see_all_members: boolean; can_review: boolean; has_reviewed: boolean; is_following: boolean }
 interface Seo { title: string }
 
 type Tab = 'about' | 'participants' | 'gallery' | 'discussion' | 'reviews';
@@ -156,7 +156,21 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                             ) : (event.venue_name || event.venue_address) && (
                                 <div className="flex items-start gap-3"><MapPin className="size-5 shrink-0 text-muted-foreground" /><span>{[event.venue_name, event.venue_address].filter(Boolean).join(' · ')}</span></div>
                             )}
-                            <div className="flex items-center gap-3"><span className="text-muted-foreground">Hosted by</span><span className="font-medium">{event.organizer}</span></div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <span className="text-muted-foreground">Hosted by</span>
+                                <span className="font-medium">{event.organizer}</span>
+                                {event.organizer_followers > 0 && <span className="text-xs text-muted-foreground">· {event.organizer_followers} follower{event.organizer_followers === 1 ? '' : 's'}</span>}
+                                {!viewer.is_owner && (
+                                    viewer.authed ? (
+                                        <Button type="button" variant={viewer.is_following ? 'outline' : 'default'} size="sm" className="h-7"
+                                            onClick={() => router.post(`/organizers/${event.organizer_id}/follow`, {}, { preserveScroll: true })}>
+                                            {viewer.is_following ? <><UserCheck className="size-3.5" /> Following</> : <><UserPlus className="size-3.5" /> Follow</>}
+                                        </Button>
+                                    ) : (
+                                        <Button asChild variant="default" size="sm" className="h-7"><Link href="/login"><UserPlus className="size-3.5" /> Follow</Link></Button>
+                                    )
+                                )}
+                            </div>
                         </div>
 
                         {/* Quick stats — jump into the matching tab */}
