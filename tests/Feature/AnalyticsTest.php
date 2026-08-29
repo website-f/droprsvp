@@ -96,4 +96,20 @@ class AnalyticsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')->has('reach', 30)->has('revenue', 30)->has('kpis'));
     }
+
+    public function test_superadmin_can_drill_into_one_event(): void
+    {
+        Role::findOrCreate('superadmin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+        $event = $this->publishedEvent();
+
+        $this->actingAs($admin)->get('/admin/analytics?event='.$event->slug)
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->where('selectedSlug', $event->slug)
+                ->where('selected.event.slug', $event->slug)
+                ->has('selected.kpis')
+                ->has('selected.trend', 30));
+    }
 }
