@@ -1,6 +1,6 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { CalendarDays, Download, MapPin, Video } from 'lucide-react';
-import { Wordmark } from '@/components/brand';
+import { LogoMark } from '@/components/brand';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -10,8 +10,11 @@ interface TicketView {
     status: string;
     type: string | null;
     table: string | null;
+    organizer: string | null;
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
 }
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
 export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: string }) {
     const checkedIn = ticket.status === 'checked_in';
@@ -24,7 +27,14 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
             </Head>
 
             <div className="flex min-h-screen flex-col items-center bg-muted/40 px-4 py-10 text-foreground">
-                <Link href="/" className="mb-6" aria-label="DropRSVP home"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
+                {/* Organizer branding */}
+                <div className="mb-6 flex items-center gap-3">
+                    {ticket.organizer && <span className="flex size-11 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">{initials(ticket.organizer)}</span>}
+                    <div className="text-left">
+                        <div className="text-xs text-muted-foreground">Presented by</div>
+                        <div className="font-semibold leading-tight">{ticket.organizer ?? 'DropRSVP'}</div>
+                    </div>
+                </div>
 
                 <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
                     {/* Header */}
@@ -83,6 +93,11 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                     )}
                     <Link href={`/en-my/e/${ticket.event.slug}`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
                 </div>
+
+                {/* Powered by */}
+                <Link href="/" className="mt-8 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-label="DropRSVP home">
+                    powered by <LogoMark className="size-4" /> <span className="font-semibold">Drop RSVP</span>
+                </Link>
             </div>
         </>
     );

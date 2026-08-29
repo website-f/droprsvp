@@ -12,7 +12,7 @@ class TicketController extends Controller
     /** The public ticket pass — the token in the URL is the credential. */
     public function show(Ticket $ticket)
     {
-        $ticket->load(['event', 'ticketType', 'seatingTable']);
+        $ticket->load(['event.user', 'ticketType', 'seatingTable']);
         $event = $ticket->event;
 
         // The token is a credential — never index a ticket pass.
@@ -25,6 +25,7 @@ class TicketController extends Controller
                 'status' => $ticket->status,
                 'type' => $ticket->ticketType?->name,
                 'table' => $ticket->seatingTable?->name,
+                'organizer' => $event->user?->name,
                 'event' => [
                     'title' => $event->title,
                     'slug' => $event->slug,
