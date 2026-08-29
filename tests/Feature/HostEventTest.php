@@ -44,6 +44,28 @@ class HostEventTest extends TestCase
         $this->assertEquals(0, $event->ticketTypes()->where('name', 'Free RSVP')->value('price'));
     }
 
+    public function test_ticket_normal_price_and_page_toggles_persist(): void
+    {
+        $user = $this->organizer();
+
+        $this->actingAs($user)->post('/host/events', [
+            'title' => 'Discount Night', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
+            'show_participants' => false, 'show_reviews' => false,
+            'sessions' => [['starts_at' => now()->addDay()->toDateTimeString()]],
+            'ticketTypes' => [
+                ['name' => 'Deal', 'kind' => 'paid', 'price' => 30, 'compare_at_price' => 50, 'min_per_order' => 1, 'max_per_order' => 4, 'is_active' => true],
+                ['name' => 'NoDeal', 'kind' => 'paid', 'price' => 30, 'compare_at_price' => 20, 'min_per_order' => 1, 'max_per_order' => 4, 'is_active' => true],
+            ],
+        ])->assertRedirect('/host/events');
+
+        $event = Event::first();
+        $this->assertFalse($event->show_participants);
+        $this->assertFalse($event->show_reviews);
+        // Higher normal price is kept; a lower-than-price "normal" is dropped.
+        $this->assertEquals(50, $event->ticketTypes()->where('name', 'Deal')->value('compare_at_price'));
+        $this->assertNull($event->ticketTypes()->where('name', 'NoDeal')->value('compare_at_price'));
+    }
+
     public function test_host_can_save_an_event_gallery(): void
     {
         $user = $this->organizer();

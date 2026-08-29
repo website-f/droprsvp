@@ -62,6 +62,16 @@ class EventReviewTest extends TestCase
         $this->assertSame(0, $event->reviews()->count());
     }
 
+    public function test_reviews_are_blocked_when_disabled_for_the_event(): void
+    {
+        $event = $this->event();
+        $event->update(['show_reviews' => false]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post("/e/{$event->slug}/reviews", ['rating' => 5])->assertForbidden();
+        $this->assertSame(0, $event->reviews()->count());
+    }
+
     public function test_rating_must_be_between_1_and_5(): void
     {
         $event = $this->event();

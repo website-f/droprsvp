@@ -12,16 +12,16 @@ interface City { name: string; slug: string }
 interface SessionRow { id?: number; title: string; starts_at: string; ends_at: string; capacity: string }
 interface TicketRow {
     id?: number; name: string; description: string; kind: 'paid' | 'free' | 'donation';
-    price: string; quantity: string; min_per_order: string; max_per_order: string;
+    price: string; compare_at_price: string; quantity: string; min_per_order: string; max_per_order: string;
     sales_start: string; sales_end: string; is_active: boolean;
 }
 interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
     description: string | null; cover_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
-    capacity: number | null;
+    capacity: number | null; show_participants: boolean; show_reviews: boolean;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
-    ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
+    ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
 }
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -59,7 +59,7 @@ function readImageMeta(file: File): Promise<{ w: number; h: number; size: number
 }
 
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
-const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
+const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
 export default function EventForm({ event, categories, cities = [] }: { event: EventProp | null; categories: Category[]; cities?: City[] }) {
     const isEdit = !!event;
@@ -79,9 +79,11 @@ export default function EventForm({ event, categories, cities = [] }: { event: E
         city: event?.city ?? '',
         online_url: event?.online_url ?? '',
         capacity: event?.capacity ? String(event.capacity) : '',
+        show_participants: event?.show_participants ?? true,
+        show_reviews: event?.show_reviews ?? true,
         publish: false,
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
-        ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
+        ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
     });
     const { data, setData, errors, processing } = form;
     const coverRef = useRef<HTMLInputElement>(null);
@@ -330,7 +332,7 @@ form.post('/host/events');
                     <div className="grid gap-4">
                         {data.ticketTypes.map((t, i) => (
                             <div key={i} className="grid gap-3 rounded-lg border border-border p-3">
-                                <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
+                                <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto]">
                                     <div className="grid gap-1.5">
                                         <Label>Name</Label>
                                         <input className={field} value={t.name} onChange={(e) => patchTicket(i, 'name', e.target.value)} placeholder="e.g. Early Bird" />
@@ -344,14 +346,29 @@ form.post('/host/events');
                                             options={[{ value: 'paid', label: 'Paid' }, { value: 'free', label: 'Free' }, { value: 'donation', label: 'Donation' }]}
                                         />
                                     </div>
-                                    <div className="grid gap-1.5">
-                                        <Label>Price (RM)</Label>
-                                        <input type="number" min={0} step="0.01" className={field} value={t.price} disabled={t.kind === 'free'} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
-                                    </div>
                                     <div className="flex items-end">
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setData('ticketTypes', data.ticketTypes.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /></Button>
+                                        <Button type="button" variant="ghost" size="icon" aria-label="Remove ticket type" onClick={() => setData('ticketTypes', data.ticketTypes.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /></Button>
                                     </div>
                                 </div>
+
+                                {/* Pricing — free tickets have no price; paid tickets can show a discount */}
+                                {t.kind !== 'free' && (
+                                    <div className="grid gap-3 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
+                                        <div className="grid gap-1.5">
+                                            <Label>{t.kind === 'donation' ? 'Suggested amount (RM)' : 'Selling price (RM)'}</Label>
+                                            <input type="number" min={0} step="0.01" className={field} value={t.price} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
+                                            {errors[`ticketTypes.${i}.price` as keyof typeof errors] && <p className="text-xs text-destructive">Enter a valid price</p>}
+                                        </div>
+                                        {t.kind === 'paid' && (
+                                            <div className="grid gap-1.5">
+                                                <Label>Normal price (RM) <span className="font-normal text-muted-foreground">— optional</span></Label>
+                                                <input type="number" min={0} step="0.01" className={field} value={t.compare_at_price} onChange={(e) => patchTicket(i, 'compare_at_price', e.target.value)} placeholder="e.g. 50.00" />
+                                                <p className="text-xs text-muted-foreground">If higher than the selling price, it shows struck-through so buyers see the discount.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="grid gap-3 sm:grid-cols-4">
                                     <div className="grid gap-1.5">
                                         <Label>Quantity</Label>
@@ -373,6 +390,19 @@ form.post('/host/events');
                             </div>
                         ))}
                     </div>
+                </section>
+
+                {/* Event page sections */}
+                <section className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <h2 className="text-sm font-semibold">Event page</h2>
+                    <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+                        <span><span className="font-medium">Show participants</span><span className="mt-0.5 block text-xs text-muted-foreground">Display who's going on the event page.</span></span>
+                        <input type="checkbox" checked={data.show_participants} onChange={(e) => setData('show_participants', e.target.checked)} className="size-4 rounded border-input" />
+                    </label>
+                    <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+                        <span><span className="font-medium">Show reviews &amp; ratings</span><span className="mt-0.5 block text-xs text-muted-foreground">Let attendees rate and review; show the average on the page.</span></span>
+                        <input type="checkbox" checked={data.show_reviews} onChange={(e) => setData('show_reviews', e.target.checked)} className="size-4 rounded border-input" />
+                    </label>
                 </section>
 
                 {/* Actions */}

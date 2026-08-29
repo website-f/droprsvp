@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 
 interface TicketTypeView {
     id: number; name: string; description: string | null; kind: 'paid' | 'free' | 'donation';
-    price: number; currency: string; on_sale: boolean; sold_out: boolean;
+    price: number; compare_at_price: number | null; currency: string; on_sale: boolean; sold_out: boolean;
     min_per_order: number; max_per_order: number; remaining: number | null;
 }
 interface Reply { id: number; author: string; body: string; when: string; is_organizer: boolean }
@@ -17,6 +17,7 @@ interface EventView {
     cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
     when: string | null; organizer: string; status: string;
+    show_participants: boolean; show_reviews: boolean;
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
 }
@@ -117,10 +118,10 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
     const TABS: { key: Tab; label: string; icon: typeof Info; tint: string; badge?: number }[] = [
         { key: 'about', label: 'About', icon: Info, tint: '#3b82f6' },
-        { key: 'participants', label: 'Participants', icon: Users, tint: '#2ec4b6', badge: participants.count },
+        ...(event.show_participants ? [{ key: 'participants' as Tab, label: 'Participants', icon: Users, tint: '#2ec4b6', badge: participants.count }] : []),
         { key: 'gallery', label: 'Gallery', icon: Images, tint: '#f5a524', badge: event.gallery.length },
         { key: 'discussion', label: 'Discussion', icon: MessageCircle, tint: '#a855f7', badge: discussion.length },
-        { key: 'reviews', label: 'Reviews', icon: Star, tint: '#ff6584', badge: reviews.count },
+        ...(event.show_reviews ? [{ key: 'reviews' as Tab, label: 'Reviews', icon: Star, tint: '#ff6584', badge: reviews.count }] : []),
     ];
 
     return (
@@ -159,14 +160,14 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                         </div>
 
                         {/* Quick stats — jump into the matching tab */}
-                        {(participants.count > 0 || reviews.count > 0) && (
+                        {((event.show_participants && participants.count > 0) || (event.show_reviews && reviews.count > 0)) && (
                             <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
-                                {participants.count > 0 && (
+                                {event.show_participants && participants.count > 0 && (
                                     <button type="button" onClick={() => setTab('participants')} className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
                                         <Users className="size-4 text-[#2ec4b6]" /> <span className="font-medium text-foreground">{participants.count}</span> going
                                     </button>
                                 )}
-                                {reviews.count > 0 && (
+                                {event.show_reviews && reviews.count > 0 && (
                                     <button type="button" onClick={() => setTab('reviews')} className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
                                         <Stars value={reviews.average} className="size-4" /> <span className="font-medium text-foreground">{reviews.average.toFixed(1)}</span> ({reviews.count})
                                     </button>
@@ -416,7 +417,15 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                                 <div>
                                                     <div className="font-medium">{t.name}</div>
                                                     {t.description && <div className="text-xs text-muted-foreground">{t.description}</div>}
-                                                    <div className="mt-1 text-sm font-semibold">{priceLabel(t)}</div>
+                                                    <div className="mt-1 flex items-baseline gap-2">
+                                                        {t.kind === 'paid' && t.compare_at_price && t.compare_at_price > t.price && (
+                                                            <span className="text-xs text-muted-foreground line-through">{t.currency} {t.compare_at_price.toFixed(2)}</span>
+                                                        )}
+                                                        <span className="text-sm font-semibold">{priceLabel(t)}</span>
+                                                        {t.kind === 'paid' && t.compare_at_price && t.compare_at_price > t.price && (
+                                                            <span className="rounded bg-[#2ec4b6]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#2ec4b6]">-{Math.round((1 - t.price / t.compare_at_price) * 100)}%</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 {t.sold_out ? <Badge variant="destructive">Sold out</Badge>
                                                     : !t.on_sale ? <Badge variant="outline">Not on sale</Badge>

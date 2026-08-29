@@ -90,6 +90,8 @@ class EventController extends Controller
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
                 'organizer' => $organizer,
                 'status' => $event->status,
+                'show_participants' => (bool) $event->show_participants,
+                'show_reviews' => (bool) $event->show_reviews,
                 'sessions' => $event->sessions->map(fn ($s) => [
                     'id' => $s->id,
                     'title' => $s->title,
@@ -103,6 +105,7 @@ class EventController extends Controller
                     'description' => $t->description,
                     'kind' => $t->kind,
                     'price' => (float) $t->price,
+                    'compare_at_price' => $t->compare_at_price ? (float) $t->compare_at_price : null,
                     'currency' => $t->currency,
                     'on_sale' => $t->isOnSale(),
                     'sold_out' => $t->remaining() === 0,

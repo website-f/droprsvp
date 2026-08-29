@@ -17,6 +17,7 @@ class EventReviewController extends Controller
     {
         $user = $request->user();
 
+        abort_unless($event->show_reviews, 403, 'Reviews are turned off for this event.');
         abort_if($user->id === $event->user_id, 403, 'You cannot review your own event.');
 
         $data = $request->validate([
