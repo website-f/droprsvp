@@ -1,19 +1,20 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Banknote, ClipboardList, Percent, Settings2 } from 'lucide-react';
+import { Banknote, ClipboardList, Flame, Percent, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { TagInput } from '@/components/ui/tag-input';
 
 interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
 interface SettingsData {
     fee_percent: number; boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
-    checkout_required: CheckoutRequired;
+    checkout_required: CheckoutRequired; trending_keywords: string;
 }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'checkout' | 'general';
+type Tab = 'payments' | 'tax' | 'checkout' | 'search' | 'general';
 
 const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
     { key: 'phone', label: 'Phone number' },
@@ -57,6 +58,7 @@ export default function Settings({ settings }: { settings: SettingsData }) {
         tax_inclusive: settings.tax_inclusive,
         support_email: settings.support_email ?? '',
         checkout_required: settings.checkout_required,
+        trending_keywords: settings.trending_keywords ?? '',
     });
     const { data, setData, processing } = form;
     const setRequired = (key: keyof CheckoutRequired, v: boolean) => setData('checkout_required', { ...data.checkout_required, [key]: v });
@@ -65,6 +67,7 @@ export default function Settings({ settings }: { settings: SettingsData }) {
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
         { key: 'checkout', label: 'Checkout', icon: ClipboardList },
+        { key: 'search', label: 'Search', icon: Flame },
         { key: 'general', label: 'General', icon: Settings2 },
     ];
 
@@ -129,6 +132,14 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {tab === 'search' && (
+                        <div className="grid gap-3">
+                            <div className="flex items-center gap-2 text-sm font-medium"><Flame className="size-4 text-[#f5924a]" /> Trending keywords</div>
+                            <p className="text-sm text-muted-foreground">Pin your own “what’s hot” terms — they show first (with a fire icon) in the global search box, combined with system suggestions.</p>
+                            <TagInput value={data.trending_keywords} onChange={(v) => setData('trending_keywords', v)} placeholder="Type a keyword, press Enter…" />
                         </div>
                     )}
 

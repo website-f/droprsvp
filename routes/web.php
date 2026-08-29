@@ -25,6 +25,7 @@ use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EventCommentController;
 use App\Http\Controllers\Public\EventReviewController;
 use App\Http\Controllers\Public\OrganizerController;
+use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\DiscoverController;
@@ -58,6 +59,9 @@ Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('event
 
 // Public organizer profile (all their events + follow) — pretty slug URL.
 Route::get('o/{organizer:slug}', [OrganizerController::class, 'show'])->name('organizers.show');
+
+// Global search autocomplete suggestions (JSON).
+Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
 
 // Locale home = the marketing landing. Browse/discovery lives one level deeper:
 // /en-my/all, /en-my/{city}, /en-my/all/{category}, /en-my/{city}/{category}.

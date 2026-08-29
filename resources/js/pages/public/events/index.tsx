@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, MapPin, Rocket, Search, Star } from 'lucide-react';
-import { useState } from 'react';
+import { CalendarDays, MapPin, Rocket, Star } from 'lucide-react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { SearchAutocomplete } from '@/components/search-autocomplete';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,14 +47,11 @@ return 'Free';
 }
 
 export default function Discover({ events, categories, cities, active, filters, seo }: { events: Paginated; categories: Category[]; cities: City[]; active: Active; filters: { q: string; when: string }; seo: Seo }) {
-    const [q, setQ] = useState(filters.q);
-
     const goto = (path: string, keepQuery = true) =>
-        router.get(path, keepQuery && q ? { q } : {}, { preserveScroll: true });
+        router.get(path, keepQuery && filters.q ? { q: filters.q } : {}, { preserveScroll: true });
 
     const onCity = (slug: string) => goto(pathFor(slug === ANY ? null : slug, active.category));
     const onCategory = (slug: string | null) => goto(pathFor(active.city, slug));
-    const onSearch = () => goto(pathFor(active.city, active.category));
 
     return (
         <>
@@ -69,15 +66,12 @@ export default function Discover({ events, categories, cities, active, filters, 
 
                     {/* Search + city */}
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <form onSubmit={(e) => {
- e.preventDefault(); onSearch(); 
-}} className="flex flex-1 gap-2">
-                            <label className="flex h-11 flex-1 items-center gap-2 rounded-full border border-border bg-card px-4">
-                                <Search className="size-4 shrink-0 text-muted-foreground" />
-                                <input className="w-full bg-transparent text-sm outline-none" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search events" aria-label="Search events" />
-                            </label>
-                            <Button type="submit" className="h-11">Search</Button>
-                        </form>
+                        <SearchAutocomplete
+                            variant="compact"
+                            initial={filters.q}
+                            placeholder="Search events"
+                            onSubmit={(term) => router.get(pathFor(active.city, active.category), term ? { q: term } : {}, { preserveScroll: true })}
+                        />
                         <div className="sm:w-56">
                             <AppSelect
                                 aria-label="City"

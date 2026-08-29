@@ -1,10 +1,11 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Search, Send, Sparkles, Tag } from 'lucide-react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Send, Sparkles, Tag } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
+import { SearchAutocomplete } from '@/components/search-autocomplete';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
@@ -58,7 +59,6 @@ export default function Welcome() {
         sections?: LandingSections;
         organizers?: Organizer[];
     };
-    const [q, setQ] = useState('');
     const signedIn = !!auth?.user;
     const org = sections?.organizer;
     const eventTime = sections?.event_time;
@@ -129,25 +129,10 @@ export default function Welcome() {
                             check guests in, all from one place.
                         </p>
 
-                        {/* Search — big, tappable, and never zooms on iOS (16px input) */}
-                        <form
-                            onSubmit={(e) => {
- e.preventDefault(); router.get('/en-my/all', q ? { q } : {}); 
-}}
-                            className="mx-auto mt-9 flex w-full max-w-2xl flex-col gap-3 sm:flex-row"
-                        >
-                            <div className="flex h-16 flex-1 items-center gap-3 rounded-2xl border border-border bg-card px-5 shadow-sm transition-colors focus-within:border-foreground/50 focus-within:ring-4 focus-within:ring-foreground/5 sm:rounded-full">
-                                <Search className="size-5 shrink-0 text-muted-foreground" />
-                                <input
-                                    value={q}
-                                    onChange={(e) => setQ(e.target.value)}
-                                    className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                                    placeholder="Search events, e.g. “live music”"
-                                    aria-label="Search events"
-                                />
-                            </div>
-                            <Button type="submit" size="lg" className="h-16 shrink-0 text-base sm:px-10">Search</Button>
-                        </form>
+                        {/* Search — autocomplete with trending + live suggestions */}
+                        <div className="mx-auto mt-9 w-full max-w-2xl">
+                            <SearchAutocomplete variant="hero" placeholder="Search events, e.g. “live music”" />
+                        </div>
 
                         <p className="mt-5 text-xs text-muted-foreground">
                             Free to browse · Instant e-tickets · QR check-in
@@ -161,7 +146,7 @@ export default function Welcome() {
                         <Reveal className="flex flex-wrap items-center gap-3">
                             <h2 className="mr-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{eventTime.heading}</h2>
                             {eventTime.items.filter((i) => i.label && i.value).map((i) => (
-                                <Link key={i.value} href={`/en-my?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
+                                <Link key={i.value} href={`/en-my/all?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
                             ))}
                         </Reveal>
                     </section>

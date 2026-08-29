@@ -26,6 +26,7 @@ class SettingsController extends Controller
                 'tax_inclusive' => (bool) Setting::get('tax_inclusive', false),
                 'support_email' => (string) Setting::get('support_email', ''),
                 'checkout_required' => self::checkoutRequired(),
+                'trending_keywords' => (string) Setting::get('trending_keywords', ''),
             ],
         ]);
     }
@@ -55,6 +56,7 @@ class SettingsController extends Controller
             'tax_label' => ['nullable', 'string', 'max:20'],
             'tax_inclusive' => ['boolean'],
             'support_email' => ['nullable', 'email', 'max:180'],
+            'trending_keywords' => ['nullable', 'string', 'max:1000'],
         ]);
 
         Setting::put('platform_fee_percent', $data['fee_percent']);
@@ -66,6 +68,7 @@ class SettingsController extends Controller
         Setting::put('tax_label', $data['tax_label'] ?? 'SST');
         Setting::put('tax_inclusive', $request->boolean('tax_inclusive') ? '1' : '0');
         Setting::put('support_email', $data['support_email'] ?? '');
+        Setting::put('trending_keywords', $data['trending_keywords'] ?? '');
 
         // Per-field checkout requirements.
         $cr = [];
