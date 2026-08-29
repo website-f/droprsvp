@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
+use App\Http\Controllers\Admin\EventCategoryController;
 use App\Http\Controllers\Admin\EventSeoController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\LegalController as AdminLegalController;
@@ -225,6 +226,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
+
+        // Event categories (used across discovery + event creation).
+        Route::get('categories', [EventCategoryController::class, 'index'])->name('categories.index');
+        Route::post('categories', [EventCategoryController::class, 'store'])->name('categories.store');
+        Route::put('categories/{category}', [EventCategoryController::class, 'update'])->name('categories.update');
+        Route::delete('categories/{category}', [EventCategoryController::class, 'destroy'])->name('categories.destroy');
 
         // Per-event SEO manager.
         Route::get('seo/events', [EventSeoController::class, 'index'])->name('seo.events');

@@ -1,0 +1,57 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\EventCategory;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+class EventCategoryTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function superadmin(): User
+    {
+        Role::findOrCreate('superadmin', 'web');
+        $u = User::factory()->create();
+        $u->assignRole('superadmin');
+
+        return $u;
+    }
+
+    public function test_superadmin_can_add_edit_and_delete_categories(): void
+    {
+        $admin = $this->superadmin();
+
+        // Add — slug auto-generated.
+        $this->actingAs($admin)->post('/admin/categories', ['name' => 'Live Music'])->assertRedirect();
+        $cat = EventCategory::firstWhere('name', 'Live Music');
+        $this->assertSame('live-music', $cat->slug);
+
+        // Edit.
+        $this->actingAs($admin)->put("/admin/categories/{$cat->id}", ['name' => 'Concerts', 'slug' => 'concerts'])->assertRedirect();
+        $this->assertSame('Concerts', $cat->fresh()->name);
+        $this->assertSame('concerts', $cat->fresh()->slug);
+
+        // Delete.
+        $this->actingAs($admin)->delete("/admin/categories/{$cat->id}")->assertRedirect();
+        $this->assertDatabaseMissing('event_categories', ['id' => $cat->id]);
+    }
+
+    public function test_index_lists_categories_with_event_counts(): void
+    {
+        EventCategory::create(['name' => 'Food', 'slug' => 'food', 'sort_order' => 1]);
+
+        $this->actingAs($this->superadmin())->get('/admin/categories')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/categories/index')->has('categories', 1));
+    }
+
+    public function test_a_non_superadmin_cannot_manage_categories(): void
+    {
+        $this->actingAs(User::factory()->create())->get('/admin/categories')->assertForbidden();
+        $this->actingAs(User::factory()->create())->post('/admin/categories', ['name' => 'X'])->assertForbidden();
+    }
+}
