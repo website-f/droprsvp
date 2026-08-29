@@ -1,7 +1,8 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, BookOpen, CalendarDays, ChartColumn, Crown, FileSearch, FileText, FolderGit2, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, PanelBottom, ScrollText, Search, Settings2, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CalendarDays, ChartColumn, Crown, FileSearch, FileText, FolderGit2, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, ScrollText, Search, Settings2, ShieldCheck, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
+import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -93,12 +94,13 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                {/* Grouped so the CMS / platform-admin areas are clearly separated. */}
+                {/* Quick access stays flat; the heavy admin areas collapse into
+                    one main category each so the sidebar stays manageable. */}
                 <NavMain items={isAdmin ? youNav : [...youNav, premiumNav]} label="You" />
-                {isOrganizer && <NavMain items={organizingNav} label="Organizing" />}
-                {isAdmin && <NavMain items={platformNav} label="Platform admin" />}
-                {isAdmin && <NavMain items={cmsNav} label="Content (CMS)" />}
-                {isAdmin && <NavMain items={siteNav} label="Appearance" />}
+                {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
+                {isAdmin && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformNav} />}
+                {isAdmin && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}
+                {isAdmin && <NavGroup label="Appearance" icon={Palette} items={siteNav} />}
             </SidebarContent>
 
             <SidebarFooter>
