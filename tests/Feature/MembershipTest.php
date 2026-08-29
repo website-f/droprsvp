@@ -41,9 +41,9 @@ class MembershipTest extends TestCase
         }
 
         $this->get('/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
-            ->where('members.count', 7)
-            ->where('members.all_visible', false)
-            ->has('members.list', 4));
+            ->where('participants.count', 7)
+            ->where('participants.unlocked', false)
+            ->has('participants.list', 4));
     }
 
     public function test_premium_viewer_sees_all_members(): void
@@ -55,8 +55,8 @@ class MembershipTest extends TestCase
         $premium = User::factory()->create(['premium_until' => now()->addMonth()]);
 
         $this->actingAs($premium)->get('/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
-            ->where('members.all_visible', true)
-            ->has('members.list', 7)
+            ->where('participants.unlocked', true)
+            ->has('participants.list', 7)
             ->where('viewer.can_post', true));
     }
 

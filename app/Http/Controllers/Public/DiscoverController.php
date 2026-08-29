@@ -49,6 +49,9 @@ class DiscoverController extends Controller
 
         $events = Event::published()
             ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
+            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
+            ->withCount('reviews')
+            ->withAvg('reviews as reviews_avg', 'rating')
             ->when($cityName, fn ($query) => $query->where('city', $cityName))
             ->when($categoryModel, fn ($query) => $query->where('category_id', $categoryModel->id))
             ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
@@ -223,6 +226,9 @@ class DiscoverController extends Controller
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
+            'participants' => (int) ($event->participants_count ?? 0),
+            'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
+            'rating_count' => (int) ($event->reviews_count ?? 0),
         ];
     }
 }

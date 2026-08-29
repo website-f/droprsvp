@@ -19,6 +19,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\Public\EventCommentController;
+use App\Http\Controllers\Public\EventReviewController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\DiscoverController;
@@ -110,6 +111,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Event discussion — post a question / reply (premium or organizer).
     Route::post('e/{event}/comments', [EventCommentController::class, 'store'])->name('events.comments.store');
+
+    // Event rating + review (attendees only).
+    Route::post('e/{event}/reviews', [EventReviewController::class, 'store'])->name('events.reviews.store');
 
     // Buyer account — purchase history + re-download/re-send tickets.
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventDailyStat;
+use App\Models\EventReview;
 use App\Models\Order;
 use App\Support\SeoManager;
 use Illuminate\Http\Request;
@@ -32,6 +33,10 @@ class EventController extends Controller
         $seo = $event->seo;
         $isPublic = $event->status === 'published' && in_array($event->visibility, ['public', 'unlisted'], true);
 
+        // Ratings (shown on the page + as aggregateRating in JSON-LD).
+        $ratingCount = (int) $event->reviews()->count();
+        $ratingAvg = $ratingCount ? round((float) $event->reviews()->avg('rating'), 1) : 0.0;
+
         // Count a public impression (not the organizer previewing their own event).
         if ($isPublic && $request->user()?->id !== $event->user_id) {
             EventDailyStat::bump($event->id, 'impressions');
@@ -44,7 +49,7 @@ class EventController extends Controller
             ->keywords($seo?->meta_keywords)
             ->canonical($seo?->canonical_url ?: $canonical)
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
-            ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer))
+            ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount))
             ->breadcrumb([
                 ['name' => 'Home', 'url' => url('/')],
                 ['name' => 'Events', 'url' => url('/events')],
@@ -61,6 +66,12 @@ class EventController extends Controller
         $hasAccess = (bool) $user?->hasPremiumAccess();
         $canSeeAllMembers = $hasAccess || $isOwner;
         $canPost = $user && ($hasAccess || $isOwner);
+
+        // Reviews: only attendees (a paid ticket) may rate, never their own event.
+        $hasTicket = $event->hasAttendee($user);
+        $canReview = $hasTicket && ! $isOwner;
+        $myReview = $user ? $event->reviews()->where('user_id', $user->id)->first() : null;
+        $participantsPage = max(1, (int) $request->query('participants_page', 1));
 
         return inertia('public/event', [
             'event' => [
@@ -104,30 +115,74 @@ class EventController extends Controller
             'seo' => [
                 'title' => $seo?->seo_title ?: $event->title,
             ],
-            'members' => $this->members($event, $canSeeAllMembers),
+            'participants' => $this->participants($event, $canSeeAllMembers, $participantsPage),
             'discussion' => $this->discussion($event),
+            'reviews' => $this->reviews($event, $myReview),
             'viewer' => [
                 'authed' => (bool) $user,
                 'premium' => $isPremium,
                 'is_owner' => $isOwner,
                 'can_post' => $canPost,
                 'can_see_all_members' => $canSeeAllMembers,
+                'can_review' => $canReview,
+                'has_reviewed' => (bool) $myReview,
             ],
         ]);
     }
 
-    /** People who got tickets. Free/guest see the first 4; premium sees everyone. */
-    private function members(Event $event, bool $canSeeAll): array
+    /**
+     * People who got tickets. Free/guest see the first 4 (the rest paywalled);
+     * premium + the organizer see the full list, paginated.
+     */
+    private function participants(Event $event, bool $canSeeAll, int $page): array
     {
+        $perPage = 12;
         $paid = Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_email');
         $total = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
         $rows = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])->unique('buyer_email')->values();
-        $visible = $canSeeAll ? $rows : $rows->take(4);
+
+        if (! $canSeeAll) {
+            return [
+                'count' => $total,
+                'unlocked' => false,
+                'list' => $rows->take(4)->map(fn ($m) => ['name' => $m->buyer_name ?: 'Guest'])->values()->all(),
+                'page' => 1,
+                'pages' => 1,
+            ];
+        }
+
+        $pages = max(1, (int) ceil($rows->count() / $perPage));
+        $page = min($page, $pages);
 
         return [
             'count' => $total,
-            'all_visible' => $canSeeAll,
-            'list' => $visible->map(fn ($m) => ['name' => $m->buyer_name ?: 'Guest'])->values(),
+            'unlocked' => true,
+            'list' => $rows->slice(($page - 1) * $perPage, $perPage)
+                ->map(fn ($m) => ['name' => $m->buyer_name ?: 'Guest'])->values()->all(),
+            'page' => $page,
+            'pages' => $pages,
+        ];
+    }
+
+    /** Ratings + reviews with the star distribution and the viewer's own review. */
+    private function reviews(Event $event, ?EventReview $mine): array
+    {
+        $all = $event->reviews()->with('user:id,name')->get();
+        $count = $all->count();
+
+        return [
+            'average' => $count ? round((float) $all->avg('rating'), 1) : 0.0,
+            'count' => $count,
+            'distribution' => collect(range(5, 1))->mapWithKeys(fn ($s) => [$s => $all->where('rating', $s)->count()])->all(),
+            'list' => $all->map(fn ($r) => [
+                'id' => $r->id,
+                'author' => $r->user?->name ?? 'Attendee',
+                'rating' => $r->rating,
+                'body' => $r->body,
+                'when' => $r->created_at->diffForHumans(),
+                'mine' => $mine && $r->id === $mine->id,
+            ])->values()->all(),
+            'mine' => $mine ? ['rating' => $mine->rating, 'body' => $mine->body] : null,
         ];
     }
 
@@ -179,7 +234,7 @@ class EventController extends Controller
     }
 
     /** schema.org/Event JSON-LD for rich results. Null fields are pruned. */
-    private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer): array
+    private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer, float $ratingAvg = 0.0, int $ratingCount = 0): array
     {
         $schema = [
             '@context' => 'https://schema.org',
@@ -215,6 +270,14 @@ class EventController extends Controller
                 'url' => $url,
             ]))->values()->all(),
         ];
+
+        if ($ratingCount > 0) {
+            $schema['aggregateRating'] = [
+                '@type' => 'AggregateRating',
+                'ratingValue' => $ratingAvg,
+                'reviewCount' => $ratingCount,
+            ];
+        }
 
         return array_filter($schema, fn ($v) => $v !== null && $v !== []);
     }
