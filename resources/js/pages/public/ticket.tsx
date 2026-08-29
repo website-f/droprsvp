@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { CalendarDays, Download, MapPin, Video } from 'lucide-react';
 import { Wordmark } from '@/components/brand';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
             </Head>
 
             <div className="flex min-h-screen flex-col items-center bg-muted/40 px-4 py-10 text-foreground">
-                <Link href="/" className="mb-6" aria-label="DropRSVP home"><Wordmark className="h-8" /></Link>
+                <Link href="/" className="mb-6" aria-label="DropRSVP home"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
 
                 <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
                     {/* Header */}

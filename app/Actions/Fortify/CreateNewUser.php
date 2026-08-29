@@ -23,7 +23,8 @@ class CreateNewUser implements CreatesNewUsers
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
-        ])->validate();
+            'consent' => ['accepted'],
+        ], ['consent.accepted' => 'Please agree to the terms to continue.'])->validate();
 
         $user = User::create([
             'name' => $input['name'],

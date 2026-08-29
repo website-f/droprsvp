@@ -94,6 +94,7 @@ class SiteContent
             'header_height' => 44,             // public site header (px)
             'sidebar_height' => 40,            // dashboard sidebar (px)
             'footer_height' => 36,             // footer brand (px)
+            'auth_height' => 32,               // auth + checkout pages (px)
             'invert_dark' => true,             // monochrome-dark logo → invert on dark bg
         ];
     }

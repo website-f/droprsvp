@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Lock } from 'lucide-react';
 import { Wordmark } from '@/components/brand';
 import { AppSelect } from '@/components/ui/app-select';
@@ -10,6 +10,9 @@ interface OrderView {
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
     items: Array<{ name: string; quantity: number; unit_price: number; line_total: number }>;
 }
+interface Required { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
+
+const CONSENT_TEXT = 'By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.';
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
@@ -17,8 +20,8 @@ const GENDERS = [{ value: 'na', label: 'Prefer not to say' }, { value: 'female',
 const AGE_BANDS = [{ value: '', label: '—' }, { value: 'under-18', label: 'Under 18' }, { value: '18-24', label: '18–24' }, { value: '25-34', label: '25–34' }, { value: '35-44', label: '35–44' }, { value: '45-54', label: '45–54' }, { value: '55+', label: '55+' }];
 const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'tiktok', label: 'TikTok' }, { value: 'friend', label: 'A friend' }, { value: 'search', label: 'Search' }, { value: 'email', label: 'Email' }, { value: 'other', label: 'Other' }];
 
-export default function CheckoutShow({ order }: { order: OrderView }) {
-    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '', buyer_gender: 'na', buyer_age_band: '', buyer_city: '', buyer_source: '', notes: '' });
+export default function CheckoutShow({ order, required }: { order: OrderView; required: Required }) {
+    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '', buyer_gender: 'na', buyer_age_band: '', buyer_city: '', buyer_source: '', notes: '', consent: true });
     const isFree = order.total <= 0;
 
     const submit = (e: React.FormEvent) => {
@@ -26,13 +29,23 @@ export default function CheckoutShow({ order }: { order: OrderView }) {
         form.post(`/checkout/${order.reference}/pay`);
     };
 
+    const req = (label: string, on: boolean) => on ? <>{label} <span className="text-destructive">*</span></> : <>{label}</>;
+    const missing =
+        !form.data.buyer_name.trim() || !form.data.buyer_email.trim() ||
+        (required.phone && !form.data.buyer_phone.trim()) ||
+        (required.age_band && !form.data.buyer_age_band) ||
+        (required.city && !form.data.buyer_city.trim()) ||
+        (required.source && !form.data.buyer_source) ||
+        (required.notes && !form.data.notes.trim());
+    const canSubmit = form.data.consent && !missing;
+
     return (
         <>
             <Head title={`Checkout · ${order.event.title}`} />
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
                     <div className="mx-auto max-w-3xl px-6 py-4">
-                        <Link href={`/e/${order.event.slug}`} aria-label="DropRSVP"><Wordmark className="h-8" /></Link>
+                        <Link href={`/e/${order.event.slug}`} aria-label="DropRSVP"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
                     </div>
                 </header>
 
@@ -54,8 +67,9 @@ export default function CheckoutShow({ order }: { order: OrderView }) {
                                 {form.errors.buyer_email && <p className="text-xs text-destructive">{form.errors.buyer_email}</p>}
                             </div>
                             <div className="grid gap-1.5">
-                                <Label htmlFor="buyer_phone">Phone (optional)</Label>
+                                <Label htmlFor="buyer_phone">{req('Phone', required.phone)}</Label>
                                 <input id="buyer_phone" className={field} value={form.data.buyer_phone} onChange={(e) => form.setData('buyer_phone', e.target.value)} />
+                                {form.errors.buyer_phone && <p className="text-xs text-destructive">{form.errors.buyer_phone}</p>}
                             </div>
 
                             {/* About you (optional) — helps the organizer understand who's coming. */}
@@ -63,31 +77,41 @@ export default function CheckoutShow({ order }: { order: OrderView }) {
                                 <p className="mb-3 text-xs font-medium text-muted-foreground">About you <span className="font-normal">(optional — helps the organizer)</span></p>
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
-                                        <Label>Gender</Label>
+                                        <Label>{req('Gender', required.gender)}</Label>
                                         <AppSelect value={form.data.buyer_gender} onChange={(v) => form.setData('buyer_gender', v)} options={GENDERS} />
                                     </div>
                                     <div className="grid gap-1.5">
-                                        <Label>Age</Label>
+                                        <Label>{req('Age', required.age_band)}</Label>
                                         <AppSelect value={form.data.buyer_age_band || ''} onChange={(v) => form.setData('buyer_age_band', v)} options={AGE_BANDS} />
+                                        {form.errors.buyer_age_band && <p className="text-xs text-destructive">{form.errors.buyer_age_band}</p>}
                                     </div>
                                     <div className="grid gap-1.5">
-                                        <Label htmlFor="buyer_city">City</Label>
+                                        <Label htmlFor="buyer_city">{req('City', required.city)}</Label>
                                         <input id="buyer_city" className={field} value={form.data.buyer_city} onChange={(e) => form.setData('buyer_city', e.target.value)} placeholder="e.g. Kuala Lumpur" />
+                                        {form.errors.buyer_city && <p className="text-xs text-destructive">{form.errors.buyer_city}</p>}
                                     </div>
                                     <div className="grid gap-1.5">
-                                        <Label>How did you hear about it?</Label>
+                                        <Label>{req('How did you hear about it?', required.source)}</Label>
                                         <AppSelect value={form.data.buyer_source || ''} onChange={(v) => form.setData('buyer_source', v)} options={SOURCES} />
+                                        {form.errors.buyer_source && <p className="text-xs text-destructive">{form.errors.buyer_source}</p>}
                                     </div>
                                     <div className="grid gap-1.5 sm:col-span-2">
-                                        <Label htmlFor="notes">Notes / remarks</Label>
+                                        <Label htmlFor="notes">{req('Notes / remarks', required.notes)}</Label>
                                         <textarea id="notes" rows={3} className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} placeholder="Anything the organizer should know? (dietary needs, accessibility, a question…)" />
                                         {form.errors.notes && <p className="text-xs text-destructive">{form.errors.notes}</p>}
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Consent */}
+                            <label className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                <input type="checkbox" className="mt-0.5 size-4 shrink-0 rounded border-input" checked={form.data.consent} onChange={(e) => form.setData('consent', e.target.checked)} />
+                                <span className="text-muted-foreground">{CONSENT_TEXT}</span>
+                            </label>
+                            {form.errors.consent && <p className="text-xs text-destructive">{form.errors.consent}</p>}
                         </div>
 
-                        <Button type="submit" size="lg" className="mt-6 w-full" disabled={form.processing}>
+                        <Button type="submit" size="lg" className="mt-6 w-full" disabled={form.processing || !canSubmit}>
                             <Lock className="size-4" /> {isFree ? 'Complete registration' : `Pay RM ${order.total.toFixed(2)}`}
                         </Button>
                     </form>

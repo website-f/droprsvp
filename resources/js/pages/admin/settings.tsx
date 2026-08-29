@@ -1,17 +1,28 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Banknote, Percent, Settings2 } from 'lucide-react';
+import { Banknote, ClipboardList, Percent, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
+interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
 interface SettingsData {
     fee_percent: number; boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
+    checkout_required: CheckoutRequired;
 }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'general';
+type Tab = 'payments' | 'tax' | 'checkout' | 'general';
+
+const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
+    { key: 'phone', label: 'Phone number' },
+    { key: 'gender', label: 'Gender' },
+    { key: 'age_band', label: 'Age band' },
+    { key: 'city', label: 'City' },
+    { key: 'source', label: 'How they heard about it' },
+    { key: 'notes', label: 'Notes / remarks' },
+];
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
     return (
@@ -45,12 +56,15 @@ export default function Settings({ settings }: { settings: SettingsData }) {
         tax_label: settings.tax_label ?? '',
         tax_inclusive: settings.tax_inclusive,
         support_email: settings.support_email ?? '',
+        checkout_required: settings.checkout_required,
     });
     const { data, setData, processing } = form;
+    const setRequired = (key: keyof CheckoutRequired, v: boolean) => setData('checkout_required', { ...data.checkout_required, [key]: v });
 
     const TABS: { key: Tab; label: string; icon: typeof Banknote }[] = [
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
+        { key: 'checkout', label: 'Checkout', icon: ClipboardList },
         { key: 'general', label: 'General', icon: Settings2 },
     ];
 
@@ -100,6 +114,21 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                                 <div><div className="text-sm font-medium">Prices include tax</div><div className="text-xs text-muted-foreground">Show ticket prices as tax-inclusive.</div></div>
                                 <Toggle on={data.tax_inclusive} onChange={(v) => setData('tax_inclusive', v)} />
                             </div>
+                        </div>
+                    )}
+
+                    {tab === 'checkout' && (
+                        <div className="grid gap-3">
+                            <p className="text-sm text-muted-foreground">Choose which buyer fields are required at checkout. Name and email are always required.</p>
+                            {CHECKOUT_FIELDS.map((f) => (
+                                <div key={f.key} className="flex items-center justify-between rounded-lg border border-border p-3">
+                                    <div className="text-sm font-medium">{f.label}</div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">{data.checkout_required[f.key] ? 'Required' : 'Optional'}</span>
+                                        <Toggle on={data.checkout_required[f.key]} onChange={(v) => setRequired(f.key, v)} />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 

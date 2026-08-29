@@ -59,8 +59,9 @@ class AnalyticsTest extends TestCase
 
         $order = Order::first();
         $this->post("/checkout/{$order->reference}/pay", [
-            'buyer_name' => 'Jane Doe', 'buyer_email' => 'jane@example.com',
+            'buyer_name' => 'Jane Doe', 'buyer_email' => 'jane@example.com', 'buyer_phone' => '0123456789',
             'buyer_gender' => 'female', 'buyer_age_band' => '25-34', 'buyer_city' => 'Kuala Lumpur', 'buyer_source' => 'instagram',
+            'consent' => true,
         ])->assertRedirect();
 
         $order->refresh();

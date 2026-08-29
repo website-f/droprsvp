@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
@@ -56,7 +56,7 @@ setStep((s) => s + 1);
             <Head title="Welcome to DropRSVP" />
             <div className="flex min-h-screen flex-col bg-muted/30">
                 <header className="flex items-center justify-between px-6 py-5">
-                    <Wordmark className="h-8" />
+                    <Wordmark height={usePage().props.branding?.auth_height ?? 32} />
                     <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">Skip for now</Link>
                 </header>
 

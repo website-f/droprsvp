@@ -25,8 +25,22 @@ class SettingsController extends Controller
                 'tax_label' => (string) Setting::get('tax_label', config('droprsvp.tax_label')),
                 'tax_inclusive' => (bool) Setting::get('tax_inclusive', false),
                 'support_email' => (string) Setting::get('support_email', ''),
+                'checkout_required' => self::checkoutRequired(),
             ],
         ]);
+    }
+
+    /** Which checkout buyer fields are required (name + email are always required). */
+    public static function checkoutRequired(): array
+    {
+        $defaults = ['phone' => true, 'gender' => false, 'age_band' => false, 'city' => false, 'source' => false, 'notes' => false];
+        $saved = Setting::getArray('checkout_required', []);
+        $out = [];
+        foreach ($defaults as $field => $default) {
+            $out[$field] = (bool) ($saved[$field] ?? $default);
+        }
+
+        return $out;
     }
 
     public function update(Request $request)
@@ -52,6 +66,13 @@ class SettingsController extends Controller
         Setting::put('tax_label', $data['tax_label'] ?? 'SST');
         Setting::put('tax_inclusive', $request->boolean('tax_inclusive') ? '1' : '0');
         Setting::put('support_email', $data['support_email'] ?? '');
+
+        // Per-field checkout requirements.
+        $cr = [];
+        foreach (['phone', 'gender', 'age_band', 'city', 'source', 'notes'] as $field) {
+            $cr[$field] = $request->boolean("checkout_required.{$field}");
+        }
+        Setting::putArray('checkout_required', $cr);
 
         return back()->with('flash_success', 'Settings saved.');
     }

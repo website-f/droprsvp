@@ -52,7 +52,7 @@ class CheckoutTest extends TestCase
         $this->assertSame(0, $order->tickets()->count(), 'tickets not issued until paid');
 
         // Buyer details → gateway hand-off (fake gateway returns its internal pay URL).
-        $this->post(route('checkout.pay', $order), ['buyer_name' => 'Ali', 'buyer_email' => 'ali@example.com'])
+        $this->post(route('checkout.pay', $order), ['buyer_name' => 'Ali', 'buyer_email' => 'ali@example.com', 'buyer_phone' => '0123456789', 'consent' => true])
             ->assertRedirect(route('checkout.fake', $order));
 
         // Settle (fake gateway "payment").
@@ -67,13 +67,25 @@ class CheckoutTest extends TestCase
         Mail::assertSent(TicketsIssued::class, fn (TicketsIssued $m) => $m->hasTo('ali@example.com'));
     }
 
+    public function test_phone_is_required_by_default_and_consent_must_be_given(): void
+    {
+        [$event, $tt] = $this->publishedEventWithTicket();
+        $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]]);
+        $order = Order::first();
+
+        // No phone (required by default) + no consent → both rejected.
+        $this->post(route('checkout.pay', $order), ['buyer_name' => 'A', 'buyer_email' => 'a@b.com'])
+            ->assertSessionHasErrors(['buyer_phone', 'consent']);
+        $this->assertSame('pending', $order->fresh()->status);
+    }
+
     public function test_settlement_is_idempotent(): void
     {
         Mail::fake();
         [$event, $tt] = $this->publishedEventWithTicket();
         $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]]);
         $order = Order::first();
-        $this->post(route('checkout.pay', $order), ['buyer_name' => 'A', 'buyer_email' => 'a@b.com']);
+        $this->post(route('checkout.pay', $order), ['buyer_name' => 'A', 'buyer_email' => 'a@b.com', 'buyer_phone' => '0123456789', 'consent' => true]);
         $this->get(route('checkout.fake', $order));
         $this->get(route('checkout.fake', $order)); // second hit must not double-issue
 
@@ -102,7 +114,7 @@ class CheckoutTest extends TestCase
         $order = Order::first();
         $this->assertEquals(0, $order->total);
 
-        $this->post(route('checkout.pay', $order), ['buyer_name' => 'A', 'buyer_email' => 'a@b.com'])
+        $this->post(route('checkout.pay', $order), ['buyer_name' => 'A', 'buyer_email' => 'a@b.com', 'buyer_phone' => '0123456789', 'consent' => true])
             ->assertRedirect(route('checkout.confirmation', $order));
 
         $order->refresh();

@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Store } from 'lucide-react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -14,7 +15,11 @@ type Props = {
     passwordRules: string;
 };
 
+const CONSENT_TEXT = 'By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.';
+
 export default function Register({ passwordRules }: Props) {
+    const [consent, setConsent] = useState(true);
+
     return (
         <>
             <Head title="Register" />
@@ -91,10 +96,17 @@ export default function Register({ passwordRules }: Props) {
                                 />
                             </div>
 
+                            <label className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                <input type="checkbox" name="consent" value="1" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-4 shrink-0 rounded border-input" tabIndex={5} />
+                                <span className="text-muted-foreground">{CONSENT_TEXT}</span>
+                            </label>
+                            <InputError message={errors.consent} />
+
                             <Button
                                 type="submit"
                                 className="mt-2 w-full"
-                                tabIndex={5}
+                                tabIndex={6}
+                                disabled={processing || !consent}
                                 data-test="register-user-button"
                             >
                                 {processing && <Spinner />}

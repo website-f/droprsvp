@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, CalendarDays, CheckCircle2, Mail, QrCode, Ticket } from 'lucide-react';
 import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 const field = 'h-12 w-full rounded-xl border border-input bg-background px-4 text-base outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 export default function GetStarted() {
+    const authH = usePage().props.branding?.auth_height ?? 32;
     const [step, setStep] = useState(1);
-    const form = useForm({ email: '', code: '', first_name: '', last_name: '', password: '', password_confirmation: '' });
+    const form = useForm({ email: '', code: '', first_name: '', last_name: '', password: '', password_confirmation: '', consent: true });
     const { data, setData, processing, errors } = form;
 
     const sendCode = (e: React.FormEvent) => {
@@ -32,7 +33,7 @@ export default function GetStarted() {
                 <div className="relative hidden overflow-hidden bg-foreground p-12 text-background lg:flex lg:flex-col">
                     <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full opacity-40 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
                     <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 size-96 rounded-full opacity-30 blur-3xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
-                    <Link href="/" className="relative" aria-label="DropRSVP home"><Wordmark className="h-9" onDark /></Link>
+                    <Link href="/" className="relative" aria-label="DropRSVP home"><Wordmark height={authH} onDark /></Link>
                     <div className="relative mt-auto max-w-md">
                         <h1 className="text-4xl font-bold leading-tight tracking-tight">Start selling tickets in minutes.</h1>
                         <p className="mt-4 text-background/70">Create events, manage seating, take payments and check guests in — all in one place.</p>
@@ -47,7 +48,7 @@ export default function GetStarted() {
                 {/* Form panel */}
                 <div className="flex flex-col px-6 py-8 sm:px-10">
                     <div className="flex items-center justify-between">
-                        <Link href="/" className="lg:hidden" aria-label="DropRSVP home"><Wordmark className="h-8" /></Link>
+                        <Link href="/" className="lg:hidden" aria-label="DropRSVP home"><Wordmark height={authH} /></Link>
                         <span className="ml-auto text-sm text-muted-foreground">Have an account? <Link href="/login" className="font-medium text-foreground underline underline-offset-4">Log in</Link></span>
                     </div>
 
@@ -123,7 +124,12 @@ export default function GetStarted() {
                                     <Label htmlFor="password_confirmation">Confirm password</Label>
                                     <input id="password_confirmation" type="password" autoComplete="new-password" className={field} value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} />
                                 </div>
-                                <Button type="submit" size="lg" className="h-12" disabled={processing}>Create account</Button>
+                                <label className="flex items-start gap-3 rounded-xl border border-input p-3 text-sm">
+                                    <input type="checkbox" checked={data.consent} onChange={(e) => setData('consent', e.target.checked)} className="mt-0.5 size-4 shrink-0 rounded border-input" />
+                                    <span className="text-muted-foreground">By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.</span>
+                                </label>
+                                {errors.consent && <p className="text-xs text-destructive">{errors.consent}</p>}
+                                <Button type="submit" size="lg" className="h-12" disabled={processing || !data.consent}>Create account</Button>
                             </form>
                         )}
                     </div>

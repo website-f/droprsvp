@@ -24,6 +24,16 @@ class RegistrationTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_registration_requires_consent()
+    {
+        $this->post(route('register.store'), [
+            'name' => 'No Consent', 'email' => 'noconsent@example.com',
+            'password' => 'password', 'password_confirmation' => 'password',
+        ])->assertSessionHasErrors('consent');
+
+        $this->assertGuest();
+    }
+
     public function test_new_users_can_register()
     {
         $response = $this->post(route('register.store'), [
@@ -31,6 +41,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'consent' => true,
         ]);
 
         $this->assertAuthenticated();

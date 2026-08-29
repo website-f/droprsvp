@@ -94,7 +94,8 @@ class OrganizerSignupController extends Controller
             'first_name' => ['required', 'string', 'max:60'],
             'last_name' => ['required', 'string', 'max:60'],
             'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
+            'consent' => ['accepted'],
+        ], ['consent.accepted' => 'Please agree to the terms to continue.']);
 
         if (User::where('email', $verified)->exists()) {
             throw ValidationException::withMessages(['email' => 'An account with this email already exists.']);

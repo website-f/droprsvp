@@ -8,7 +8,7 @@ import { uploadImage } from '@/lib/upload';
 
 interface Branding {
     logo_full: string; logo_mark: string;
-    header_height: number; sidebar_height: number; footer_height: number; invert_dark: boolean;
+    header_height: number; sidebar_height: number; footer_height: number; auth_height: number; invert_dark: boolean;
 }
 
 const DEFAULTS = { logo_full: '/logo-full.png', logo_mark: '/logo-mark.png' };
@@ -130,10 +130,11 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
 
                 <div className="mt-4 rounded-2xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold">Size &amp; appearance</h2>
-                    <div className="grid gap-6 sm:grid-cols-3">
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                         <SizeRow label="Header logo" hint="Public site top bar." value={data.header_height} min={24} max={80} onChange={(v) => setData('header_height', v)} />
                         <SizeRow label="Sidebar logo" hint="Dashboard sidebar." value={data.sidebar_height} min={24} max={72} onChange={(v) => setData('sidebar_height', v)} />
                         <SizeRow label="Footer logo" hint="Site footer." value={data.footer_height} min={20} max={64} onChange={(v) => setData('footer_height', v)} />
+                        <SizeRow label="Auth &amp; checkout" hint="Sign-up, login &amp; checkout." value={data.auth_height} min={20} max={56} onChange={(v) => setData('auth_height', v)} />
                     </div>
                     <label className="mt-6 flex items-start gap-2.5 rounded-lg border border-border p-3 text-sm">
                         <input type="checkbox" className="mt-0.5 size-4 rounded border-input" checked={data.invert_dark} onChange={(e) => setData('invert_dark', e.target.checked)} />

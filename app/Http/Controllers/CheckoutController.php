@@ -45,6 +45,7 @@ class CheckoutController extends Controller
 
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
+            'required' => \App\Http\Controllers\Admin\SettingsController::checkoutRequired(),
         ]);
     }
 
@@ -53,18 +54,25 @@ class CheckoutController extends Controller
     {
         abort_unless($order->status === 'pending', 410);
 
+        // Which fields the superadmin marked required (name + email always are).
+        $req = \App\Http\Controllers\Admin\SettingsController::checkoutRequired();
+        $need = fn (string $field) => $req[$field] ? 'required' : 'nullable';
+
         $data = $request->validate([
             'buyer_name' => ['required', 'string', 'max:120'],
             'buyer_email' => ['required', 'email', 'max:180'],
-            'buyer_phone' => ['nullable', 'string', 'max:40'],
-            // Optional demographics — power the organizer's audience analytics.
-            'buyer_gender' => ['nullable', 'in:female,male,other,na'],
-            'buyer_age_band' => ['nullable', 'in:under-18,18-24,25-34,35-44,45-54,55+'],
-            'buyer_city' => ['nullable', 'string', 'max:80'],
-            'buyer_source' => ['nullable', 'in:instagram,facebook,tiktok,friend,search,email,other'],
+            'buyer_phone' => [$need('phone'), 'string', 'max:40'],
+            // Demographics — power the organizer's audience analytics.
+            'buyer_gender' => [$need('gender'), 'in:female,male,other,na'],
+            'buyer_age_band' => [$need('age_band'), 'in:under-18,18-24,25-34,35-44,45-54,55+'],
+            'buyer_city' => [$need('city'), 'string', 'max:80'],
+            'buyer_source' => [$need('source'), 'in:instagram,facebook,tiktok,friend,search,email,other'],
             // Free-text notes / remarks for the organizer (dietary needs, questions…).
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+            'notes' => [$need('notes'), 'string', 'max:1000'],
+            // Consent to use their details for the RSVP + updates.
+            'consent' => ['accepted'],
+        ], ['consent.accepted' => 'Please agree to the terms to continue.']);
+        unset($data['consent']);
         $order->update($data);
 
         // Free order → settle immediately, no gateway.

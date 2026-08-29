@@ -13,7 +13,7 @@ interface OrderView {
 
 export default function CheckoutConfirmation({ order }: { order: OrderView }) {
     const paid = order.status === 'paid';
-    const { auth } = usePage().props;
+    const { auth, branding } = usePage().props;
 
     return (
         <>
@@ -21,7 +21,7 @@ export default function CheckoutConfirmation({ order }: { order: OrderView }) {
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
                     <div className="mx-auto max-w-2xl px-6 py-4">
-                        <Link href="/" aria-label="DropRSVP home"><Wordmark className="h-8" /></Link>
+                        <Link href="/" aria-label="DropRSVP home"><Wordmark height={branding?.auth_height ?? 32} /></Link>
                     </div>
                 </header>
 

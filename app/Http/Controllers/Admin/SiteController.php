@@ -81,6 +81,7 @@ class SiteController extends Controller
             'header_height' => ['required', 'integer', 'min:20', 'max:96'],
             'sidebar_height' => ['required', 'integer', 'min:20', 'max:80'],
             'footer_height' => ['required', 'integer', 'min:16', 'max:80'],
+            'auth_height' => ['required', 'integer', 'min:16', 'max:72'],
             'invert_dark' => ['boolean'],
         ]);
 

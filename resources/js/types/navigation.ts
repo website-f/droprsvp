@@ -31,5 +31,6 @@ export type Branding = {
     header_height: number;
     sidebar_height: number;
     footer_height: number;
+    auth_height: number;
     invert_dark: boolean;
 };

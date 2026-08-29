@@ -45,6 +45,7 @@ class OrganizerSignupTest extends TestCase
         $this->post('/get-started/complete', [
             'first_name' => 'Ann', 'last_name' => 'Lee',
             'password' => 'secret-pass-123', 'password_confirmation' => 'secret-pass-123',
+            'consent' => true,
         ])->assertRedirect(route('organizer.welcome'));
 
         $this->assertAuthenticated();
@@ -69,6 +70,7 @@ class OrganizerSignupTest extends TestCase
         $this->post(route('register.store'), [
             'name' => 'Free User', 'email' => 'free@example.com',
             'password' => 'password', 'password_confirmation' => 'password',
+            'consent' => true,
         ])->assertRedirect(route('dashboard', absolute: false));
 
         $user = User::where('email', 'free@example.com')->firstOrFail();
