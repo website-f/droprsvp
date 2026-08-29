@@ -49,6 +49,19 @@ class EventCategoryTest extends TestCase
             ->assertInertia(fn (Assert $p) => $p->component('admin/categories/index')->has('categories', 1));
     }
 
+    public function test_browse_seo_and_category_content_render_on_the_discover_page(): void
+    {
+        $this->actingAs($this->superadmin())
+            ->post('/admin/categories/browse-seo', ['title' => 'All Events in Malaysia', 'description' => 'Find events near you.'])
+            ->assertRedirect();
+        EventCategory::create(['name' => 'Music', 'slug' => 'music', 'sort_order' => 1, 'content' => 'The best music events across Malaysia.']);
+
+        $this->get('/en-my/all')->assertInertia(fn (Assert $p) => $p
+            ->where('seo.title', 'All Events in Malaysia')
+            ->has('categoryContent', 1)
+            ->where('categoryContent.0.content', 'The best music events across Malaysia.'));
+    }
+
     public function test_a_non_superadmin_cannot_manage_categories(): void
     {
         $this->actingAs(User::factory()->create())->get('/admin/categories')->assertForbidden();

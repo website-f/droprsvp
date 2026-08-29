@@ -47,6 +47,14 @@ class SiteContent
         return array_replace($defaults, $saved);
     }
 
+    /** Superadmin-editable SEO for the /en-my/all browse page (blank → computed default). */
+    public static function discoverSeo(): array
+    {
+        $saved = array_filter(Setting::getArray('discover_seo', []), fn ($v) => filled($v));
+
+        return array_replace(['title' => '', 'description' => ''], $saved);
+    }
+
     /**
      * Footer content as a Puck-shaped document (cached — shared on every page).
      * Rendered by a plain (no-Puck) renderer on the public side; authored via a

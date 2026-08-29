@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\EventCategory;
+use App\Models\Setting;
+use App\Support\SiteContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -20,8 +22,23 @@ class EventCategoryController extends Controller
                     'slug' => $c->slug,
                     'sort_order' => $c->sort_order,
                     'events_count' => $c->events_count,
+                    'content' => $c->content,
                 ]),
+            'browseSeo' => SiteContent::discoverSeo(),
         ]);
+    }
+
+    /** SEO title + description for the /en-my/all browse page. */
+    public function saveBrowseSeo(Request $request)
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:70'],
+            'description' => ['nullable', 'string', 'max:320'],
+        ]);
+
+        Setting::putArray('discover_seo', $data);
+
+        return back()->with('success', 'Browse page SEO saved.');
     }
 
     public function store(Request $request)
@@ -43,12 +60,14 @@ class EventCategoryController extends Controller
             'name' => ['required', 'string', 'max:60'],
             'slug' => ['nullable', 'string', 'max:60', Rule::unique('event_categories', 'slug')->ignore($category->id)],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'content' => ['nullable', 'string', 'max:8000'],
         ]);
 
         $category->update([
             'name' => $data['name'],
             'slug' => Str::slug($data['slug'] ?? $data['name']) ?: $category->slug,
             'sort_order' => $data['sort_order'] ?? $category->sort_order,
+            'content' => $data['content'] ?? null,
         ]);
 
         return back()->with('success', 'Category updated.');

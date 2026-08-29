@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDays, MapPin, Rocket, Star } from 'lucide-react';
+import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { SearchAutocomplete } from '@/components/search-autocomplete';
 import { AppSelect } from '@/components/ui/app-select';
@@ -14,7 +15,26 @@ interface Paginated { data: Card[]; prev_page_url: string | null; next_page_url:
 interface Category { name: string; slug: string }
 interface City { name: string; slug: string }
 interface Active { city: string | null; city_name: string | null; category: string | null; category_name: string | null }
+interface CategoryContent { name: string; content: string }
 interface Seo { title: string }
+
+/** SEO copy block shown at the bottom of the page, truncated with a See more toggle. */
+function ContentBlock({ name, content }: CategoryContent) {
+    const [open, setOpen] = useState(false);
+    const long = content.length > 320;
+
+    return (
+        <div className="rounded-2xl border border-border bg-card p-5">
+            <h3 className="mb-2 font-semibold">{name}</h3>
+            <p className={`whitespace-pre-line text-sm leading-relaxed text-muted-foreground ${!open && long ? 'line-clamp-4' : ''}`}>{content}</p>
+            {long && (
+                <button type="button" onClick={() => setOpen((v) => !v)} className="mt-2 text-sm font-medium text-foreground underline underline-offset-4">
+                    {open ? 'See less' : 'See more'}
+                </button>
+            )}
+        </div>
+    );
+}
 
 const LOCALE = 'en-my';
 const ANY = 'all';
@@ -46,7 +66,7 @@ return 'Free';
     return '';
 }
 
-export default function Discover({ events, categories, cities, active, filters, seo }: { events: Paginated; categories: Category[]; cities: City[]; active: Active; filters: { q: string; when: string }; seo: Seo }) {
+export default function Discover({ events, categories, cities, active, filters, seo, categoryContent = [] }: { events: Paginated; categories: Category[]; cities: City[]; active: Active; filters: { q: string; when: string }; seo: Seo; categoryContent?: CategoryContent[] }) {
     const goto = (path: string, keepQuery = true) =>
         router.get(path, keepQuery && filters.q ? { q: filters.q } : {}, { preserveScroll: true });
 
@@ -141,6 +161,13 @@ export default function Discover({ events, categories, cities, active, filters, 
                         <div className="mt-10 flex justify-between">
                             <Button asChild variant="outline" disabled={!events.prev_page_url}>{events.prev_page_url ? <Link href={events.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
                             <Button asChild variant="outline" disabled={!events.next_page_url}>{events.next_page_url ? <Link href={events.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
+                        </div>
+                    )}
+
+                    {/* Admin-authored SEO content, per category */}
+                    {categoryContent.length > 0 && (
+                        <div className="mt-14 grid gap-4 border-t border-border pt-10">
+                            {categoryContent.map((c) => <ContentBlock key={c.name} name={c.name} content={c.content} />)}
                         </div>
                     )}
                 </main>

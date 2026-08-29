@@ -230,6 +230,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Event categories (used across discovery + event creation).
         Route::get('categories', [EventCategoryController::class, 'index'])->name('categories.index');
         Route::post('categories', [EventCategoryController::class, 'store'])->name('categories.store');
+        Route::post('categories/browse-seo', [EventCategoryController::class, 'saveBrowseSeo'])->name('categories.browse-seo');
         Route::put('categories/{category}', [EventCategoryController::class, 'update'])->name('categories.update');
         Route::delete('categories/{category}', [EventCategoryController::class, 'destroy'])->name('categories.destroy');
 

@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventCategory;
 use App\Support\Cities;
 use App\Support\SeoManager;
+use App\Support\SiteContent;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -73,9 +74,15 @@ class DiscoverController extends Controller
         $title = $this->heading($catName, $cityName, $q);
         $canonical = $this->pathUrl($cityName ? $citySlug : null, $categoryModel?->slug);
 
+        // The bare "all events" page has admin-editable SEO title + description.
+        $isBase = ! $categoryModel && ! $cityName && $q === '';
+        $discoverSeo = SiteContent::discoverSeo();
+        $title = ($isBase && $discoverSeo['title'] !== '') ? $discoverSeo['title'] : $title;
+        $description = ($isBase && $discoverSeo['description'] !== '') ? $discoverSeo['description'] : $this->metaDescription($catName, $cityName, $site);
+
         $manager = app(SeoManager::class)
             ->title($title)
-            ->description($this->metaDescription($catName, $cityName, $site))
+            ->description($description)
             ->canonical($canonical)
             ->type('website')
             ->schema([
@@ -113,6 +120,11 @@ class DiscoverController extends Controller
             ],
             'filters' => ['q' => $q, 'when' => $when],
             'seo' => ['title' => $title],
+            // SEO copy shown (truncated, "see more") at the bottom of the page.
+            'categoryContent' => $categoryModel
+                ? ($categoryModel->content ? [['name' => $categoryModel->name, 'content' => $categoryModel->content]] : [])
+                : EventCategory::whereNotNull('content')->where('content', '!=', '')->orderBy('sort_order')->orderBy('name')
+                    ->get(['name', 'content'])->map(fn ($c) => ['name' => $c->name, 'content' => $c->content])->all(),
         ]);
     }
 
