@@ -35,7 +35,7 @@ class ServerSeoTest extends TestCase
 
     public function test_home_emits_website_and_organization_structured_data(): void
     {
-        $res = $this->get('/')->assertOk();
+        $res = $this->get('/en-my')->assertOk();
         $res->assertSee('"@type":"WebSite"', false);
         $res->assertSee('"@type":"Organization"', false);
         $res->assertSee('SearchAction', false);            // sitelinks search box
@@ -45,7 +45,7 @@ class ServerSeoTest extends TestCase
 
     public function test_pages_without_an_image_get_the_default_og_image_and_org_logo(): void
     {
-        $res = $this->get('/')->assertOk();
+        $res = $this->get('/en-my')->assertOk();
         $res->assertSee(url('/og-default.png'), false);  // default share image
         $res->assertSee(url('/logo-mark.png'), false);   // Organization logo in JSON-LD
     }
@@ -57,7 +57,7 @@ class ServerSeoTest extends TestCase
         $res = $this->get('/e/'.$event->slug)->assertOk();
         $res->assertSee('<title>Neon Nights', false);
         $res->assertSee('<meta name="description" content="Four acts under the stars."', false);
-        $res->assertSee('<link rel="canonical" href="'.url('/e/'.$event->slug).'">', false);
+        $res->assertSee('<link rel="canonical" href="'.url('/en-my/e/'.$event->slug).'">', false);
         $res->assertSee('max-image-preview:large', false);                    // indexable, rich
         $res->assertSee('<meta property="og:image" content="https://img.test/cover.jpg">', false);
         $res->assertSee('"@type":"Event"', false);                            // Event schema

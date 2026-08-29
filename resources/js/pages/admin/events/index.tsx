@@ -44,7 +44,7 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <Button asChild variant="outline" size="sm"><Link href={`/admin/all-events/${e.slug}`}>Manage</Link></Button>
-                                            {e.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/e/${e.slug}`} target="_blank" rel="noreferrer" aria-label="View live"><ExternalLink className="size-3.5" /></a></Button>}
+                                            {e.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/en-my/e/${e.slug}`} target="_blank" rel="noreferrer" aria-label="View live"><ExternalLink className="size-3.5" /></a></Button>}
                                         </div>
                                     </td>
                                 </tr>

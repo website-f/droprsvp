@@ -58,7 +58,7 @@ class MenuTest extends TestCase
         MenuItem::create(['location' => 'header', 'label' => 'Blog', 'url' => '/blog', 'sort' => 2]);
         MenuItem::create(['location' => 'header', 'label' => 'Home', 'url' => '/', 'sort' => 1]);
 
-        $this->get('/')->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my')->assertInertia(fn (Assert $p) => $p
             ->component('welcome')
             ->has('nav', 2)
             ->where('nav.0.label', 'Home')   // ordered by sort

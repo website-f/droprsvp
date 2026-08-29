@@ -26,10 +26,10 @@ class SeoAndMediaTest extends TestCase
 
         $res = $this->get('/sitemap.xml')->assertOk();
         $this->assertStringContainsString('application/xml', $res->headers->get('Content-Type'));
-        $res->assertSee(url('/e/pub-ev'), false)
+        $res->assertSee(url('/en-my/e/pub-ev'), false)
             ->assertSee(url('/about'), false)
             ->assertSee(url('/blog/hello'), false)
-            ->assertDontSee(url('/e/draft-ev'), false);
+            ->assertDontSee(url('/en-my/e/draft-ev'), false);
     }
 
     public function test_robots_points_to_the_sitemap(): void

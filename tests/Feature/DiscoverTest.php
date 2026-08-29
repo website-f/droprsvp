@@ -31,7 +31,7 @@ class DiscoverTest extends TestCase
         $this->makeEvent('Private Party', ['visibility' => 'private', 'slug' => 'private-party']);
         $this->makeEvent('Past Show', ['starts_at' => now()->subDays(3), 'slug' => 'past-show']);
 
-        $this->get('/en-my')
+        $this->get('/en-my/all')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p
                 ->component('public/events/index')
@@ -39,9 +39,15 @@ class DiscoverTest extends TestCase
                 ->where('events.data.0.title', 'Jazz Night'));
     }
 
+    public function test_locale_root_is_the_home_landing(): void
+    {
+        $this->get('/en-my')->assertOk()->assertInertia(fn (Assert $p) => $p->component('welcome'));
+        $this->get('/')->assertRedirect('/en-my');
+    }
+
     public function test_legacy_events_url_redirects_to_locale_path(): void
     {
-        $this->get('/events')->assertRedirect('/en-my');
+        $this->get('/events')->assertRedirect('/en-my/all');
         $this->get('/events?category=music')->assertRedirect('/en-my/all/music');
     }
 
@@ -50,7 +56,7 @@ class DiscoverTest extends TestCase
         $this->makeEvent('Jazz Night');
         $this->makeEvent('Rock Fest', ['slug' => 'rock-fest']);
 
-        $this->get('/en-my?q=jazz')
+        $this->get('/en-my/all?q=jazz')
             ->assertInertia(fn (Assert $p) => $p->has('events.data', 1)->where('events.data.0.title', 'Jazz Night'));
     }
 

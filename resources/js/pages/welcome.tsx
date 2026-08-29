@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowRight, CalendarDays, Search, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, CalendarDays, MapPin, Search, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
@@ -42,7 +42,7 @@ interface Organizer { name: string; events_count: number; next_slug: string | nu
 interface LandingSections {
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
-    nearby_cities: { enabled: boolean; heading: string; cities: string[] };
+    nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; lat: number | null; lng: number | null }> };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
 }
 
@@ -63,6 +63,44 @@ export default function Welcome() {
     const eventTime = sections?.event_time;
     const nearby = sections?.nearby_cities;
     const featuredOrgs = sections?.featured_organizers;
+
+    // Ask for the visitor's location (once) so nearby cities can show distance.
+    const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+    useEffect(() => {
+        if (!nearby?.enabled || typeof navigator === 'undefined' || !navigator.geolocation) {
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => {},
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
+        );
+    }, [nearby?.enabled]);
+
+    const nearbyCities = useMemo(() => {
+        const list = (nearby?.cities ?? []).filter((c) => c && c.name);
+
+        if (!geo) {
+            return list.map((c) => ({ ...c, km: null as number | null }));
+        }
+
+        const R = 6371;
+        const toRad = (d: number) => (d * Math.PI) / 180;
+        const withKm = list.map((c) => {
+            if (c.lat == null || c.lng == null) {
+                return { ...c, km: null as number | null };
+            }
+
+            const dLat = toRad(c.lat - geo.lat);
+            const dLng = toRad(c.lng - geo.lng);
+            const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(geo.lat)) * Math.cos(toRad(c.lat)) * Math.sin(dLng / 2) ** 2;
+
+            return { ...c, km: 2 * R * Math.asin(Math.sqrt(s)) };
+        });
+
+        return withKm.sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9));
+    }, [nearby?.cities, geo]);
 
     return (
         <>
@@ -92,7 +130,7 @@ export default function Welcome() {
                         {/* Search — big, tappable, and never zooms on iOS (16px input) */}
                         <form
                             onSubmit={(e) => {
- e.preventDefault(); router.get('/en-my', q ? { q } : {}); 
+ e.preventDefault(); router.get('/en-my/all', q ? { q } : {}); 
 }}
                             className="mx-auto mt-9 flex w-full max-w-2xl flex-col gap-3 sm:flex-row"
                         >
@@ -135,7 +173,7 @@ export default function Welcome() {
                                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Browse by category</h2>
                                 <p className="mt-1.5 text-sm text-muted-foreground">Pick a vibe — we’ll show you what’s on.</p>
                             </div>
-                            <Link href="/en-my" className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
+                            <Link href="/en-my/all" className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
                                 All events <ArrowRight className="size-4" />
                             </Link>
                         </Reveal>
@@ -144,13 +182,16 @@ export default function Welcome() {
                 )}
 
                 {/* ---------------------------------------------- Nearby cities */}
-                {nearby?.enabled && nearby.cities.length > 0 && (
+                {nearby?.enabled && nearbyCities.length > 0 && (
                     <section className="mx-auto w-full max-w-6xl px-6 py-4">
                         <Reveal>
                             <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">{nearby.heading}</h2>
                             <div className="flex flex-wrap gap-2.5">
-                                {nearby.cities.filter(Boolean).map((c) => (
-                                    <Link key={c} href={`/en-my/${citySlug(c)}`} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">{c}</Link>
+                                {nearbyCities.map((c) => (
+                                    <Link key={c.name} href={`/en-my/${c.slug ?? citySlug(c.name)}`} className="rounded-xl border border-border bg-card px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">
+                                        <span className="block text-sm font-medium">{c.name}</span>
+                                        {c.km != null && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="size-3" /> {c.km < 1 ? 'under 1 km away' : `~${Math.round(c.km)} km away`}</span>}
+                                    </Link>
                                 ))}
                             </div>
                         </Reveal>
@@ -167,14 +208,14 @@ export default function Welcome() {
                                     <p className="mt-1.5 text-sm text-muted-foreground">Hand-picked events worth showing up for.</p>
                                 </div>
                                 <Button asChild variant="outline" className="hidden shrink-0 sm:inline-flex">
-                                    <Link href="/en-my">See all</Link>
+                                    <Link href="/en-my/all">See all</Link>
                                 </Button>
                             </Reveal>
 
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 {featured.map((e, i) => (
                                     <Reveal key={e.slug} delay={i * 80}>
-                                        <Link href={`/e/${e.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                                        <Link href={`/en-my/e/${e.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                                             <div className="aspect-[16/10] overflow-hidden bg-muted">
                                                 {e.cover_image
                                                     ? <img src={e.cover_image} alt={e.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -209,7 +250,7 @@ export default function Welcome() {
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                             {organizers.map((o, i) => {
                                 const tint = AVATAR_TINTS[i % AVATAR_TINTS.length];
-                                const href = o.next_slug ? `/e/${o.next_slug}` : '/en-my';
+                                const href = o.next_slug ? `/en-my/e/${o.next_slug}` : '/en-my/all';
 
                                 return (
                                     <Reveal key={o.name + i} delay={i * 60}>
@@ -254,7 +295,7 @@ export default function Welcome() {
                                     </span>
                                 ))}
                             </div>
-                            <Button asChild className="mt-8"><Link href="/en-my">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
+                            <Button asChild className="mt-8"><Link href="/en-my/all">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
                         </Reveal>
                         <Reveal delay={120} className="order-1 lg:order-2">
                             <div className="relative mx-auto max-w-lg">
@@ -309,7 +350,7 @@ export default function Welcome() {
                                             <Link href={signedIn ? dashboard() : (org?.cta_url || '/get-started')}>{org?.cta_label || 'Create an event'}</Link>
                                         </Button>
                                         <Button asChild size="lg" variant="ghost" className="h-12 px-8 text-background hover:bg-background/10 hover:text-background">
-                                            <Link href="/en-my">Browse events</Link>
+                                            <Link href="/en-my/all">Browse events</Link>
                                         </Button>
                                     </div>
                                 </div>

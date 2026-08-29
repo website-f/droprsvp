@@ -36,11 +36,11 @@ class SiteSettingsTest extends TestCase
             'nearby_cities' => ['enabled' => true, 'heading' => 'Near', 'cities' => ['Penang']],
         ])->assertRedirect();
 
-        $this->get('/')->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my')->assertInertia(fn (Assert $p) => $p
             ->component('welcome')
             ->where('sections.organizer.enabled', false)
             ->where('sections.event_time.enabled', true)
-            ->where('sections.nearby_cities.cities.0', 'Penang'));
+            ->where('sections.nearby_cities.cities.0.name', 'Penang'));
     }
 
     public function test_footer_saves_as_puck_data_and_is_shared_site_wide(): void
@@ -51,7 +51,7 @@ class SiteSettingsTest extends TestCase
 
         $this->actingAs($this->superadmin())->post(route('admin.site.footer.save'), ['data' => $data])->assertRedirect();
 
-        $this->get('/')->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my')->assertInertia(fn (Assert $p) => $p
             ->where('footer.content.0.type', 'Footer')
             ->where('footer.content.0.props.columns.0.title', 'Discover'));
     }
@@ -70,7 +70,7 @@ class SiteSettingsTest extends TestCase
         ])->assertRedirect();
 
         // Server-rendered into the <head> (no JS needed).
-        $this->get('/')
+        $this->get('/en-my')
             ->assertSee('<title>Custom Home Title</title>', false)
             ->assertSee('<meta name="description" content="Custom home description for search.">', false)
             ->assertSee('<meta name="keywords" content="events, tickets, kl">', false);
@@ -83,7 +83,7 @@ class SiteSettingsTest extends TestCase
         ])->assertRedirect();
 
         // A cleared title must not produce an empty <title>.
-        $this->get('/')->assertDontSee('<title></title>', false);
+        $this->get('/en-my')->assertDontSee('<title></title>', false);
     }
 
     public function test_discover_when_filter_limits_by_date(): void
@@ -92,7 +92,7 @@ class SiteSettingsTest extends TestCase
         $today = \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Today Ev', 'slug' => 'today-ev', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addHours(2)]);
         \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Next Month', 'slug' => 'next-month', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addMonths(1)->addDays(2)]);
 
-        $this->get('/en-my?when=today')->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my/all?when=today')->assertInertia(fn (Assert $p) => $p
             ->component('public/events/index')
             ->has('events.data', 1)
             ->where('events.data.0.slug', 'today-ev'));

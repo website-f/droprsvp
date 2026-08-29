@@ -73,7 +73,7 @@ export default function CheckoutConfirmation({ order }: { order: OrderView }) {
 
                     <div className="mt-8 flex justify-center gap-3">
                         {auth?.user && <Button asChild><Link href="/my/tickets">My tickets</Link></Button>}
-                        <Button asChild variant="outline"><Link href={`/e/${order.event.slug}`}>Back to event</Link></Button>
+                        <Button asChild variant="outline"><Link href={`/en-my/e/${order.event.slug}`}>Back to event</Link></Button>
                     </div>
                 </main>
             </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\User;
+use App\Support\Cities;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use Inertia\Inertia;
@@ -29,7 +30,7 @@ class HomeController extends Controller
             ->title($home['title'], false)
             ->description($home['description'])
             ->keywords($home['keywords'] ?: null)
-            ->canonical(url('/'))
+            ->canonical(url('/en-my'))
             ->type('website')
             ->schema([
                 '@type' => 'ItemList',
@@ -37,15 +38,24 @@ class HomeController extends Controller
                 'itemListElement' => $featured->map(fn ($e, $i) => [
                     '@type' => 'ListItem',
                     'position' => $i + 1,
-                    'url' => url('/e/'.$e['slug']),
+                    'url' => url('/en-my/e/'.$e['slug']),
                     'name' => $e['title'],
                 ])->all(),
             ]);
 
+        // Enrich the nearby-cities section with coordinates so the client can show
+        // "~N km away" from the visitor's location.
+        $sections = SiteContent::landing();
+        if (! empty($sections['nearby_cities']['cities'])) {
+            $sections['nearby_cities']['cities'] = collect($sections['nearby_cities']['cities'])
+                ->map(fn ($name) => ['name' => $name, 'slug' => Cities::slugForName($name), ...(Cities::coordsForName($name) ?? ['lat' => null, 'lng' => null])])
+                ->all();
+        }
+
         return Inertia::render('welcome', [
             'featured' => $featured,
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug']),
-            'sections' => SiteContent::landing(),
+            'sections' => $sections,
             'organizers' => $this->featuredOrganizers(),
         ]);
     }

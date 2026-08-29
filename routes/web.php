@@ -41,18 +41,22 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [HomeController::class, 'index'])->name('home');
+// Everything lives under a locale prefix (/en-my) so more locales (/en-sg, …)
+// can be added later. The bare root just redirects to the default locale home.
+Route::get('/', fn () => redirect('/en-my'))->name('home');
 
-// Public event discovery / marketplace (SEO). Legacy /events?… → 301 to the
-// canonical locale path (/en-my/…).
+// Public, server-rendered event page (SEO) — canonical is locale-prefixed;
+// the old /e/{slug} keeps working as an alias so existing links don't break.
+// Declared before the {locale}/{city}/{category} discovery routes so it wins.
+Route::get('en-my/e/{event}', [PublicEventController::class, 'show'])->name('events.show');
+Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show.legacy');
+
+// Legacy /events?… → 301 to the canonical locale path (/en-my/all…).
 Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('events.browse');
 
-// Public, server-rendered event page (SEO).
-Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
-
-// SEO-friendly discovery paths: /en-my, /en-my/{city}, /en-my/{city}/{category}.
-// The locale constraint keeps these from swallowing CMS slugs / other routes.
-Route::get('{locale}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover');
+// Locale home = the marketing landing. Browse/discovery lives one level deeper:
+// /en-my/all, /en-my/{city}, /en-my/all/{category}, /en-my/{city}/{category}.
+Route::get('en-my', [HomeController::class, 'index'])->name('home.locale');
 Route::get('{locale}/{city}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover.city');
 Route::get('{locale}/{city}/{category}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover.city.category');
 

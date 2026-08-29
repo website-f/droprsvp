@@ -28,7 +28,7 @@ class EventController extends Controller
 
         $description = $this->metaDescription($event);
         $cover = $event->cover_image ? $this->absolute($event->cover_image) : null;
-        $canonical = url("/e/{$event->slug}");
+        $canonical = url("/en-my/e/{$event->slug}");
         $organizer = $event->user?->name ?? 'DropRSVP';
         $seo = $event->seo;
         $isPublic = $event->status === 'published' && in_array($event->visibility, ['public', 'unlisted'], true);
@@ -51,8 +51,8 @@ class EventController extends Controller
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
             ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount))
             ->breadcrumb([
-                ['name' => 'Home', 'url' => url('/')],
-                ['name' => 'Events', 'url' => url('/events')],
+                ['name' => 'Home', 'url' => url('/en-my')],
+                ['name' => 'Events', 'url' => url('/en-my/all')],
                 ['name' => $event->title, 'url' => $canonical],
             ]);
         // Draft / owner-preview pages must never be indexed.

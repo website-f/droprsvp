@@ -131,7 +131,10 @@ class DiscoverController extends Controller
         return redirect($url.($qs ? '?'.http_build_query($qs) : ''), 301);
     }
 
-    /** Build a discovery path URL, omitting the city slot only when no category is present. */
+    /**
+     * Build a discovery path URL. The bare locale (/en-my) is the marketing home,
+     * so "all events" lives at /en-my/all.
+     */
     private function pathUrl(?string $citySlug, ?string $catSlug): string
     {
         $segments = [self::LOCALE];
@@ -140,6 +143,8 @@ class DiscoverController extends Controller
             $segments[] = $catSlug;
         } elseif ($citySlug) {
             $segments[] = $citySlug;
+        } else {
+            $segments[] = Cities::ANY; // /en-my/all = browse everything
         }
 
         return url('/'.implode('/', $segments));

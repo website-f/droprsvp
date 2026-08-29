@@ -148,7 +148,7 @@ class SiteContent
                     'ctaUrl' => '/get-started',
                     'columns' => [
                         ['title' => 'Discover', 'links' => [
-                            ['label' => 'Browse events', 'url' => '/en-my'],
+                            ['label' => 'Browse events', 'url' => '/en-my/all'],
                             ['label' => 'Blog', 'url' => '/blog'],
                             ['label' => 'Help center', 'url' => '/help'],
                         ]],

@@ -13,7 +13,7 @@ type FooterProps = {
 };
 
 const DEFAULT_COLUMNS = [
-    { title: 'Discover', links: [{ label: 'Browse events', url: '/en-my' }, { label: 'Blog', url: '/blog' }, { label: 'Help center', url: '/help' }] },
+    { title: 'Discover', links: [{ label: 'Browse events', url: '/en-my/all' }, { label: 'Blog', url: '/blog' }, { label: 'Help center', url: '/help' }] },
     { title: 'For hosts', links: [{ label: 'Create an event', url: '/get-started' }, { label: 'My tickets', url: '/my/tickets' }, { label: 'Log in', url: '/login' }] },
 ];
 

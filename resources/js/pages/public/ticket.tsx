@@ -81,7 +81,7 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                             <Download className="size-4" /> Save / print
                         </Button>
                     )}
-                    <Link href={`/e/${ticket.event.slug}`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
+                    <Link href={`/en-my/e/${ticket.event.slug}`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
                 </div>
             </div>
         </>

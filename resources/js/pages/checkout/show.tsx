@@ -45,7 +45,7 @@ export default function CheckoutShow({ order, required }: { order: OrderView; re
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
                     <div className="mx-auto max-w-3xl px-6 py-4">
-                        <Link href={`/e/${order.event.slug}`} aria-label="DropRSVP"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
+                        <Link href={`/en-my/e/${order.event.slug}`} aria-label="DropRSVP"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
                     </div>
                 </header>
 

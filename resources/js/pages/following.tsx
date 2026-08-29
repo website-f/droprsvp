@@ -25,7 +25,7 @@ export default function Following({ organizers, upcoming }: Props) {
                     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
                         <UserRoundCheck className="size-8 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">You're not following any organizers yet.</p>
-                        <Button asChild><Link href="/en-my"><Compass className="size-4" /> Discover events</Link></Button>
+                        <Button asChild><Link href="/en-my/all"><Compass className="size-4" /> Discover events</Link></Button>
                     </div>
                 ) : (
                     <div className="grid gap-6">
@@ -54,7 +54,7 @@ export default function Following({ organizers, upcoming }: Props) {
                             ) : (
                                 <div className="grid gap-3">
                                     {upcoming.map((e) => (
-                                        <Link key={e.slug} href={`/e/${e.slug}`} className="flex items-center gap-4 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
+                                        <Link key={e.slug} href={`/en-my/e/${e.slug}`} className="flex items-center gap-4 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
                                             <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-muted">
                                                 {e.cover_image
                                                     ? <img src={e.cover_image} alt={e.title} className="size-full object-cover" />

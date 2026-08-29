@@ -17,8 +17,8 @@ class SitemapController extends Controller
     {
         $locale = 'en-my';
         $urls = [
-            ['loc' => url('/'), 'lastmod' => null, 'image' => null],
-            ['loc' => url("/{$locale}"), 'lastmod' => null, 'image' => null],
+            ['loc' => url("/{$locale}"), 'lastmod' => null, 'image' => null],          // home
+            ['loc' => url("/{$locale}/".Cities::ANY), 'lastmod' => null, 'image' => null], // browse all
             ['loc' => url('/blog'), 'lastmod' => null, 'image' => null],
         ];
 
@@ -33,7 +33,7 @@ class SitemapController extends Controller
         }
 
         foreach (Event::published()->get(['slug', 'cover_image', 'updated_at']) as $e) {
-            $urls[] = ['loc' => url('/e/'.$e->slug), 'lastmod' => $e->updated_at?->toDateString(), 'image' => $this->abs($e->cover_image)];
+            $urls[] = ['loc' => url('/en-my/e/'.$e->slug), 'lastmod' => $e->updated_at?->toDateString(), 'image' => $this->abs($e->cover_image)];
         }
         foreach (CmsPage::published()->get(['slug', 'updated_at']) as $p) {
             $urls[] = ['loc' => url('/'.$p->slug), 'lastmod' => $p->updated_at?->toDateString(), 'image' => null];

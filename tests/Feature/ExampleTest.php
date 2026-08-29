@@ -11,8 +11,8 @@ class ExampleTest extends TestCase
 
     public function test_returns_a_successful_response()
     {
-        $response = $this->get(route('home'));
-
-        $response->assertOk();
+        // Root redirects to the default locale home (/en-my).
+        $this->get(route('home'))->assertRedirect('/en-my');
+        $this->get('/en-my')->assertOk();
     }
 }

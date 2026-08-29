@@ -24,10 +24,12 @@ function pathFor(citySlug: string | null, catSlug: string | null): string {
     const segs = [LOCALE];
 
     if (catSlug) {
- segs.push(citySlug || ANY, catSlug); 
-} else if (citySlug) {
- segs.push(citySlug); 
-}
+        segs.push(citySlug || ANY, catSlug);
+    } else if (citySlug) {
+        segs.push(citySlug);
+    } else {
+        segs.push(ANY); // /en-my/all = browse everything (/en-my is the home)
+    }
 
     return '/' + segs.join('/');
 }
@@ -100,7 +102,7 @@ export default function Discover({ events, categories, cities, active, filters, 
                     ) : (
                         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {events.data.map((e) => (
-                                <Link key={e.slug} href={`/e/${e.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
+                                <Link key={e.slug} href={`/en-my/e/${e.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
                                     <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                                         {e.cover_image
                                             ? <img src={e.cover_image} alt={e.title} className="size-full object-cover" />

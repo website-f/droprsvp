@@ -54,7 +54,7 @@ class EventModerationTest extends TestCase
         $this->assertSame('Breaches content policy.', $event->cancelled_reason);
 
         // A cancelled event drops out of the public marketplace.
-        $this->get('/en-my')->assertInertia(fn (Assert $p) => $p->has('events.data', 0));
+        $this->get('/en-my/all')->assertInertia(fn (Assert $p) => $p->has('events.data', 0));
     }
 
     public function test_superadmin_can_restore_a_cancelled_event(): void

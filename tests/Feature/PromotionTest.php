@@ -65,7 +65,7 @@ class PromotionTest extends TestCase
         Event::create(['user_id' => $host->id, 'title' => 'Plain', 'slug' => 'plain', 'status' => 'published', 'published_at' => now(), 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDay()]);
         Event::create(['user_id' => $host->id, 'title' => 'Boosted', 'slug' => 'boosted-ev', 'status' => 'published', 'published_at' => now(), 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(5), 'boosted_until' => now()->addDays(3)]);
 
-        $this->get('/en-my')->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my/all')->assertInertia(fn (Assert $p) => $p
             ->where('events.data.0.title', 'Boosted')
             ->where('events.data.0.boosted', true));
     }

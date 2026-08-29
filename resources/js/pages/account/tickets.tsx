@@ -49,7 +49,7 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
                                                     {o.event
-                                                        ? <Link href={`/e/${o.event.slug}`} className="truncate text-base font-semibold hover:underline">{o.event.title}</Link>
+                                                        ? <Link href={`/en-my/e/${o.event.slug}`} className="truncate text-base font-semibold hover:underline">{o.event.title}</Link>
                                                         : <span className="text-base font-semibold text-muted-foreground">Event removed</span>}
                                                     {o.event?.when && <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground"><CalendarDays className="size-3.5" />{o.event.when}</p>}
                                                     {o.event && (o.event.is_online

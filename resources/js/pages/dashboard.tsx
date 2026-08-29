@@ -39,7 +39,7 @@ export default function Dashboard({ stats, sales_by_day, upcoming, calendar, rec
                         <h1 className="text-2xl font-bold tracking-tight">Find your next event</h1>
                         <p className="text-sm text-muted-foreground">Browse events and grab tickets — they’ll show up under My tickets, ready to re-download anytime.</p>
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                            <Button asChild><Link href="/en-my"><Compass className="size-4" /> Browse events</Link></Button>
+                            <Button asChild><Link href="/en-my/all"><Compass className="size-4" /> Browse events</Link></Button>
                             <Button asChild variant="outline"><Link href="/my/tickets"><Ticket className="size-4" /> My tickets</Link></Button>
                         </div>
                         <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm">

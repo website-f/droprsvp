@@ -56,7 +56,7 @@ return;
                     <Badge variant={statusVariant} className="capitalize">{event.status}</Badge>
                     <div className="ml-auto flex gap-2">
                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${event.slug}/edit`}><Pencil className="size-4" /> Edit event</Link></Button>
-                        <Button asChild variant="ghost" size="sm"><a href={`/e/${event.slug}`} target="_blank" rel="noreferrer"><ExternalLink className="size-4" /> View</a></Button>
+                        <Button asChild variant="ghost" size="sm"><a href={`/en-my/e/${event.slug}`} target="_blank" rel="noreferrer"><ExternalLink className="size-4" /> View</a></Button>
                     </div>
                 </div>
 
