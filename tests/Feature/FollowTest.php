@@ -31,6 +31,27 @@ class FollowTest extends TestCase
         $this->actingAs($user)->post("/organizers/{$user->id}/follow")->assertStatus(422);
     }
 
+    public function test_organizer_profile_shows_their_events(): void
+    {
+        $organizer = User::factory()->create(['name' => 'Star Org']);
+        Event::create([
+            'user_id' => $organizer->id, 'title' => 'Profile Fest', 'slug' => 'profile-fest',
+            'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addWeek(),
+        ]);
+
+        $this->get("/o/{$organizer->id}")->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
+                ->where('organizer.id', $organizer->id)
+                ->where('organizer.name', 'Star Org')
+                ->has('upcoming', 1));
+    }
+
+    public function test_a_user_with_no_events_has_no_public_profile(): void
+    {
+        $u = User::factory()->create();
+        $this->get("/o/{$u->id}")->assertNotFound();
+    }
+
     public function test_the_following_feed_lists_followed_organizers_upcoming_events(): void
     {
         $organizer = User::factory()->create(['name' => 'Cool Org']);

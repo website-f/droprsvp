@@ -158,7 +158,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                             )}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <span className="text-muted-foreground">Hosted by</span>
-                                <span className="font-medium">{event.organizer}</span>
+                                <Link href={`/o/${event.organizer_id}`} className="font-medium hover:underline">{event.organizer}</Link>
                                 {event.organizer_followers > 0 && <span className="text-xs text-muted-foreground">· {event.organizer_followers} follower{event.organizer_followers === 1 ? '' : 's'}</span>}
                                 {!viewer.is_owner && (
                                     viewer.authed ? (

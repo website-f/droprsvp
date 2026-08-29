@@ -23,6 +23,7 @@ use App\Http\Controllers\FollowController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EventCommentController;
 use App\Http\Controllers\Public\EventReviewController;
+use App\Http\Controllers\Public\OrganizerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\DiscoverController;
@@ -53,6 +54,9 @@ Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.sh
 
 // Legacy /events?… → 301 to the canonical locale path (/en-my/all…).
 Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('events.browse');
+
+// Public organizer profile (all their events + follow).
+Route::get('o/{organizer}', [OrganizerController::class, 'show'])->name('organizers.show');
 
 // Locale home = the marketing landing. Browse/discovery lives one level deeper:
 // /en-my/all, /en-my/{city}, /en-my/all/{category}, /en-my/{city}/{category}.

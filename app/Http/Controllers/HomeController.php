@@ -76,6 +76,7 @@ class HomeController extends Controller
                     ->first(['slug']);
 
                 return [
+                    'id' => $u->id,
                     'name' => $u->name,
                     'events_count' => $u->events_count,
                     'next_slug' => $next?->slug,

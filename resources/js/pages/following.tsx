@@ -37,7 +37,7 @@ export default function Following({ organizers, upcoming }: Props) {
                                     <div key={o.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                                         <span className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: TINTS[i % TINTS.length] }}>{initials(o.name)}</span>
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate font-medium">{o.name}</div>
+                                            <Link href={`/o/${o.id}`} className="truncate font-medium hover:underline">{o.name}</Link>
                                             <div className="flex items-center gap-1 text-xs text-muted-foreground"><Users className="size-3" /> {o.followers} follower{o.followers === 1 ? '' : 's'}</div>
                                         </div>
                                         <Button variant="outline" size="sm" onClick={() => unfollow(o.id)}>Following</Button>
