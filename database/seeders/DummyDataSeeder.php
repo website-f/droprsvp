@@ -61,10 +61,15 @@ class DummyDataSeeder extends Seeder
         $questions = ['Is there parking nearby?', 'Are tickets still available?', 'What time do doors open?', 'Is it kid-friendly?', 'Any student discount?'];
         $replies = ['Yes — plenty of parking next door.', 'Grab them soon, going fast!', 'Doors open at 7pm.', 'Absolutely, all ages welcome.', 'Drop us a message and we’ll sort you out.'];
 
-        // A reusable pool of fake attendees / followers.
+        // A reusable pool of fake attendees / followers (with demographics).
         $users = collect(range(1, 40))->map(fn ($i) => User::firstOrCreate(
             ['email' => "guest{$i}@showcase.test"],
-            ['name' => $name(), 'password' => bcrypt('password')],
+            [
+                'name' => $name(), 'password' => bcrypt('password'),
+                'phone' => $phone(), 'gender' => $pick($genders), 'age_band' => $pick($ages),
+                'city' => $pick($cities), 'country' => $pick(['Malaysia', 'Malaysia', 'Singapore', 'Indonesia', 'Thailand']),
+                'profile_completed_at' => now(),
+            ],
         ));
 
         foreach ($events as $event) {

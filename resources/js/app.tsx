@@ -1,7 +1,7 @@
 import { createInertiaApp } from '@inertiajs/react';
+import { ConfirmProvider } from '@/components/confirm-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ConfirmProvider } from '@/components/confirm-dialog';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
@@ -22,6 +22,7 @@ createInertiaApp({
                 return null; // WordPress-style full-screen editor (own chrome)
             case name === 'auth/get-started':
             case name === 'host/welcome':
+            case name === 'profile/about-you':
                 return null; // focused sign-up + onboarding wizard (own chrome)
             case name.startsWith('public/'):
             case name.startsWith('checkout/'):

@@ -21,6 +21,7 @@ use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\AboutYouController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EventCommentController;
@@ -112,8 +113,12 @@ Route::middleware('guest')->group(function () {
     Route::post('get-started/complete', [OrganizerSignupController::class, 'complete'])->name('organizer.complete');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Required "about you" profile for consumer accounts.
+    Route::get('profile/about-you', [AboutYouController::class, 'edit'])->name('profile.about-you');
+    Route::post('profile/about-you', [AboutYouController::class, 'update'])->name('profile.about-you.save');
 
     // Post-signup onboarding (skippable).
     Route::get('host/welcome', [OrganizerSignupController::class, 'welcome'])->name('organizer.welcome');
@@ -243,6 +248,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('all-events/{event}/cancel', [AdminEventsController::class, 'cancel'])->name('events.cancel');
         Route::post('all-events/{event}/restore', [AdminEventsController::class, 'restore'])->name('events.restore');
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('users/export', [AdminUserController::class, 'export'])->name('users.export');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');

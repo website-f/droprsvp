@@ -28,12 +28,21 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
+            // Factory users are treated as onboarded so they don't hit the
+            // "complete your profile" gate. Use ->needsProfile() to test the gate.
+            'profile_completed_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
         ];
+    }
+
+    /** A fresh consumer account that still has to fill in the "about you" profile. */
+    public function needsProfile(): static
+    {
+        return $this->state(fn () => ['profile_completed_at' => null]);
     }
 
     /**

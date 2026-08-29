@@ -4,32 +4,52 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Profile;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
-    /** Superadmin — all users, with their roles and activity. */
+    /** Superadmin — all users, filterable by role + demographics, with details. */
     public function index(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
+        $filters = $this->filters($request);
 
-        $users = User::query()
+        $users = $this->query($filters)
             ->withCount('events')
             ->with('roles:id,name')
-            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('email', 'like', "%{$q}%")))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (User $u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'email' => $u->email,
-                'roles' => $u->roles->pluck('name'),
-                'events' => $u->events_count,
-                'is_superadmin' => $u->hasRole('superadmin'),
-            ]);
+            ->through(fn (User $u) => $this->row($u));
 
-        return inertia('admin/users/index', ['users' => $users, 'filters' => ['q' => $q]]);
+        return inertia('admin/users/index', [
+            'users' => $users,
+            'filters' => $filters,
+            'countries' => User::whereNotNull('country')->distinct()->orderBy('country')->pluck('country'),
+            'ageBands' => Profile::AGE_BANDS,
+        ]);
+    }
+
+    /** Export the current filtered set as CSV. */
+    public function export(Request $request): StreamedResponse
+    {
+        $filters = $this->filters($request);
+        $users = $this->query($filters)->with('roles:id,name')->orderBy('name')->get();
+
+        return response()->streamDownload(function () use ($users) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Name', 'Email', 'Phone', 'Gender', 'Age band', 'City', 'Country', 'Roles', 'Profile complete', 'Joined']);
+            foreach ($users as $u) {
+                fputcsv($out, [
+                    $u->name, $u->email, $u->phone, $u->gender, $u->age_band, $u->city, $u->country,
+                    $u->roles->pluck('name')->join(', '),
+                    $u->profile_completed_at ? 'yes' : 'no',
+                    optional($u->created_at)->toDateString(),
+                ]);
+            }
+            fclose($out);
+        }, 'users-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);
     }
 
     /** Grant or revoke the superadmin role (can't change your own). */
@@ -42,5 +62,44 @@ class UserController extends Controller
         $user->hasRole('superadmin') ? $user->removeRole('superadmin') : $user->assignRole('superadmin');
 
         return back()->with('flash_success', "Updated {$user->name}’s access.");
+    }
+
+    /** @return array{q:string, role:string, country:string, age:string} */
+    private function filters(Request $request): array
+    {
+        return [
+            'q' => trim((string) $request->query('q', '')),
+            'role' => in_array($request->query('role'), ['normal', 'organizer'], true) ? $request->query('role') : 'all',
+            'country' => trim((string) $request->query('country', '')),
+            'age' => in_array($request->query('age'), Profile::AGE_BANDS, true) ? $request->query('age') : '',
+        ];
+    }
+
+    private function query(array $f)
+    {
+        return User::query()
+            ->when($f['q'] !== '', fn ($x) => $x->where(fn ($w) => $w->where('name', 'like', "%{$f['q']}%")->orWhere('email', 'like', "%{$f['q']}%")->orWhere('phone', 'like', "%{$f['q']}%")))
+            ->when($f['role'] === 'organizer', fn ($x) => $x->whereHas('roles', fn ($r) => $r->where('name', 'organizer')))
+            ->when($f['role'] === 'normal', fn ($x) => $x->whereDoesntHave('roles', fn ($r) => $r->whereIn('name', ['organizer', 'superadmin'])))
+            ->when($f['country'] !== '', fn ($x) => $x->where('country', $f['country']))
+            ->when($f['age'] !== '', fn ($x) => $x->where('age_band', $f['age']));
+    }
+
+    private function row(User $u): array
+    {
+        return [
+            'id' => $u->id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'phone' => $u->phone,
+            'gender' => $u->gender,
+            'age_band' => $u->age_band,
+            'city' => $u->city,
+            'country' => $u->country,
+            'roles' => $u->roles->pluck('name'),
+            'events' => $u->events_count,
+            'profile_complete' => (bool) $u->profile_completed_at,
+            'is_superadmin' => $u->hasRole('superadmin'),
+        ];
     }
 }
