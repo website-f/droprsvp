@@ -23,6 +23,8 @@ createInertiaApp({
             case name === 'auth/get-started':
             case name === 'host/welcome':
             case name === 'profile/about-you':
+            case name === 'host/apply':
+            case name === 'host/pending':
                 return null; // focused sign-up + onboarding wizard (own chrome)
             case name.startsWith('public/'):
             case name.startsWith('checkout/'):

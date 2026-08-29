@@ -111,6 +111,8 @@ class OrganizerSignupController extends Controller
         // not mass-assignable, so set it explicitly.)
         $user->forceFill(['email_verified_at' => now()])->save();
         $user->assignRole(Role::firstOrCreate(['name' => 'organizer', 'guard_name' => 'web']));
+        // Start an application — they must submit business details + be approved.
+        $user->organizerProfile()->firstOrCreate(['user_id' => $user->id], ['status' => 'incomplete']);
 
         RegistrationCode::where('email', $verified)->delete();
         $request->session()->forget(self::SESSION_KEY);
@@ -118,7 +120,7 @@ class OrganizerSignupController extends Controller
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
-        return redirect()->route('organizer.welcome');
+        return redirect()->route('host.apply');
     }
 
     /** Post-signup onboarding (skippable). */
@@ -151,7 +153,7 @@ class OrganizerSignupController extends Controller
     /**
      * Upgrade a signed-in free/attendee account to a vendor (organizer) so they
      * can host & sell tickets — the logged-in equivalent of the guest
-     * "Register as a vendor" flow. Runs the onboarding wizard afterwards.
+     * "Register as a vendor" flow. Starts an application that needs approval.
      */
     public function becomeVendor(Request $request)
     {
@@ -160,7 +162,8 @@ class OrganizerSignupController extends Controller
         if (! $user->hasRole('organizer')) {
             $user->assignRole(Role::firstOrCreate(['name' => 'organizer', 'guard_name' => 'web']));
         }
+        $user->organizerProfile()->firstOrCreate(['user_id' => $user->id], ['status' => 'incomplete']);
 
-        return redirect()->route('organizer.welcome');
+        return redirect()->route('host.apply');
     }
 }

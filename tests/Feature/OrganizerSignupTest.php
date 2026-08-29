@@ -46,7 +46,7 @@ class OrganizerSignupTest extends TestCase
             'first_name' => 'Ann', 'last_name' => 'Lee',
             'password' => 'secret-pass-123', 'password_confirmation' => 'secret-pass-123',
             'consent' => true,
-        ])->assertRedirect(route('organizer.welcome'));
+        ])->assertRedirect(route('host.apply'));
 
         $this->assertAuthenticated();
         $user = User::where('email', 'ann@example.com')->firstOrFail();
@@ -95,7 +95,7 @@ class OrganizerSignupTest extends TestCase
         $user->assignRole('buyer');
 
         $this->actingAs($user)->post('/become-a-vendor')
-            ->assertRedirect(route('organizer.welcome'));
+            ->assertRedirect(route('host.apply'));
 
         $this->assertTrue($user->fresh()->hasRole('organizer'));
     }

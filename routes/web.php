@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\EventCategoryController;
 use App\Http\Controllers\Admin\EventSeoController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\LegalController as AdminLegalController;
+use App\Http\Controllers\Admin\OrganizerController as AdminOrganizerController;
+use App\Http\Controllers\Host\OrganizerApplicationController;
 use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
@@ -127,6 +129,14 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     // Upgrade a signed-in free account to a vendor (organizer).
     Route::post('become-a-vendor', [OrganizerSignupController::class, 'becomeVendor'])->name('organizer.become');
 
+    // Organizer application (submit business details → wait for approval). Role-gated
+    // but NOT approval-gated, so applicants can reach them.
+    Route::middleware('role:organizer|superadmin')->group(function () {
+        Route::get('host/apply', [OrganizerApplicationController::class, 'show'])->name('host.apply');
+        Route::post('host/apply', [OrganizerApplicationController::class, 'submit'])->name('host.apply.submit');
+        Route::get('host/pending', [OrganizerApplicationController::class, 'pending'])->name('host.pending');
+    });
+
     // Image uploads (event covers, CMS media) — any signed-in user.
     Route::post('uploads', [MediaController::class, 'store'])->name('uploads');
 
@@ -152,7 +162,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     // Host panel — manage your events, ticket types and sessions.
     // Hard-gated to vendors: a free attendee account must upgrade (become a
     // vendor) before it can create or manage events.
-    Route::middleware('role:organizer|superadmin')->prefix('host')->name('host.')->group(function () {
+    Route::middleware(['role:organizer|superadmin', \App\Http\Middleware\EnsureOrganizerApproved::class])->prefix('host')->name('host.')->group(function () {
         // Analytics across all the organizer's events (links out to each event's own).
         Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics');
 
@@ -247,6 +257,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('all-events/{event}', [AdminEventsController::class, 'show'])->name('events.show');
         Route::post('all-events/{event}/cancel', [AdminEventsController::class, 'cancel'])->name('events.cancel');
         Route::post('all-events/{event}/restore', [AdminEventsController::class, 'restore'])->name('events.restore');
+        // Organizer/vendor applications.
+        Route::get('organizers', [AdminOrganizerController::class, 'index'])->name('organizers.index');
+        Route::post('organizers/{organizer}/approve', [AdminOrganizerController::class, 'approve'])->name('organizers.approve');
+        Route::post('organizers/{organizer}/reject', [AdminOrganizerController::class, 'reject'])->name('organizers.reject');
+
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('users/export', [AdminUserController::class, 'export'])->name('users.export');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
