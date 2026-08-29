@@ -26,7 +26,7 @@ function NavLink({ item, onClick }: { item: PublicNavItem; onClick?: () => void 
  * the menu shows up here across the whole site.
  */
 export function PublicHeader() {
-    const { auth, nav } = usePage().props;
+    const { auth, nav, branding } = usePage().props;
     const items = (nav ?? []) as PublicNavItem[];
     const [open, setOpen] = useState(false);
 
@@ -34,7 +34,7 @@ export function PublicHeader() {
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
             <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-6 py-4">
                 <Link href="/" aria-label="DropRSVP home">
-                    <Wordmark className="h-11" />
+                    <Wordmark height={branding?.header_height ?? 44} />
                 </Link>
 
                 {/* Desktop nav */}
@@ -45,7 +45,6 @@ export function PublicHeader() {
                 <div className="flex items-center gap-2">
                     <AppearanceToggle />
                     <div className="hidden items-center gap-2 md:flex">
-                        <Link href="/contact" className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Contact</Link>
                         <Link href="/help" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
                         {auth?.user ? (
                             <Button asChild><Link href={dashboard()}>Dashboard</Link></Button>

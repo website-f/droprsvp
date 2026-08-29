@@ -23,3 +23,13 @@ export type PublicNavItem = {
 /** Footer config, edited under Admin → Footer. */
 export type FooterColumn = { title: string; links: { label: string; url: string }[] };
 export type FooterConfig = { tagline: string; columns: FooterColumn[]; copyright: string };
+
+/** Brand logos + per-surface sizing, edited under Admin → Branding. */
+export type Branding = {
+    logo_full: string;
+    logo_mark: string;
+    header_height: number;
+    sidebar_height: number;
+    footer_height: number;
+    invert_dark: boolean;
+};

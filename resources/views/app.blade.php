@@ -30,8 +30,9 @@
             }
         </style>
 
-        <link rel="icon" href="/logo-mark.png" type="image/png">
-        <link rel="apple-touch-icon" href="/logo-mark.png">
+        @php($brandMark = \App\Support\SiteContent::branding()['logo_mark'] ?? '/logo-mark.png')
+        <link rel="icon" href="{{ $brandMark }}" type="image/png">
+        <link rel="apple-touch-icon" href="{{ $brandMark }}">
 
         {{-- Inter — DESIGN.md primary typeface (NeuSans is Meetup-proprietary). --}}
         <link rel="preconnect" href="https://fonts.bunny.net">

@@ -1,12 +1,15 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, MapPin, Rocket, Search, Star, Users } from 'lucide-react';
+import { CalendarDays, MapPin, Rocket, Search, Star } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; has_free: boolean; participants: number; rating: number | null; rating_count: number }
+interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; has_free: boolean; participants: number; faces: string[]; rating: number | null; rating_count: number }
+
+const AVATAR_TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#ff6584', '#3b82f6'];
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 interface Paginated { data: Card[]; prev_page_url: string | null; next_page_url: string | null }
 interface Category { name: string; slug: string }
 interface City { name: string; slug: string }
@@ -113,12 +116,20 @@ export default function Discover({ events, categories, cities, active, filters, 
                                         </div>
                                         {priceLabel(e) && <div className="mt-3 text-sm font-semibold">{priceLabel(e)}</div>}
 
-                                        {/* Participants + rating */}
+                                        {/* Participants (stacked avatars + total) + rating */}
                                         {(e.participants > 0 || e.rating !== null) && (
-                                            <div className="mt-3 flex items-center gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                                                {e.participants > 0 && (
-                                                    <span className="flex items-center gap-1"><Users className="size-3.5" /> {e.participants} going</span>
-                                                )}
+                                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                                {e.participants > 0 ? (
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="flex -space-x-2">
+                                                            {e.faces.map((name, i) => (
+                                                                <span key={i} title={name} className="flex size-6 items-center justify-center rounded-full text-[9px] font-bold text-white ring-2 ring-card" style={{ backgroundColor: AVATAR_TINTS[i % AVATAR_TINTS.length] }}>{initials(name)}</span>
+                                                            ))}
+                                                            <span className="flex size-6 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background ring-2 ring-card">{e.participants > 99 ? '99+' : e.participants}</span>
+                                                        </span>
+                                                        going
+                                                    </span>
+                                                ) : <span />}
                                                 {e.rating !== null && (
                                                     <span className="flex items-center gap-1"><Star className="size-3.5 fill-[#f5a524] text-[#f5a524]" /> {e.rating.toFixed(1)}<span className="text-muted-foreground/70">({e.rating_count})</span></span>
                                                 )}

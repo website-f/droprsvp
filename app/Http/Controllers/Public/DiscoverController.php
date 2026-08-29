@@ -227,6 +227,8 @@ class DiscoverController extends Controller
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
+            'faces' => \App\Models\Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_name')
+                ->orderByDesc('paid_at')->limit(8)->pluck('buyer_name')->unique()->take(3)->values()->all(),
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
             'rating_count' => (int) ($event->reviews_count ?? 0),
         ];

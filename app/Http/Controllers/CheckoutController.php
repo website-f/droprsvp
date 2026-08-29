@@ -62,6 +62,8 @@ class CheckoutController extends Controller
             'buyer_age_band' => ['nullable', 'in:under-18,18-24,25-34,35-44,45-54,55+'],
             'buyer_city' => ['nullable', 'string', 'max:80'],
             'buyer_source' => ['nullable', 'in:instagram,facebook,tiktok,friend,search,email,other'],
+            // Free-text notes / remarks for the organizer (dietary needs, questions…).
+            'notes' => ['nullable', 'string', 'max:1000'],
         ]);
         $order->update($data);
 

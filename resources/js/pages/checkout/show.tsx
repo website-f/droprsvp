@@ -18,7 +18,7 @@ const AGE_BANDS = [{ value: '', label: '—' }, { value: 'under-18', label: 'Und
 const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'tiktok', label: 'TikTok' }, { value: 'friend', label: 'A friend' }, { value: 'search', label: 'Search' }, { value: 'email', label: 'Email' }, { value: 'other', label: 'Other' }];
 
 export default function CheckoutShow({ order }: { order: OrderView }) {
-    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '', buyer_gender: 'na', buyer_age_band: '', buyer_city: '', buyer_source: '' });
+    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '', buyer_gender: 'na', buyer_age_band: '', buyer_city: '', buyer_source: '', notes: '' });
     const isFree = order.total <= 0;
 
     const submit = (e: React.FormEvent) => {
@@ -77,6 +77,11 @@ export default function CheckoutShow({ order }: { order: OrderView }) {
                                     <div className="grid gap-1.5">
                                         <Label>How did you hear about it?</Label>
                                         <AppSelect value={form.data.buyer_source || ''} onChange={(v) => form.setData('buyer_source', v)} options={SOURCES} />
+                                    </div>
+                                    <div className="grid gap-1.5 sm:col-span-2">
+                                        <Label htmlFor="notes">Notes / remarks</Label>
+                                        <textarea id="notes" rows={3} className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} placeholder="Anything the organizer should know? (dietary needs, accessibility, a question…)" />
+                                        {form.errors.notes && <p className="text-xs text-destructive">{form.errors.notes}</p>}
                                     </div>
                                 </div>
                             </div>

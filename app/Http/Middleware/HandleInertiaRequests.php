@@ -51,6 +51,8 @@ class HandleInertiaRequests extends Middleware
             'nav' => MenuItem::header(),
             // Footer config (cached; edited under Admin → Footer).
             'footer' => SiteContent::footer(),
+            // Brand logos + sizing (cached; edited under Admin → Branding).
+            'branding' => SiteContent::branding(),
             'flash' => [
                 'success' => $request->session()->get('success') ?? $request->session()->get('flash_success'),
                 'error' => $request->session()->get('flash_error'),

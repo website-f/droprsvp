@@ -1,10 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useConfirm } from '@/components/confirm-dialog';
 import { ArrowLeft, Receipt } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface OrderRow { reference: string; buyer: string | null; email: string | null; tickets: number; total: number; currency: string; status: string; date: string | null }
+interface OrderRow { reference: string; buyer: string | null; email: string | null; tickets: number; total: number; currency: string; status: string; notes: string | null; date: string | null }
 interface Props { event: { title: string; slug: string }; orders: OrderRow[] }
 
 export default function Orders({ event, orders }: Props) {
@@ -49,6 +49,7 @@ export default function Orders({ event, orders }: Props) {
                                         <td className="px-4 py-3">
                                             <div className="font-medium">{o.buyer ?? 'Guest'}</div>
                                             <div className="text-xs text-muted-foreground">{o.email} · {o.reference} · {o.date}</div>
+                                            {o.notes && <div className="mt-1 max-w-md rounded-md bg-muted/60 px-2 py-1 text-xs text-foreground/80"><span className="font-medium">Note:</span> {o.notes}</div>}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">{o.tickets}</td>
                                         <td className="px-4 py-3 font-medium whitespace-nowrap">{o.currency} {o.total.toFixed(2)}</td>

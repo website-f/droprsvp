@@ -1,5 +1,5 @@
 import type { Auth } from '@/types/auth';
-import type { FooterConfig, PublicNavItem } from '@/types/navigation';
+import type { Branding, FooterConfig, PublicNavItem } from '@/types/navigation';
 
 declare module 'react' {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -16,6 +16,7 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             nav: PublicNavItem[];
             footer: FooterConfig;
+            branding: Branding;
             [key: string]: unknown;
         };
     }

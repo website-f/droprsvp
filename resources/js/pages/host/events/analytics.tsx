@@ -39,7 +39,7 @@ export default function EventAnalytics({ event, kpis, trend, demographics }: Pro
             <Head title={`Analytics · ${event.title}`} />
             <div className="mx-auto w-full max-w-5xl flex-1 p-4">
                 <div className="mb-6 flex flex-wrap items-center gap-3">
-                    <Button asChild variant="ghost" size="icon"><Link href="/host/events" aria-label="Back"><ArrowLeft className="size-4" /></Link></Button>
+                    <Button asChild variant="ghost" size="icon"><Link href="/host/analytics" aria-label="Back to all analytics"><ArrowLeft className="size-4" /></Link></Button>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">{event.title}</h1>
                         <p className="text-sm text-muted-foreground">Reach, sales and audience insights.</p>

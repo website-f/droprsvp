@@ -68,6 +68,28 @@ class SiteController extends Controller
         return back()->with('success', 'Homepage SEO saved.');
     }
 
+    public function branding()
+    {
+        return inertia('admin/site/branding', ['branding' => SiteContent::branding()]);
+    }
+
+    public function saveBranding(Request $request)
+    {
+        $data = $request->validate([
+            'logo_full' => ['nullable', 'string', 'max:2048'],
+            'logo_mark' => ['nullable', 'string', 'max:2048'],
+            'header_height' => ['required', 'integer', 'min:20', 'max:96'],
+            'sidebar_height' => ['required', 'integer', 'min:20', 'max:80'],
+            'footer_height' => ['required', 'integer', 'min:16', 'max:80'],
+            'invert_dark' => ['boolean'],
+        ]);
+
+        Setting::putArray('branding', $data);
+        SiteContent::forgetBranding();
+
+        return back()->with('success', 'Branding saved.');
+    }
+
     public function footer()
     {
         return inertia('admin/site/footer', ['data' => SiteContent::footer()]);

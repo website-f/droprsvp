@@ -129,6 +129,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Hard-gated to vendors: a free attendee account must upgrade (become a
     // vendor) before it can create or manage events.
     Route::middleware('role:organizer|superadmin')->prefix('host')->name('host.')->group(function () {
+        // Analytics across all the organizer's events (links out to each event's own).
+        Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics');
+
         Route::get('events', [EventController::class, 'index'])->name('events.index');
         Route::get('events/create', [EventController::class, 'create'])->name('events.create');
         Route::post('events', [EventController::class, 'store'])->name('events.store');
@@ -223,6 +226,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('site/landing', [AdminSiteController::class, 'saveLanding'])->name('site.landing.save');
         Route::get('site/footer', [AdminSiteController::class, 'footer'])->name('site.footer');
         Route::post('site/footer', [AdminSiteController::class, 'saveFooter'])->name('site.footer.save');
+        // Branding — logo (wordmark + mark) upload/remove + per-surface sizing.
+        Route::get('site/branding', [AdminSiteController::class, 'branding'])->name('site.branding');
+        Route::post('site/branding', [AdminSiteController::class, 'saveBranding'])->name('site.branding.save');
         // Homepage SEO — the landing page is premade, so only its SEO is editable.
         Route::get('site/home-seo', [AdminSiteController::class, 'homeSeo'])->name('site.home-seo');
         Route::post('site/home-seo', [AdminSiteController::class, 'saveHomeSeo'])->name('site.home-seo.save');

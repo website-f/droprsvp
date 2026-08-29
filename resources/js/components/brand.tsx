@@ -1,19 +1,27 @@
+import { usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 
-/**
- * DropRSVP brand marks. Two assets in /public:
- *  - logo-full.png  → horizontal wordmark (headers, footers, auth)
- *  - logo-mark.png  → square icon (collapsed sidebar, favicon, compact spots)
- *
- * The logos are monochrome dark, so on dark surfaces we `invert` them. Use
- * `onDark` for surfaces that are dark in every theme (e.g. a coloured panel);
- * otherwise they invert automatically in dark mode.
- */
+/** Shared brand marks — logo image + dark-mode inversion come from Admin → Branding. */
+function useBranding() {
+    const b = usePage().props.branding;
 
-export function Wordmark({ className, onDark = false }: { className?: string; onDark?: boolean }) {
-    return <img src="/logo-full.png" alt="DropRSVP" className={cn('h-7 w-auto object-contain', onDark ? 'invert' : 'dark:invert', className)} />;
+    return {
+        full: b?.logo_full || '/logo-full.png',
+        mark: b?.logo_mark || '/logo-mark.png',
+        invert: b?.invert_dark ?? true,
+    };
 }
 
-export function LogoMark({ className, onDark = false }: { className?: string; onDark?: boolean }) {
-    return <img src="/logo-mark.png" alt="DropRSVP" className={cn('size-8 object-contain', onDark ? 'invert' : 'dark:invert', className)} />;
+export function Wordmark({ className, onDark = false, height }: { className?: string; onDark?: boolean; height?: number }) {
+    const { full, invert } = useBranding();
+    const invertCls = invert ? (onDark ? 'invert' : 'dark:invert') : '';
+
+    return <img src={full} alt="DropRSVP" style={height ? { height } : undefined} className={cn('w-auto object-contain', height ? undefined : 'h-7', invertCls, className)} />;
+}
+
+export function LogoMark({ className, onDark = false, height }: { className?: string; onDark?: boolean; height?: number }) {
+    const { mark, invert } = useBranding();
+    const invertCls = invert ? (onDark ? 'invert' : 'dark:invert') : '';
+
+    return <img src={mark} alt="DropRSVP" style={height ? { height, width: height } : undefined} className={cn('object-contain', height ? undefined : 'size-8', invertCls, className)} />;
 }

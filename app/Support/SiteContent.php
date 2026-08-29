@@ -67,6 +67,37 @@ class SiteContent
         Cache::forget('site.footer_v2');
     }
 
+    /**
+     * Brand logos + per-surface sizing (superadmin-editable, cached — shared on
+     * every page). Empty logo values fall back to the shipped defaults.
+     */
+    public static function branding(): array
+    {
+        return Cache::rememberForever('site.branding', function () {
+            $defaults = self::defaultBranding();
+            $saved = array_filter(Setting::getArray('branding', []), fn ($v) => $v !== null && $v !== '');
+
+            return array_replace($defaults, $saved);
+        });
+    }
+
+    public static function forgetBranding(): void
+    {
+        Cache::forget('site.branding');
+    }
+
+    public static function defaultBranding(): array
+    {
+        return [
+            'logo_full' => '/logo-full.png',   // horizontal wordmark
+            'logo_mark' => '/logo-mark.png',   // square mark / favicon
+            'header_height' => 44,             // public site header (px)
+            'sidebar_height' => 40,            // dashboard sidebar (px)
+            'footer_height' => 36,             // footer brand (px)
+            'invert_dark' => true,             // monochrome-dark logo → invert on dark bg
+        ];
+    }
+
     public static function defaultLanding(): array
     {
         return [
