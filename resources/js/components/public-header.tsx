@@ -45,6 +45,7 @@ export function PublicHeader() {
                 <div className="flex items-center gap-2">
                     <AppearanceToggle />
                     <div className="hidden items-center gap-2 md:flex">
+                        <Link href="/contact" className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Contact</Link>
                         <Link href="/help" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
                         {auth?.user ? (
                             <Button asChild><Link href={dashboard()}>Dashboard</Link></Button>

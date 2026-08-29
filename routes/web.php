@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
+use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EventCommentController;
 use App\Http\Controllers\Public\EventReviewController;
 use App\Http\Controllers\DashboardController;
@@ -60,6 +62,10 @@ Route::get('blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show
 // Public help center (SEO).
 Route::get('help', [HelpController::class, 'index'])->name('help.index');
 Route::get('help/{article}', [HelpController::class, 'show'])->name('help.show');
+
+// Public contact form.
+Route::get('contact', [ContactController::class, 'show'])->name('contact.show');
+Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
 
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
@@ -207,6 +213,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');
+
+        // Contact-form inbox.
+        Route::get('contact', [AdminContactController::class, 'index'])->name('contact.index');
+        Route::post('contact/{message}/toggle', [AdminContactController::class, 'toggle'])->name('contact.toggle');
 
         // Site appearance — landing sections + footer builder.
         Route::get('site/landing', [AdminSiteController::class, 'landing'])->name('site.landing');
