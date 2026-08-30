@@ -72,6 +72,9 @@ if [ -d "$WEB_ROOT" ] && [ "$WEB_ROOT" != "$APP_DIR/public" ]; then
     [ "$n" = "index.php" ] && continue   # keep the bridge front controller
     ln -sfn "$f" "$n"
   done
+  # The glob above skips dotfiles, so .htaccess is never symlinked. Copy it so the
+  # canonical-host + trailing-slash rules stay in sync with the repo on every deploy.
+  cp -f "$APP_DIR/public/.htaccess" "$WEB_ROOT/.htaccess" && echo "==> Synced .htaccess"
   echo "==> Linked assets:"
   ls -la "$WEB_ROOT" | grep -E 'logo|og-default|favicon|apple-touch|build|storage|vector' || true
 else

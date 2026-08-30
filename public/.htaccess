@@ -13,10 +13,30 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # --- Canonical host: force HTTPS + www ----------------------------------
+    # Send every request to the single canonical origin https://www.droprsvp.com
+    # in at most one hop. The X-Forwarded-Proto guard avoids a redirect loop when
+    # TLS is terminated by a proxy (Cloudflare / load balancer) in front of Apache.
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://www.droprsvp.com%{REQUEST_URI} [L,R=301]
+
+    RewriteCond %{HTTP_HOST} !^www\.droprsvp\.com$ [NC]
+    RewriteRule ^ https://www.droprsvp.com%{REQUEST_URI} [L,R=301]
+
+    # --- Canonical path: enforce a trailing slash ---------------------------
+    # e.g. /en-my  ->  /en-my/ . Only for real page views:
+    #   * GET requests only (never rewrite a POST/PUT — it would drop the body),
+    #   * skip Inertia XHR (X-Inertia) so in-app navigation stays a single request,
+    #   * skip real files/dirs (assets, /build, /storage) and anything with a file
+    #     extension, and URLs that already end in "/".
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{HTTP:X-Inertia} !=true
+    RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
+    RewriteCond %{REQUEST_URI} !(\.[A-Za-z0-9]{1,6})$
+    RewriteCond %{REQUEST_URI} !/$
+    RewriteRule ^(.*)$ /$1/ [L,R=301]
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d

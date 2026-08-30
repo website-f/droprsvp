@@ -45,7 +45,7 @@ class SitemapController extends Controller
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">'."\n";
         foreach ($urls as $u) {
-            $xml .= '  <url><loc>'.htmlspecialchars($u['loc'], ENT_XML1).'</loc>';
+            $xml .= '  <url><loc>'.htmlspecialchars($this->slash($u['loc']), ENT_XML1).'</loc>';
             if ($u['lastmod']) {
                 $xml .= '<lastmod>'.$u['lastmod'].'</lastmod>';
             }
@@ -66,5 +66,20 @@ class SitemapController extends Controller
         }
 
         return Str::startsWith($path, ['http://', 'https://']) ? $path : url($path);
+    }
+
+    /** Match the .htaccess canonical form: a trailing slash on page URLs. */
+    private function slash(string $url): string
+    {
+        $q = strpos($url, '?');
+        $path = $q === false ? $url : substr($url, 0, $q);
+        $query = $q === false ? '' : substr($url, $q);
+        $last = substr($path, (int) strrpos($path, '/') + 1);
+
+        if (! str_ends_with($path, '/') && ! str_contains($last, '.')) {
+            $path .= '/';
+        }
+
+        return $path.$query;
     }
 }

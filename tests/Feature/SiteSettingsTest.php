@@ -88,6 +88,10 @@ class SiteSettingsTest extends TestCase
 
     public function test_discover_when_filter_limits_by_date(): void
     {
+        // Freeze the clock at midday so "starts_at = now()+2h" can't spill across a
+        // day boundary (the when=today window is bounded by the app-tz calendar day).
+        $this->travelTo(\Illuminate\Support\Carbon::create(2026, 6, 15, 12, 0, 0));
+
         $host = User::factory()->create();
         $today = \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Today Ev', 'slug' => 'today-ev', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addHours(2)]);
         \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Next Month', 'slug' => 'next-month', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addMonths(1)->addDays(2)]);

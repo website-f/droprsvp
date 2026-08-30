@@ -50,6 +50,22 @@ class ServerSeoTest extends TestCase
         $res->assertSee(url('/logo-mark.png'), false);   // Organization logo in JSON-LD
     }
 
+    public function test_canonical_and_sitemap_use_the_trailing_slash_form(): void
+    {
+        $event = $this->publishedEvent();
+
+        // Canonical + og:url carry the trailing slash that .htaccess enforces.
+        $res = $this->get('/en-my')->assertOk();
+        $res->assertSee('<link rel="canonical" href="'.url('/en-my').'/">', false);
+        $res->assertSee('<meta property="og:url" content="'.url('/en-my').'/">', false);
+
+        // Sitemap page URLs are slashed; image URLs (file paths) are left alone.
+        $map = $this->get('/sitemap.xml')->assertOk();
+        $map->assertSee('<loc>'.url('/en-my').'/</loc>', false);
+        $map->assertSee('<loc>'.url('/en-my/e/'.$event->slug).'/</loc>', false);
+        $map->assertSee('<image:loc>'.htmlspecialchars($event->cover_image, ENT_XML1).'</image:loc>', false);
+    }
+
     public function test_event_page_has_full_server_rendered_seo(): void
     {
         $event = $this->publishedEvent();
@@ -57,7 +73,7 @@ class ServerSeoTest extends TestCase
         $res = $this->get('/e/'.$event->slug)->assertOk();
         $res->assertSee('<title>Neon Nights', false);
         $res->assertSee('<meta name="description" content="Four acts under the stars."', false);
-        $res->assertSee('<link rel="canonical" href="'.url('/en-my/e/'.$event->slug).'">', false);
+        $res->assertSee('<link rel="canonical" href="'.url('/en-my/e/'.$event->slug).'/">', false);
         $res->assertSee('max-image-preview:large', false);                    // indexable, rich
         $res->assertSee('<meta property="og:image" content="https://img.test/cover.jpg">', false);
         $res->assertSee('"@type":"Event"', false);                            // Event schema

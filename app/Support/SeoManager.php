@@ -185,7 +185,7 @@ class SeoManager
             $displayTitle = "{$this->title} {$sep} {$site}";
         }
 
-        $canonical = $this->canonical ?: url()->current();
+        $canonical = $this->trailingSlash($this->canonical ?: url()->current());
         $image = $this->image ?: ($this->absolute(config('seo.default_image')) ?: null);
         $ogTitle = $this->ogTitle ?: ($this->title ?: $site);
 
@@ -346,5 +346,30 @@ class SeoManager
         }
 
         return Str::startsWith($path, ['http://', 'https://']) ? $path : url($path);
+    }
+
+    /**
+     * Enforce a trailing slash on the URL path so the canonical/OG URL matches
+     * the .htaccess-enforced form (https://www.droprsvp.com/en-my/). Leaves the
+     * query/fragment intact and skips file-like paths (a dot in the last segment).
+     */
+    protected function trailingSlash(string $url): string
+    {
+        $parts = parse_url($url);
+        $path = $parts['path'] ?? '/';
+        $last = substr($path, (int) strrpos($path, '/') + 1);
+
+        if ($path !== '' && ! str_ends_with($path, '/') && ! str_contains($last, '.')) {
+            $path .= '/';
+        }
+
+        $out = ($parts['scheme'] ?? '') !== '' ? $parts['scheme'].'://' : '';
+        $out .= $parts['host'] ?? '';
+        $out .= isset($parts['port']) ? ':'.$parts['port'] : '';
+        $out .= $path;
+        $out .= isset($parts['query']) ? '?'.$parts['query'] : '';
+        $out .= isset($parts['fragment']) ? '#'.$parts['fragment'] : '';
+
+        return $out;
     }
 }
