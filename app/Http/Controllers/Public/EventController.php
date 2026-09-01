@@ -211,7 +211,9 @@ class EventController extends Controller
         $perPage = 8;
         $count = (int) $event->reviews()->count();
         $average = $count ? round((float) $event->reviews()->avg('rating'), 1) : 0.0;
-        $dist = $event->reviews()->selectRaw('rating, count(*) as c')->groupBy('rating')->pluck('c', 'rating');
+        // reorder() clears the relation's default "latest" ORDER BY, which otherwise
+        // breaks GROUP BY under MySQL's only_full_group_by mode.
+        $dist = $event->reviews()->reorder()->selectRaw('rating, count(*) as c')->groupBy('rating')->pluck('c', 'rating');
         $pages = max(1, (int) ceil($count / $perPage));
         $page = min(max(1, $page), $pages);
 
