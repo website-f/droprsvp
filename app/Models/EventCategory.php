@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EventCategory extends Model
 {
-    protected $fillable = ['name', 'slug', 'sort_order', 'content'];
+    protected $fillable = ['name', 'slug', 'icon', 'blurb', 'color', 'sort_order', 'content'];
 
     public function events(): HasMany
     {

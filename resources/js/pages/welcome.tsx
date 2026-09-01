@@ -61,7 +61,7 @@ export default function Welcome() {
     const { auth, featured = [], categories = [], sections, organizers = [] } = usePage().props as unknown as {
         auth?: { user?: unknown };
         featured?: FeaturedEvent[];
-        categories?: { name: string; slug: string }[];
+        categories?: { name: string; slug: string; icon?: string | null; blurb?: string | null; color?: string | null }[];
         sections?: LandingSections;
         organizers?: Organizer[];
     };

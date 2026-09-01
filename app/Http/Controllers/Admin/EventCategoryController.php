@@ -20,6 +20,9 @@ class EventCategoryController extends Controller
                     'id' => $c->id,
                     'name' => $c->name,
                     'slug' => $c->slug,
+                    'icon' => $c->icon,
+                    'blurb' => $c->blurb,
+                    'color' => $c->color,
                     'sort_order' => $c->sort_order,
                     'events_count' => $c->events_count,
                     'content' => $c->content,
@@ -71,6 +74,9 @@ class EventCategoryController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60'],
             'slug' => ['nullable', 'string', 'max:60', Rule::unique('event_categories', 'slug')->ignore($category->id)],
+            'icon' => ['nullable', 'string', 'max:40'],
+            'blurb' => ['nullable', 'string', 'max:80'],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'content' => ['nullable', 'string', 'max:8000'],
         ]);
@@ -78,6 +84,9 @@ class EventCategoryController extends Controller
         $category->update([
             'name' => $data['name'],
             'slug' => Str::slug($data['slug'] ?? $data['name']) ?: $category->slug,
+            'icon' => $data['icon'] ?? null,
+            'blurb' => $data['blurb'] ?? null,
+            'color' => $data['color'] ?? null,
             'sort_order' => $data['sort_order'] ?? $category->sort_order,
             'content' => $data['content'] ?? null,
         ]);

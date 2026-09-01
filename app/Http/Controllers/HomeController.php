@@ -57,7 +57,7 @@ class HomeController extends Controller
 
         return Inertia::render('welcome', [
             'featured' => $featured,
-            'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug']),
+            'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug', 'icon', 'blurb', 'color']),
             'sections' => $sections,
             'organizers' => $this->featuredOrganizers(),
         ]);

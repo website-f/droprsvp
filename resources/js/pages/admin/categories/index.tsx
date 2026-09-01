@@ -1,24 +1,34 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, Plus, Save, Search, Shapes, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowDown, ArrowUp, Check, Plus, Save, Search, Shapes, Trash2 } from 'lucide-react';
+import { createElement, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
+import { IconPicker } from '@/components/ui/icon-picker';
 import { Label } from '@/components/ui/label';
+import { categoryIcon } from '@/lib/category-icons';
 
-interface Category { id: number; name: string; slug: string; sort_order: number; events_count: number; content: string | null }
+interface Category { id: number; name: string; slug: string; icon: string | null; blurb: string | null; color: string | null; sort_order: number; events_count: number; content: string | null }
 interface Props { categories: Category[]; browseSeo: { title: string; description: string } }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
+/** The palette offered as quick colour swatches (matches the homepage accents). */
+const SWATCHES = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#f97316', '#a855f7', '#22c55e', '#ef4444', '#0ea5e9', '#eab308', '#111827'];
+const DEFAULT_COLOR = '#6c63ff';
+
 function Row({ category, first, last, onMove }: { category: Category; first: boolean; last: boolean; onMove: (dir: -1 | 1) => void }) {
     const confirm = useConfirm();
     const [name, setName] = useState(category.name);
     const [slug, setSlug] = useState(category.slug);
+    const [icon, setIcon] = useState<string | null>(category.icon);
+    const [blurb, setBlurb] = useState(category.blurb ?? '');
+    const [color, setColor] = useState(category.color ?? DEFAULT_COLOR);
     const [content, setContent] = useState(category.content ?? '');
-    const dirty = name !== category.name || slug !== category.slug || content !== (category.content ?? '');
+    const dirty = name !== category.name || slug !== category.slug || icon !== category.icon
+        || blurb !== (category.blurb ?? '') || color !== (category.color ?? DEFAULT_COLOR) || content !== (category.content ?? '');
 
-    const save = () => router.put(`/admin/categories/${category.id}`, { name, slug, content }, { preserveScroll: true });
+    const save = () => router.put(`/admin/categories/${category.id}`, { name, slug, icon, blurb, color, content }, { preserveScroll: true });
     const remove = async () => {
         if (await confirm({ title: `Delete “${category.name}”?`, description: `${category.events_count} event(s) will keep working but lose this category.`, confirmText: 'Delete', destructive: true })) {
             router.delete(`/admin/categories/${category.id}`, { preserveScroll: true });
@@ -46,6 +56,46 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
                     <Button size="sm" variant="ghost" onClick={remove} aria-label="Delete"><Trash2 className="size-4" /></Button>
                 </div>
             </div>
+
+            {/* Homepage appearance — exactly what a visitor sees on the “Browse by category” grid. */}
+            <div className="mt-3 grid gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-[1fr_1.4fr]">
+                <div className="grid gap-1.5">
+                    <Label className="text-xs">Homepage preview</Label>
+                    <div className="flex h-full items-center gap-3 rounded-2xl border border-border bg-background p-4">
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${color}1f`, color }}>
+                            {createElement(categoryIcon(icon), { className: 'size-5' })}
+                        </span>
+                        <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">{name || 'Category'}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{blurb || 'Explore events'}</span>
+                        </span>
+                    </div>
+                </div>
+                <div className="grid content-start gap-3">
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs">Icon <span className="font-normal text-muted-foreground">— search to find one</span></Label>
+                        <IconPicker value={icon} onChange={setIcon} color={color} />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs">Subtitle</Label>
+                        <input className={input} value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={80} placeholder="e.g. Gigs & live sets" />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs">Colour</Label>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {SWATCHES.map((c) => (
+                                <button key={c} type="button" aria-label={`Colour ${c}`} onClick={() => setColor(c)} className="flex size-6 items-center justify-center rounded-full ring-1 ring-border" style={{ backgroundColor: c }}>
+                                    {color.toLowerCase() === c.toLowerCase() && <Check className="size-3.5 text-white" />}
+                                </button>
+                            ))}
+                            <label className="ml-1 flex size-6 cursor-pointer items-center justify-center overflow-hidden rounded-full ring-1 ring-border" title="Custom colour" style={{ backgroundColor: color }}>
+                                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="size-8 cursor-pointer opacity-0" />
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="mt-3 grid gap-1.5">
                 <Label className="text-xs">Content <span className="font-normal text-muted-foreground">— shown (with “See more”) at the bottom of the browse page for this category</span></Label>
                 <textarea rows={3} className={area} value={content} onChange={(e) => setContent(e.target.value)} placeholder="e.g. Discover the best live music events in Malaysia — from intimate gigs to festival nights…" />

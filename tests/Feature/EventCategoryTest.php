@@ -31,10 +31,20 @@ class EventCategoryTest extends TestCase
         $cat = EventCategory::firstWhere('name', 'Live Music');
         $this->assertSame('live-music', $cat->slug);
 
-        // Edit.
-        $this->actingAs($admin)->put("/admin/categories/{$cat->id}", ['name' => 'Concerts', 'slug' => 'concerts'])->assertRedirect();
-        $this->assertSame('Concerts', $cat->fresh()->name);
-        $this->assertSame('concerts', $cat->fresh()->slug);
+        // Edit — including the homepage appearance (icon / subtitle / colour).
+        $this->actingAs($admin)->put("/admin/categories/{$cat->id}", [
+            'name' => 'Concerts', 'slug' => 'concerts', 'icon' => 'guitar', 'blurb' => 'Live gigs', 'color' => '#a855f7',
+        ])->assertRedirect();
+        $fresh = $cat->fresh();
+        $this->assertSame('Concerts', $fresh->name);
+        $this->assertSame('concerts', $fresh->slug);
+        $this->assertSame('guitar', $fresh->icon);
+        $this->assertSame('Live gigs', $fresh->blurb);
+        $this->assertSame('#a855f7', $fresh->color);
+
+        // A bad colour is rejected (must be a #rrggbb hex).
+        $this->actingAs($admin)->put("/admin/categories/{$cat->id}", ['name' => 'Concerts', 'color' => 'purple'])
+            ->assertSessionHasErrors('color');
 
         // Delete.
         $this->actingAs($admin)->delete("/admin/categories/{$cat->id}")->assertRedirect();

@@ -1,12 +1,15 @@
 import { router, usePage } from '@inertiajs/react';
 import { MapPin, Search } from 'lucide-react';
 import { useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface City { name: string; slug: string }
 
 /**
  * Eventbrite-style header search: an event query + a location, submitting to the
- * discover page (`/en-my/{city}?q=…`). Responsive — stacks on small screens.
+ * discover page (`/en-my/{city}?q=…`). The location uses our themed Select (not a
+ * native <select>) so it inherits dark mode + custom styling. Responsive — stacks
+ * on small screens.
  */
 export function HeaderSearch({ className = '' }: { className?: string }) {
     const cities = ((usePage().props as { cities?: City[] }).cities ?? []) as City[];
@@ -35,19 +38,20 @@ export function HeaderSearch({ className = '' }: { className?: string }) {
 
             {/* Location */}
             <div className="flex items-center gap-2 sm:border-l sm:border-border sm:pl-3">
-                <label className="flex h-11 flex-1 items-center gap-2 rounded-full border border-border bg-card px-4 sm:h-12 sm:min-w-[9rem] sm:border-0 sm:bg-transparent sm:px-1">
-                    <MapPin className="size-4 shrink-0 text-muted-foreground" />
-                    <select
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                <Select value={city} onValueChange={setCity}>
+                    <SelectTrigger
                         aria-label="Location"
-                        className="w-full cursor-pointer bg-transparent text-sm outline-none"
+                        className="h-11 flex-1 gap-2 rounded-full border-border bg-card px-4 shadow-none sm:h-12 sm:min-w-[9rem] sm:border-0 sm:bg-transparent sm:px-1 sm:shadow-none dark:bg-card sm:dark:bg-transparent"
                     >
-                        <option value="all">Anywhere</option>
-                        {cities.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-                    </select>
-                </label>
-                <button type="submit" aria-label="Search" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#f05537] text-white transition-colors hover:bg-[#d8412a] sm:size-10">
+                        <MapPin className="size-4 shrink-0 text-muted-foreground" />
+                        <SelectValue placeholder="Anywhere" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                        <SelectItem value="all">Anywhere</SelectItem>
+                        {cities.map((c) => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <button type="submit" aria-label="Search" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 sm:size-10">
                     <Search className="size-4" />
                 </button>
             </div>
