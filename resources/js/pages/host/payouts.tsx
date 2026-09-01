@@ -1,9 +1,15 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 interface Balance { gross: number; fee_percent: number; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
 interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
+interface Bank { bank_code: string | null; account_number: string | null; account_name: string | null }
+interface BankOption { value: string; label: string }
+
+const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
     return (
@@ -13,10 +19,20 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
     );
 }
 
-export default function Payouts({ balance, payouts }: { balance: Balance; payouts: PayoutRow[] }) {
+export default function Payouts({ balance, payouts, bank, banks }: { balance: Balance; payouts: PayoutRow[]; bank: Bank; banks: BankOption[] }) {
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
     const errors = usePage().props.errors as Record<string, string>;
     const rm = (n: number) => `RM ${n.toFixed(2)}`;
+
+    const bankForm = useForm({
+        bank_code: bank.bank_code ?? '',
+        account_number: bank.account_number ?? '',
+        account_name: bank.account_name ?? '',
+    });
+    const saveBank = (e: React.FormEvent) => {
+        e.preventDefault();
+        bankForm.post('/host/payouts/bank', { preserveScroll: true });
+    };
 
     return (
         <>
@@ -47,6 +63,30 @@ export default function Payouts({ balance, payouts }: { balance: Balance; payout
                         Request payout of {rm(balance.available)}
                     </Button>
                 </div>
+
+                {/* Bank account for automated payouts */}
+                <form onSubmit={saveBank} className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <h2 className="text-sm font-semibold">Payout bank account</h2>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Where we send your money. Required for automated (instant) payouts.</p>
+                    <div className="mt-4 grid gap-3">
+                        <div className="grid gap-1.5">
+                            <Label>Bank</Label>
+                            <AppSelect value={bankForm.data.bank_code} onChange={(v) => bankForm.setData('bank_code', v)} options={[{ value: '', label: 'Select your bank…' }, ...banks]} />
+                            {bankForm.errors.bank_code && <p className="text-xs text-destructive">{bankForm.errors.bank_code}</p>}
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="account_number">Account number</Label>
+                            <input id="account_number" inputMode="numeric" className={field} value={bankForm.data.account_number} onChange={(e) => bankForm.setData('account_number', e.target.value.replace(/[^0-9]/g, ''))} placeholder="e.g. 1234567890" />
+                            {bankForm.errors.account_number && <p className="text-xs text-destructive">{bankForm.errors.account_number}</p>}
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="account_name">Account holder name</Label>
+                            <input id="account_name" className={field} value={bankForm.data.account_name} onChange={(e) => bankForm.setData('account_name', e.target.value)} placeholder="As it appears on your bank account" />
+                            {bankForm.errors.account_name && <p className="text-xs text-destructive">{bankForm.errors.account_name}</p>}
+                        </div>
+                        <Button type="submit" variant="outline" className="w-max" disabled={bankForm.processing}>Save bank details</Button>
+                    </div>
+                </form>
 
                 <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">History</h2>

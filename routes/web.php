@@ -101,6 +101,7 @@ Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('c
 Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
 Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
 Route::post('webhooks/chip', [WebhookController::class, 'chip'])->name('webhooks.chip');
+Route::post('webhooks/chip-send', [WebhookController::class, 'chipSend'])->name('webhooks.chip-send');
 Route::post('webhooks/promotions', [WebhookController::class, 'promotions'])->name('promotions.webhook');
 Route::post('webhooks/subscriptions', [WebhookController::class, 'subscriptions'])->name('subscriptions.webhook');
 
@@ -201,6 +202,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Payouts (the organizer's own balance + requests).
         Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts', [PayoutController::class, 'store'])->name('payouts.request');
+        Route::post('payouts/bank', [PayoutController::class, 'bank'])->name('payouts.bank');
     });
 
     // Headless CMS — superadmin only.
@@ -276,6 +278,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');
+        Route::post('payouts/{payout}/send', [AdminPayoutController::class, 'send'])->name('payouts.send');
+        Route::post('payouts/{payout}/sync', [AdminPayoutController::class, 'sync'])->name('payouts.sync');
 
         // Contact-form inbox.
         Route::get('contact', [AdminContactController::class, 'index'])->name('contact.index');

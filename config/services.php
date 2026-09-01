@@ -45,6 +45,14 @@ return [
         'brand_id' => env('CHIP_BRAND_ID'),           // brand UUID from the CHIP portal
         'public_key' => env('CHIP_PUBLIC_KEY'),       // PEM for webhook verification (optional; else fetched from the API + cached)
         'currency' => env('CHIP_CURRENCY', 'MYR'),
+
+        // CHIP Send — automated organizer bank payouts (separate product/keys).
+        // Leave blank to keep payouts manual-only (admin marks paid).
+        'send' => [
+            'key' => env('CHIP_SEND_API_KEY'),
+            'secret' => env('CHIP_SEND_API_SECRET'),
+            'mode' => env('CHIP_SEND_MODE', 'staging'),   // staging | live
+        ],
     ],
 
 ];

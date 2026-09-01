@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payout extends Model
 {
-    protected $fillable = ['user_id', 'reference', 'amount', 'currency', 'status', 'method', 'note', 'requested_at', 'paid_at'];
+    protected $fillable = ['user_id', 'reference', 'amount', 'currency', 'status', 'method', 'chip_send_id', 'chip_send_state', 'note', 'requested_at', 'paid_at'];
 
     protected function casts(): array
     {

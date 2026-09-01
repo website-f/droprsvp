@@ -79,7 +79,63 @@ class PayoutService
         if ($payout->status === 'paid') {
             return;
         }
-        $payout->update(['status' => 'paid', 'paid_at' => now(), 'method' => $method, 'note' => $note]);
+        $payout->update(['status' => 'paid', 'paid_at' => now(), 'method' => $method ?? 'Manual', 'note' => $note]);
+    }
+
+    /**
+     * Superadmin sends a payout automatically via CHIP Send. Creates a bank
+     * send instruction; marks the payout paid if CHIP settles instantly,
+     * otherwise "processing" until the status webhook / sync confirms it.
+     */
+    public function sendViaChip(Payout $payout, \App\Services\Payments\ChipSendGateway $send): void
+    {
+        if ($payout->status === 'paid') {
+            return;
+        }
+        if (! $send->configured()) {
+            throw ValidationException::withMessages(['payout' => 'CHIP Send is not configured. Add the CHIP Send API keys or pay this out manually.']);
+        }
+        $organizer = $payout->user;
+        if (! $organizer?->payout_bank_code || ! $organizer?->payout_bank_account_number || ! $organizer?->payout_bank_account_name) {
+            throw ValidationException::withMessages(['payout' => 'This organizer hasn’t added their bank details yet — they must add them before an automated payout, or pay them manually.']);
+        }
+
+        $result = $send->send($payout);
+        $completed = $result['state'] === \App\Services\Payments\ChipSendGateway::DONE;
+
+        $payout->update([
+            'method' => 'CHIP Send',
+            'chip_send_id' => $result['id'],
+            'chip_send_state' => $result['state'],
+            'status' => $completed ? 'paid' : 'processing',
+            'paid_at' => $completed ? now() : null,
+        ]);
+    }
+
+    /** Re-check a CHIP Send payout's status and settle/revert it. Idempotent. */
+    public function syncChipStatus(Payout $payout, \App\Services\Payments\ChipSendGateway $send): void
+    {
+        if (! $payout->chip_send_id || $payout->status === 'paid') {
+            return;
+        }
+
+        $state = $send->state((int) $payout->chip_send_id);
+        if ($state === null) {
+            return;
+        }
+
+        $payout->chip_send_state = $state;
+        if ($state === \App\Services\Payments\ChipSendGateway::DONE) {
+            $payout->status = 'paid';
+            $payout->paid_at = now();
+        } elseif (in_array($state, \App\Services\Payments\ChipSendGateway::FAILED, true)) {
+            // The transfer failed — put it back in the queue so it can be retried or paid manually.
+            $payout->status = 'pending';
+            $payout->note = 'CHIP Send '.$state;
+        } else {
+            $payout->status = 'processing';
+        }
+        $payout->save();
     }
 
     private function uniqueReference(): string
