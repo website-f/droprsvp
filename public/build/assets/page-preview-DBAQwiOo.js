@@ -1,1 +1,0 @@
-import{n as e,r as t}from"./createLucideIcon-B04wEhJh.js";import{n}from"./puck-render-BenioGSL.js";import{r}from"./dist-C-in25bT.js";var i=t(),a=e();function o(e){let t=(0,i.c)(5),{data:o,posts:s}=e,c;t[0]===s?c=t[1]:(c={posts:s},t[0]=s,t[1]=c);let l;return t[2]!==o||t[3]!==c?(l=(0,a.jsx)(r,{config:n,data:o,metadata:c}),t[2]=o,t[3]=c,t[4]=l):l=t[4],l}export{o as default};

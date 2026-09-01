@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Support\Receipt;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class ReceiptController extends Controller
@@ -15,7 +16,19 @@ class ReceiptController extends Controller
         abort_unless($this->ownsOrder($order, $request->user()) || $request->user()->hasRole('superadmin'), 403);
         abort_if($order->status === 'pending', 404);
 
-        return inertia('receipts/show', ['receipt' => Receipt::forOrder($order)]);
+        return inertia('receipts/show', [
+            'receipt' => Receipt::forOrder($order),
+            'pdfUrl' => route('account.orders.receipt.pdf', $order),
+        ]);
+    }
+
+    /** Download the order receipt as a PDF. */
+    public function orderPdf(Request $request, Order $order)
+    {
+        abort_unless($this->ownsOrder($order, $request->user()) || $request->user()->hasRole('superadmin'), 403);
+        abort_if($order->status === 'pending', 404);
+
+        return $this->pdf(Receipt::forOrder($order));
     }
 
     /** An organizer's payout receipt (owner or superadmin). */
@@ -23,7 +36,24 @@ class ReceiptController extends Controller
     {
         abort_unless($payout->user_id === $request->user()->id || $request->user()->hasRole('superadmin'), 403);
 
-        return inertia('receipts/show', ['receipt' => Receipt::forPayout($payout)]);
+        return inertia('receipts/show', [
+            'receipt' => Receipt::forPayout($payout),
+            'pdfUrl' => route('account.payouts.receipt.pdf', $payout),
+        ]);
+    }
+
+    /** Download the payout receipt as a PDF. */
+    public function payoutPdf(Request $request, Payout $payout)
+    {
+        abort_unless($payout->user_id === $request->user()->id || $request->user()->hasRole('superadmin'), 403);
+
+        return $this->pdf(Receipt::forPayout($payout));
+    }
+
+    private function pdf(array $receipt)
+    {
+        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt])
+            ->download("receipt-{$receipt['number']}.pdf");
     }
 
     private function ownsOrder(Order $order, $user): bool

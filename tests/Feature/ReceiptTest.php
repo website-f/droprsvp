@@ -39,6 +39,18 @@ class ReceiptTest extends TestCase
         $this->actingAs(User::factory()->create())->get("/my/orders/{$order->reference}/receipt")->assertForbidden();
     }
 
+    public function test_order_receipt_downloads_as_a_pdf(): void
+    {
+        $host = User::factory()->create();
+        $buyer = User::factory()->create(['email' => 'pdf@example.com']);
+        $order = $this->order($host, 'pdf@example.com');
+
+        $res = $this->actingAs($buyer)->get("/my/orders/{$order->reference}/receipt/pdf");
+        $res->assertOk();
+        $this->assertStringContainsString('application/pdf', $res->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+    }
+
     public function test_superadmin_can_view_any_order_receipt(): void
     {
         Role::findOrCreate('superadmin', 'web');

@@ -178,7 +178,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::get('my/invoices', [AccountController::class, 'invoices'])->name('account.invoices');
     Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
     Route::get('my/orders/{order}/receipt', [ReceiptController::class, 'order'])->name('account.orders.receipt');
+    Route::get('my/orders/{order}/receipt/pdf', [ReceiptController::class, 'orderPdf'])->name('account.orders.receipt.pdf');
     Route::get('my/payouts/{payout}/receipt', [ReceiptController::class, 'payout'])->name('account.payouts.receipt');
+    Route::get('my/payouts/{payout}/receipt/pdf', [ReceiptController::class, 'payoutPdf'])->name('account.payouts.receipt.pdf');
 
     // Host panel — manage your events, ticket types and sessions.
     // Hard-gated to vendors: a free attendee account must upgrade (become a

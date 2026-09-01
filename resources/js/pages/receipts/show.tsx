@@ -23,7 +23,7 @@ interface Receipt {
 
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
-export default function ReceiptShow({ receipt }: { receipt: Receipt }) {
+export default function ReceiptShow({ receipt, pdfUrl }: { receipt: Receipt; pdfUrl: string }) {
     const money = (n: number) => `${receipt.currency} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const statusTone = receipt.status === 'refunded' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800';
 
@@ -34,7 +34,7 @@ export default function ReceiptShow({ receipt }: { receipt: Receipt }) {
                 {/* Toolbar (hidden when printing) */}
                 <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between px-6 print:hidden">
                     <button type="button" onClick={() => window.history.back()} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back</button>
-                    <Button size="sm" onClick={() => window.print()}><Download className="size-4" /> Download / Print</Button>
+                    <Button asChild size="sm"><a href={pdfUrl}><Download className="size-4" /> Download PDF</a></Button>
                 </div>
 
                 {/* Document */}
