@@ -20,15 +20,17 @@ class CheckoutController extends Controller
         abort_unless($event->status === 'published', 404);
 
         $data = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['nullable', 'array'],
             'items.*.ticket_type_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:0'],
+            'seats' => ['nullable', 'array'],
+            'seats.*' => ['integer'],
         ]);
 
         // Intent-to-buy = a click on this event.
         EventDailyStat::bump($event->id, 'clicks');
 
-        $order = $this->checkout->start($event, $data['items'], $request->user()?->id);
+        $order = $this->checkout->start($event, $data['items'] ?? [], $request->user()?->id, $data['seats'] ?? []);
 
         return redirect()->route('checkout.show', $order);
     }

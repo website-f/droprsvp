@@ -15,7 +15,7 @@ class Event extends Model
 
     protected $fillable = [
         'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'gallery',
-        'show_participants', 'show_reviews',
+        'show_participants', 'show_reviews', 'seating_enabled',
         'status', 'cancelled_reason', 'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address', 'city',
         'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at', 'boosted_until',
     ];
@@ -26,6 +26,7 @@ class Event extends Model
             'is_online' => 'boolean',
             'show_participants' => 'boolean',
             'show_reviews' => 'boolean',
+            'seating_enabled' => 'boolean',
             'gallery' => 'array',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
@@ -70,6 +71,16 @@ class Event extends Model
     public function seatingTables(): HasMany
     {
         return $this->hasMany(SeatingTable::class)->orderBy('sort_order');
+    }
+
+    public function seatSections(): HasMany
+    {
+        return $this->hasMany(SeatSection::class)->orderBy('sort_order');
+    }
+
+    public function seats(): HasMany
+    {
+        return $this->hasMany(Seat::class);
     }
 
     public function orders(): HasMany

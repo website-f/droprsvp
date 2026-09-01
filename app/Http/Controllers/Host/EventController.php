@@ -22,12 +22,14 @@ class EventController extends Controller
         return inertia('host/events/index', ['events' => $events]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         return inertia('host/events/form', [
             'event' => null,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
             'cities' => Cities::all(),
+            'seatTemplates' => \App\Models\SeatTemplate::where('user_id', $request->user()->id)
+                ->orderByDesc('id')->get(['id', 'name', 'data']),
         ]);
     }
 
@@ -42,6 +44,7 @@ class EventController extends Controller
 
         $this->syncSessions($event, $data['sessions'] ?? []);
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
+        $this->syncSeatSections($event, ($data['seating_enabled'] ?? false) ? ($data['sections'] ?? []) : []);
 
         return redirect()->route('host.events.index')->with('success', 'Event created.');
     }
@@ -50,12 +53,14 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
-        $event->load(['sessions', 'ticketTypes']);
+        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats')]);
 
         return inertia('host/events/form', [
             'event' => $event,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
             'cities' => Cities::all(),
+            'seatTemplates' => \App\Models\SeatTemplate::where('user_id', $request->user()->id)
+                ->orderByDesc('id')->get(['id', 'name', 'data']),
         ]);
     }
 
@@ -68,6 +73,7 @@ class EventController extends Controller
 
         $this->syncSessions($event, $data['sessions'] ?? []);
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
+        $this->syncSeatSections($event, ($data['seating_enabled'] ?? false) ? ($data['sections'] ?? []) : []);
 
         return redirect()->route('host.events.index')->with('success', 'Event updated.');
     }
@@ -94,6 +100,16 @@ class EventController extends Controller
             'gallery.*' => ['string', 'max:2048'],
             'show_participants' => ['boolean'],
             'show_reviews' => ['boolean'],
+            'seating_enabled' => ['boolean'],
+            'sections' => ['array'],
+            'sections.*.id' => ['nullable', 'integer'],
+            'sections.*.name' => ['required', 'string', 'max:120'],
+            'sections.*.color' => ['nullable', 'string', 'max:20'],
+            'sections.*.kind' => ['required', 'in:seated,ga'],
+            'sections.*.price' => ['required', 'numeric', 'min:0'],
+            'sections.*.rows' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'sections.*.cols' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'sections.*.capacity' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'visibility' => ['required', 'in:public,unlisted,private'],
             'timezone' => ['required', 'string', 'max:64'],
             'is_online' => ['boolean'],
@@ -139,6 +155,7 @@ class EventController extends Controller
             'gallery' => $data['gallery'] ?? [],
             'show_participants' => $data['show_participants'] ?? true,
             'show_reviews' => $data['show_reviews'] ?? true,
+            'seating_enabled' => $data['seating_enabled'] ?? false,
             'visibility' => $data['visibility'],
             'timezone' => $data['timezone'],
             'is_online' => $data['is_online'] ?? false,
@@ -214,6 +231,98 @@ class EventController extends Controller
             $model ? $model->update($attrs) : $model = $event->ticketTypes()->create($attrs);
             $keep[] = $model->id;
         }
-        $event->ticketTypes()->whereKeyNot($keep)->delete();
+        // Only prune MANUAL ticket types — seat-section-backed ones are managed by syncSeatSections.
+        $event->ticketTypes()->whereNull('seat_section_id')->whereKeyNot($keep)->delete();
+    }
+
+    /**
+     * Upsert reserved-seating sections. Each section is backed by a ticket type
+     * (so pricing/inventory/refunds reuse the existing machinery) and, when
+     * "seated", owns a generated grid of individual seats.
+     */
+    private function syncSeatSections(Event $event, array $rows): void
+    {
+        $keep = [];
+        foreach (array_values($rows) as $i => $row) {
+            $kind = ($row['kind'] ?? 'seated') === 'ga' ? 'ga' : 'seated';
+            $price = (float) ($row['price'] ?? 0);
+            $rowsN = $kind === 'seated' ? max(1, (int) ($row['rows'] ?? 1)) : null;
+            $colsN = $kind === 'seated' ? max(1, (int) ($row['cols'] ?? 1)) : null;
+            $capacity = $kind === 'ga' ? max(1, (int) ($row['capacity'] ?? 1)) : null;
+            $qty = $kind === 'seated' ? $rowsN * $colsN : $capacity;
+
+            $section = ! empty($row['id']) ? $event->seatSections()->whereKey($row['id'])->first() : null;
+            $attrs = [
+                'name' => $row['name'], 'color' => $row['color'] ?? '#6c63ff', 'kind' => $kind,
+                'price' => $price, 'currency' => 'MYR',
+                'rows' => $rowsN, 'cols' => $colsN, 'capacity' => $capacity, 'sort_order' => $i,
+            ];
+            $section ? $section->update($attrs) : $section = $event->seatSections()->create($attrs);
+
+            $ttAttrs = [
+                'seat_section_id' => $section->id, 'name' => $section->name,
+                'kind' => $price > 0 ? 'paid' : 'free', 'price' => $price, 'currency' => 'MYR',
+                'quantity' => $qty, 'min_per_order' => 1, 'max_per_order' => max(1, min(20, (int) $qty)),
+                'is_active' => true, 'sort_order' => $i,
+            ];
+            if ($section->ticketType) {
+                $section->ticketType->update($ttAttrs);
+            } else {
+                $tt = $event->ticketTypes()->create($ttAttrs);
+                $section->update(['ticket_type_id' => $tt->id]);
+            }
+
+            if ($kind === 'seated') {
+                $this->syncSeats($section->fresh(), $rowsN, $colsN);
+            } else {
+                $section->seats()->where('status', 'available')->delete();
+            }
+
+            $keep[] = $section->id;
+        }
+
+        foreach ($event->seatSections()->whereKeyNot($keep)->get() as $stale) {
+            $stale->ticketType?->delete();
+            $stale->delete(); // cascades its seats
+        }
+    }
+
+    /** Rebuild a seated section's grid, never touching seats that are held/sold. */
+    private function syncSeats(\App\Models\SeatSection $section, int $rows, int $cols): void
+    {
+        $existing = $section->seats()->get()->keyBy('label');
+        $keep = [];
+        $order = 0;
+        for ($r = 0; $r < $rows; $r++) {
+            $rowLabel = $this->rowLabel($r);
+            for ($c = 1; $c <= $cols; $c++) {
+                $label = $rowLabel.$c;
+                if ($seat = $existing->get($label)) {
+                    $seat->update(['row_label' => $rowLabel, 'number' => $c, 'sort_order' => $order]);
+                } else {
+                    $section->seats()->create([
+                        'event_id' => $section->event_id, 'row_label' => $rowLabel, 'number' => $c,
+                        'label' => $label, 'status' => 'available', 'sort_order' => $order,
+                    ]);
+                }
+                $keep[] = $label;
+                $order++;
+            }
+        }
+        $section->seats()->whereNotIn('label', $keep)->where('status', 'available')->delete();
+    }
+
+    /** 0→A, 25→Z, 26→AA … for row labels. */
+    private function rowLabel(int $i): string
+    {
+        $label = '';
+        $i++;
+        while ($i > 0) {
+            $i--;
+            $label = chr(65 + ($i % 26)).$label;
+            $i = intdiv($i, 26);
+        }
+
+        return $label;
     }
 }

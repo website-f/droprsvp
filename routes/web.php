@@ -173,6 +173,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
 
+        // Reusable seating templates.
+        Route::post('seat-templates', [\App\Http\Controllers\Host\SeatTemplateController::class, 'store'])->name('seat-templates.store');
+        Route::delete('seat-templates/{seatTemplate}', [\App\Http\Controllers\Host\SeatTemplateController::class, 'destroy'])->name('seat-templates.destroy');
+
         // Per-event analytics (reach, sales, audience demographics).
         Route::get('events/{event}/analytics', [AnalyticsController::class, 'show'])->name('events.analytics');
 

@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Http\Controllers\Host;
+
+use App\Http\Controllers\Controller;
+use App\Models\SeatTemplate;
+use Illuminate\Http\Request;
+
+class SeatTemplateController extends Controller
+{
+    /** Save the current seating layout as a reusable template for this organizer. */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'sections' => ['required', 'array', 'min:1'],
+            'sections.*.name' => ['required', 'string', 'max:120'],
+            'sections.*.color' => ['nullable', 'string', 'max:20'],
+            'sections.*.kind' => ['required', 'in:seated,ga'],
+            'sections.*.price' => ['required', 'numeric', 'min:0'],
+            'sections.*.rows' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'sections.*.cols' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'sections.*.capacity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+        ]);
+
+        SeatTemplate::create([
+            'user_id' => $request->user()->id,
+            'name' => $data['name'],
+            'data' => collect($data['sections'])->map(fn ($s) => [
+                'name' => $s['name'], 'color' => $s['color'] ?? '#6c63ff', 'kind' => $s['kind'],
+                'price' => (float) $s['price'], 'rows' => $s['rows'] ?? null, 'cols' => $s['cols'] ?? null,
+                'capacity' => $s['capacity'] ?? null,
+            ])->all(),
+        ]);
+
+        return back()->with('success', 'Seating template saved.');
+    }
+
+    public function destroy(Request $request, SeatTemplate $seatTemplate)
+    {
+        abort_unless($seatTemplate->user_id === $request->user()->id, 403);
+        $seatTemplate->delete();
+
+        return back()->with('success', 'Template deleted.');
+    }
+}

@@ -23,7 +23,10 @@ class EventController extends Controller
             'user',
             'seo',
             'sessions',
-            'ticketTypes' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+            // Only manual (general-admission) ticket types in the normal selector —
+            // seat-section-backed ones are bought through the seat map instead.
+            'ticketTypes' => fn ($q) => $q->where('is_active', true)->whereNull('seat_section_id')->orderBy('sort_order'),
+            'seatSections' => fn ($q) => $q->orderBy('sort_order')->with(['seats' => fn ($s) => $s->orderBy('sort_order'), 'ticketType']),
         ]);
 
         $description = $this->metaDescription($event);
@@ -95,6 +98,27 @@ class EventController extends Controller
                 'status' => $event->status,
                 'show_participants' => (bool) $event->show_participants,
                 'show_reviews' => (bool) $event->show_reviews,
+                'seating_enabled' => (bool) $event->seating_enabled,
+                'seating' => $event->seating_enabled ? $event->seatSections->map(fn ($sec) => [
+                    'id' => $sec->id,
+                    'ticket_type_id' => $sec->ticket_type_id,
+                    'name' => $sec->name,
+                    'color' => $sec->color,
+                    'kind' => $sec->kind,
+                    'price' => (float) $sec->price,
+                    'currency' => $sec->currency,
+                    'rows' => $sec->rows,
+                    'cols' => $sec->cols,
+                    'remaining' => $sec->ticketType?->remaining(),
+                    'on_sale' => (bool) $sec->ticketType?->isOnSale(),
+                    'seats' => $sec->kind === 'seated' ? $sec->seats->map(fn ($seat) => [
+                        'id' => $seat->id,
+                        'label' => $seat->label,
+                        'row' => $seat->row_label,
+                        'number' => $seat->number,
+                        'taken' => $seat->status !== 'available',
+                    ])->values() : [],
+                ])->values() : [],
                 'sessions' => $event->sessions->map(fn ($s) => [
                     'id' => $s->id,
                     'title' => $s->title,

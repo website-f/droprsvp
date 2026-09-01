@@ -10,6 +10,7 @@ interface TicketView {
     status: string;
     type: string | null;
     table: string | null;
+    seat: string | null;
     organizer: string | null;
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
 }
@@ -54,7 +55,8 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                                 <div className="text-xs text-muted-foreground">Attendee</div>
                                 <div className="font-medium">{ticket.attendee_name ?? 'Guest'}</div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                {ticket.seat && <Badge>{ticket.seat}</Badge>}
                                 {ticket.table && <Badge>{ticket.table}</Badge>}
                                 {ticket.type && <Badge variant="secondary">{ticket.type}</Badge>}
                             </div>

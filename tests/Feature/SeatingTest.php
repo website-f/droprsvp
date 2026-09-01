@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Event;
 use App\Models\Order;
-use App\Models\Ticket;
+use App\Models\Seat;
+use App\Models\SeatTemplate;
 use App\Models\User;
+use App\Services\CheckoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,71 +15,109 @@ class SeatingTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @return array{0: Event, 1: Ticket} */
-    private function eventWithTicket(): array
+    /** Create a published seated event (via the host controller) and return it. */
+    private function seatedEvent(array $section = []): Event
     {
         $host = $this->organizer();
-        $event = Event::create([
-            'user_id' => $host->id, 'title' => 'Gala', 'slug' => 'gala',
-            'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
-        ]);
-        $order = Order::create(['reference' => 'DRSVP-SEAT01', 'event_id' => $event->id, 'status' => 'paid', 'total' => 0]);
-        $ticket = $order->tickets()->create(['event_id' => $event->id, 'attendee_name' => 'Ali', 'status' => 'valid']);
+        $section = array_merge(['name' => 'VIP', 'kind' => 'seated', 'price' => 50, 'rows' => 2, 'cols' => 3, 'color' => '#111'], $section);
 
-        return [$event, $ticket];
-    }
-
-    public function test_host_can_create_tables_and_assign_a_ticket(): void
-    {
-        [$event, $ticket] = $this->eventWithTicket();
-
-        $this->actingAs($event->user)->post(route('host.events.seating.tables', $event), [
-            'tables' => [['name' => 'Table 1', 'capacity' => 2]],
+        $this->actingAs($host)->post('/host/events', [
+            'title' => 'Big Concert', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
+            'seating_enabled' => true, 'sections' => [$section], 'ticketTypes' => [], 'sessions' => [], 'publish' => true,
         ])->assertRedirect();
 
-        $table = $event->seatingTables()->first();
-        $this->assertSame('Table 1', $table->name);
+        return Event::where('title', 'Big Concert')->firstOrFail();
+    }
 
-        $this->actingAs($event->user)->post(route('host.events.seating.assign', $event), [
-            'ticket_id' => $ticket->id, 'seating_table_id' => $table->id,
+    public function test_creating_a_seated_event_generates_sections_seats_and_a_backing_ticket_type(): void
+    {
+        $event = $this->seatedEvent();
+
+        $this->assertTrue($event->seating_enabled);
+        $this->assertSame(1, $event->seatSections()->count());
+        $this->assertSame(6, $event->seats()->count());               // 2 rows × 3
+
+        $section = $event->seatSections()->first();
+        $this->assertNotNull($section->ticket_type_id);
+        $this->assertSame(6, $section->ticketType->quantity);          // backing inventory
+        $this->assertSame('A1', $event->seats()->orderBy('sort_order')->first()->label);
+    }
+
+    public function test_a_ga_section_uses_capacity_and_creates_no_seats(): void
+    {
+        $event = $this->seatedEvent(['kind' => 'ga', 'capacity' => 80, 'rows' => null, 'cols' => null]);
+
+        $this->assertSame(0, $event->seats()->count());
+        $this->assertSame(80, $event->seatSections()->first()->ticketType->quantity);
+    }
+
+    public function test_buyer_reserves_specific_seats_then_payment_issues_seated_tickets(): void
+    {
+        $event = $this->seatedEvent();
+        $seatIds = $event->seats()->orderBy('sort_order')->limit(2)->pluck('id')->all();
+
+        $this->post("/e/{$event->slug}/checkout", ['seats' => $seatIds])->assertRedirect();
+
+        $order = Order::latest('id')->firstOrFail();
+        $this->assertSame(2, $order->items()->count());
+        $this->assertSame(100.0, (float) $order->total);               // 2 × RM50
+        $this->assertSame(2, Seat::whereIn('id', $seatIds)->where('status', 'held')->count());
+
+        app(CheckoutService::class)->markPaid($order);
+
+        $this->assertSame(2, $order->tickets()->count());
+        $this->assertNotNull($order->tickets()->first()->seat_label);
+        $this->assertSame(2, Seat::whereIn('id', $seatIds)->where('status', 'sold')->count());
+    }
+
+    public function test_a_held_seat_cannot_be_double_booked(): void
+    {
+        $event = $this->seatedEvent();
+        $seat = $event->seats()->orderBy('sort_order')->first();
+
+        $this->post("/e/{$event->slug}/checkout", ['seats' => [$seat->id]])->assertRedirect();
+        $this->assertSame('held', $seat->fresh()->status);
+
+        // A second buyer trying the same seat is rejected.
+        $this->post("/e/{$event->slug}/checkout", ['seats' => [$seat->id]])->assertSessionHasErrors('seats');
+        $this->assertSame(1, Order::count());
+    }
+
+    public function test_releasing_an_abandoned_order_frees_its_seats(): void
+    {
+        $event = $this->seatedEvent();
+        $seatIds = $event->seats()->limit(2)->pluck('id')->all();
+        $this->post("/e/{$event->slug}/checkout", ['seats' => $seatIds])->assertRedirect();
+        $order = Order::latest('id')->firstOrFail();
+
+        app(CheckoutService::class)->release($order);
+
+        $this->assertSame(2, Seat::whereIn('id', $seatIds)->where('status', 'available')->count());
+    }
+
+    public function test_public_event_payload_exposes_the_seat_map_and_hides_backing_ticket_types(): void
+    {
+        $event = $this->seatedEvent();
+
+        $this->get("/en-my/e/{$event->slug}")->assertInertia(fn ($p) => $p
+            ->component('public/event')
+            ->where('event.seating_enabled', true)
+            ->has('event.seating', 1)
+            ->has('event.seating.0.seats', 6)
+            ->where('event.ticket_types', []));            // section ticket type not shown in the GA selector
+    }
+
+    public function test_host_can_save_a_seating_template(): void
+    {
+        $host = $this->organizer();
+
+        $this->actingAs($host)->post('/host/seat-templates', [
+            'name' => 'Main Hall',
+            'sections' => [['name' => 'Stalls', 'color' => '#111', 'kind' => 'seated', 'price' => 30, 'rows' => 4, 'cols' => 5]],
         ])->assertRedirect();
 
-        $this->assertSame($table->id, $ticket->fresh()->seating_table_id);
-    }
-
-    public function test_cannot_assign_beyond_table_capacity(): void
-    {
-        [$event, $ticket] = $this->eventWithTicket();
-        $table = $event->seatingTables()->create(['name' => 'Tiny', 'capacity' => 1]);
-        // fill the single seat with another ticket (via its own order)
-        $filler = Order::create(['reference' => 'DRSVP-FILL01', 'event_id' => $event->id, 'status' => 'paid', 'total' => 0]);
-        $filler->tickets()->create(['event_id' => $event->id, 'seating_table_id' => $table->id, 'attendee_name' => 'X', 'status' => 'valid']);
-
-        $this->actingAs($event->user)->post(route('host.events.seating.assign', $event), [
-            'ticket_id' => $ticket->id, 'seating_table_id' => $table->id,
-        ])->assertSessionHasErrors('seating');
-
-        $this->assertNull($ticket->fresh()->seating_table_id);
-    }
-
-    public function test_deleting_a_table_unassigns_its_tickets(): void
-    {
-        [$event, $ticket] = $this->eventWithTicket();
-        $table = $event->seatingTables()->create(['name' => 'Table 1', 'capacity' => 8]);
-        $ticket->update(['seating_table_id' => $table->id]);
-
-        // save with an empty tables set → the table is pruned
-        $this->actingAs($event->user)->post(route('host.events.seating.tables', $event), ['tables' => []]);
-
-        $this->assertSame(0, $event->seatingTables()->count());
-        $this->assertNull($ticket->fresh()->seating_table_id);
-    }
-
-    public function test_non_owner_cannot_manage_seating(): void
-    {
-        [$event] = $this->eventWithTicket();
-        $intruder = $this->organizer();
-
-        $this->actingAs($intruder)->get(route('host.events.seating', $event))->assertForbidden();
+        $tpl = SeatTemplate::where('user_id', $host->id)->firstOrFail();
+        $this->assertSame('Main Hall', $tpl->name);
+        $this->assertSame('Stalls', $tpl->data[0]['name']);
     }
 }

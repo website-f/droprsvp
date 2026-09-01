@@ -2,6 +2,8 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { SeatMap   } from '@/components/seat-map';
+import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +20,7 @@ interface EventView {
     venue_name: string | null; venue_address: string | null; online_url: string | null;
     when: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
+    seating_enabled: boolean; seating: SeatMapSection[];
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
 }
@@ -83,17 +86,64 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
     const inc = (t: TicketTypeView) => setQty((q) => ({ ...q, [t.id]: Math.min(capOf(t), (q[t.id] || 0) === 0 ? t.min_per_order : (q[t.id] || 0) + 1) }));
     const dec = (t: TicketTypeView) => setQty((q) => ({ ...q, [t.id]: (q[t.id] || 0) <= t.min_per_order ? 0 : (q[t.id] || 0) - 1 }));
 
-    const total = event.ticket_types.reduce((sum, t) => sum + (qty[t.id] || 0) * t.price, 0);
-    const count = Object.values(qty).reduce((a, b) => a + b, 0);
+    // Reserved seating selection.
+    const [selectedSeats, setSelectedSeats] = useState<Set<number>>(new Set());
+    const [seatPrice, setSeatPrice] = useState<Record<number, number>>({}); // seatId -> price
+    const [gaQty, setGaQty] = useState<Record<number, number>>({});
+    const toggleSeat = (seat: SeatMapSeat, section: SeatMapSection) => {
+        setSelectedSeats((prev) => {
+            const next = new Set(prev);
+
+            if (next.has(seat.id)) {
+                next.delete(seat.id);
+            } else {
+                next.add(seat.id);
+            }
+
+            return next;
+        });
+        setSeatPrice((p) => ({ ...p, [seat.id]: section.price }));
+    };
+    const changeGa = (sectionId: number, q: number) => setGaQty((prev) => ({ ...prev, [sectionId]: Math.max(0, q) }));
+
+    const seatingTotal = event.seating_enabled
+        ? [...selectedSeats].reduce((sum, id) => sum + (seatPrice[id] || 0), 0)
+          + event.seating.filter((s) => s.kind === 'ga').reduce((sum, s) => sum + (gaQty[s.id] || 0) * s.price, 0)
+        : 0;
+    const seatingCount = event.seating_enabled
+        ? selectedSeats.size + Object.values(gaQty).reduce((a, b) => a + b, 0)
+        : 0;
+
+    const total = event.seating_enabled ? seatingTotal : event.ticket_types.reduce((sum, t) => sum + (qty[t.id] || 0) * t.price, 0);
+    const count = event.seating_enabled ? seatingCount : Object.values(qty).reduce((a, b) => a + b, 0);
 
     const getTickets = () => {
-        const items = Object.entries(qty).filter(([, q]) => q > 0).map(([id, q]) => ({ ticket_type_id: Number(id), quantity: q }));
+        setSubmitting(true);
 
-        if (items.length === 0) {
+        if (event.seating_enabled) {
+            const items = event.seating
+                .filter((s) => s.kind === 'ga' && s.ticket_type_id && (gaQty[s.id] || 0) > 0)
+                .map((s) => ({ ticket_type_id: s.ticket_type_id as number, quantity: gaQty[s.id] }));
+
+            if (selectedSeats.size === 0 && items.length === 0) {
+                setSubmitting(false);
+
+                return;
+            }
+
+            router.post(`/e/${event.slug}/checkout`, { seats: [...selectedSeats], items }, { onFinish: () => setSubmitting(false) });
+
             return;
         }
 
-        setSubmitting(true);
+        const items = Object.entries(qty).filter(([, q]) => q > 0).map(([id, q]) => ({ ticket_type_id: Number(id), quantity: q }));
+
+        if (items.length === 0) {
+            setSubmitting(false);
+
+            return;
+        }
+
         router.post(`/e/${event.slug}/checkout`, { items }, { onFinish: () => setSubmitting(false) });
     };
 
@@ -419,9 +469,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     {/* Ticket selector */}
                     <aside id="tickets" className="lg:sticky lg:top-6 lg:self-start">
                         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                            <h2 className="mb-4 font-semibold">Tickets</h2>
+                            <h2 className="mb-4 font-semibold">{event.seating_enabled ? 'Choose your seats' : 'Tickets'}</h2>
 
-                            {event.ticket_types.length === 0 ? (
+                            {event.seating_enabled ? (
+                                event.seating.length === 0
+                                    ? <p className="text-sm text-muted-foreground">Seating isn't available yet.</p>
+                                    : <SeatMap sections={event.seating} selected={selectedSeats} onToggleSeat={toggleSeat} gaQty={gaQty} onGaChange={changeGa} />
+                            ) : event.ticket_types.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">Tickets aren't available yet.</p>
                             ) : (
                                 <div className="grid gap-3">
@@ -458,13 +512,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
                             {count > 0 && (
                                 <div className="mt-4 flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">{count} ticket{count > 1 ? 's' : ''}</span>
+                                    <span className="text-muted-foreground">{count} {event.seating_enabled ? 'seat' : 'ticket'}{count > 1 ? 's' : ''}</span>
                                     <span className="font-semibold">RM {total.toFixed(2)}</span>
                                 </div>
                             )}
 
                             <Button className="mt-4 w-full" size="lg" onClick={getTickets} disabled={count === 0 || submitting}>
-                                <Ticket className="size-4" /> {count === 0 ? 'Get tickets' : `Checkout · RM ${total.toFixed(2)}`}
+                                <Ticket className="size-4" /> {count === 0 ? (event.seating_enabled ? 'Select seats' : 'Get tickets') : `Checkout · RM ${total.toFixed(2)}`}
                             </Button>
                             <p className="mt-2 text-center text-xs text-muted-foreground">Secure checkout · powered by DropRSVP</p>
                         </div>

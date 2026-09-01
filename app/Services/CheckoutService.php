@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Mail\TicketsIssued;
 use App\Models\Event;
 use App\Models\Order;
+use App\Models\Seat;
+use App\Models\SeatSection;
 use App\Models\TicketType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -20,21 +22,23 @@ class CheckoutService
      *
      * @throws ValidationException when a ticket is unavailable / limits are broken
      */
-    public function start(Event $event, array $items, ?int $userId = null): Order
+    public function start(Event $event, array $items, ?int $userId = null, array $seatIds = []): Order
     {
         $wanted = collect($items)
             ->map(fn ($i) => ['ticket_type_id' => (int) $i['ticket_type_id'], 'quantity' => (int) $i['quantity']])
             ->filter(fn ($i) => $i['quantity'] > 0)
             ->values();
+        $seatIds = collect($seatIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
 
-        if ($wanted->isEmpty()) {
+        if ($wanted->isEmpty() && $seatIds->isEmpty()) {
             throw ValidationException::withMessages(['items' => 'Select at least one ticket.']);
         }
 
-        return DB::transaction(function () use ($event, $wanted, $userId) {
+        return DB::transaction(function () use ($event, $wanted, $seatIds, $userId) {
             $subtotal = 0.0;
             $currency = config('services.hitpay.currency', 'MYR');
             $lines = [];
+            $heldSeatIds = [];
 
             foreach ($wanted as $row) {
                 /** @var TicketType|null $tt */
@@ -65,6 +69,44 @@ class CheckoutService
                 $lines[] = ['ticket_type_id' => $tt->id, 'name' => $tt->name, 'unit_price' => $unit, 'quantity' => $row['quantity'], 'line_total' => $lineTotal];
             }
 
+            // Reserved seats — one order line per seat, priced by its section.
+            if ($seatIds->isNotEmpty()) {
+                $seats = Seat::whereIn('id', $seatIds->all())->where('event_id', $event->id)->lockForUpdate()->get();
+                if ($seats->count() !== $seatIds->count()) {
+                    throw ValidationException::withMessages(['seats' => 'Some of those seats no longer exist.']);
+                }
+                foreach ($seats->groupBy('seat_section_id') as $sectionId => $sectionSeats) {
+                    /** @var SeatSection|null $section */
+                    $section = SeatSection::whereKey($sectionId)->first();
+                    $tt = $section?->ticket_type_id ? TicketType::whereKey($section->ticket_type_id)->lockForUpdate()->first() : null;
+                    if (! $section || ! $tt || ! $tt->isOnSale()) {
+                        throw ValidationException::withMessages(['seats' => 'A selected section is no longer on sale.']);
+                    }
+                    $count = $sectionSeats->count();
+                    $remaining = $tt->remaining();
+                    if ($remaining !== null && $count > $remaining) {
+                        throw ValidationException::withMessages(['seats' => "Only {$remaining} left in “{$section->name}”."]);
+                    }
+
+                    $unit = $tt->kind === 'free' ? 0.0 : (float) $tt->price;
+                    $currency = $tt->currency;
+                    $tt->increment('sold', $count);
+
+                    foreach ($sectionSeats as $seat) {
+                        if ($seat->status !== 'available') {
+                            throw ValidationException::withMessages(['seats' => "Seat {$seat->label} was just taken — please pick another."]);
+                        }
+                        $subtotal += $unit;
+                        $lines[] = [
+                            'ticket_type_id' => $tt->id, 'seat_section_id' => $section->id, 'seat_id' => $seat->id,
+                            'seat_label' => $section->name.' · '.$seat->label,
+                            'name' => "{$section->name} — {$seat->label}", 'unit_price' => $unit, 'quantity' => 1, 'line_total' => $unit,
+                        ];
+                        $heldSeatIds[] = $seat->id;
+                    }
+                }
+            }
+
             // Tax is superadmin-configurable (0 by default → no change to totals).
             $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
             $tax = round($subtotal * $taxPercent / 100, 2);
@@ -80,6 +122,11 @@ class CheckoutService
                 'currency' => $currency,
             ]);
             $order->items()->createMany($lines);
+
+            // Hold the specific seats for this order so nobody else can take them.
+            if ($heldSeatIds) {
+                Seat::whereIn('id', $heldSeatIds)->update(['status' => 'held', 'order_id' => $order->id]);
+            }
 
             return $order;
         });
@@ -105,13 +152,18 @@ class CheckoutService
                 for ($i = 0; $i < $item->quantity; $i++) {
                     $locked->tickets()->create([
                         'ticket_type_id' => $item->ticket_type_id,
+                        'seat_section_id' => $item->seat_section_id,
                         'event_id' => $locked->event_id,
                         'attendee_name' => $locked->buyer_name,
                         'attendee_email' => $locked->buyer_email,
                         'status' => 'valid',
+                        'seat_label' => $item->seat_label,
                     ]);
                 }
             }
+
+            // Confirm any held seats as sold.
+            Seat::where('order_id', $locked->id)->where('status', 'held')->update(['status' => 'sold']);
 
             return true;
         });
@@ -166,6 +218,8 @@ class CheckoutService
                 $tt->update(['sold' => max(0, $tt->sold - (int) $item->quantity)]);
             }
         }
+        // Free any seats this order held or owned (abandoned hold or refund).
+        Seat::where('order_id', $order->id)->update(['status' => 'available', 'order_id' => null]);
     }
 
     private function uniqueReference(): string

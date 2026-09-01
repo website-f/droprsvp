@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TicketType extends Model
 {
     protected $fillable = [
-        'event_id', 'name', 'description', 'kind', 'price', 'compare_at_price', 'currency', 'quantity', 'sold',
+        'event_id', 'seat_section_id', 'name', 'description', 'kind', 'price', 'compare_at_price', 'currency', 'quantity', 'sold',
         'min_per_order', 'max_per_order', 'sales_start', 'sales_end', 'is_active', 'sort_order',
     ];
 

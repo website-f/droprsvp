@@ -25,6 +25,7 @@ class TicketController extends Controller
                 'status' => $ticket->status,
                 'type' => $ticket->ticketType?->name,
                 'table' => $ticket->seatingTable?->name,
+                'seat' => $ticket->seat_label,
                 'organizer' => $event->user?->name,
                 'event' => [
                     'title' => $event->title,
