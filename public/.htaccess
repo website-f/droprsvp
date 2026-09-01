@@ -26,11 +26,11 @@
 
     # --- Canonical path: enforce a trailing slash ---------------------------
     # e.g. /en-my  ->  /en-my/ . Only for real page views:
-    #   * GET requests only (never rewrite a POST/PUT — it would drop the body),
+    #   * safe methods only (GET/HEAD — never rewrite a POST/PUT: it would drop the body),
     #   * skip Inertia XHR (X-Inertia) so in-app navigation stays a single request,
     #   * skip real files/dirs (assets, /build, /storage) and anything with a file
     #     extension, and URLs that already end in "/".
-    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$
     RewriteCond %{HTTP:X-Inertia} !=true
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
