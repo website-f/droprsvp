@@ -62,6 +62,21 @@ class EventCategoryTest extends TestCase
             ->where('categoryContent.0.content', 'The best music events across Malaysia.'));
     }
 
+    public function test_superadmin_can_reorder_categories(): void
+    {
+        $admin = $this->superadmin();
+        $a = EventCategory::create(['name' => 'A', 'slug' => 'a', 'sort_order' => 0]);
+        $b = EventCategory::create(['name' => 'B', 'slug' => 'b', 'sort_order' => 1]);
+        $c = EventCategory::create(['name' => 'C', 'slug' => 'c', 'sort_order' => 2]);
+
+        // New order: C, A, B.
+        $this->actingAs($admin)->post('/admin/categories/reorder', ['ids' => [$c->id, $a->id, $b->id]])->assertRedirect();
+
+        $this->assertSame(0, $c->fresh()->sort_order);
+        $this->assertSame(1, $a->fresh()->sort_order);
+        $this->assertSame(2, $b->fresh()->sort_order);
+    }
+
     public function test_a_non_superadmin_cannot_manage_categories(): void
     {
         $this->actingAs(User::factory()->create())->get('/admin/categories')->assertForbidden();

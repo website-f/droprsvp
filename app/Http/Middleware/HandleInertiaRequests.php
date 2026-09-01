@@ -59,6 +59,8 @@ class HandleInertiaRequests extends Middleware
             ],
             // Whether "Continue with Google" is available (keys configured).
             'googleAuth' => (bool) config('services.google.client_id') && (bool) config('services.google.client_secret'),
+            // Cities for the header location selector (curated, small).
+            'cities' => \App\Support\Cities::all(),
         ];
     }
 }

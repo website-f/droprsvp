@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Plus, Save, Search, Shapes, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Save, Search, Shapes, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ interface Props { categories: Category[]; browseSeo: { title: string; descriptio
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-function Row({ category }: { category: Category }) {
+function Row({ category, first, last, onMove }: { category: Category; first: boolean; last: boolean; onMove: (dir: -1 | 1) => void }) {
     const confirm = useConfirm();
     const [name, setName] = useState(category.name);
     const [slug, setSlug] = useState(category.slug);
@@ -27,7 +27,11 @@ function Row({ category }: { category: Category }) {
 
     return (
         <div className="rounded-xl border border-border bg-card p-3">
-            <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto]">
+            <div className="grid items-end gap-3 sm:grid-cols-[auto_1fr_1fr_auto_auto]">
+                <div className="flex flex-col pb-0.5">
+                    <button type="button" aria-label="Move up" disabled={first} onClick={() => onMove(-1)} className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
+                    <button type="button" aria-label="Move down" disabled={last} onClick={() => onMove(1)} className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
+                </div>
                 <div className="grid gap-1.5">
                     <Label className="text-xs">Name</Label>
                     <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
@@ -59,6 +63,17 @@ export default function CategoriesIndex({ categories, browseSeo }: Props) {
         add.post('/admin/categories', { preserveScroll: true, onSuccess: () => add.reset() });
     };
     const saveSeo = () => seo.post('/admin/categories/browse-seo', { preserveScroll: true });
+    const move = (index: number, dir: -1 | 1) => {
+        const next = index + dir;
+
+        if (next < 0 || next >= categories.length) {
+            return;
+        }
+
+        const ids = categories.map((c) => c.id);
+        [ids[index], ids[next]] = [ids[next], ids[index]];
+        router.post('/admin/categories/reorder', { ids }, { preserveScroll: true });
+    };
 
     return (
         <>
@@ -96,7 +111,7 @@ export default function CategoriesIndex({ categories, browseSeo }: Props) {
                     <p className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No categories yet.</p>
                 ) : (
                     <div className="grid gap-3">
-                        {categories.map((c) => <Row key={c.id} category={c} />)}
+                        {categories.map((c, i) => <Row key={c.id} category={c} first={i === 0} last={i === categories.length - 1} onMove={(dir) => move(i, dir)} />)}
                     </div>
                 )}
             </div>

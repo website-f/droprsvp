@@ -54,6 +54,18 @@ class EventCategoryController extends Controller
         return back()->with('success', 'Category added.');
     }
 
+    /** Persist a new category ordering (ids in the desired order). */
+    public function reorder(Request $request)
+    {
+        $data = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']]);
+
+        foreach (array_values($data['ids']) as $i => $id) {
+            EventCategory::whereKey($id)->update(['sort_order' => $i]);
+        }
+
+        return back()->with('success', 'Order updated.');
+    }
+
     public function update(Request $request, EventCategory $category)
     {
         $data = $request->validate([

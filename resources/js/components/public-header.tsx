@@ -5,6 +5,7 @@ import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Wordmark } from '@/components/brand';
 import { Footer } from '@/components/cms/footer-blocks';
 import type { FooterData } from '@/components/cms/footer-blocks';
+import { HeaderSearch } from '@/components/header-search';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
 import type { PublicNavItem } from '@/types';
@@ -32,17 +33,20 @@ export function PublicHeader() {
 
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-            <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-6 py-4">
-                <Link href="/" aria-label="DropRSVP home">
+            <div className="mx-auto flex max-w-[1280px] items-center gap-4 px-6 py-3">
+                <Link href="/" aria-label="DropRSVP home" className="shrink-0">
                     <Wordmark height={branding?.header_height ?? 44} />
                 </Link>
 
-                {/* Desktop nav */}
-                <nav className="hidden items-center gap-6 md:flex">
+                {/* Search + location (desktop) */}
+                <HeaderSearch className="hidden flex-1 md:flex md:max-w-2xl" />
+
+                {/* CMS menu links (wide screens) */}
+                <nav className="hidden items-center gap-5 lg:flex">
                     {items.map((item, i) => <NavLink key={`${item.url}-${i}`} item={item} />)}
                 </nav>
 
-                <div className="flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-2 md:ml-0">
                     <AppearanceToggle />
                     <div className="hidden items-center gap-2 md:flex">
                         <Link href="/help" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
@@ -64,6 +68,11 @@ export function PublicHeader() {
                         {open ? <X className="size-5" /> : <Menu className="size-5" />}
                     </button>
                 </div>
+            </div>
+
+            {/* Search + location (mobile — always visible) */}
+            <div className="px-4 pb-3 md:hidden">
+                <HeaderSearch />
             </div>
 
             {/* Mobile drawer */}
