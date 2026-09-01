@@ -135,6 +135,17 @@ CHIP_SECRET_KEY=...      # Secret Key from the CHIP portal
 CHIP_BRAND_ID=...        # Brand UUID from the CHIP portal
 # CHIP_PUBLIC_KEY=...    # optional; else fetched from /public_key/ and cached
 
+# Email (cPanel SMTP) — all transactional emails go out through this.
+MAIL_MAILER=smtp
+MAIL_SCHEME=smtps                       # port 465 = implicit TLS. (587 → use "tls")
+MAIL_HOST=mail.yourdomain.com
+MAIL_PORT=465
+MAIL_USERNAME=no-reply@yourdomain.com
+MAIL_PASSWORD=...                        # the mailbox password
+MAIL_FROM_ADDRESS="no-reply@yourdomain.com"
+MAIL_FROM_NAME="${APP_NAME}"
+MAIL_EHLO_DOMAIN=yourdomain.com          # keep the HELO on the real domain
+
 # SEO (optional overrides — sensible defaults already ship)
 # SEO_DEFAULT_IMAGE=/og-default.png   # branded 1200×630 default (already set)
 # SEO_LOGO=/logo.png                  # Organization logo (already set)
@@ -147,6 +158,13 @@ CHIP_BRAND_ID=...        # Brand UUID from the CHIP portal
   domain and they're all correct.
 - Assets never 404 as long as `/build` resolves at the web root — Option A gives
   that for free; Option B via the `build` symlink/copy. No `ASSET_URL` needed.
+- **Email:** after setting the `MAIL_*` block, run `php artisan config:cache`, then
+  test everything with `php artisan mail:test you@example.com` (sends one of every
+  transactional email with sample data — nothing is written to the DB). Because
+  `APP_URL` is the live domain in production, the links inside emails are correct;
+  in local dev pass `--url=https://www.droprsvp.com` so `.test` links (which some
+  spam filters block) don't leak in. For deliverability, enable **SPF + DKIM** (and
+  ideally **DMARC**) for the domain in cPanel → *Email Deliverability*.
 
 ---
 
