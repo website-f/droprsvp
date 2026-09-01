@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Download, Search, ShieldCheck } from 'lucide-react';
+import { Download, Eye, Search, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { AppSelect } from '@/components/ui/app-select';
@@ -78,7 +78,7 @@ export default function AdminUsers({ users, filters, countries, ageBands }: Prop
                                 <th className="px-4 py-3 font-medium">Location</th>
                                 <th className="px-4 py-3 font-medium">Audience</th>
                                 <th className="px-4 py-3 font-medium">Roles</th>
-                                <th className="px-4 py-3 text-right font-medium">Access</th>
+                                <th className="px-4 py-3 text-right font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -97,10 +97,15 @@ export default function AdminUsers({ users, filters, countries, ageBands }: Prop
                                             {u.roles.length ? u.roles.map((r) => <Badge key={r} variant="secondary" className="capitalize">{r}</Badge>) : <span className="text-xs text-muted-foreground">—</span>}
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <Button variant={u.is_superadmin ? 'outline' : 'default'} size="sm" onClick={() => toggle(u)}>
-                                            <ShieldCheck className="size-3.5" /> {u.is_superadmin ? 'Revoke admin' : 'Make admin'}
-                                        </Button>
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button asChild variant="ghost" size="icon" className="size-8" title="View details">
+                                                <Link href={`/admin/users/${u.id}`} aria-label={`View ${u.name}`}><Eye className="size-4" /></Link>
+                                            </Button>
+                                            <Button variant={u.is_superadmin ? 'outline' : 'default'} size="sm" onClick={() => toggle(u)}>
+                                                <ShieldCheck className="size-3.5" /> {u.is_superadmin ? 'Revoke admin' : 'Make admin'}
+                                            </Button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

@@ -52,9 +52,16 @@ class AnalyticsController extends Controller
                 'dir' => $this->sortDir($request),
             ],
             'exportUrl' => route('admin.analytics.export', $request->query()),
-            'selectedSlug' => $request->query('event'),
-            'selected' => $this->eventBreakdown($request->query('event')),
         ]);
+    }
+
+    /** One event's analytics on its own page (opened from the events table). */
+    public function show(Event $event)
+    {
+        $data = $this->eventBreakdown($event->slug);
+        abort_unless($data, 404);
+
+        return inertia('admin/analytics/event', ['data' => $data]);
     }
 
     /** Stream the (filtered) events table as CSV. */

@@ -1,17 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowUpDown, CalendarCheck, CalendarDays, ChartColumn, Download, Eye, MousePointerClick, Percent, Search, Ticket, Users, Wallet, X } from 'lucide-react';
+import { ArrowUpDown, CalendarCheck, CalendarDays, ChartColumn, Download, Eye, Search, Ticket, Users, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { BarsChart, DonutChart, PALETTE, RevenueBars, TrendChart } from '@/components/charts';
 import { Button } from '@/components/ui/button';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
-interface EventBreakdown {
-    event: { slug: string; title: string; status: string };
-    kpis: { impressions: number; clicks: number; ctr: number; sold: number; revenue: number; conversion: number };
-    trend: Reach[];
-    demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
-}
 interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number }
 interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 interface Props {
@@ -23,8 +17,6 @@ interface Props {
     events: Paginated;
     filters: { q: string; sort: string; dir: string };
     exportUrl: string;
-    selectedSlug: string | null;
-    selected: EventBreakdown | null;
 }
 
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -60,44 +52,35 @@ function Th({ label, k, activeSort, onSort, className = '' }: { label: string; k
     );
 }
 
-export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, exportUrl, selected }: Props) {
+export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
 
-    const query = (extra: Record<string, string | undefined>) => {
+    const query = () => {
         const params: Record<string, string> = {};
 
         if (q) {
-params.q = q;
-}
+            params.q = q;
+        }
 
         if (filters.sort !== 'created_at') {
-params.sort = filters.sort;
-}
+            params.sort = filters.sort;
+        }
 
         if (filters.dir !== 'desc') {
-params.dir = filters.dir;
-}
-
-        Object.entries(extra).forEach(([k, v]) => {
- if (v === undefined) {
-delete params[k];
-} else {
-params[k] = v;
-} 
-});
+            params.dir = filters.dir;
+        }
 
         return params;
     };
 
     const search = (e: React.FormEvent) => {
- e.preventDefault(); router.get('/admin/analytics', query({}), { preserveScroll: true, preserveState: true }); 
-};
+        e.preventDefault();
+        router.get('/admin/analytics', query(), { preserveScroll: true, preserveState: true });
+    };
     const sortBy = (key: string) => {
         const dir = filters.sort === key && filters.dir === 'desc' ? 'asc' : 'desc';
-        router.get('/admin/analytics', { ...query({}), sort: key, dir }, { preserveScroll: true, preserveState: true });
+        router.get('/admin/analytics', { ...query(), sort: key, dir }, { preserveScroll: true, preserveState: true });
     };
-    const drill = (slug: string) => router.get('/admin/analytics', query({ event: slug }), { preserveState: false, onSuccess: () => window.scrollTo({ top: 0, behavior: 'smooth' }) });
-    const clearDrill = () => router.get('/admin/analytics', query({}), { preserveScroll: true });
 
     return (
         <>
@@ -107,31 +90,6 @@ params[k] = v;
                     <h1 className="mb-1 text-2xl font-bold tracking-tight">Platform analytics</h1>
                     <p className="text-sm text-muted-foreground">Everything happening across DropRSVP.</p>
                 </div>
-
-                {/* Per-event drill-down (opened from the table below) */}
-                {selected && (
-                    <section className="mb-8 rounded-2xl border-2 border-foreground/10 bg-muted/30 p-5">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight"><CalendarDays className="size-5" /> {selected.event.title}</h2>
-                            <Button variant="ghost" size="sm" onClick={clearDrill}><X className="size-4" /> Close</Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                            <Kpi icon={Eye} label="Impressions" value={selected.kpis.impressions.toLocaleString()} tint={PALETTE[5]} />
-                            <Kpi icon={MousePointerClick} label="Clicks" value={selected.kpis.clicks.toLocaleString()} tint={PALETTE[0]} />
-                            <Kpi icon={Percent} label="CTR" value={`${selected.kpis.ctr}%`} tint={PALETTE[2]} />
-                            <Kpi icon={Ticket} label="Tickets sold" value={selected.kpis.sold.toLocaleString()} tint={PALETTE[3]} />
-                            <Kpi icon={Percent} label="Conversion" value={`${selected.kpis.conversion}%`} tint={PALETTE[4]} />
-                            <Kpi icon={Wallet} label="Revenue" value={rm(selected.kpis.revenue)} tint={PALETTE[6]} />
-                        </div>
-                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                            <Panel title="Reach (last 30 days)"><TrendChart data={selected.trend} /></Panel>
-                            <Panel title="Audience age"><BarsChart data={selected.demographics.age} color={PALETTE[2]} height={260} /></Panel>
-                            <Panel title="Top cities"><BarsChart data={selected.demographics.city} color={PALETTE[0]} height={260} /></Panel>
-                            <Panel title="Traffic sources"><DonutChart data={selected.demographics.source} /></Panel>
-                            <Panel title="Audience gender"><DonutChart data={selected.demographics.gender} /></Panel>
-                        </div>
-                    </section>
-                )}
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                     <Kpi icon={CalendarDays} label="Events" value={kpis.events.toLocaleString()} tint={PALETTE[0]} />
@@ -196,7 +154,7 @@ params[k] = v;
                                         <td className="px-3 py-2 text-right tabular-nums">{e.ctr}%</td>
                                         <td className="px-3 py-2 text-right tabular-nums">{e.sold.toLocaleString()}</td>
                                         <td className="px-3 py-2 text-right font-medium tabular-nums">{rm(e.revenue)}</td>
-                                        <td className="px-3 py-2 text-right"><Button size="sm" variant="outline" onClick={() => drill(e.slug)}>View analytics</Button></td>
+                                        <td className="px-3 py-2 text-right"><Button asChild size="sm" variant="outline"><Link href={`/admin/analytics/${e.slug}`}>View analytics</Link></Button></td>
                                     </tr>
                                 ))}
                             </tbody>

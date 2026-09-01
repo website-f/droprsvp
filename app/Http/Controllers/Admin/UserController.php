@@ -31,6 +31,40 @@ class UserController extends Controller
         ]);
     }
 
+    /** Full profile + activity for one user. */
+    public function show(User $user)
+    {
+        $user->load('roles:id,name');
+        $paidIds = \App\Models\Order::where('user_id', $user->id)->where('status', 'paid')->pluck('id');
+
+        return inertia('admin/users/show', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'gender' => $user->gender,
+                'age_band' => $user->age_band,
+                'city' => $user->city,
+                'country' => $user->country,
+                'roles' => $user->roles->pluck('name'),
+                'is_superadmin' => $user->hasRole('superadmin'),
+                'profile_complete' => (bool) $user->profile_completed_at,
+                'profile_completed_at' => optional($user->profile_completed_at)->format('j M Y'),
+                'email_verified' => (bool) $user->email_verified_at,
+                'joined' => optional($user->created_at)->format('j M Y'),
+            ],
+            'activity' => [
+                'events' => $user->events()->count(),
+                'orders' => $paidIds->count(),
+                'tickets' => \App\Models\Ticket::whereIn('order_id', $paidIds)->count(),
+                'spent' => (float) \App\Models\Order::whereKey($paidIds)->sum('total'),
+                'followers' => $user->followers()->count(),
+                'following' => $user->following()->count(),
+            ],
+        ]);
+    }
+
     /** Export the current filtered set as CSV. */
     public function export(Request $request): StreamedResponse
     {

@@ -243,6 +243,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
         Route::get('analytics/export', [AdminAnalyticsController::class, 'export'])->name('analytics.export');
+        Route::get('analytics/{event}', [AdminAnalyticsController::class, 'show'])->name('analytics.show');
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
@@ -270,6 +271,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('users/export', [AdminUserController::class, 'export'])->name('users.export');
+        Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
