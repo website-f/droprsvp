@@ -74,6 +74,8 @@ class EventController extends Controller
         $canReview = (bool) $user && ! $isOwner;
         $myReview = $user ? $event->reviews()->where('user_id', $user->id)->first() : null;
         $participantsPage = max(1, (int) $request->query('participants_page', 1));
+        $reviewsPage = max(1, (int) $request->query('reviews_page', 1));
+        $discussionPage = max(1, (int) $request->query('discussion_page', 1));
 
         return inertia('public/event', [
             'event' => [
@@ -150,8 +152,8 @@ class EventController extends Controller
                 'title' => $seo?->seo_title ?: $event->title,
             ],
             'participants' => $this->participants($event, $canSeeAllMembers, $participantsPage),
-            'discussion' => $this->discussion($event),
-            'reviews' => $this->reviews($event, $myReview),
+            'discussion' => $this->discussion($event, $discussionPage),
+            'reviews' => $this->reviews($event, $myReview, $reviewsPage),
             'viewer' => [
                 'authed' => (bool) $user,
                 'premium' => $isPremium,
@@ -199,17 +201,25 @@ class EventController extends Controller
         ];
     }
 
-    /** Ratings + reviews with the star distribution and the viewer's own review. */
-    private function reviews(Event $event, ?EventReview $mine): array
+    /**
+     * Ratings + reviews. The average + star distribution are computed over ALL
+     * reviews (cheap DB aggregates), but the list itself is paginated so events
+     * with thousands of reviews stay fast.
+     */
+    private function reviews(Event $event, ?EventReview $mine, int $page): array
     {
-        $all = $event->reviews()->with('user:id,name')->get();
-        $count = $all->count();
+        $perPage = 8;
+        $count = (int) $event->reviews()->count();
+        $average = $count ? round((float) $event->reviews()->avg('rating'), 1) : 0.0;
+        $dist = $event->reviews()->selectRaw('rating, count(*) as c')->groupBy('rating')->pluck('c', 'rating');
+        $pages = max(1, (int) ceil($count / $perPage));
+        $page = min(max(1, $page), $pages);
 
         return [
-            'average' => $count ? round((float) $all->avg('rating'), 1) : 0.0,
+            'average' => $average,
             'count' => $count,
-            'distribution' => collect(range(5, 1))->mapWithKeys(fn ($s) => [$s => $all->where('rating', $s)->count()])->all(),
-            'list' => $all->map(fn ($r) => [
+            'distribution' => collect(range(5, 1))->mapWithKeys(fn ($s) => [$s => (int) ($dist[$s] ?? 0)])->all(),
+            'list' => $event->reviews()->with('user:id,name')->latest()->forPage($page, $perPage)->get()->map(fn ($r) => [
                 'id' => $r->id,
                 'author' => $r->user?->name ?? 'Attendee',
                 'rating' => $r->rating,
@@ -217,27 +227,39 @@ class EventController extends Controller
                 'when' => $r->created_at->diffForHumans(),
                 'mine' => $mine && $r->id === $mine->id,
             ])->values()->all(),
+            'page' => $page,
+            'pages' => $pages,
             'mine' => $mine ? ['rating' => $mine->rating, 'body' => $mine->body] : null,
         ];
     }
 
-    /** Threaded discussion — top-level questions with the organizer's replies. */
-    private function discussion(Event $event): array
+    /** Threaded discussion — top-level questions with the organizer's replies (paginated). */
+    private function discussion(Event $event, int $page): array
     {
-        return $event->comments()->with(['user:id,name', 'replies.user:id,name'])->get()->map(fn ($c) => [
-            'id' => $c->id,
-            'author' => $c->user?->name ?? 'User',
-            'body' => $c->body,
-            'when' => $c->created_at->diffForHumans(),
-            'is_organizer' => $c->user_id === $event->user_id,
-            'replies' => $c->replies->map(fn ($r) => [
-                'id' => $r->id,
-                'author' => $r->user?->name ?? 'User',
-                'body' => $r->body,
-                'when' => $r->created_at->diffForHumans(),
-                'is_organizer' => $r->user_id === $event->user_id,
+        $perPage = 8;
+        $count = (int) $event->comments()->count();
+        $pages = max(1, (int) ceil($count / $perPage));
+        $page = min(max(1, $page), $pages);
+
+        return [
+            'count' => $count,
+            'page' => $page,
+            'pages' => $pages,
+            'list' => $event->comments()->with(['user:id,name', 'replies.user:id,name'])->forPage($page, $perPage)->get()->map(fn ($c) => [
+                'id' => $c->id,
+                'author' => $c->user?->name ?? 'User',
+                'body' => $c->body,
+                'when' => $c->created_at->diffForHumans(),
+                'is_organizer' => $c->user_id === $event->user_id,
+                'replies' => $c->replies->map(fn ($r) => [
+                    'id' => $r->id,
+                    'author' => $r->user?->name ?? 'User',
+                    'body' => $r->body,
+                    'when' => $r->created_at->diffForHumans(),
+                    'is_organizer' => $r->user_id === $event->user_id,
+                ])->all(),
             ])->all(),
-        ])->all();
+        ];
     }
 
     /** Published public/unlisted events are visible to all; the owner can preview any of their own. */

@@ -26,7 +26,8 @@ interface EventView {
 }
 interface Participants { count: number; unlocked: boolean; list: { name: string }[]; page: number; pages: number }
 interface Review { id: number; author: string; rating: number; body: string | null; when: string; mine: boolean }
-interface Reviews { average: number; count: number; distribution: Record<string, number>; list: Review[]; mine: { rating: number; body: string | null } | null }
+interface Reviews { average: number; count: number; distribution: Record<string, number>; list: Review[]; page: number; pages: number; mine: { rating: number; body: string | null } | null }
+interface Discussion { count: number; page: number; pages: number; list: Comment[] }
 interface Viewer { authed: boolean; premium: boolean; is_owner: boolean; can_post: boolean; can_see_all_members: boolean; can_review: boolean; has_reviewed: boolean; is_following: boolean }
 interface Seo { title: string }
 
@@ -73,7 +74,7 @@ function StarInput({ value, onChange }: { value: number; onChange: (v: number) =
     );
 }
 
-export default function PublicEvent({ event, seo, participants, discussion, reviews, viewer }: { event: EventView; seo: Seo; participants: Participants; discussion: Comment[]; reviews: Reviews; viewer: Viewer }) {
+export default function PublicEvent({ event, seo, participants, discussion, reviews, viewer }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer }) {
     const [qty, setQty] = useState<Record<number, number>>({});
     const [submitting, setSubmitting] = useState(false);
     const [tab, setTab] = useState<Tab>('about');
@@ -163,6 +164,10 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
     // reload() preserves scroll + component state by default.
     const goParticipants = (page: number) =>
         router.reload({ only: ['participants'], data: { participants_page: page } });
+    const goReviews = (page: number) =>
+        router.reload({ only: ['reviews'], data: { reviews_page: page } });
+    const goDiscussion = (page: number) =>
+        router.reload({ only: ['discussion'], data: { discussion_page: page } });
 
     const hiddenParticipants = Math.max(0, participants.count - participants.list.length);
 
@@ -170,7 +175,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
         { key: 'about', label: 'About', icon: Info, tint: '#3b82f6' },
         ...(event.show_participants ? [{ key: 'participants' as Tab, label: 'Participants', icon: Users, tint: '#2ec4b6', badge: participants.count }] : []),
         { key: 'gallery', label: 'Gallery', icon: Images, tint: '#f5a524', badge: event.gallery.length },
-        { key: 'discussion', label: 'Discussion', icon: MessageCircle, tint: '#a855f7', badge: discussion.length },
+        { key: 'discussion', label: 'Discussion', icon: MessageCircle, tint: '#a855f7', badge: discussion.count },
         ...(event.show_reviews ? [{ key: 'reviews' as Tab, label: 'Reviews', icon: Star, tint: '#ff6584', badge: reviews.count }] : []),
     ];
 
@@ -354,11 +359,11 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                         )}
 
                                         {/* Thread */}
-                                        {discussion.length === 0 ? (
+                                        {discussion.count === 0 ? (
                                             <p className="text-sm text-muted-foreground">No questions yet — be the first to ask.</p>
                                         ) : (
                                             <ul className="grid gap-4">
-                                                {discussion.map((c) => (
+                                                {discussion.list.map((c) => (
                                                     <li key={c.id} className="rounded-xl border border-border p-4">
                                                         <CommentBody c={c} />
                                                         {(c.replies.length > 0 || viewer.is_owner) && (
@@ -388,6 +393,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                                     </li>
                                                 ))}
                                             </ul>
+                                        )}
+                                        {discussion.pages > 1 && (
+                                            <div className="mt-2 flex items-center justify-center gap-3">
+                                                <Button variant="outline" size="sm" disabled={discussion.page <= 1} onClick={() => goDiscussion(discussion.page - 1)}>← Previous</Button>
+                                                <span className="text-xs text-muted-foreground">Page {discussion.page} of {discussion.pages}</span>
+                                                <Button variant="outline" size="sm" disabled={discussion.page >= discussion.pages} onClick={() => goDiscussion(discussion.page + 1)}>Next →</Button>
+                                            </div>
                                         )}
                                     </div>
                                 )}
@@ -459,6 +471,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                                     </li>
                                                 ))}
                                             </ul>
+                                        )}
+                                        {reviews.pages > 1 && (
+                                            <div className="mt-2 flex items-center justify-center gap-3">
+                                                <Button variant="outline" size="sm" disabled={reviews.page <= 1} onClick={() => goReviews(reviews.page - 1)}>← Previous</Button>
+                                                <span className="text-xs text-muted-foreground">Page {reviews.page} of {reviews.pages}</span>
+                                                <Button variant="outline" size="sm" disabled={reviews.page >= reviews.pages} onClick={() => goReviews(reviews.page + 1)}>Next →</Button>
+                                            </div>
                                         )}
                                     </div>
                                 )}
