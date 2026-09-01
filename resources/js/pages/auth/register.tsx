@@ -99,6 +99,9 @@ export default function Register({ passwordRules }: Props) {
                             </div>
 
                             <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                {/* The <Form> serializes named DOM fields, so the toggle's value must
+                                    ride along in a hidden input — otherwise consent is never submitted. */}
+                                <input type="hidden" name="consent" value={consent ? '1' : '0'} />
                                 <Switch checked={consent} onCheckedChange={setConsent} aria-label="Agree to terms" className="mt-0.5" />
                                 <span className="text-muted-foreground">{CONSENT_TEXT}</span>
                             </div>
