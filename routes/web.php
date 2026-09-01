@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ArchiveController;
 use App\Http\Controllers\Admin\CmsCategoryController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\EventCategoryController;
+use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\EventSeoController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\LegalController as AdminLegalController;
@@ -296,6 +297,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
         Route::post('users/{user}/disabled', [AdminUserController::class, 'toggleDisabled'])->name('users.disabled');
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+        // Finance — every transaction (tickets/boosts/subscriptions/payouts).
+        Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
+        Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
 
         // Archive — soft-deleted items across the platform (restore / permanent delete).
         Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
