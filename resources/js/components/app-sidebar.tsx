@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, BadgeCheck, Banknote, CalendarDays, ChartColumn, Crown, FileSearch, FileText, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, BadgeCheck, Banknote, CalendarDays, ChartColumn, Crown, FileSearch, FileText, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -19,6 +19,7 @@ import type { NavItem } from '@/types';
 const youNav: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'My tickets', href: '/my/tickets', icon: Ticket },
+    { title: 'Invoices', href: '/my/invoices', icon: Receipt },
     { title: 'Following', href: '/following', icon: UserRoundCheck },
 ];
 

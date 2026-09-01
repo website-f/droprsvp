@@ -35,6 +35,8 @@
     @endforeach
 
     <p style="margin:18px 0 0;font-size:13px;color:#8a8a92;">Show each ticket’s QR code at the door to check in. Keep this email handy.</p>
+
+    @include('emails.partials.button', ['url' => route('account.orders.receipt', $order), 'text' => 'View / download receipt', 'color' => '#18181b'])
 @endsection
 
 @section('footnote', 'A copy of your tickets is always available in your account under “My tickets”.')

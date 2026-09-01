@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\SiteController as AdminSiteController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
@@ -165,9 +166,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::post('organizers/{organizer}/follow', [FollowController::class, 'toggle'])->name('organizers.follow');
     Route::get('following', [FollowController::class, 'index'])->name('following');
 
-    // Buyer account — purchase history + re-download/re-send tickets.
+    // Buyer account — purchase history + re-download/re-send tickets + invoices.
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');
+    Route::get('my/invoices', [AccountController::class, 'invoices'])->name('account.invoices');
     Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
+    Route::get('my/orders/{order}/receipt', [ReceiptController::class, 'order'])->name('account.orders.receipt');
+    Route::get('my/payouts/{payout}/receipt', [ReceiptController::class, 'payout'])->name('account.payouts.receipt');
 
     // Host panel — manage your events, ticket types and sessions.
     // Hard-gated to vendors: a free attendee account must upgrade (become a

@@ -1,4 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -100,7 +101,12 @@ export default function Payouts({ balance, payouts, bank, banks }: { balance: Ba
                                         <div className="font-medium">{rm(p.amount)}</div>
                                         <div className="text-xs text-muted-foreground">{p.reference} · requested {p.requested_at}{p.paid_at ? ` · paid ${p.paid_at}` : ''}</div>
                                     </div>
-                                    <Badge variant={p.status === 'paid' ? 'default' : 'secondary'} className="capitalize">{p.status}</Badge>
+                                    <div className="flex items-center gap-2">
+                                        {p.status === 'paid' && (
+                                            <a href={`/my/payouts/${p.reference}/receipt`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"><Download className="size-3.5" /> Receipt</a>
+                                        )}
+                                        <Badge variant={p.status === 'paid' ? 'default' : 'secondary'} className="capitalize">{p.status}</Badge>
+                                    </div>
                                 </li>
                             ))}
                         </ul>

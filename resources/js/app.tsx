@@ -30,7 +30,8 @@ createInertiaApp({
                 return null; // focused sign-up + onboarding wizard (own chrome)
             case name.startsWith('public/'):
             case name.startsWith('checkout/'):
-                return null; // public + checkout pages carry their own chrome
+            case name.startsWith('receipts/'):
+                return null; // public + checkout + receipt pages carry their own chrome
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

@@ -31,6 +31,28 @@ class AccountController extends Controller
         ]);
     }
 
+    /** The buyer's invoices — every purchase with a downloadable receipt. */
+    public function invoices(Request $request)
+    {
+        $user = $request->user();
+
+        $orders = $this->ownedBy($user)
+            ->whereIn('status', ['paid', 'refunded'])
+            ->with('event:id,title')
+            ->latest()
+            ->paginate(12)
+            ->through(fn (Order $o) => [
+                'reference' => $o->reference,
+                'event' => $o->event?->title,
+                'total' => (float) $o->total,
+                'currency' => $o->currency,
+                'status' => $o->status,
+                'date' => optional($o->paid_at ?? $o->created_at)->format('j M Y'),
+            ]);
+
+        return Inertia::render('account/invoices', ['orders' => $orders]);
+    }
+
     /** Re-send the ticket email for one of the buyer's paid orders. */
     public function resend(Request $request, Order $order)
     {
