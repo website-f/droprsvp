@@ -21,6 +21,7 @@ const CONSENT_TEXT = 'By submitting this form, you agree to let Drop RSVP use yo
 
 export default function Register({ passwordRules }: Props) {
     const [consent, setConsent] = useState(true);
+    const [email, setEmail] = useState('');
 
     return (
         <>
@@ -62,8 +63,15 @@ export default function Register({ passwordRules }: Props) {
                                     autoComplete="email"
                                     name="email"
                                     placeholder="email@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                 />
                                 <InputError message={errors.email} />
+                                {errors.email && (
+                                    <Link href={`/login?email=${encodeURIComponent(email)}`} className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-sm font-medium">
+                                        Log in with this email instead →
+                                    </Link>
+                                )}
                             </div>
 
                             <div className="grid gap-2">

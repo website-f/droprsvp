@@ -26,7 +26,10 @@ class CreateNewUser implements CreatesNewUsers
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
             'consent' => ['accepted'],
-        ], ['consent.accepted' => 'Please agree to the terms to continue.'])->validate();
+        ], [
+            'consent.accepted' => 'Please agree to the terms to continue.',
+            'email.unique' => 'You already have a DropRSVP account with this email — please sign in instead.',
+        ])->validate();
 
         $user = User::create([
             'name' => $input['name'],

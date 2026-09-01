@@ -17,9 +17,10 @@ import { request } from '@/routes/password';
 type Props = {
     status?: string;
     canResetPassword: boolean;
+    email?: string | null;
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({ status, canResetPassword, email }: Props) {
     return (
         <>
             <Head title="Log in" />
@@ -45,6 +46,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     tabIndex={1}
                                     autoComplete="email"
                                     placeholder="email@example.com"
+                                    defaultValue={email ?? ''}
                                 />
                                 <InputError message={errors.email} />
                             </div>
