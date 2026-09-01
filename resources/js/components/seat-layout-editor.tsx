@@ -1,15 +1,15 @@
-import { Armchair, LayoutPanelTop, Trash2, Users } from 'lucide-react';
+import { Armchair, LayoutPanelTop, Trash2, Users, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { boxSize, contentBounds, HEADER, SEAT } from '@/lib/seat-layout';
+import { boxSize, contentBounds, HEADER, SEAT, seatsInnerSize, seatXY } from '@/lib/seat-layout';
 
 export interface LayoutSectionRow {
     id?: number;
     name: string; color: string; kind: 'seated' | 'ga' | 'stage';
     price: string; rows: string; cols: string; capacity: string;
-    x: number; y: number; width: number | null; height: number | null; row_label_start: string;
+    x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: string;
 }
 
 const COLORS = ['#6c63ff', '#2ec4b6', '#f5a524', '#ff6584', '#3b82f6', '#a855f7', '#ef4444', '#10b981'];
@@ -21,17 +21,23 @@ export function newSection(kind: LayoutSectionRow['kind'], x = 40, y = 40, i = 0
         color: kind === 'stage' ? '#111827' : COLORS[i % COLORS.length],
         kind, price: '0', rows: '4', cols: '8', capacity: '100',
         x, y, width: kind === 'stage' ? 280 : kind === 'ga' ? 180 : null, height: kind === 'stage' ? 48 : kind === 'ga' ? 110 : null,
-        row_label_start: 'A',
+        row_label_start: 'A', curve: '0',
     };
 }
 
-/** Miniature seat grid drawn inside a seated section box. */
-function MiniSeats({ rows, cols, color }: { rows: number; cols: number; color: string }) {
+/** Miniature (curve-aware) seat grid drawn inside a seated section box. */
+function MiniSeats({ section }: { section: LayoutSectionRow }) {
+    const rows = Math.max(1, Math.min(100, +section.rows || 1));
+    const cols = Math.max(1, Math.min(100, +section.cols || 1));
+    const inner = seatsInnerSize(section);
+
     return (
-        <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${cols}, ${SEAT - 4}px)` }}>
-            {Array.from({ length: rows * cols }).map((_, i) => (
-                <span key={i} className="rounded-[2px]" style={{ width: SEAT - 4, height: SEAT - 4, backgroundColor: color, opacity: 0.85 }} />
-            ))}
+        <div className="relative" style={{ width: inner.w, height: inner.h }}>
+            {Array.from({ length: rows }).flatMap((_, r) => Array.from({ length: cols }).map((__, c) => {
+                const p = seatXY(section, r, c);
+
+                return <span key={`${r}-${c}`} className="absolute rounded-[2px]" style={{ left: p.x, top: p.y, width: SEAT - 4, height: SEAT - 4, backgroundColor: section.color, opacity: 0.85 }} />;
+            }))}
         </div>
     );
 }
@@ -46,6 +52,7 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
         e.preventDefault();
         setSelected(i);
         drag.current = { i, sx: e.clientX, sy: e.clientY, ox: value[i].x, oy: value[i].y };
+
         try {
             (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         } catch {
@@ -64,8 +71,46 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
         onChange(value.map((s, idx) => (idx === d.i ? { ...s, x: nx, y: ny } : s)));
     };
     const endDrag = () => {
- drag.current = null; 
-};
+        drag.current = null;
+    };
+
+    // Resize handle (bottom-right). Seated → rows/cols; standing/stage → width/height.
+    const resize = useRef<{ i: number; sx: number; sy: number; ow: number; oh: number } | null>(null);
+    const startResize = (e: React.PointerEvent, i: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelected(i);
+        const b = boxSize(value[i]);
+        resize.current = { i, sx: e.clientX, sy: e.clientY, ow: b.w, oh: b.h };
+
+        try {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } catch {
+            /* capture optional */
+        }
+    };
+    const onResizeMove = (e: React.PointerEvent) => {
+        const d = resize.current;
+
+        if (!d) {
+            return;
+        }
+
+        const w = Math.max(SEAT + 16, d.ow + (e.clientX - d.sx));
+        const h = Math.max(SEAT + HEADER, d.oh + (e.clientY - d.sy));
+        const s = value[d.i];
+
+        if (s.kind === 'seated') {
+            const cols = Math.max(1, Math.min(100, Math.round((w - 16) / SEAT)));
+            const rows = Math.max(1, Math.min(100, Math.round((h - HEADER - 10) / SEAT)));
+            onChange(value.map((x, idx) => (idx === d.i ? { ...x, cols: String(cols), rows: String(rows) } : x)));
+        } else {
+            onChange(value.map((x, idx) => (idx === d.i ? { ...x, width: Math.round(w), height: Math.round(h) } : x)));
+        }
+    };
+    const endResize = () => {
+        resize.current = null;
+    };
 
     const patch = (i: number, key: keyof LayoutSectionRow, val: string | number | null) =>
         onChange(value.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
@@ -106,23 +151,46 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                                 onPointerDown={(e) => startDrag(e, i)}
                                 onPointerMove={onDragMove}
                                 onPointerUp={endDrag}
-                                className={`absolute cursor-move touch-none select-none rounded-lg border-2 shadow-sm ${active ? 'border-foreground ring-2 ring-foreground/20' : 'border-transparent'}`}
+                                className={`group absolute cursor-move touch-none select-none rounded-lg border-2 shadow-sm ${active ? 'border-foreground ring-2 ring-foreground/20' : 'border-transparent'}`}
                                 style={{ left: s.x, top: s.y, width: b.w, height: b.h, backgroundColor: s.kind === 'stage' ? s.color : `${s.color}14` }}
                             >
                                 {s.kind === 'stage' ? (
-                                    <div className="flex size-full items-center justify-center text-xs font-semibold uppercase tracking-[0.2em] text-white">{s.name || 'STAGE'}</div>
+                                    <div className="flex size-full items-center justify-center overflow-hidden text-xs font-semibold uppercase tracking-[0.2em] text-white">{s.name || 'STAGE'}</div>
                                 ) : (
                                     <>
                                         <div className="flex h-6 items-center gap-1 px-2 text-[11px] font-semibold" style={{ color: s.color }}>
-                                            <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} /> {s.name || 'Section'}
+                                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} /> <span className="truncate">{s.name || 'Section'}</span>
                                         </div>
-                                        <div className="flex items-center justify-center px-1 pb-1" style={{ height: b.h - HEADER }}>
+                                        <div className="flex items-start justify-center px-1 pb-1" style={{ height: b.h - HEADER }}>
                                             {s.kind === 'seated'
-                                                ? <MiniSeats rows={Math.max(1, +s.rows || 1)} cols={Math.max(1, +s.cols || 1)} color={s.color} />
-                                                : <span className="text-xs font-medium" style={{ color: s.color }}>{s.capacity || 0} standing</span>}
+                                                ? <MiniSeats section={s} />
+                                                : <span className="self-center text-xs font-medium" style={{ color: s.color }}>{s.capacity || 0} standing</span>}
                                         </div>
                                     </>
                                 )}
+
+                                {/* Delete (appears on hover / when selected) */}
+                                <button
+                                    type="button"
+                                    aria-label="Delete block"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+ e.stopPropagation(); remove(i); 
+}}
+                                    className={`absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-destructive text-white shadow transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                >
+                                    <X className="size-3" />
+                                </button>
+
+                                {/* Resize handle */}
+                                <span
+                                    role="button"
+                                    aria-label="Resize block"
+                                    onPointerDown={(e) => startResize(e, i)}
+                                    onPointerMove={onResizeMove}
+                                    onPointerUp={endResize}
+                                    className={`absolute -bottom-1.5 -right-1.5 size-3.5 cursor-nwse-resize rounded-sm border-2 border-foreground bg-background transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                />
                             </div>
                         );
                     })}
@@ -151,11 +219,18 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                     </div>
 
                     {sel.kind === 'seated' && (
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="grid gap-1.5"><Label>Rows</Label><input type="number" min={1} max={100} className={field} value={sel.rows} onChange={(e) => patch(selected, 'rows', e.target.value)} /></div>
-                            <div className="grid gap-1.5"><Label>Seats / row</Label><input type="number" min={1} max={100} className={field} value={sel.cols} onChange={(e) => patch(selected, 'cols', e.target.value)} /></div>
-                            <div className="grid gap-1.5"><Label>Row labels start at</Label><input maxLength={1} className={field} value={sel.row_label_start} onChange={(e) => patch(selected, 'row_label_start', e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} placeholder="A" /></div>
-                        </div>
+                        <>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                <div className="grid gap-1.5"><Label>Rows</Label><input type="number" min={1} max={100} className={field} value={sel.rows} onChange={(e) => patch(selected, 'rows', e.target.value)} /></div>
+                                <div className="grid gap-1.5"><Label>Seats / row</Label><input type="number" min={1} max={100} className={field} value={sel.cols} onChange={(e) => patch(selected, 'cols', e.target.value)} /></div>
+                                <div className="grid gap-1.5"><Label>Row labels start at</Label><input maxLength={1} className={field} value={sel.row_label_start} onChange={(e) => patch(selected, 'row_label_start', e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} placeholder="A" /></div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label>Row curve — <span className="font-normal text-muted-foreground">{+sel.curve === 0 ? 'straight' : `${sel.curve}%`}</span></Label>
+                                <input type="range" min={0} max={100} step={5} value={+sel.curve || 0} onChange={(e) => patch(selected, 'curve', e.target.value)} className="w-full accent-foreground" />
+                                <p className="text-xs text-muted-foreground">Bow the rows into an arc (like a theatre). Set 1 row for a single line of seats.</p>
+                            </div>
+                        </>
                     )}
                     {sel.kind === 'ga' && (
                         <div className="grid gap-3 sm:grid-cols-3">

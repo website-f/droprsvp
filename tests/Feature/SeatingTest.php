@@ -116,7 +116,7 @@ class SeatingTest extends TestCase
             'seating_enabled' => true, 'ticketTypes' => [], 'sessions' => [], 'publish' => true,
             'sections' => [
                 ['name' => 'STAGE', 'kind' => 'stage', 'color' => '#111', 'x' => 40, 'y' => 10, 'width' => 300, 'height' => 48],
-                ['name' => 'Balcony', 'kind' => 'seated', 'price' => 80, 'rows' => 2, 'cols' => 4, 'x' => 60, 'y' => 200, 'row_label_start' => 'D'],
+                ['name' => 'Balcony', 'kind' => 'seated', 'price' => 80, 'rows' => 2, 'cols' => 4, 'x' => 60, 'y' => 200, 'row_label_start' => 'D', 'curve' => 60],
             ],
         ])->assertRedirect();
 
@@ -130,6 +130,7 @@ class SeatingTest extends TestCase
         $balcony = $event->seatSections()->where('kind', 'seated')->firstOrFail();
         $this->assertSame(60, $balcony->x);
         $this->assertSame(200, $balcony->y);
+        $this->assertSame(60, $balcony->curve);                 // curved rows
         $this->assertSame('D1', $balcony->seats()->orderBy('sort_order')->first()->label);   // custom start letter
     }
 

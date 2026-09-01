@@ -115,6 +115,7 @@ class EventController extends Controller
             'sections.*.width' => ['nullable', 'integer', 'min:20', 'max:2000'],
             'sections.*.height' => ['nullable', 'integer', 'min:20', 'max:2000'],
             'sections.*.row_label_start' => ['nullable', 'string', 'max:4'],
+            'sections.*.curve' => ['nullable', 'integer', 'min:0', 'max:100'],
             'visibility' => ['required', 'in:public,unlisted,private'],
             'timezone' => ['required', 'string', 'max:64'],
             'is_online' => ['boolean'],
@@ -266,6 +267,7 @@ class EventController extends Controller
                 'width' => isset($row['width']) ? (int) $row['width'] : null,
                 'height' => isset($row['height']) ? (int) $row['height'] : null,
                 'row_label_start' => $start,
+                'curve' => $kind === 'seated' ? max(0, min(100, (int) ($row['curve'] ?? 0))) : 0,
             ];
             $section ? $section->update($attrs) : $section = $event->seatSections()->create($attrs);
 

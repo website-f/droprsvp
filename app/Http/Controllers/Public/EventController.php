@@ -109,6 +109,7 @@ class EventController extends Controller
                     'currency' => $sec->currency,
                     'rows' => $sec->rows,
                     'cols' => $sec->cols,
+                    'curve' => (int) $sec->curve,
                     'x' => (int) $sec->x,
                     'y' => (int) $sec->y,
                     'width' => $sec->width,

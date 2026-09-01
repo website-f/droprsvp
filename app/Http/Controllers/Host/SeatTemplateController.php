@@ -26,6 +26,7 @@ class SeatTemplateController extends Controller
             'sections.*.width' => ['nullable', 'integer'],
             'sections.*.height' => ['nullable', 'integer'],
             'sections.*.row_label_start' => ['nullable', 'string', 'max:4'],
+            'sections.*.curve' => ['nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         SeatTemplate::create([
@@ -36,7 +37,7 @@ class SeatTemplateController extends Controller
                 'price' => (float) ($s['price'] ?? 0), 'rows' => $s['rows'] ?? null, 'cols' => $s['cols'] ?? null,
                 'capacity' => $s['capacity'] ?? null,
                 'x' => $s['x'] ?? 20, 'y' => $s['y'] ?? 20, 'width' => $s['width'] ?? null, 'height' => $s['height'] ?? null,
-                'row_label_start' => $s['row_label_start'] ?? 'A',
+                'row_label_start' => $s['row_label_start'] ?? 'A', 'curve' => $s['curve'] ?? 0,
             ])->all(),
         ]);
 

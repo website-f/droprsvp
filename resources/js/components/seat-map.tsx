@@ -1,12 +1,12 @@
 import { Minus, Plus, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { boxSize, contentBounds, HEADER, SEAT } from '@/lib/seat-layout';
+import { boxSize, contentBounds, HEADER, SEAT, seatsInnerSize, seatXY } from '@/lib/seat-layout';
 
 export interface SeatMapSeat { id: number; label: string; row: string; number: number; taken: boolean }
 export interface SeatMapSection {
     id: number; ticket_type_id: number | null; name: string; color: string; kind: 'seated' | 'ga' | 'stage';
-    price: number; currency: string; rows: number | null; cols: number | null;
+    price: number; currency: string; rows: number | null; cols: number | null; curve: number | null;
     x: number; y: number; width: number | null; height: number | null;
     remaining: number | null; on_sale: boolean; seats: SeatMapSeat[];
 }
@@ -73,28 +73,28 @@ export function SeatMap({ sections, selected, onToggleSeat, gaQty, onGaChange }:
                                             <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: section.color }}>{gaQty[section.id] || 0} selected</span>
                                         </div>
                                     ) : (
-                                        <div className="px-2 pb-2">
-                                            <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${Math.max(1, section.cols || 1)}, ${SEAT - 3}px)` }}>
-                                                {section.seats.map((seat) => {
-                                                    const isSel = selected.has(seat.id);
+                                        <div className="relative mx-auto" style={{ ...seatsInnerSize(section), marginTop: 2 }}>
+                                            {section.seats.map((seat, idx) => {
+                                                const isSel = selected.has(seat.id);
+                                                const cols = Math.max(1, section.cols || 1);
+                                                const p = seatXY(section, Math.floor(idx / cols), idx % cols);
 
-                                                    return (
-                                                        <button
-                                                            key={seat.id}
-                                                            type="button"
-                                                            disabled={seat.taken || !section.on_sale}
-                                                            onClick={() => onToggleSeat(seat, section)}
-                                                            title={`${section.name} · ${seat.label}`}
-                                                            aria-label={`Seat ${seat.label}`}
-                                                            aria-pressed={isSel}
-                                                            className={`flex items-center justify-center rounded-[3px] border text-[7px] font-semibold transition-colors ${seat.taken ? 'cursor-not-allowed border-transparent bg-muted-foreground/20 text-transparent' : isSel ? 'border-transparent text-white' : 'border-current hover:opacity-80'}`}
-                                                            style={{ width: SEAT - 3, height: SEAT - 3, ...(isSel ? { backgroundColor: section.color } : seat.taken ? {} : { color: section.color }) }}
-                                                        >
-                                                            {seat.number}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                                return (
+                                                    <button
+                                                        key={seat.id}
+                                                        type="button"
+                                                        disabled={seat.taken || !section.on_sale}
+                                                        onClick={() => onToggleSeat(seat, section)}
+                                                        title={`${section.name} · ${seat.label}`}
+                                                        aria-label={`Seat ${seat.label}`}
+                                                        aria-pressed={isSel}
+                                                        className={`absolute flex items-center justify-center rounded-[3px] border text-[7px] font-semibold transition-colors ${seat.taken ? 'cursor-not-allowed border-transparent bg-muted-foreground/20 text-transparent' : isSel ? 'border-transparent text-white' : 'border-current hover:opacity-80'}`}
+                                                        style={{ left: p.x, top: p.y, width: SEAT - 3, height: SEAT - 3, ...(isSel ? { backgroundColor: section.color } : seat.taken ? {} : { color: section.color }) }}
+                                                    >
+                                                        {seat.number}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

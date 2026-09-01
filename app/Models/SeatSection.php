@@ -11,7 +11,7 @@ class SeatSection extends Model
     protected $fillable = [
         'event_id', 'ticket_type_id', 'name', 'color', 'kind',
         'price', 'currency', 'rows', 'cols', 'capacity', 'sort_order',
-        'x', 'y', 'width', 'height', 'row_label_start',
+        'x', 'y', 'width', 'height', 'row_label_start', 'curve',
     ];
 
     protected function casts(): array

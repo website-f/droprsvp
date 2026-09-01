@@ -28,7 +28,7 @@ interface EventProp {
     capacity: number | null; show_participants: boolean; show_reviews: boolean; seating_enabled: boolean;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
-    seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string }>;
+    seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null }>;
 }
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -92,7 +92,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         publish: false,
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
-        sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A' })),
+        sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0' })),
     });
     const { data, setData, errors, processing } = form;
     const coverRef = useRef<HTMLInputElement>(null);
@@ -167,7 +167,7 @@ galleryRef.current.value = '';
             name: s.name, color: s.color ?? '#6c63ff', kind: s.kind, price: s.price != null ? String(s.price) : '0',
             rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8',
             capacity: s.capacity != null ? String(s.capacity) : '100',
-            x: s.x ?? 40, y: s.y ?? (40 + i * 40), width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start ?? 'A',
+            x: s.x ?? 40, y: s.y ?? (40 + i * 40), width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start ?? 'A', curve: s.curve != null ? String(s.curve) : '0',
         })));
     };
 
