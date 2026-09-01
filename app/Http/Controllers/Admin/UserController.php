@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AccountStatusMail;
 use App\Models\User;
 use App\Support\Profile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
@@ -49,6 +51,8 @@ class UserController extends Controller
                 'country' => $user->country,
                 'roles' => $user->roles->pluck('name'),
                 'is_superadmin' => $user->hasRole('superadmin'),
+                'disabled' => $user->isDisabled(),
+                'disabled_at' => optional($user->disabled_at)->format('j M Y'),
                 'profile_complete' => (bool) $user->profile_completed_at,
                 'profile_completed_at' => optional($user->profile_completed_at)->format('j M Y'),
                 'email_verified' => (bool) $user->email_verified_at,
@@ -98,7 +102,36 @@ class UserController extends Controller
         return back()->with('flash_success', "Updated {$user->name}’s access.");
     }
 
-    /** Soft-delete a user (recoverable from the Archive). Can't delete yourself or another superadmin. */
+    /** Disable (suspend) or re-enable a user; emails them either way. Can't disable yourself/another superadmin. */
+    public function toggleDisabled(Request $request, User $user)
+    {
+        if ($user->id === $request->user()->id) {
+            return back()->with('flash_error', 'You can’t disable your own account.');
+        }
+        if ($user->hasRole('superadmin')) {
+            return back()->with('flash_error', 'You can’t disable another superadmin.');
+        }
+
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+        $disabling = ! $user->isDisabled();
+        // disabled_at is intentionally not mass-assignable — set it directly.
+        $user->disabled_at = $disabling ? now() : null;
+        $user->save();
+
+        try {
+            Mail::to($user->email)->send(new AccountStatusMail($user, $disabling, $data['reason'] ?? null));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return back()->with('flash_success', $disabling ? "{$user->name} has been disabled." : "{$user->name} has been reactivated.");
+    }
+
+    /**
+     * Soft-delete a user (recoverable from the Archive). Guarded: the account must
+     * be disabled first (so active users aren't removed by accident), and you can't
+     * delete yourself or another superadmin.
+     */
     public function destroy(Request $request, User $user)
     {
         if ($user->id === $request->user()->id) {
@@ -106,6 +139,9 @@ class UserController extends Controller
         }
         if ($user->hasRole('superadmin')) {
             return back()->with('flash_error', 'Remove the superadmin role before deleting this user.');
+        }
+        if (! $user->isDisabled()) {
+            return back()->with('flash_error', 'Disable this account first — only disabled users can be deleted.');
         }
 
         $user->delete();

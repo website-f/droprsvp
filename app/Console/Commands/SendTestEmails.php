@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\AccountStatusMail;
 use App\Mail\ContactMessageMail;
 use App\Mail\OrderRefundedMail;
 use App\Mail\OrganizerApplicationMail;
@@ -102,6 +103,8 @@ class SendTestEmails extends Command
             'Organizer application — approved' => new OrganizerApplicationMail($profile, true),
             'Organizer application — needs changes' => new OrganizerApplicationMail($profile, false),
             'Contact message (to support inbox)' => new ContactMessageMail($contact),
+            'Account disabled' => new AccountStatusMail($user, true, 'Multiple chargeback disputes.'),
+            'Account reactivated' => new AccountStatusMail($user, false),
         ];
 
         $ok = 0;

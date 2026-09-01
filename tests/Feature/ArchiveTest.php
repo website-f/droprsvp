@@ -50,6 +50,13 @@ class ArchiveTest extends TestCase
         $admin = $this->superadmin();
         $u = User::factory()->create();
 
+        // An active user can't be deleted — must be disabled first.
+        $this->actingAs($admin)->delete("/admin/users/{$u->id}")->assertRedirect();
+        $this->assertNotSoftDeleted('users', ['id' => $u->id]);
+
+        $this->actingAs($admin)->post("/admin/users/{$u->id}/disabled")->assertRedirect();
+        $this->assertNotNull($u->fresh()->disabled_at);
+
         $this->actingAs($admin)->delete("/admin/users/{$u->id}")->assertRedirect();
         $this->assertSoftDeleted('users', ['id' => $u->id]);
 

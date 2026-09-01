@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, CalendarDays, Heart, Mail, MapPin, Phone, ShieldCheck, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Ban, CalendarDays, Heart, Mail, MapPin, Phone, Power, ShieldCheck, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 interface UserDetail {
     id: number; name: string; email: string; phone: string | null;
     gender: string | null; age_band: string | null; city: string | null; country: string | null;
-    roles: string[]; is_superadmin: boolean; profile_complete: boolean; profile_completed_at: string | null;
+    roles: string[]; is_superadmin: boolean; disabled: boolean; disabled_at: string | null; profile_complete: boolean; profile_completed_at: string | null;
     email_verified: boolean; joined: string | null;
 }
 interface Activity { events: number; orders: number; tickets: number; spent: number; followers: number; following: number }
@@ -51,6 +51,17 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
         }
     };
 
+    const setDisabled = async () => {
+        const verb = user.disabled ? 'Reactivate' : 'Disable';
+        const description = user.disabled
+            ? 'They’ll be able to sign in again. We’ll email them to let them know.'
+            : 'They won’t be able to sign in, and you’ll then be able to delete the account. We’ll email them.';
+
+        if (await confirm({ title: `${verb} ${user.name}?`, description, confirmText: verb, destructive: !user.disabled })) {
+            router.post(`/admin/users/${user.id}/disabled`, {}, { preserveScroll: true });
+        }
+    };
+
     const remove = async () => {
         if (await confirm({ title: `Delete ${user.name}?`, description: 'They’ll be moved to the Archive — you can restore or permanently delete them there.', confirmText: 'Delete', destructive: true })) {
             router.delete(`/admin/users/${user.id}`, { onSuccess: () => router.visit('/admin/users') });
@@ -74,15 +85,21 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
                             <div className="flex flex-wrap items-center gap-2">
                                 <h1 className="text-xl font-bold tracking-tight">{user.name}</h1>
                                 {user.roles.map((r) => <Badge key={r} variant="secondary" className="capitalize">{r}</Badge>)}
+                                {user.disabled && <Badge variant="destructive">Disabled</Badge>}
                             </div>
                             <a href={`mailto:${user.email}`} className="mt-0.5 block truncate text-sm text-muted-foreground hover:text-foreground">{user.email}</a>
                         </div>
                     </div>
-                    <div className="flex shrink-0 gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2">
                         <Button variant={user.is_superadmin ? 'outline' : 'default'} onClick={toggle}>
                             <ShieldCheck className="size-4" /> {user.is_superadmin ? 'Revoke admin' : 'Make admin'}
                         </Button>
                         {!user.is_superadmin && (
+                            <Button variant="outline" onClick={setDisabled}>
+                                {user.disabled ? <><Power className="size-4" /> Reactivate</> : <><Ban className="size-4" /> Disable</>}
+                            </Button>
+                        )}
+                        {!user.is_superadmin && user.disabled && (
                             <Button variant="outline" onClick={remove} className="text-destructive hover:text-destructive">
                                 <Trash2 className="size-4" /> Delete
                             </Button>

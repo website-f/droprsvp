@@ -51,6 +51,7 @@ class User extends Authenticatable implements PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'premium_until' => 'datetime',
             'profile_completed_at' => 'datetime',
+            'disabled_at' => 'datetime',
         ];
     }
 
@@ -58,6 +59,12 @@ class User extends Authenticatable implements PasskeyUser
     public function isPremium(): bool
     {
         return $this->premium_until !== null && $this->premium_until->isFuture();
+    }
+
+    /** A disabled (suspended) account can't sign in and must be disabled before deletion. */
+    public function isDisabled(): bool
+    {
+        return $this->disabled_at !== null;
     }
 
     /**

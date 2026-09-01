@@ -290,6 +290,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('users/export', [AdminUserController::class, 'export'])->name('users.export');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
+        Route::post('users/{user}/disabled', [AdminUserController::class, 'toggleDisabled'])->name('users.disabled');
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         // Archive — soft-deleted items across the platform (restore / permanent delete).
