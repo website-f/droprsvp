@@ -52,6 +52,7 @@ class User extends Authenticatable implements PasskeyUser
             'premium_until' => 'datetime',
             'profile_completed_at' => 'datetime',
             'disabled_at' => 'datetime',
+            'must_set_password' => 'boolean',
         ];
     }
 

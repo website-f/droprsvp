@@ -171,8 +171,49 @@ class CheckoutService
 
         // Email the tickets exactly once, after settlement (outside the transaction).
         if ($newlyPaid && $order->fresh()->buyer_email) {
+            $this->provisionBuyerAccount($order->fresh());
             $order->load(['event', 'tickets']);
             Mail::to($order->buyer_email)->send(new TicketsIssued($order));
+        }
+    }
+
+    /**
+     * Give a guest buyer a home for their tickets: link the order to an existing
+     * account with the same email, or auto-create one with a temporary password
+     * (emailed to them) so they can log in to re-download tickets and follow the
+     * organizer. New accounts must set their own password on first login.
+     */
+    private function provisionBuyerAccount(Order $order): void
+    {
+        if ($order->user_id || ! $order->buyer_email) {
+            return; // already tied to an account (logged-in purchase)
+        }
+
+        $existing = \App\Models\User::where('email', $order->buyer_email)->first();
+        if ($existing) {
+            $order->update(['user_id' => $existing->id]);
+
+            return;
+        }
+
+        try {
+            $temp = \Illuminate\Support\Str::password(10);
+            $user = new \App\Models\User([
+                'name' => $order->buyer_name ?: 'Guest',
+                'email' => $order->buyer_email,
+                'phone' => $order->buyer_phone,
+            ]);
+            $user->password = \Illuminate\Support\Facades\Hash::make($temp);
+            $user->email_verified_at = now(); // they received mail at this address
+            $user->must_set_password = true;
+            $user->save();
+            $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
+
+            $order->update(['user_id' => $user->id]);
+
+            Mail::to($user->email)->send(new \App\Mail\GuestAccountMail($user, $temp));
+        } catch (\Throwable $e) {
+            report($e); // never block a paid order over account creation
         }
     }
 

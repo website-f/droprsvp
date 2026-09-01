@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\EnsureAccountActive::class,
+            \App\Http\Middleware\EnsurePasswordSet::class,
         ]);
 
         // When a session times out, protected routes bounce guests to /login.

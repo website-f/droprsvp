@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\AccountStatusMail;
 use App\Mail\ContactMessageMail;
+use App\Mail\GuestAccountMail;
 use App\Mail\OrderRefundedMail;
 use App\Mail\OrganizerApplicationMail;
 use App\Mail\OrganizerApplicationReceivedMail;
@@ -105,6 +106,7 @@ class SendTestEmails extends Command
             'Contact message (to support inbox)' => new ContactMessageMail($contact),
             'Account disabled' => new AccountStatusMail($user, true, 'Multiple chargeback disputes.'),
             'Account reactivated' => new AccountStatusMail($user, false),
+            'Guest account (temp password)' => new GuestAccountMail($user, 'Zx9-Tk4pQ2'),
         ];
 
         $ok = 0;

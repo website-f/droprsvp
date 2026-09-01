@@ -127,6 +127,12 @@ Route::middleware('guest')->group(function () {
     Route::get('auth/google/callback', [\App\Http\Controllers\Auth\GoogleController::class, 'callback'])->name('google.callback');
 });
 
+// First-login password setup for auto-created guest buyer accounts.
+Route::middleware('auth')->group(function () {
+    Route::get('set-password', [\App\Http\Controllers\Auth\SetPasswordController::class, 'show'])->name('password.set');
+    Route::post('set-password', [\App\Http\Controllers\Auth\SetPasswordController::class, 'update'])->name('password.set.save');
+});
+
 Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
