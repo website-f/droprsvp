@@ -45,9 +45,21 @@ class CheckoutController extends Controller
 
         $order->load(['items', 'event']);
 
+        // Prefill from the signed-in account so they don't retype what we already
+        // know — they can still edit any field before paying.
+        $user = request()->user();
+
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
             'required' => \App\Http\Controllers\Admin\SettingsController::checkoutRequired(),
+            'buyer' => $user ? [
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'gender' => $user->gender,
+                'age_band' => $user->age_band,
+                'city' => $user->city,
+            ] : null,
         ]);
     }
 

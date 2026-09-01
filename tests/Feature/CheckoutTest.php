@@ -9,6 +9,7 @@ use App\Models\TicketType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CheckoutTest extends TestCase
@@ -65,6 +66,31 @@ class CheckoutTest extends TestCase
         $this->assertSame(2, $tt->fresh()->sold);
 
         Mail::assertSent(TicketsIssued::class, fn (TicketsIssued $m) => $m->hasTo('ali@example.com'));
+    }
+
+    public function test_checkout_prefills_details_for_a_signed_in_buyer(): void
+    {
+        [$event, $tt] = $this->publishedEventWithTicket();
+        $buyer = User::factory()->create(['name' => 'Mei Ling', 'email' => 'mei@example.com', 'phone' => '0191234567', 'city' => 'Ipoh']);
+
+        $this->actingAs($buyer)->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]])->assertRedirect();
+        $order = Order::first();
+
+        $this->actingAs($buyer)->get(route('checkout.show', $order))
+            ->assertInertia(fn (Assert $p) => $p->component('checkout/show')
+                ->where('buyer.name', 'Mei Ling')
+                ->where('buyer.email', 'mei@example.com')
+                ->where('buyer.phone', '0191234567')
+                ->where('buyer.city', 'Ipoh'));
+    }
+
+    public function test_guest_checkout_has_no_prefill(): void
+    {
+        [$event, $tt] = $this->publishedEventWithTicket();
+        $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]])->assertRedirect();
+
+        $this->get(route('checkout.show', Order::first()))
+            ->assertInertia(fn (Assert $p) => $p->component('checkout/show')->where('buyer', null));
     }
 
     public function test_phone_is_required_by_default_and_consent_must_be_given(): void

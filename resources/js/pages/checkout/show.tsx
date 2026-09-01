@@ -21,8 +21,20 @@ const GENDERS = [{ value: 'na', label: 'Prefer not to say' }, { value: 'female',
 const AGE_BANDS = [{ value: '', label: '—' }, { value: 'under-18', label: 'Under 18' }, { value: '18-24', label: '18–24' }, { value: '25-34', label: '25–34' }, { value: '35-44', label: '35–44' }, { value: '45-54', label: '45–54' }, { value: '55+', label: '55+' }];
 const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'tiktok', label: 'TikTok' }, { value: 'friend', label: 'A friend' }, { value: 'search', label: 'Search' }, { value: 'email', label: 'Email' }, { value: 'other', label: 'Other' }];
 
-export default function CheckoutShow({ order, required }: { order: OrderView; required: Required }) {
-    const form = useForm({ buyer_name: '', buyer_email: '', buyer_phone: '', buyer_gender: 'na', buyer_age_band: '', buyer_city: '', buyer_source: '', notes: '', consent: true });
+interface Buyer { name: string | null; email: string | null; phone: string | null; gender: string | null; age_band: string | null; city: string | null }
+
+export default function CheckoutShow({ order, required, buyer }: { order: OrderView; required: Required; buyer: Buyer | null }) {
+    const form = useForm({
+        buyer_name: buyer?.name ?? '',
+        buyer_email: buyer?.email ?? '',
+        buyer_phone: buyer?.phone ?? '',
+        buyer_gender: buyer?.gender ?? 'na',
+        buyer_age_band: buyer?.age_band ?? '',
+        buyer_city: buyer?.city ?? '',
+        buyer_source: '',
+        notes: '',
+        consent: true,
+    });
     const isFree = order.total <= 0;
 
     const submit = (e: React.FormEvent) => {
@@ -59,7 +71,9 @@ export default function CheckoutShow({ order, required }: { order: OrderView; re
                     {/* Buyer details */}
                     <form onSubmit={submit}>
                         <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">Enter your details to {isFree ? 'register' : 'pay'}.</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {buyer ? 'We’ve filled in your details — edit anything below, then ' : 'Enter your details to '}{isFree ? 'register' : 'continue to payment'}.
+                        </p>
 
                         <div className="mt-6 grid gap-4">
                             <div className="grid gap-1.5">
