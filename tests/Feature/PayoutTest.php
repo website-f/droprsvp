@@ -40,6 +40,28 @@ class PayoutTest extends TestCase
                 ->where('balance.available', 90));
     }
 
+    public function test_upcoming_event_revenue_is_held_until_the_event_ends(): void
+    {
+        Config::set('droprsvp.platform_fee_percent', 0);
+        $host = $this->organizer();
+
+        // Future event — funds not yet matured.
+        $future = Event::create(['user_id' => $host->id, 'title' => 'Later', 'slug' => 'later-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(5)]);
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $future->id, 'status' => 'paid', 'total' => 100, 'paid_at' => now()]);
+
+        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+        $this->assertSame(0.0, $balance['available']);
+        $this->assertSame(100.0, $balance['pending_clearance']);
+
+        // A past event's takings are available.
+        $past = Event::create(['user_id' => $host->id, 'title' => 'Done', 'slug' => 'done-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->subDays(2), 'ends_at' => now()->subDay()]);
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $past->id, 'status' => 'paid', 'total' => 40, 'paid_at' => now()]);
+
+        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+        $this->assertSame(40.0, $balance['available']);
+        $this->assertSame(100.0, $balance['pending_clearance']);
+    }
+
     public function test_requesting_a_payout_reduces_available_to_zero(): void
     {
         Config::set('droprsvp.platform_fee_percent', 10);

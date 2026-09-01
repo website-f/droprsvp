@@ -6,7 +6,7 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 
 /**
- * A payment provider. Swappable (HitPay in production, a fake driver in dev/test)
+ * A payment provider. Swappable (CHIP in production, a fake driver in dev/test)
  * so the checkout flow never depends on a concrete gateway.
  */
 interface PaymentGateway
@@ -19,7 +19,8 @@ interface PaymentGateway
 
     /**
      * Verify + parse an incoming webhook. Returns
-     * ['reference' => <order reference>, 'paid' => bool] or null if invalid.
+     * ['reference' => <reference>, 'paid' => bool, 'payment_ref' => <gateway id>]
+     * or null when the signature is invalid.
      */
     public function parseWebhook(Request $request): ?array;
 

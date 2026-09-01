@@ -1,8 +1,8 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface Balance { gross: number; fee_percent: number; fee: number; net: number; withdrawn: number; available: number }
+interface Balance { gross: number; fee_percent: number; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
 interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
 
 function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -35,8 +35,13 @@ export default function Payouts({ balance, payouts }: { balance: Balance; payout
                         <Line label="Gross ticket revenue" value={rm(balance.gross)} />
                         <Line label={`Platform fee (${balance.fee_percent}%)`} value={`− ${rm(balance.fee)}`} />
                         <Line label="Net earnings" value={rm(balance.net)} strong />
+                        {balance.pending_clearance > 0 && <Line label="Held until events end" value={`− ${rm(balance.pending_clearance)}`} />}
                         <Line label="Already paid out / requested" value={`− ${rm(balance.withdrawn)}`} />
                     </div>
+
+                    {balance.pending_clearance > 0 && (
+                        <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{rm(balance.pending_clearance)} becomes available for payout once those events have taken place.</p>
+                    )}
 
                     <Button className="mt-5 w-full" size="lg" disabled={balance.available <= 0} onClick={() => router.post('/host/payouts', {}, { preserveScroll: true })}>
                         Request payout of {rm(balance.available)}

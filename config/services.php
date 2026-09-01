@@ -35,14 +35,16 @@ return [
         ],
     ],
 
-    'hitpay' => [
-        // driver: 'hitpay' (real API) or 'fake' (dev — instantly settles, no keys).
-        // Defaults to fake until real credentials are configured.
-        'driver' => env('HITPAY_DRIVER', env('HITPAY_API_KEY') ? 'hitpay' : 'fake'),
-        'api_key' => env('HITPAY_API_KEY'),
-        'salt' => env('HITPAY_SALT'),                 // webhook HMAC secret
-        'mode' => env('HITPAY_MODE', 'sandbox'),      // sandbox | live
-        'currency' => env('HITPAY_CURRENCY', 'MYR'),
+    'chip' => [
+        // CHIP Collect (https://docs.chip-in.asia). driver: 'chip' (real API) or
+        // 'fake' (dev — instantly settles, no keys). Test vs live is decided by the
+        // key itself, so there is no separate base URL. Defaults to fake until a
+        // secret key is set.
+        'driver' => env('CHIP_DRIVER', env('CHIP_SECRET_KEY') ? 'chip' : 'fake'),
+        'secret' => env('CHIP_SECRET_KEY'),           // Bearer secret (test or live)
+        'brand_id' => env('CHIP_BRAND_ID'),           // brand UUID from the CHIP portal
+        'public_key' => env('CHIP_PUBLIC_KEY'),       // PEM for webhook verification (optional; else fetched from the API + cached)
+        'currency' => env('CHIP_CURRENCY', 'MYR'),
     ],
 
 ];

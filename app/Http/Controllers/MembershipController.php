@@ -29,7 +29,7 @@ class MembershipController extends Controller
         ]);
     }
 
-    /** Purchase premium (settles instantly in dev; redirects to HitPay in production). */
+    /** Purchase premium (settles instantly in dev; redirects to CHIP in production). */
     public function subscribe(Request $request, PaymentGateway $gateway)
     {
         abort_unless($request->user()->canSubscribeToPremium(), 403);

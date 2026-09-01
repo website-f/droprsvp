@@ -23,7 +23,7 @@ return new class extends Migration
             $table->decimal('tax', 10, 2)->default(0);
             $table->decimal('total', 10, 2)->default(0);
             $table->char('currency', 3)->default('MYR');
-            $table->string('payment_ref')->nullable();             // HitPay payment/reference id
+            $table->string('payment_ref')->nullable();             // gateway payment/purchase id
             $table->timestamp('paid_at')->nullable();
             $table->json('meta')->nullable();
             $table->timestamps();

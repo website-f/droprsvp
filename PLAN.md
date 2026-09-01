@@ -24,12 +24,12 @@ thing **and** publishes marketing pages/blog through an in-house CMS.
 | D1 | Rendering | **Inertia.js v2 (React) + SSR** | One codebase, Laravel-driven routing, server-rendered HTML per page → SEO solved without a separate Next.js runtime. Rich React UI for the seat map / editor. |
 | D2 | Styling | **Tailwind CSS** driven by `DESIGN.md` tokens | Meetup type/spacing/shape (pill buttons); **Tiratech colours = rich black & white monochrome** (done in `app.css`, red kept only for errors). |
 | D3 | Rich text | **TipTap** (ProseMirror) | Self-hosted, React-native, clean HTML+JSON output, extensible → WordPress-like editing, no external CDN. |
-| D4 | Payments | **HitPay** (behind a gateway abstraction) | Same gateway as qrpos/portalkahwin; webhooks + refunds; driver stays swappable. |
+| D4 | Payments | **CHIP Collect** (behind a gateway abstraction) | CHIP hosted purchases; RSA-signed webhooks + refunds; driver stays swappable (fake in dev). |
 | D5 | DB | **MySQL 8** + **Redis** (cache, queues, sessions) | Same as existing stack; queues critical for ticketing spikes. |
 | D6 | Search/discovery | MySQL full-text + filters first; **Meilisearch** optional later | Avoid premature infra; add Meili when catalogue grows. |
 | D7 | Deploy | **Docker Compose behind the shared `/opt/reverse-proxy`** (own port block) | Matches VPS convention; one TLS terminator. |
 
-**Confirmed:** colours = **rich black & white** (Tiratech); payments = **HitPay**.
+**Confirmed:** colours = **rich black & white** (Tiratech); payments = **CHIP Collect**.
 **Still open:** whether recurring/multi-session events are in v1, and SST/tax handling.
 
 ---

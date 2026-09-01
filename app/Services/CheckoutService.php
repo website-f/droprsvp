@@ -36,7 +36,7 @@ class CheckoutService
 
         return DB::transaction(function () use ($event, $wanted, $seatIds, $userId) {
             $subtotal = 0.0;
-            $currency = config('services.hitpay.currency', 'MYR');
+            $currency = config('services.chip.currency', 'MYR');
             $lines = [];
             $heldSeatIds = [];
 

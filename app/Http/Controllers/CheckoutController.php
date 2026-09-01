@@ -98,10 +98,16 @@ class CheckoutController extends Controller
     }
 
     /** Where the real gateway redirects the buyer back to. */
-    public function return(Request $request)
+    public function return(Request $request, PaymentGateway $gateway)
     {
         $reference = $request->query('reference_number') ?? $request->query('reference');
         $order = $reference ? Order::where('reference', $reference)->first() : null;
+
+        // The webhook is the source of truth, but it can lag the redirect — so if
+        // the order is still pending, confirm directly with the gateway.
+        if ($order && $order->status === 'pending' && $gateway instanceof \App\Services\Payments\ChipGateway && $gateway->isPaid($order)) {
+            $this->checkout->markPaid($order, $order->payment_ref);
+        }
 
         return $order
             ? redirect()->route('checkout.confirmation', $order)

@@ -35,7 +35,7 @@ class PromotionController extends Controller
         ]);
     }
 
-    /** Purchase a boost (settles instantly in dev; redirects to HitPay in production). */
+    /** Purchase a boost (settles instantly in dev; redirects to CHIP in production). */
     public function store(Request $request, Event $event, PaymentGateway $gateway)
     {
         $this->authorize('update', $event);
@@ -49,7 +49,7 @@ class PromotionController extends Controller
         return redirect()->route('host.events.promote', $event)->with('success', 'Your event is now boosted!');
     }
 
-    /** Where HitPay returns the organizer after paying (settlement itself is via webhook). */
+    /** Where CHIP returns the organizer after paying (settlement itself is via webhook). */
     public function return(Event $event)
     {
         return redirect()->route('host.events.promote', $event)->with('success', 'Payment received — your boost will activate shortly.');

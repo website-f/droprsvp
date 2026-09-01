@@ -12,18 +12,31 @@ use Illuminate\Validation\ValidationException;
 class PayoutService
 {
     /**
-     * The organizer's balance breakdown.
+     * The organizer's balance breakdown. Funds only become withdrawable AFTER the
+     * event has taken place ("matured") — money from upcoming events is held as
+     * pending clearance so refunds/cancellations can't leave the platform short.
      *
-     * @return array{gross:float,fee_percent:float,fee:float,net:float,withdrawn:float,available:float}
+     * @return array{gross:float,fee_percent:float,fee:float,net:float,withdrawn:float,available:float,pending_clearance:float}
      */
     public function balanceFor(User $organizer): array
     {
-        $eventIds = $organizer->events()->pluck('id');
-
-        $gross = (float) Order::whereIn('event_id', $eventIds)->where('status', 'paid')->sum('total');
         $feePercent = (float) Setting::get('platform_fee_percent', config('droprsvp.platform_fee_percent'));
-        $fee = round($gross * $feePercent / 100, 2);
-        $net = round($gross - $fee, 2);
+        $netOf = fn (float $gross) => round($gross - round($gross * $feePercent / 100, 2), 2);
+
+        $eventIds = $organizer->events()->pluck('id');
+        $gross = (float) Order::whereIn('event_id', $eventIds)->where('status', 'paid')->sum('total');
+
+        // An event's takings mature once it has happened: ends_at (or starts_at when
+        // there's no end) is in the past; date-less events mature immediately.
+        $maturedIds = $organizer->events()->where(function ($q) {
+            $q->where(fn ($w) => $w->whereNotNull('ends_at')->where('ends_at', '<=', now()))
+                ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNotNull('starts_at')->where('starts_at', '<=', now()))
+                ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNull('starts_at'));
+        })->pluck('id');
+        $maturedGross = (float) Order::whereIn('event_id', $maturedIds)->where('status', 'paid')->sum('total');
+
+        $net = $netOf($gross);
+        $maturedNet = $netOf($maturedGross);
 
         // Everything already requested or paid out is no longer available.
         $withdrawn = (float) Payout::where('user_id', $organizer->id)
@@ -33,10 +46,11 @@ class PayoutService
         return [
             'gross' => $gross,
             'fee_percent' => $feePercent,
-            'fee' => $fee,
+            'fee' => round($gross * $feePercent / 100, 2),
             'net' => $net,
             'withdrawn' => round($withdrawn, 2),
-            'available' => max(0, round($net - $withdrawn, 2)),
+            'available' => max(0.0, round($maturedNet - $withdrawn, 2)),
+            'pending_clearance' => max(0.0, round($net - $maturedNet, 2)),
         ];
     }
 

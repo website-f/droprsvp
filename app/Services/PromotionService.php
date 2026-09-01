@@ -6,15 +6,15 @@ use App\Models\Event;
 use App\Models\Promotion;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Payments\ChipGateway;
 use App\Services\Payments\FakePaymentGateway;
-use App\Services\Payments\HitPayGateway;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Support\Str;
 
 /**
  * Boosting/promotion: an organizer pays the platform to feature their event for
  * a number of days. Reuses the payment gateway (fake settles instantly in dev;
- * HitPay in production), and keeps its money separate from ticket revenue.
+ * CHIP in production), and keeps its money separate from ticket revenue.
  */
 class PromotionService
 {
@@ -49,15 +49,16 @@ class PromotionService
             return null;
         }
 
-        if ($gateway instanceof HitPayGateway) {
+        if ($gateway instanceof ChipGateway) {
             $res = $gateway->createRequest([
-                'amount' => number_format((float) $promo->amount, 2, '.', ''),
-                'currency' => config('services.hitpay.currency', 'MYR'),
+                'amount' => (float) $promo->amount,
+                'currency' => config('services.chip.currency', 'MYR'),
                 'reference_number' => $promo->reference,
                 'redirect_url' => route('host.events.promote.return', $event),
                 'webhook' => route('promotions.webhook'),
                 'name' => $user->name,
                 'email' => $user->email,
+                'description' => 'Event boost · '.$event->title,
             ]);
             $promo->update(['payment_ref' => $res['id'] ?? null]);
 

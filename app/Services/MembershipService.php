@@ -5,14 +5,14 @@ namespace App\Services;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Payments\ChipGateway;
 use App\Services\Payments\FakePaymentGateway;
-use App\Services\Payments\HitPayGateway;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Support\Str;
 
 /**
  * Premium membership: a user pays to unlock premium benefits for N days.
- * Reuses the payment gateway (fake settles instantly in dev; HitPay in prod).
+ * Reuses the payment gateway (fake settles instantly in dev; CHIP in prod).
  */
 class MembershipService
 {
@@ -43,15 +43,16 @@ class MembershipService
             return null;
         }
 
-        if ($gateway instanceof HitPayGateway) {
+        if ($gateway instanceof ChipGateway) {
             $res = $gateway->createRequest([
-                'amount' => number_format((float) $sub->amount, 2, '.', ''),
-                'currency' => config('services.hitpay.currency', 'MYR'),
+                'amount' => (float) $sub->amount,
+                'currency' => config('services.chip.currency', 'MYR'),
                 'reference_number' => $sub->reference,
                 'redirect_url' => route('premium.return'),
                 'webhook' => route('subscriptions.webhook'),
                 'name' => $user->name,
                 'email' => $user->email,
+                'description' => 'DropRSVP Premium',
             ]);
             $sub->update(['payment_ref' => $res['id'] ?? null]);
 

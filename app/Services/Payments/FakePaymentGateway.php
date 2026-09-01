@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 /**
  * Dev/test gateway — no real API. `createCheckout` points the buyer at an internal
  * page that instantly settles the order, so the whole checkout flow can be
- * exercised end-to-end without HitPay credentials.
+ * exercised end-to-end without CHIP credentials.
  */
 class FakePaymentGateway implements PaymentGateway
 {

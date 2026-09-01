@@ -100,7 +100,7 @@ Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('check
 Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('checkout.pay');
 Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
 Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
-Route::post('webhooks/hitpay', [WebhookController::class, 'hitpay'])->name('webhooks.hitpay');
+Route::post('webhooks/chip', [WebhookController::class, 'chip'])->name('webhooks.chip');
 Route::post('webhooks/promotions', [WebhookController::class, 'promotions'])->name('promotions.webhook');
 Route::post('webhooks/subscriptions', [WebhookController::class, 'subscriptions'])->name('subscriptions.webhook');
 

@@ -128,10 +128,12 @@ DB_PASSWORD=your_pass
 # Client-side rendering (no Node → SSR stays off; this is the default)
 INERTIA_SSR_ENABLED=false
 
-# Payments — go live by switching the driver + keys
-HITPAY_DRIVER=hitpay
-HITPAY_API_KEY=...
-HITPAY_SALT=...
+# Payments (CHIP Collect) — go live by switching the driver + keys.
+# Test vs live is decided by the key itself (no separate mode).
+CHIP_DRIVER=chip
+CHIP_SECRET_KEY=...      # Secret Key from the CHIP portal
+CHIP_BRAND_ID=...        # Brand UUID from the CHIP portal
+# CHIP_PUBLIC_KEY=...    # optional; else fetched from /public_key/ and cached
 
 # SEO (optional overrides — sensible defaults already ship)
 # SEO_DEFAULT_IMAGE=/og-default.png   # branded 1200×630 default (already set)
