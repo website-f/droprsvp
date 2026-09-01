@@ -40,9 +40,26 @@ function Card({ children }: { children: React.ReactNode }) {
     );
 }
 
+/** Recursively replace null with '' so text inputs stay controlled (no React warnings). */
+function noNulls<T>(v: T): T {
+    if (v === null) {
+        return '' as unknown as T;
+    }
+
+    if (Array.isArray(v)) {
+        return v.map((x) => noNulls(x)) as unknown as T;
+    }
+
+    if (v && typeof v === 'object') {
+        return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, noNulls(val)])) as T;
+    }
+
+    return v;
+}
+
 export default function LandingSettings({ sections, cities = [] }: { sections: Sections; cities?: City[] }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
-    const form = useForm<Sections>(sections);
+    const form = useForm<Sections>(noNulls(sections));
     const { data, setData, processing } = form;
     const [uploading, setUploading] = useState(false);
 
