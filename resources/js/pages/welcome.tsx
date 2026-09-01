@@ -1,5 +1,5 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Send, Sparkles, Tag } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Send, Sparkles, Star, Tag, UserCheck, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
@@ -19,6 +19,10 @@ interface FeaturedEvent {
     venue: string | null;
     from_price: number | null;
     has_free: boolean;
+    participants: number;
+    faces: string[];
+    rating: number | null;
+    rating_count: number;
 }
 
 const money = (n: number) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR', maximumFractionDigits: 0 }).format(n);
@@ -38,7 +42,7 @@ return 'Free';
     return null;
 }
 
-interface Organizer { slug: string; name: string; events_count: number; next_slug: string | null }
+interface Organizer { id: number; slug: string; name: string; events_count: number; followers: number; next_slug: string | null; is_following: boolean; is_self: boolean }
 
 interface LandingSections {
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
@@ -218,6 +222,25 @@ export default function Welcome() {
                                                     <span className="truncate text-muted-foreground">{e.venue}</span>
                                                     {priceLabel(e) && <span className="shrink-0 font-semibold">{priceLabel(e)}</span>}
                                                 </div>
+                                                {/* Participants (stacked avatars + total) + rating */}
+                                                {(e.participants > 0 || e.rating !== null) && (
+                                                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                                        {e.participants > 0 ? (
+                                                            <span className="flex items-center gap-2">
+                                                                <span className="flex -space-x-2">
+                                                                    {e.faces.map((name, fi) => (
+                                                                        <span key={fi} title={name} className="flex size-6 items-center justify-center rounded-full text-[9px] font-bold text-white ring-2 ring-card" style={{ backgroundColor: AVATAR_TINTS[fi % AVATAR_TINTS.length] }}>{initials(name)}</span>
+                                                                    ))}
+                                                                    <span className="flex size-6 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background ring-2 ring-card">{e.participants > 99 ? '99+' : e.participants}</span>
+                                                                </span>
+                                                                going
+                                                            </span>
+                                                        ) : <span />}
+                                                        {e.rating !== null && (
+                                                            <span className="flex items-center gap-1"><Star className="size-3.5 fill-[#f5a524] text-[#f5a524]" /> {e.rating.toFixed(1)}<span className="text-muted-foreground/70">({e.rating_count})</span></span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </Link>
                                     </Reveal>
@@ -240,16 +263,26 @@ export default function Welcome() {
                                 const href = `/o/${o.slug}`;
 
                                 return (
-                                    <Reveal key={o.name + i} delay={i * 60}>
-                                        <Link href={href} className="group flex h-full flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                                            <span className="flex size-14 items-center justify-center rounded-full text-lg font-bold text-white transition-transform duration-300 group-hover:scale-105" style={{ backgroundColor: tint }}>
-                                                {initials(o.name)}
-                                            </span>
-                                            <span className="min-w-0">
-                                                <span className="block truncate text-sm font-semibold">{o.name}</span>
-                                                <span className="mt-0.5 block text-xs text-muted-foreground">{o.events_count} event{o.events_count === 1 ? '' : 's'}</span>
-                                            </span>
-                                        </Link>
+                                    <Reveal key={o.id} delay={i * 60}>
+                                        <div className="group flex h-full flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                                            <Link href={href} className="flex flex-col items-center gap-3">
+                                                <span className="flex size-14 items-center justify-center rounded-full text-lg font-bold text-white transition-transform duration-300 group-hover:scale-105" style={{ backgroundColor: tint }}>
+                                                    {initials(o.name)}
+                                                </span>
+                                                <span className="min-w-0">
+                                                    <span className="block truncate text-sm font-semibold group-hover:underline">{o.name}</span>
+                                                    <span className="mt-0.5 block text-xs text-muted-foreground">{o.events_count} event{o.events_count === 1 ? '' : 's'}{o.followers > 0 ? ` · ${o.followers} follower${o.followers === 1 ? '' : 's'}` : ''}</span>
+                                                </span>
+                                            </Link>
+                                            {!o.is_self && (signedIn ? (
+                                                <Button variant={o.is_following ? 'outline' : 'default'} size="sm" className="mt-auto h-8 w-full"
+                                                    onClick={() => router.post(`/organizers/${o.id}/follow`, {}, { preserveScroll: true })}>
+                                                    {o.is_following ? <><UserCheck className="size-3.5" /> Following</> : <><UserPlus className="size-3.5" /> Follow</>}
+                                                </Button>
+                                            ) : (
+                                                <Button asChild variant="default" size="sm" className="mt-auto h-8 w-full"><Link href="/login"><UserPlus className="size-3.5" /> Follow</Link></Button>
+                                            ))}
+                                        </div>
                                     </Reveal>
                                 );
                             })}

@@ -353,18 +353,22 @@ form.post('/host/events');
 
                                 {/* Pricing — free tickets have no price; paid tickets can show a discount */}
                                 {t.kind !== 'free' && (
-                                    <div className="grid gap-3 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
-                                        <div className="grid gap-1.5">
-                                            <Label>{t.kind === 'donation' ? 'Suggested amount (RM)' : 'Selling price (RM)'}</Label>
-                                            <input type="number" min={0} step="0.01" className={field} value={t.price} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
-                                            {errors[`ticketTypes.${i}.price` as keyof typeof errors] && <p className="text-xs text-destructive">Enter a valid price</p>}
+                                    <div className="rounded-lg bg-muted/40 p-3">
+                                        <div className="grid items-start gap-3 sm:grid-cols-2">
+                                            <div className="grid gap-1.5">
+                                                <Label>{t.kind === 'donation' ? 'Suggested amount (RM)' : 'Selling price (RM)'}</Label>
+                                                <input type="number" min={0} step="0.01" className={field} value={t.price} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
+                                                {errors[`ticketTypes.${i}.price` as keyof typeof errors] && <p className="text-xs text-destructive">Enter a valid price</p>}
+                                            </div>
+                                            {t.kind === 'paid' && (
+                                                <div className="grid gap-1.5">
+                                                    <Label>Normal price (RM) <span className="font-normal text-muted-foreground">— optional</span></Label>
+                                                    <input type="number" min={0} step="0.01" className={field} value={t.compare_at_price} onChange={(e) => patchTicket(i, 'compare_at_price', e.target.value)} placeholder="e.g. 50.00" />
+                                                </div>
+                                            )}
                                         </div>
                                         {t.kind === 'paid' && (
-                                            <div className="grid gap-1.5">
-                                                <Label>Normal price (RM) <span className="font-normal text-muted-foreground">— optional</span></Label>
-                                                <input type="number" min={0} step="0.01" className={field} value={t.compare_at_price} onChange={(e) => patchTicket(i, 'compare_at_price', e.target.value)} placeholder="e.g. 50.00" />
-                                                <p className="text-xs text-muted-foreground">If higher than the selling price, it shows struck-through so buyers see the discount.</p>
-                                            </div>
+                                            <p className="mt-2 text-xs text-muted-foreground">If the normal price is higher than the selling price, it shows struck-through so buyers see the discount.</p>
                                         )}
                                     </div>
                                 )}

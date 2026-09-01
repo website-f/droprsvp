@@ -42,12 +42,88 @@ class AnalyticsController extends Controller
                 'age' => Analytics::ordered((clone $paid), 'buyer_age_band', Analytics::AGE_ORDER),
                 'source' => Analytics::breakdown((clone $paid), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
-            // Per-event drill-down.
-            'events' => Event::orderByDesc('created_at')->limit(300)->get(['slug', 'title'])
-                ->map(fn ($e) => ['slug' => $e->slug, 'title' => $e->title])->all(),
+            // Advanced, scalable events table (search + sort + paginate) — replaces
+            // the old "pick from every event" dropdown.
+            'events' => $this->eventsQuery($request)->paginate(15)->withQueryString()
+                ->through(fn (Event $e) => $this->eventRow($e)),
+            'filters' => [
+                'q' => (string) $request->query('q', ''),
+                'sort' => $this->sortKey($request),
+                'dir' => $this->sortDir($request),
+            ],
+            'exportUrl' => route('admin.analytics.export', $request->query()),
             'selectedSlug' => $request->query('event'),
             'selected' => $this->eventBreakdown($request->query('event')),
         ]);
+    }
+
+    /** Stream the (filtered) events table as CSV. */
+    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $rows = $this->eventsQuery($request)->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Event', 'Status', 'Date', 'Impressions', 'Clicks', 'CTR %', 'Tickets sold', 'Revenue (RM)']);
+            foreach ($rows as $e) {
+                $r = $this->eventRow($e);
+                fputcsv($out, [$r['title'], $r['status'], $r['when'] ?? '', $r['impressions'], $r['clicks'], $r['ctr'], $r['sold'], number_format($r['revenue'], 2, '.', '')]);
+            }
+            fclose($out);
+        }, 'events-analytics-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /** Shared query for the table + export: search + sort + the row aggregates. */
+    private function eventsQuery(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $q = trim((string) $request->query('q', ''));
+        $sort = $this->sortKey($request);
+        $dir = $this->sortDir($request);
+
+        $column = match ($sort) {
+            'revenue' => 'revenue',
+            'sold' => 'sold',
+            'impressions' => 'impressions',
+            'title' => 'title',
+            default => 'created_at',
+        };
+
+        return Event::query()
+            ->when($q !== '', fn ($b) => $b->where('title', 'like', "%{$q}%"))
+            ->withCount(['tickets as sold' => fn ($t) => $t->whereIn('status', ['valid', 'checked_in'])])
+            ->withSum('dailyStats as impressions', 'impressions')
+            ->withSum('dailyStats as clicks', 'clicks')
+            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')], 'total')
+            ->orderBy($column, $dir);
+    }
+
+    private function eventRow(Event $e): array
+    {
+        $impressions = (int) ($e->impressions ?? 0);
+        $clicks = (int) ($e->clicks ?? 0);
+
+        return [
+            'slug' => $e->slug,
+            'title' => $e->title,
+            'status' => $e->status,
+            'when' => optional($e->starts_at)?->setTimezone($e->timezone)->format('j M Y'),
+            'impressions' => $impressions,
+            'clicks' => $clicks,
+            'ctr' => $impressions > 0 ? round($clicks / $impressions * 100, 1) : 0.0,
+            'sold' => (int) ($e->sold ?? 0),
+            'revenue' => round((float) ($e->revenue ?? 0), 2),
+        ];
+    }
+
+    private function sortKey(Request $request): string
+    {
+        return in_array($request->query('sort'), ['revenue', 'sold', 'impressions', 'title', 'created_at'], true)
+            ? $request->query('sort') : 'created_at';
+    }
+
+    private function sortDir(Request $request): string
+    {
+        return $request->query('dir') === 'asc' ? 'asc' : 'desc';
     }
 
     /** One event's analytics (same shape as the organizer's per-event page), or null. */

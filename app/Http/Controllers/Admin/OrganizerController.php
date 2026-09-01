@@ -47,12 +47,37 @@ class OrganizerController extends Controller
         ]);
     }
 
+    /** Full application detail — reviewed before approving/rejecting. */
+    public function show(OrganizerProfile $organizer)
+    {
+        $organizer->load('user:id,name,email,created_at');
+
+        return inertia('admin/organizers/show', [
+            'application' => [
+                'id' => $organizer->id,
+                'name' => $organizer->user?->name,
+                'email' => $organizer->user?->email,
+                'member_since' => optional($organizer->user?->created_at)->format('j M Y'),
+                'business_name' => $organizer->business_name,
+                'website' => $organizer->website,
+                'phone' => $organizer->phone,
+                'bio' => $organizer->bio,
+                'poster' => $organizer->poster,
+                'gallery' => $organizer->gallery ?? [],
+                'status' => $organizer->status,
+                'reason' => $organizer->review_reason,
+                'submitted_at' => optional($organizer->submitted_at)->format('j M Y, g:i A'),
+                'reviewed_at' => optional($organizer->reviewed_at)->format('j M Y, g:i A'),
+            ],
+        ]);
+    }
+
     public function approve(OrganizerProfile $organizer)
     {
         $organizer->update(['status' => 'approved', 'review_reason' => null, 'reviewed_at' => now()]);
         $this->notify($organizer, true);
 
-        return back()->with('flash_success', "{$organizer->user?->name} approved.");
+        return redirect()->route('admin.organizers.index')->with('flash_success', "{$organizer->user?->name} approved.");
     }
 
     public function reject(Request $request, OrganizerProfile $organizer)
@@ -61,7 +86,7 @@ class OrganizerController extends Controller
         $organizer->update(['status' => 'rejected', 'review_reason' => $data['reason'], 'reviewed_at' => now()]);
         $this->notify($organizer, false);
 
-        return back()->with('flash_success', "{$organizer->user?->name} rejected — they can re-apply.");
+        return redirect()->route('admin.organizers.index')->with('flash_success', "{$organizer->user?->name} rejected — they can re-apply.");
     }
 
     /** Email the applicant (non-fatal — works once SMTP is configured). */

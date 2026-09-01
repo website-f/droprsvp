@@ -1,71 +1,34 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Check, ExternalLink, Globe, Phone, X } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, Globe, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface Application {
     id: number; name: string | null; email: string | null; business_name: string | null; website: string | null;
-    phone: string | null; bio: string | null; poster: string | null; gallery: string[]; status: string; reason: string | null; submitted_at: string | null;
+    phone: string | null; status: string; submitted_at: string | null;
 }
 interface Paginated { data: Application[]; prev_page_url: string | null; next_page_url: string | null }
 interface Props { applications: Paginated; filters: { status: string }; counts: { pending: number; approved: number; rejected: number } }
 
 const STATUS_TONE: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { pending: 'secondary', approved: 'default', rejected: 'destructive', incomplete: 'outline' };
 
-function AppCard({ app }: { app: Application }) {
-    const [rejecting, setRejecting] = useState(false);
-    const [reason, setReason] = useState('');
-
-    const approve = () => router.post(`/admin/organizers/${app.id}/approve`, {}, { preserveScroll: true });
-    const reject = () => reason.trim() && router.post(`/admin/organizers/${app.id}/reject`, { reason }, { preserveScroll: true, onSuccess: () => setRejecting(false) });
-
+function Row({ app }: { app: Application }) {
     return (
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">{app.business_name || app.name}</span>
-                        <Badge variant={STATUS_TONE[app.status] ?? 'outline'} className="capitalize">{app.status}</Badge>
-                        {app.submitted_at && <span className="text-xs text-muted-foreground">· {app.submitted_at}</span>}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>{app.name} · <a href={`mailto:${app.email}`} className="hover:text-foreground">{app.email}</a></span>
-                        {app.phone && <a href={`tel:${app.phone}`} className="flex items-center gap-1 hover:text-foreground"><Phone className="size-3" /> {app.phone}</a>}
-                        {app.website && <a href={app.website} target="_blank" rel="noopener" className="flex items-center gap-1 hover:text-foreground"><Globe className="size-3" /> Website <ExternalLink className="size-3" /></a>}
-                    </div>
+        <Link href={`/admin/organizers/${app.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-foreground/30">
+            <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-semibold">{app.business_name || app.name}</span>
+                    <Badge variant={STATUS_TONE[app.status] ?? 'outline'} className="capitalize">{app.status}</Badge>
+                    {app.submitted_at && <span className="text-xs text-muted-foreground">· {app.submitted_at}</span>}
                 </div>
-                {app.status !== 'approved' && (
-                    <div className="flex shrink-0 items-center gap-2">
-                        <Button size="sm" onClick={approve}><Check className="size-3.5" /> Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => setRejecting((v) => !v)}><X className="size-3.5" /> Reject</Button>
-                    </div>
-                )}
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="truncate">{app.name} · {app.email}</span>
+                    {app.phone && <span className="flex items-center gap-1"><Phone className="size-3" /> {app.phone}</span>}
+                    {app.website && <span className="flex items-center gap-1"><Globe className="size-3" /> Website</span>}
+                </div>
             </div>
-
-            {app.bio && <p className="mt-3 whitespace-pre-line text-sm text-foreground/80">{app.bio}</p>}
-
-            {(app.poster || app.gallery.length > 0) && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                    {app.poster && <img src={app.poster} alt="Poster" className="h-24 w-auto rounded-lg border border-border object-cover" />}
-                    {app.gallery.map((g, i) => <img key={i} src={g} alt="" className="size-16 rounded-lg border border-border object-cover" />)}
-                </div>
-            )}
-
-            {app.status === 'rejected' && app.reason && (
-                <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive"><span className="font-medium">Rejected:</span> {app.reason}</p>
-            )}
-
-            {rejecting && (
-                <div className="mt-3 grid gap-2 rounded-xl border border-border p-3">
-                    <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (shown to the applicant so they can re-apply)…" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
-                    <div className="flex gap-2">
-                        <Button size="sm" variant="destructive" onClick={reject} disabled={!reason.trim()}>Confirm reject</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setRejecting(false)}>Cancel</Button>
-                    </div>
-                </div>
-            )}
-        </div>
+            <span className="flex shrink-0 items-center gap-1 text-sm font-medium">View application <ArrowRight className="size-4" /></span>
+        </Link>
     );
 }
 
@@ -85,7 +48,7 @@ export default function OrganizersIndex({ applications, filters, counts }: Props
             <Head title="Organizers" />
             <div className="mx-auto w-full max-w-3xl flex-1 p-4">
                 <h1 className="mb-1 text-2xl font-bold tracking-tight">Organizer applications</h1>
-                <p className="mb-5 text-sm text-muted-foreground">Review vendors applying to host events. Approving lets them into the host area.</p>
+                <p className="mb-5 text-sm text-muted-foreground">Review vendors applying to host events. Open an application to see everything before you decide.</p>
                 {flash?.success && <div className="mb-4 rounded-lg bg-secondary px-4 py-2 text-sm">{flash.success}</div>}
 
                 <div className="mb-5 flex flex-wrap gap-2">
@@ -98,7 +61,7 @@ export default function OrganizersIndex({ applications, filters, counts }: Props
                     <p className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No applications here.</p>
                 ) : (
                     <div className="grid gap-3">
-                        {applications.data.map((a) => <AppCard key={a.id} app={a} />)}
+                        {applications.data.map((a) => <Row key={a.id} app={a} />)}
                     </div>
                 )}
 

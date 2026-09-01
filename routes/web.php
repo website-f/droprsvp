@@ -238,6 +238,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::middleware('role:superadmin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('analytics/export', [AdminAnalyticsController::class, 'export'])->name('analytics.export');
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
@@ -259,6 +260,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('all-events/{event}/restore', [AdminEventsController::class, 'restore'])->name('events.restore');
         // Organizer/vendor applications.
         Route::get('organizers', [AdminOrganizerController::class, 'index'])->name('organizers.index');
+        Route::get('organizers/{organizer}', [AdminOrganizerController::class, 'show'])->name('organizers.show');
         Route::post('organizers/{organizer}/approve', [AdminOrganizerController::class, 'approve'])->name('organizers.approve');
         Route::post('organizers/{organizer}/reject', [AdminOrganizerController::class, 'reject'])->name('organizers.reject');
 

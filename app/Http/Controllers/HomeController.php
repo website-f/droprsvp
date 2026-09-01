@@ -17,6 +17,9 @@ class HomeController extends Controller
     {
         $featured = Event::published()
             ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
+            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
+            ->withCount('reviews')
+            ->withAvg('reviews as reviews_avg', 'rating')
             ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
             ->orderByRaw('starts_at is null, starts_at asc')
             ->limit(3)
@@ -63,23 +66,31 @@ class HomeController extends Controller
     /** Top organizers by number of published events, with their soonest event. */
     private function featuredOrganizers(): \Illuminate\Support\Collection
     {
+        $viewer = auth()->user();
+        $followingIds = $viewer ? $viewer->following()->pluck('users.id') : collect();
+
         return User::query()
             ->whereHas('events', fn ($q) => $q->published())
             ->withCount(['events as events_count' => fn ($q) => $q->published()])
+            ->withCount('followers')
             ->orderByDesc('events_count')
             ->limit(6)
             ->get()
-            ->map(function (User $u) {
+            ->map(function (User $u) use ($viewer, $followingIds) {
                 $next = $u->events()->published()
                     ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
                     ->orderByRaw('starts_at is null, starts_at asc')
                     ->first(['slug']);
 
                 return [
+                    'id' => $u->id,
                     'slug' => $u->ensureSlug(),
                     'name' => $u->name,
                     'events_count' => $u->events_count,
+                    'followers' => (int) $u->followers_count,
                     'next_slug' => $next?->slug,
+                    'is_following' => $followingIds->contains($u->id),
+                    'is_self' => $viewer?->id === $u->id,
                 ];
             })
             ->values();
@@ -99,6 +110,11 @@ class HomeController extends Controller
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
+            'participants' => (int) ($event->participants_count ?? 0),
+            'faces' => \App\Models\Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_name')
+                ->orderByDesc('paid_at')->limit(8)->pluck('buyer_name')->unique()->take(3)->values()->all(),
+            'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
+            'rating_count' => (int) ($event->reviews_count ?? 0),
         ];
     }
 }

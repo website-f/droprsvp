@@ -15,15 +15,15 @@ class AnalyticsTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function publishedEvent(?User $host = null): Event
+    private function publishedEvent(?User $host = null, array $overrides = []): Event
     {
         $host ??= User::factory()->create();
 
-        return Event::create([
+        return Event::create(array_merge([
             'user_id' => $host->id, 'title' => 'Analytics Event', 'slug' => 'analytics-event',
             'status' => 'published', 'published_at' => now(), 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
             'starts_at' => now()->addDays(10),
-        ]);
+        ], $overrides));
     }
 
     public function test_viewing_a_public_event_records_an_impression(): void
@@ -112,5 +112,33 @@ class AnalyticsTest extends TestCase
                 ->where('selected.event.slug', $event->slug)
                 ->has('selected.kpis')
                 ->has('selected.trend', 30));
+    }
+
+    public function test_events_table_is_searchable_and_paginated(): void
+    {
+        Role::findOrCreate('superadmin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+        $this->publishedEvent(null, ['title' => 'Jazz By The Bay', 'slug' => 'jazz-bay']);
+        $this->publishedEvent(null, ['title' => 'Tech Summit', 'slug' => 'tech-summit']);
+
+        $this->actingAs($admin)->get('/admin/analytics?q=Jazz')
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->where('filters.q', 'Jazz')
+                ->has('events.data', 1)
+                ->where('events.data.0.slug', 'jazz-bay'));
+    }
+
+    public function test_superadmin_can_export_events_analytics_as_csv(): void
+    {
+        Role::findOrCreate('superadmin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+        $this->publishedEvent(null, ['title' => 'Export Me', 'slug' => 'export-me']);
+
+        $res = $this->actingAs($admin)->get('/admin/analytics/export')->assertOk();
+        $this->assertStringContainsString('Event,Status,Date', $res->streamedContent());
+        $this->assertStringContainsString('Export Me', $res->streamedContent());
     }
 }
