@@ -98,6 +98,21 @@ class UserController extends Controller
         return back()->with('flash_success', "Updated {$user->name}’s access.");
     }
 
+    /** Soft-delete a user (recoverable from the Archive). Can't delete yourself or another superadmin. */
+    public function destroy(Request $request, User $user)
+    {
+        if ($user->id === $request->user()->id) {
+            return back()->with('flash_error', 'You can’t delete your own account.');
+        }
+        if ($user->hasRole('superadmin')) {
+            return back()->with('flash_error', 'Remove the superadmin role before deleting this user.');
+        }
+
+        $user->delete();
+
+        return back()->with('flash_success', "{$user->name} moved to the Archive.");
+    }
+
     /** @return array{q:string, role:string, country:string, age:string} */
     private function filters(Request $request): array
     {

@@ -46,9 +46,9 @@ class EventCategoryTest extends TestCase
         $this->actingAs($admin)->put("/admin/categories/{$cat->id}", ['name' => 'Concerts', 'color' => 'purple'])
             ->assertSessionHasErrors('color');
 
-        // Delete.
+        // Delete — soft (recoverable from the Archive).
         $this->actingAs($admin)->delete("/admin/categories/{$cat->id}")->assertRedirect();
-        $this->assertDatabaseMissing('event_categories', ['id' => $cat->id]);
+        $this->assertSoftDeleted('event_categories', ['id' => $cat->id]);
     }
 
     public function test_index_lists_categories_with_event_counts(): void
@@ -106,7 +106,7 @@ class EventCategoryTest extends TestCase
         $this->assertSame('updates', $cat->fresh()->slug);
 
         $this->actingAs($admin)->delete("/admin/post-categories/{$cat->id}")->assertRedirect();
-        $this->assertDatabaseMissing('cms_categories', ['id' => $cat->id]);
+        $this->assertSoftDeleted('cms_categories', ['id' => $cat->id]);
 
         $this->actingAs(User::factory()->create())->post('/admin/post-categories', ['name' => 'X'])->assertForbidden();
     }

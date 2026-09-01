@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\CmsPageController;
+use App\Http\Controllers\Admin\ArchiveController;
 use App\Http\Controllers\Admin\CmsCategoryController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\EventCategoryController;
@@ -111,6 +112,9 @@ Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets
 
 // Organizer sign-up (email → code → name), guests only.
 Route::middleware('guest')->group(function () {
+    // "Sign up" lands here: pick attendee (→ register) or vendor (→ get-started).
+    Route::inertia('signup', 'auth/choose')->name('signup');
+
     Route::get('get-started', [OrganizerSignupController::class, 'start'])->name('organizer.start');
     Route::post('get-started/code', [OrganizerSignupController::class, 'sendCode'])->name('organizer.code');
     Route::post('get-started/verify', [OrganizerSignupController::class, 'verifyCode'])->name('organizer.verify');
@@ -286,6 +290,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('users/export', [AdminUserController::class, 'export'])->name('users.export');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
+        Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+        // Archive — soft-deleted items across the platform (restore / permanent delete).
+        Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
+        Route::post('archive/{type}/restore', [ArchiveController::class, 'restore'])->name('archive.restore');
+        Route::post('archive/{type}/delete', [ArchiveController::class, 'destroy'])->name('archive.delete');
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');

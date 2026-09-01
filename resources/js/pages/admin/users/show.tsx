@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, CalendarDays, Heart, Mail, MapPin, Phone, ShieldCheck, Ticket, Users as UsersIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, CalendarDays, Heart, Mail, MapPin, Phone, ShieldCheck, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,12 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
         }
     };
 
+    const remove = async () => {
+        if (await confirm({ title: `Delete ${user.name}?`, description: 'They’ll be moved to the Archive — you can restore or permanently delete them there.', confirmText: 'Delete', destructive: true })) {
+            router.delete(`/admin/users/${user.id}`, { onSuccess: () => router.visit('/admin/users') });
+        }
+    };
+
     return (
         <>
             <Head title={user.name} />
@@ -72,9 +78,16 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
                             <a href={`mailto:${user.email}`} className="mt-0.5 block truncate text-sm text-muted-foreground hover:text-foreground">{user.email}</a>
                         </div>
                     </div>
-                    <Button variant={user.is_superadmin ? 'outline' : 'default'} onClick={toggle} className="shrink-0">
-                        <ShieldCheck className="size-4" /> {user.is_superadmin ? 'Revoke admin' : 'Make admin'}
-                    </Button>
+                    <div className="flex shrink-0 gap-2">
+                        <Button variant={user.is_superadmin ? 'outline' : 'default'} onClick={toggle}>
+                            <ShieldCheck className="size-4" /> {user.is_superadmin ? 'Revoke admin' : 'Make admin'}
+                        </Button>
+                        {!user.is_superadmin && (
+                            <Button variant="outline" onClick={remove} className="text-destructive hover:text-destructive">
+                                <Trash2 className="size-4" /> Delete
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Activity */}

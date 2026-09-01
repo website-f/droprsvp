@@ -55,7 +55,7 @@ export function PublicHeader() {
                         ) : (
                             <>
                                 <Button asChild variant="ghost"><Link href={login()}>Log in</Link></Button>
-                                <Button asChild><Link href="/get-started">Sign up</Link></Button>
+                                <Button asChild><Link href="/signup">Sign up</Link></Button>
                             </>
                         )}
                     </div>
@@ -90,7 +90,7 @@ export function PublicHeader() {
                             ) : (
                                 <>
                                     <Button asChild variant="outline" className="flex-1"><Link href={login()}>Log in</Link></Button>
-                                    <Button asChild className="flex-1"><Link href="/get-started">Sign up</Link></Button>
+                                    <Button asChild className="flex-1"><Link href="/signup">Sign up</Link></Button>
                                 </>
                             )}
                         </div>
