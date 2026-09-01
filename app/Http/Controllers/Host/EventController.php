@@ -105,11 +105,16 @@ class EventController extends Controller
             'sections.*.id' => ['nullable', 'integer'],
             'sections.*.name' => ['required', 'string', 'max:120'],
             'sections.*.color' => ['nullable', 'string', 'max:20'],
-            'sections.*.kind' => ['required', 'in:seated,ga'],
-            'sections.*.price' => ['required', 'numeric', 'min:0'],
+            'sections.*.kind' => ['required', 'in:seated,ga,stage'],
+            'sections.*.price' => ['nullable', 'numeric', 'min:0'],
             'sections.*.rows' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sections.*.cols' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sections.*.capacity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'sections.*.x' => ['nullable', 'integer'],
+            'sections.*.y' => ['nullable', 'integer'],
+            'sections.*.width' => ['nullable', 'integer', 'min:20', 'max:2000'],
+            'sections.*.height' => ['nullable', 'integer', 'min:20', 'max:2000'],
+            'sections.*.row_label_start' => ['nullable', 'string', 'max:4'],
             'visibility' => ['required', 'in:public,unlisted,private'],
             'timezone' => ['required', 'string', 'max:64'],
             'is_online' => ['boolean'],
@@ -244,20 +249,34 @@ class EventController extends Controller
     {
         $keep = [];
         foreach (array_values($rows) as $i => $row) {
-            $kind = ($row['kind'] ?? 'seated') === 'ga' ? 'ga' : 'seated';
-            $price = (float) ($row['price'] ?? 0);
+            $kind = in_array($row['kind'] ?? 'seated', ['ga', 'stage'], true) ? $row['kind'] : 'seated';
+            $price = $kind === 'stage' ? 0.0 : (float) ($row['price'] ?? 0);
             $rowsN = $kind === 'seated' ? max(1, (int) ($row['rows'] ?? 1)) : null;
             $colsN = $kind === 'seated' ? max(1, (int) ($row['cols'] ?? 1)) : null;
             $capacity = $kind === 'ga' ? max(1, (int) ($row['capacity'] ?? 1)) : null;
             $qty = $kind === 'seated' ? $rowsN * $colsN : $capacity;
+            $start = strtoupper(substr((string) ($row['row_label_start'] ?? 'A'), 0, 1)) ?: 'A';
 
             $section = ! empty($row['id']) ? $event->seatSections()->whereKey($row['id'])->first() : null;
             $attrs = [
                 'name' => $row['name'], 'color' => $row['color'] ?? '#6c63ff', 'kind' => $kind,
                 'price' => $price, 'currency' => 'MYR',
                 'rows' => $rowsN, 'cols' => $colsN, 'capacity' => $capacity, 'sort_order' => $i,
+                'x' => (int) ($row['x'] ?? 20), 'y' => (int) ($row['y'] ?? 20),
+                'width' => isset($row['width']) ? (int) $row['width'] : null,
+                'height' => isset($row['height']) ? (int) $row['height'] : null,
+                'row_label_start' => $start,
             ];
             $section ? $section->update($attrs) : $section = $event->seatSections()->create($attrs);
+
+            // A stage is a layout marker — no ticket type, no seats.
+            if ($kind === 'stage') {
+                $section->ticketType?->delete();
+                $section->update(['ticket_type_id' => null]);
+                $section->seats()->where('status', 'available')->delete();
+                $keep[] = $section->id;
+                continue;
+            }
 
             $ttAttrs = [
                 'seat_section_id' => $section->id, 'name' => $section->name,
@@ -273,7 +292,7 @@ class EventController extends Controller
             }
 
             if ($kind === 'seated') {
-                $this->syncSeats($section->fresh(), $rowsN, $colsN);
+                $this->syncSeats($section->fresh(), $rowsN, $colsN, $start);
             } else {
                 $section->seats()->where('status', 'available')->delete();
             }
@@ -288,13 +307,14 @@ class EventController extends Controller
     }
 
     /** Rebuild a seated section's grid, never touching seats that are held/sold. */
-    private function syncSeats(\App\Models\SeatSection $section, int $rows, int $cols): void
+    private function syncSeats(\App\Models\SeatSection $section, int $rows, int $cols, string $start = 'A'): void
     {
+        $offset = max(0, ord($start) - 65);
         $existing = $section->seats()->get()->keyBy('label');
         $keep = [];
         $order = 0;
         for ($r = 0; $r < $rows; $r++) {
-            $rowLabel = $this->rowLabel($r);
+            $rowLabel = $this->rowLabel($offset + $r);
             for ($c = 1; $c <= $cols; $c++) {
                 $label = $rowLabel.$c;
                 if ($seat = $existing->get($label)) {

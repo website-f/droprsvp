@@ -107,6 +107,32 @@ class SeatingTest extends TestCase
             ->where('event.ticket_types', []));            // section ticket type not shown in the GA selector
     }
 
+    public function test_layout_positions_stage_and_custom_row_labels_are_saved(): void
+    {
+        $host = $this->organizer();
+
+        $this->actingAs($host)->post('/host/events', [
+            'title' => 'Arena Show', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
+            'seating_enabled' => true, 'ticketTypes' => [], 'sessions' => [], 'publish' => true,
+            'sections' => [
+                ['name' => 'STAGE', 'kind' => 'stage', 'color' => '#111', 'x' => 40, 'y' => 10, 'width' => 300, 'height' => 48],
+                ['name' => 'Balcony', 'kind' => 'seated', 'price' => 80, 'rows' => 2, 'cols' => 4, 'x' => 60, 'y' => 200, 'row_label_start' => 'D'],
+            ],
+        ])->assertRedirect();
+
+        $event = Event::where('title', 'Arena Show')->firstOrFail();
+
+        $stage = $event->seatSections()->where('kind', 'stage')->firstOrFail();
+        $this->assertNull($stage->ticket_type_id);              // stage sells nothing
+        $this->assertSame(0, $stage->seats()->count());
+        $this->assertSame(40, $stage->x);
+
+        $balcony = $event->seatSections()->where('kind', 'seated')->firstOrFail();
+        $this->assertSame(60, $balcony->x);
+        $this->assertSame(200, $balcony->y);
+        $this->assertSame('D1', $balcony->seats()->orderBy('sort_order')->first()->label);   // custom start letter
+    }
+
     public function test_host_can_save_a_seating_template(): void
     {
         $host = $this->organizer();

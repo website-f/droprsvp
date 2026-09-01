@@ -2,6 +2,8 @@ import type {FormDataConvertible} from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import {  newSection, SeatLayoutEditor } from '@/components/seat-layout-editor';
+import type {LayoutSectionRow} from '@/components/seat-layout-editor';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -17,11 +19,8 @@ interface TicketRow {
     price: string; compare_at_price: string; quantity: string; min_per_order: string; max_per_order: string;
     sales_start: string; sales_end: string; is_active: boolean;
 }
-interface SectionRow {
-    id?: number; name: string; color: string; kind: 'seated' | 'ga';
-    price: string; rows: string; cols: string; capacity: string;
-}
-interface SeatTemplate { id: number; name: string; data: Array<{ name: string; color: string; kind: 'seated' | 'ga'; price: number; rows: number | null; cols: number | null; capacity: number | null }> }
+type SectionRow = LayoutSectionRow;
+interface SeatTemplate { id: number; name: string; data: Array<Partial<LayoutSectionRow> & { name: string; kind: 'seated' | 'ga' | 'stage' }> }
 interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
     description: string | null; cover_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
@@ -29,7 +28,7 @@ interface EventProp {
     capacity: number | null; show_participants: boolean; show_reviews: boolean; seating_enabled: boolean;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
-    seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga'; price: string; rows: number | null; cols: number | null; capacity: number | null }>;
+    seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string }>;
 }
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -68,46 +67,6 @@ function readImageMeta(file: File): Promise<{ w: number; h: number; size: number
 
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
 const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
-const SECTION_COLORS = ['#6c63ff', '#2ec4b6', '#f5a524', '#ff6584', '#3b82f6', '#a855f7'];
-const emptySection = (i = 0): SectionRow => ({ name: '', color: SECTION_COLORS[i % SECTION_COLORS.length], kind: 'seated', price: '0', rows: '5', cols: '10', capacity: '100' });
-
-/** Live preview of a single seating section as the host configures it. */
-function SeatPreview({ section }: { section: SectionRow }) {
-    if (section.kind === 'ga') {
-        const cap = Math.max(0, parseInt(section.capacity, 10) || 0);
-
-        return (
-            <div className="rounded-lg border border-dashed border-border p-3 text-center">
-                <div className="mx-auto mb-2 w-2/3 rounded bg-foreground/80 py-1 text-[10px] font-semibold uppercase tracking-wider text-background">Stage</div>
-                <div className="flex h-16 items-center justify-center rounded-lg text-sm font-medium text-white" style={{ backgroundColor: section.color }}>
-                    {section.name || 'Standing'} · {cap} standing
-                </div>
-            </div>
-        );
-    }
-
-    const rows = Math.max(0, Math.min(100, parseInt(section.rows, 10) || 0));
-    const cols = Math.max(0, Math.min(100, parseInt(section.cols, 10) || 0));
-    const total = rows * cols;
-
-    return (
-        <div className="rounded-lg border border-dashed border-border p-3">
-            <div className="mx-auto mb-3 w-2/3 rounded bg-foreground/80 py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-background">Stage</div>
-            {total > 600 ? (
-                <p className="text-center text-xs text-muted-foreground">{rows} rows × {cols} = <span className="font-medium text-foreground">{total} seats</span> (too many to preview)</p>
-            ) : (
-                <div className="overflow-x-auto">
-                    <div className="mx-auto grid w-max gap-1" style={{ gridTemplateColumns: `repeat(${cols || 1}, minmax(0, 1fr))` }}>
-                        {Array.from({ length: total }).map((_, i) => (
-                            <span key={i} className="size-3 rounded-[3px]" style={{ backgroundColor: section.color, opacity: 0.85 }} />
-                        ))}
-                    </div>
-                </div>
-            )}
-            <p className="mt-2 text-center text-xs text-muted-foreground">{section.name || 'Section'} · {total} seats · RM {section.price || '0'}</p>
-        </div>
-    );
-}
 
 export default function EventForm({ event, categories, cities = [], seatTemplates = [] }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[] }) {
     const isEdit = !!event;
@@ -133,7 +92,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         publish: false,
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
-        sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '5', cols: s.cols != null ? String(s.cols) : '10', capacity: s.capacity != null ? String(s.capacity) : '100' })),
+        sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A' })),
     });
     const { data, setData, errors, processing } = form;
     const coverRef = useRef<HTMLInputElement>(null);
@@ -187,8 +146,6 @@ galleryRef.current.value = '';
         setData('sessions', data.sessions.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
     const patchTicket = (i: number, key: keyof TicketRow, val: string | boolean) =>
         setData('ticketTypes', data.ticketTypes.map((t, idx) => (idx === i ? { ...t, [key]: val } : t)));
-    const patchSection = (i: number, key: keyof SectionRow, val: string) =>
-        setData('sections', data.sections.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
 
     const saveTemplate = () => {
         const name = window.prompt('Name this seating template (e.g. "Main Hall 400"):');
@@ -206,10 +163,11 @@ galleryRef.current.value = '';
             return;
         }
 
-        setData('sections', tpl.data.map((s): SectionRow => ({
-            name: s.name, color: s.color, kind: s.kind, price: String(s.price),
-            rows: s.rows != null ? String(s.rows) : '5', cols: s.cols != null ? String(s.cols) : '10',
+        setData('sections', tpl.data.map((s, i): SectionRow => ({
+            name: s.name, color: s.color ?? '#6c63ff', kind: s.kind, price: s.price != null ? String(s.price) : '0',
+            rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8',
             capacity: s.capacity != null ? String(s.capacity) : '100',
+            x: s.x ?? 40, y: s.y ?? (40 + i * 40), width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start ?? 'A',
         })));
     };
 
@@ -407,75 +365,28 @@ form.post('/host/events');
  setData('seating_enabled', true);
 
  if (data.sections.length === 0) {
-setData('sections', [emptySection(0)]);
-} 
+setData('sections', [newSection('stage', 40, 20, 0), newSection('seated', 40, 100, 1)]);
+}
 }} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${data.seating_enabled ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><ArmchairIcon className="size-3.5" /> Reserved seating</button>
                         </div>
                     </div>
 
-                    {/* ---------- Reserved seating builder ---------- */}
+                    {/* ---------- Reserved seating: drag-and-drop layout ---------- */}
                     {data.seating_enabled ? (
                         <div className="grid gap-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-sm text-muted-foreground">Buyers pick their exact seat; the price follows the section.</p>
-                                {seatTemplates.length > 0 && (
-                                    <div className="w-52">
-                                        <AppSelect value="" onChange={loadTemplate} options={[{ value: '', label: 'Load a template…' }, ...seatTemplates.map((t) => ({ value: String(t.id), label: t.name }))]} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {data.sections.map((s, i) => (
-                                <div key={i} className="grid gap-3 rounded-lg border border-border p-3">
-                                    <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto]">
-                                        <div className="grid gap-1.5">
-                                            <Label>Section name</Label>
-                                            <input className={field} value={s.name} onChange={(e) => patchSection(i, 'name', e.target.value)} placeholder="e.g. VIP, Stalls, Standing" />
-                                            {errors[`sections.${i}.name` as keyof typeof errors] && <p className="text-xs text-destructive">Required</p>}
+                                <p className="text-sm text-muted-foreground">Build your venue: drag blocks into place, set prices &amp; colours. Buyers pick their exact seat.</p>
+                                <div className="flex items-center gap-2">
+                                    {seatTemplates.length > 0 && (
+                                        <div className="w-48">
+                                            <AppSelect value="" onChange={loadTemplate} options={[{ value: '', label: 'Load a template…' }, ...seatTemplates.map((t) => ({ value: String(t.id), label: t.name }))]} />
                                         </div>
-                                        <div className="grid gap-1.5">
-                                            <Label>Colour</Label>
-                                            <input type="color" value={s.color} onChange={(e) => patchSection(i, 'color', e.target.value)} className="h-11 w-14 cursor-pointer rounded-lg border border-input bg-card p-1" />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label>Type</Label>
-                                            <AppSelect value={s.kind} onChange={(v) => patchSection(i, 'kind', v)} options={[{ value: 'seated', label: 'Seated (rows)' }, { value: 'ga', label: 'Standing (GA)' }]} />
-                                        </div>
-                                        <div className="flex items-end">
-                                            <Button type="button" variant="ghost" size="icon" aria-label="Remove section" onClick={() => setData('sections', data.sections.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /></Button>
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-3 sm:grid-cols-3">
-                                        <div className="grid gap-1.5">
-                                            <Label>Price (RM)</Label>
-                                            <input type="number" min={0} step="0.01" className={field} value={s.price} onChange={(e) => patchSection(i, 'price', e.target.value)} />
-                                        </div>
-                                        {s.kind === 'seated' ? (
-                                            <>
-                                                <div className="grid gap-1.5">
-                                                    <Label>Rows</Label>
-                                                    <input type="number" min={1} max={100} className={field} value={s.rows} onChange={(e) => patchSection(i, 'rows', e.target.value)} />
-                                                </div>
-                                                <div className="grid gap-1.5">
-                                                    <Label>Seats per row</Label>
-                                                    <input type="number" min={1} max={100} className={field} value={s.cols} onChange={(e) => patchSection(i, 'cols', e.target.value)} />
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="grid gap-1.5">
-                                                <Label>Capacity</Label>
-                                                <input type="number" min={1} className={field} value={s.capacity} onChange={(e) => patchSection(i, 'capacity', e.target.value)} />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <SeatPreview section={s} />
+                                    )}
+                                    {data.sections.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={saveTemplate}><LayoutGrid className="size-3.5" /> Save template</Button>}
                                 </div>
-                            ))}
-
-                            <div className="flex flex-wrap gap-2">
-                                <Button type="button" variant="outline" size="sm" onClick={() => setData('sections', [...data.sections, emptySection(data.sections.length)])}><Plus className="size-3.5" /> Add section</Button>
-                                {data.sections.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={saveTemplate}><LayoutGrid className="size-3.5" /> Save as template</Button>}
                             </div>
+
+                            <SeatLayoutEditor value={data.sections} onChange={(s) => setData('sections', s)} />
                         </div>
                     ) : (
                     <>

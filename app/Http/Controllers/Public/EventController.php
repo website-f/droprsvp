@@ -109,8 +109,12 @@ class EventController extends Controller
                     'currency' => $sec->currency,
                     'rows' => $sec->rows,
                     'cols' => $sec->cols,
+                    'x' => (int) $sec->x,
+                    'y' => (int) $sec->y,
+                    'width' => $sec->width,
+                    'height' => $sec->height,
                     'remaining' => $sec->ticketType?->remaining(),
-                    'on_sale' => (bool) $sec->ticketType?->isOnSale(),
+                    'on_sale' => $sec->kind === 'stage' ? false : (bool) $sec->ticketType?->isOnSale(),
                     'seats' => $sec->kind === 'seated' ? $sec->seats->map(fn ($seat) => [
                         'id' => $seat->id,
                         'label' => $seat->label,
