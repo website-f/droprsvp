@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success') ?? $request->session()->get('flash_success'),
                 'error' => $request->session()->get('flash_error'),
             ],
+            // Whether "Continue with Google" is available (keys configured).
+            'googleAuth' => (bool) config('services.google.client_id') && (bool) config('services.google.client_secret'),
         ];
     }
 }

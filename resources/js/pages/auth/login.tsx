@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Store } from 'lucide-react';
+import { GoogleLoginButton } from '@/components/google-login-button';
 import InputError from '@/components/input-error';
 import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
@@ -91,6 +92,8 @@ export default function Login({ status, canResetPassword }: Props) {
                                 {processing && <Spinner />}
                                 Log in
                             </Button>
+
+                            <GoogleLoginButton className="mt-3" />
                         </div>
 
                         <div className="flex flex-col gap-3">

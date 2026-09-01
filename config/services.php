@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // Defaults to the app's callback route; override only if needed.
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
     'chip' => [
         // CHIP Collect (https://docs.chip-in.asia). driver: 'chip' (real API) or
         // 'fake' (dev — instantly settles, no keys). Test vs live is decided by the

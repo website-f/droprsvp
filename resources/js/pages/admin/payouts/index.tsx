@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Banknote, RefreshCw, Send } from 'lucide-react';
+import { Banknote, CheckCircle2, HandCoins, RefreshCw, Send, XCircle } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,26 @@ export default function AdminPayouts({ payouts, sendEnabled }: { payouts: Payout
                 <p className="mb-4 text-sm text-muted-foreground">Pay organizers automatically via CHIP Send, or mark a manual bank transfer as paid.</p>
                 {flash?.success && <div className="mb-4 rounded-lg border border-foreground bg-foreground p-3 text-sm text-background">{flash.success}</div>}
                 {errors?.payout && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{errors.payout}</div>}
-                {!sendEnabled && <div className="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">CHIP Send isn’t configured, so automated payouts are off — you can still mark payouts paid manually. Add <code>CHIP_SEND_API_KEY</code> / <code>CHIP_SEND_API_SECRET</code> to enable it.</div>}
+
+                {/* Payout methods status */}
+                <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                        <div className="flex items-center gap-2 font-medium"><HandCoins className="size-4" /> Manual bank transfer</div>
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-[#2ec4b6]"><CheckCircle2 className="size-3.5" /> Always available</div>
+                        <p className="mt-2 text-xs text-muted-foreground">Pay the organizer from your own bank, then click “Mark paid manually” on their request.</p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                        <div className="flex items-center gap-2 font-medium"><Send className="size-4" /> Automated (CHIP Send)</div>
+                        {sendEnabled ? (
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-[#2ec4b6]"><CheckCircle2 className="size-3.5" /> Active</div>
+                        ) : (
+                            <>
+                                <div className="mt-1 flex items-center gap-1.5 text-xs text-amber-600"><XCircle className="size-3.5" /> Not activated</div>
+                                <p className="mt-2 text-xs text-muted-foreground">CHIP Send is a separate product — request it from your CHIP account manager, then add <code>CHIP_SEND_API_KEY</code> / <code>CHIP_SEND_API_SECRET</code>. Until then, use manual payouts.</p>
+                            </>
+                        )}
+                    </div>
+                </div>
 
                 {payouts.length === 0 ? (
                     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">

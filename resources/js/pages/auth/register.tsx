@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Store } from 'lucide-react';
 import { useState } from 'react';
+import { GoogleLoginButton } from '@/components/google-login-button';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -113,6 +114,8 @@ export default function Register({ passwordRules }: Props) {
                                 {processing && <Spinner />}
                                 Create account
                             </Button>
+
+                            <GoogleLoginButton label="Sign up with Google" className="mt-3" />
                         </div>
 
                         <div className="text-center text-sm text-muted-foreground">

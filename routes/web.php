@@ -114,6 +114,10 @@ Route::middleware('guest')->group(function () {
     Route::post('get-started/code', [OrganizerSignupController::class, 'sendCode'])->name('organizer.code');
     Route::post('get-started/verify', [OrganizerSignupController::class, 'verifyCode'])->name('organizer.verify');
     Route::post('get-started/complete', [OrganizerSignupController::class, 'complete'])->name('organizer.complete');
+
+    // "Continue with Google" (OAuth 2.0).
+    Route::get('auth/google/redirect', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->name('google.redirect');
+    Route::get('auth/google/callback', [\App\Http\Controllers\Auth\GoogleController::class, 'callback'])->name('google.callback');
 });
 
 Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::class])->group(function () {
