@@ -36,6 +36,31 @@ class EmailTemplatesTest extends TestCase
         $event = Event::create(['user_id' => $host->id, 'title' => 'Gala', 'slug' => 'gala-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
         $payout = Payout::create(['user_id' => $host->id, 'reference' => 'PO-XYZ', 'amount' => 90, 'currency' => 'MYR', 'status' => 'paid', 'method' => 'CHIP Send']);
         $this->assertStringContainsString('PO-XYZ', (new PayoutPaidMail($payout))->render());
+
+        $profile = \App\Models\OrganizerProfile::create(['user_id' => $host->id, 'business_name' => 'Gala Co', 'status' => 'pending']);
+        $received = (new \App\Mail\OrganizerApplicationReceivedMail($profile->load('user')))->render();
+        $this->assertStringContainsString('Application received', $received);
+        $this->assertStringContainsString('Gala Co', $received);
+    }
+
+    public function test_vendor_signup_and_application_send_emails(): void
+    {
+        Mail::fake();
+
+        // Vendor sign-up (email → code → complete) sends a welcome.
+        $email = 'newvendor@example.com';
+        session(['organizer_signup_verified_email' => $email]);
+        $this->post(route('organizer.complete'), [
+            'first_name' => 'Vee', 'last_name' => 'Dor', 'password' => 'password', 'password_confirmation' => 'password', 'consent' => true,
+        ])->assertRedirect(route('host.apply'));
+        Mail::assertSent(WelcomeMail::class, fn ($m) => $m->hasTo($email));
+
+        // Submitting the application confirms receipt by email.
+        $vendor = User::whereEmail($email)->first();
+        $this->actingAs($vendor)->post(route('host.apply.submit'), [
+            'business_name' => 'Vee Events', 'phone' => '+60123456789',
+        ])->assertRedirect(route('host.pending'));
+        Mail::assertSent(\App\Mail\OrganizerApplicationReceivedMail::class, fn ($m) => $m->hasTo($email));
     }
 
     public function test_registering_sends_a_welcome_email(): void

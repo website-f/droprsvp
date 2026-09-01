@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
+use App\Mail\OrganizerApplicationReceivedMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * The vendor/organizer application. New organizers submit their business details
@@ -50,10 +52,17 @@ class OrganizerApplicationController extends Controller
             'gallery.*' => ['string', 'max:2048'],
         ]);
 
-        $request->user()->organizerProfile()->updateOrCreate(
+        $profile = $request->user()->organizerProfile()->updateOrCreate(
             ['user_id' => $request->user()->id],
             [...$data, 'status' => 'pending', 'submitted_at' => now(), 'review_reason' => null],
         );
+
+        // Confirm receipt by email (non-fatal).
+        try {
+            Mail::to($request->user()->email)->send(new OrganizerApplicationReceivedMail($profile->load('user')));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return redirect()->route('host.pending')->with('success', 'Application submitted — we’ll be in touch by email or phone.');
     }

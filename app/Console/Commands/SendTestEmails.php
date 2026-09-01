@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\ContactMessageMail;
 use App\Mail\OrderRefundedMail;
 use App\Mail\OrganizerApplicationMail;
+use App\Mail\OrganizerApplicationReceivedMail;
 use App\Mail\PayoutPaidMail;
 use App\Mail\RegistrationCodeMail;
 use App\Mail\TicketsIssued;
@@ -97,6 +98,7 @@ class SendTestEmails extends Command
             'Tickets issued (after purchase)' => new TicketsIssued($order),
             'Order refunded' => new OrderRefundedMail($order),
             'Payout paid (organizer)' => new PayoutPaidMail($payout),
+            'Vendor application — received' => new OrganizerApplicationReceivedMail($profile),
             'Organizer application — approved' => new OrganizerApplicationMail($profile, true),
             'Organizer application — needs changes' => new OrganizerApplicationMail($profile, false),
             'Contact message (to support inbox)' => new ContactMessageMail($contact),

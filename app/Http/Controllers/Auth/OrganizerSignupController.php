@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\RegistrationCodeMail;
+use App\Mail\WelcomeMail;
 use App\Models\RegistrationCode;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -116,6 +117,13 @@ class OrganizerSignupController extends Controller
 
         RegistrationCode::where('email', $verified)->delete();
         $request->session()->forget(self::SESSION_KEY);
+
+        // Warm welcome (non-fatal — a mail hiccup must not block sign-up).
+        try {
+            Mail::to($user->email)->send(new WelcomeMail($user));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
