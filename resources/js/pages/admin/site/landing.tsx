@@ -5,6 +5,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Switch } from '@/components/ui/switch';
 import { uploadImage } from '@/lib/upload';
 
 interface City { name: string; slug: string }
@@ -24,15 +25,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
     return (
         <div className="flex shrink-0 items-center gap-2">
             <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">{label}</span>
-            <button
-                type="button"
-                role="switch"
-                aria-checked={on}
-                onClick={() => onChange(!on)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-foreground' : 'bg-input'}`}
-            >
-                <span className={`inline-block size-5 rounded-full bg-background shadow transition-transform ${on ? 'translate-x-[1.375rem]' : 'translate-x-0.5'}`} />
-            </button>
+            <Switch checked={on} onCheckedChange={onChange} aria-label={label} />
         </div>
     );
 }

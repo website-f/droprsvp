@@ -5,6 +5,7 @@ import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 const field = 'h-12 w-full rounded-xl border border-input bg-background px-4 text-base outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
@@ -124,10 +125,10 @@ export default function GetStarted() {
                                     <Label htmlFor="password_confirmation">Confirm password</Label>
                                     <input id="password_confirmation" type="password" autoComplete="new-password" className={field} value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} />
                                 </div>
-                                <label className="flex items-start gap-3 rounded-xl border border-input p-3 text-sm">
-                                    <input type="checkbox" checked={data.consent} onChange={(e) => setData('consent', e.target.checked)} className="mt-0.5 size-4 shrink-0 rounded border-input" />
+                                <div className="flex items-start gap-3 rounded-xl border border-input p-3 text-sm">
+                                    <Switch checked={data.consent} onCheckedChange={(v) => setData('consent', v)} aria-label="Agree to terms" className="mt-0.5" />
                                     <span className="text-muted-foreground">By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.</span>
-                                </label>
+                                </div>
                                 {errors.consent && <p className="text-xs text-destructive">{errors.consent}</p>}
                                 <Button type="submit" size="lg" className="h-12" disabled={processing || !data.consent}>Create account</Button>
                             </form>

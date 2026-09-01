@@ -8,6 +8,7 @@ import { SeoFields  } from '@/components/seo-fields';
 import type {SeoData} from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SwitchField } from '@/components/ui/switch';
 
 // Heavy (pulls the Puck runtime) — only loaded when a built page is previewed.
 const PagePreview = lazy(() => import('@/components/cms/page-preview'));
@@ -73,13 +74,14 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                             <p className="text-sm text-muted-foreground">
                                 {published ? 'This page is live.' : 'This page is a draft and not visible publicly.'}
                             </p>
-                            <label className="flex items-start gap-2.5 rounded-lg border border-border p-3 text-sm">
-                                <input type="checkbox" className="mt-0.5 size-4 rounded border-input" checked={data.add_to_menu} onChange={(e) => setData('add_to_menu', e.target.checked)} />
-                                <span>
-                                    <span className="font-medium">Show in header menu</span>
-                                    <span className="mt-0.5 block text-xs text-muted-foreground">Adds this page to the site navigation when you publish.</span>
-                                </span>
-                            </label>
+                            <div className="rounded-lg border border-border p-3">
+                                <SwitchField
+                                    checked={data.add_to_menu}
+                                    onCheckedChange={(v) => setData('add_to_menu', v)}
+                                    label="Show in header menu"
+                                    description="Adds this page to the site navigation when you publish."
+                                />
+                            </div>
                             {isEdit && published && data.slug && (
                                 <a href={`${baseUrl}/${data.slug}`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
                                     <ExternalLink className="size-3.5" /> View live page

@@ -5,6 +5,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
+import { Switch, SwitchField } from '@/components/ui/switch';
 import { uploadImage } from '@/lib/upload';
 
 interface Category { id: number; name: string }
@@ -255,10 +256,10 @@ form.post('/host/events');
                 {/* Location */}
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
-                    <label className="mb-4 flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={data.is_online} onChange={(e) => setData('is_online', e.target.checked)} className="size-4 rounded border-input" />
+                    <span className="mb-4 flex items-center gap-2 text-sm">
+                        <Switch checked={data.is_online} onCheckedChange={(v) => setData('is_online', v)} aria-label="This is an online event" />
                         This is an online event
-                    </label>
+                    </span>
                     {data.is_online ? (
                         <div className="grid gap-1.5">
                             <Label htmlFor="online_url">Online URL</Label>
@@ -386,10 +387,10 @@ form.post('/host/events');
                                         <Label>Max / order</Label>
                                         <input type="number" min={1} className={field} value={t.max_per_order} onChange={(e) => patchTicket(i, 'max_per_order', e.target.value)} />
                                     </div>
-                                    <label className="flex items-end gap-2 pb-2.5 text-sm">
-                                        <input type="checkbox" checked={t.is_active} onChange={(e) => patchTicket(i, 'is_active', e.target.checked)} className="size-4 rounded border-input" />
+                                    <span className="flex items-end gap-2 pb-2 text-sm">
+                                        <Switch checked={t.is_active} onCheckedChange={(v) => patchTicket(i, 'is_active', v)} aria-label="Active" />
                                         Active
-                                    </label>
+                                    </span>
                                 </div>
                             </div>
                         ))}
@@ -399,14 +400,12 @@ form.post('/host/events');
                 {/* Event page sections */}
                 <section className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
                     <h2 className="text-sm font-semibold">Event page</h2>
-                    <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
-                        <span><span className="font-medium">Show participants</span><span className="mt-0.5 block text-xs text-muted-foreground">Display who's going on the event page.</span></span>
-                        <input type="checkbox" checked={data.show_participants} onChange={(e) => setData('show_participants', e.target.checked)} className="size-4 rounded border-input" />
-                    </label>
-                    <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
-                        <span><span className="font-medium">Show reviews &amp; ratings</span><span className="mt-0.5 block text-xs text-muted-foreground">Let attendees rate and review; show the average on the page.</span></span>
-                        <input type="checkbox" checked={data.show_reviews} onChange={(e) => setData('show_reviews', e.target.checked)} className="size-4 rounded border-input" />
-                    </label>
+                    <div className="rounded-lg border border-border p-3">
+                        <SwitchField checked={data.show_participants} onCheckedChange={(v) => setData('show_participants', v)} label="Show participants" description="Display who's going on the event page." />
+                    </div>
+                    <div className="rounded-lg border border-border p-3">
+                        <SwitchField checked={data.show_reviews} onCheckedChange={(v) => setData('show_reviews', v)} label="Show reviews & ratings" description="Let attendees rate and review; show the average on the page." />
+                    </div>
                 </section>
 
                 {/* Actions */}

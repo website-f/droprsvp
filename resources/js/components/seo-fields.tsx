@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { TagInput } from '@/components/ui/tag-input';
 
 export interface SeoData {
@@ -74,9 +75,9 @@ export function SeoFields({
                     <p className="text-xs text-muted-foreground">Type each keyword and press Enter. Rendered as the <code>meta keywords</code> tag.</p>
                 </div>
 
-                <div className="flex flex-wrap gap-5">
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 rounded border-input" checked={seo.robots_index} onChange={(e) => onChange({ robots_index: e.target.checked })} /> Allow indexing</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 rounded border-input" checked={seo.robots_follow} onChange={(e) => onChange({ robots_follow: e.target.checked })} /> Follow links</label>
+                <div className="flex flex-wrap gap-6">
+                    <span className="flex items-center gap-2 text-sm"><Switch checked={seo.robots_index} onCheckedChange={(v) => onChange({ robots_index: v })} aria-label="Allow indexing" /> Allow indexing</span>
+                    <span className="flex items-center gap-2 text-sm"><Switch checked={seo.robots_follow} onCheckedChange={(v) => onChange({ robots_follow: v })} aria-label="Follow links" /> Follow links</span>
                 </div>
 
                 <details className="rounded-lg border border-border p-3">

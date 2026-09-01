@@ -4,6 +4,7 @@ import { Wordmark } from '@/components/brand';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 interface OrderView {
     reference: string; currency: string; total: number;
@@ -104,10 +105,10 @@ export default function CheckoutShow({ order, required }: { order: OrderView; re
                             </div>
 
                             {/* Consent */}
-                            <label className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
-                                <input type="checkbox" className="mt-0.5 size-4 shrink-0 rounded border-input" checked={form.data.consent} onChange={(e) => form.setData('consent', e.target.checked)} />
+                            <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                <Switch checked={form.data.consent} onCheckedChange={(v) => form.setData('consent', v)} aria-label="Agree to terms" className="mt-0.5" />
                                 <span className="text-muted-foreground">{CONSENT_TEXT}</span>
-                            </label>
+                            </div>
                             {form.errors.consent && <p className="text-xs text-destructive">{form.errors.consent}</p>}
                         </div>
 

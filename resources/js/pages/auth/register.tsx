@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { Switch } from '@/components/ui/switch';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 
@@ -96,10 +97,10 @@ export default function Register({ passwordRules }: Props) {
                                 />
                             </div>
 
-                            <label className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
-                                <input type="checkbox" name="consent" value="1" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-4 shrink-0 rounded border-input" tabIndex={5} />
+                            <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                <Switch checked={consent} onCheckedChange={setConsent} aria-label="Agree to terms" className="mt-0.5" />
                                 <span className="text-muted-foreground">{CONSENT_TEXT}</span>
-                            </label>
+                            </div>
                             <InputError message={errors.consent} />
 
                             <Button

@@ -3,6 +3,7 @@ import { Banknote, ClipboardList, Flame, Percent, Settings2 } from 'lucide-react
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { TagInput } from '@/components/ui/tag-input';
 
 interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
@@ -24,15 +25,6 @@ const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
     { key: 'source', label: 'How they heard about it' },
     { key: 'notes', label: 'Notes / remarks' },
 ];
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-    return (
-        <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-foreground' : 'bg-input'}`}>
-            <span className={`inline-block size-5 rounded-full bg-background shadow transition-transform ${on ? 'translate-x-[1.375rem]' : 'translate-x-0.5'}`} />
-        </button>
-    );
-}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
@@ -115,7 +107,7 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                             <Field label="Tax label" hint="e.g. SST, GST, VAT."><input className={input} value={data.tax_label} onChange={(e) => setData('tax_label', e.target.value)} /></Field>
                             <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border p-3">
                                 <div><div className="text-sm font-medium">Prices include tax</div><div className="text-xs text-muted-foreground">Show ticket prices as tax-inclusive.</div></div>
-                                <Toggle on={data.tax_inclusive} onChange={(v) => setData('tax_inclusive', v)} />
+                                <Switch checked={data.tax_inclusive} onCheckedChange={(v) => setData("tax_inclusive", v)} />
                             </div>
                         </div>
                     )}
@@ -128,7 +120,7 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                                     <div className="text-sm font-medium">{f.label}</div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground">{data.checkout_required[f.key] ? 'Required' : 'Optional'}</span>
-                                        <Toggle on={data.checkout_required[f.key]} onChange={(v) => setRequired(f.key, v)} />
+                                        <Switch checked={data.checkout_required[f.key]} onCheckedChange={(v) => setRequired(f.key, v)} />
                                     </div>
                                 </div>
                             ))}

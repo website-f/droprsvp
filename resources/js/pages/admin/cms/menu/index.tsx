@@ -1,9 +1,10 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { ArrowDown, ArrowUp, ExternalLink, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useConfirm } from '@/components/confirm-dialog';
-import { ArrowDown, ArrowUp, ExternalLink, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 interface Item { id: number; label: string; url: string; new_tab: boolean; sort: number }
 interface Quick { label: string; url: string }
@@ -26,14 +27,21 @@ export default function MenuManager({ items, pages, builtins }: { items: Item[];
 
     const move = (index: number, dir: -1 | 1) => {
         const next = index + dir;
-        if (next < 0 || next >= items.length) return;
+
+        if (next < 0 || next >= items.length) {
+return;
+}
+
         const ids = items.map((i) => i.id);
         [ids[index], ids[next]] = [ids[next], ids[index]];
         router.post('/admin/cms/menu/reorder', { ids }, { preserveScroll: true });
     };
 
     const remove = async (id: number) => {
-        if (!await confirm({ title: 'Remove this menu item?', confirmText: 'Remove', destructive: true })) return;
+        if (!await confirm({ title: 'Remove this menu item?', confirmText: 'Remove', destructive: true })) {
+return;
+}
+
         router.delete(`/admin/cms/menu/${id}`, { preserveScroll: true });
     };
 
@@ -100,10 +108,10 @@ export default function MenuManager({ items, pages, builtins }: { items: Item[];
                                     <input id="url" className={field} value={add.data.url} onChange={(e) => add.setData('url', e.target.value)} placeholder="/about or https://…" />
                                     {add.errors.url && <p className="text-xs text-destructive">{add.errors.url}</p>}
                                 </div>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" className="size-4 rounded border-input" checked={add.data.new_tab} onChange={(e) => add.setData('new_tab', e.target.checked)} />
+                                <span className="flex items-center gap-2 text-sm">
+                                    <Switch checked={add.data.new_tab} onCheckedChange={(v) => add.setData('new_tab', v)} aria-label="Open in a new tab" />
                                     Open in a new tab
-                                </label>
+                                </span>
                                 <Button type="submit" disabled={add.processing}><Plus className="size-4" /> Add to menu</Button>
                             </form>
                         </div>
@@ -142,15 +150,16 @@ function EditRow({ item, onDone }: { item: Item; onDone: () => void }) {
         e.preventDefault();
         form.put(`/admin/cms/menu/${item.id}`, { preserveScroll: true, onSuccess: onDone });
     };
+
     return (
         <form onSubmit={save} className="grid gap-2">
             <input className={field} value={form.data.label} onChange={(e) => form.setData('label', e.target.value)} placeholder="Label" />
             <input className={field} value={form.data.url} onChange={(e) => form.setData('url', e.target.value)} placeholder="/about or https://…" />
             <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" className="size-4 rounded border-input" checked={form.data.new_tab} onChange={(e) => form.setData('new_tab', e.target.checked)} />
+                <span className="flex items-center gap-2 text-sm">
+                    <Switch checked={form.data.new_tab} onCheckedChange={(v) => form.setData('new_tab', v)} aria-label="Open in a new tab" />
                     New tab
-                </label>
+                </span>
                 <div className="flex gap-2">
                     <Button type="button" variant="ghost" size="sm" onClick={onDone}><X className="size-4" /> Cancel</Button>
                     <Button type="submit" size="sm" disabled={form.processing}>Save</Button>

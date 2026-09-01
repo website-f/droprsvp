@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { SwitchField } from '@/components/ui/switch';
 import { uploadImage } from '@/lib/upload';
 
 interface Branding {
@@ -136,13 +137,14 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
                         <SizeRow label="Footer logo" hint="Site footer." value={data.footer_height} min={20} max={64} onChange={(v) => setData('footer_height', v)} />
                         <SizeRow label="Auth &amp; checkout" hint="Sign-up, login &amp; checkout." value={data.auth_height} min={20} max={56} onChange={(v) => setData('auth_height', v)} />
                     </div>
-                    <label className="mt-6 flex items-start gap-2.5 rounded-lg border border-border p-3 text-sm">
-                        <input type="checkbox" className="mt-0.5 size-4 rounded border-input" checked={data.invert_dark} onChange={(e) => setData('invert_dark', e.target.checked)} />
-                        <span>
-                            <span className="font-medium">Invert logo in dark mode</span>
-                            <span className="mt-0.5 block text-xs text-muted-foreground">Keep on for a dark/monochrome logo so it shows on dark backgrounds. Turn off if your logo is already light or full-colour.</span>
-                        </span>
-                    </label>
+                    <div className="mt-6 rounded-lg border border-border p-3">
+                        <SwitchField
+                            checked={data.invert_dark}
+                            onCheckedChange={(v) => setData('invert_dark', v)}
+                            label="Invert logo in dark mode"
+                            description="Keep on for a dark/monochrome logo so it shows on dark backgrounds. Turn off if your logo is already light or full-colour."
+                        />
+                    </div>
                 </div>
             </div>
         </>
