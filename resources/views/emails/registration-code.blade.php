@@ -1,14 +1,16 @@
-<!doctype html>
-<html>
-<body style="margin:0;background:#f6f6f7;font-family:Inter,Arial,sans-serif;color:#0a0a0a;">
-    <div style="max-width:480px;margin:0 auto;padding:40px 24px;">
-        <div style="background:#fff;border:1px solid #e5e5e6;border-radius:16px;padding:32px;text-align:center;">
-            <div style="font-size:22px;font-weight:800;letter-spacing:-.01em;">Drop<span style="color:#6c63ff;">RSVP</span></div>
-            <p style="margin:24px 0 8px;font-size:15px;color:#6b6b70;">Your verification code</p>
-            <div style="font-size:40px;font-weight:800;letter-spacing:.35em;padding:12px 0;">{{ $code }}</div>
-            <p style="margin:8px 0 0;font-size:13px;color:#6b6b70;">Enter this code to finish creating your organizer account. It expires in 15 minutes.</p>
-        </div>
-        <p style="text-align:center;margin:20px 0 0;font-size:12px;color:#a1a1aa;">If you didn't request this, you can safely ignore this email.</p>
-    </div>
-</body>
-</html>
+@extends('emails.layout', ['title' => 'Your verification code'])
+
+@section('preheader', "Your {$code} verification code for DropRSVP.")
+
+@section('content')
+    <h1 style="margin:0 0 6px;font-size:20px;font-weight:800;color:#18181b;">Verify your email</h1>
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#3f3f46;">Enter this code to finish creating your organizer account.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fa;border-radius:12px;">
+        <tr><td align="center" style="padding:22px;">
+            <div style="font-size:38px;font-weight:800;letter-spacing:.32em;color:#18181b;">{{ $code }}</div>
+        </td></tr>
+    </table>
+
+    <p style="margin:18px 0 0;font-size:13px;color:#8a8a92;">This code expires in 15 minutes. If you didn’t request it, you can safely ignore this email.</p>
+@endsection

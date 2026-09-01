@@ -102,6 +102,12 @@ class GoogleController extends Controller
         $user->forceFill(['email_verified_at' => now()])->save();
         $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\WelcomeMail($user));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return $user;
     }
 

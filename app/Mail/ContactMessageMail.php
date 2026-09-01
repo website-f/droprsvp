@@ -31,6 +31,6 @@ class ContactMessageMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(markdown: 'emails.contact-message', with: ['msg' => $this->contactMessage]);
+        return new Content(view: 'emails.contact-message', with: ['msg' => $this->contactMessage]);
     }
 }

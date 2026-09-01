@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\OrderRefundedMail;
 use App\Mail\TicketsIssued;
 use App\Models\Event;
 use App\Models\Order;
@@ -181,7 +182,7 @@ class CheckoutService
      */
     public function refund(Order $order): bool
     {
-        return DB::transaction(function () use ($order): bool {
+        $flipped = DB::transaction(function () use ($order): bool {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->first();
             if ($locked->status !== 'paid') {
@@ -194,6 +195,17 @@ class CheckoutService
 
             return true;
         });
+
+        // Notify the buyer, once, after settlement (non-fatal).
+        if ($flipped && $order->fresh()->buyer_email) {
+            try {
+                Mail::to($order->fresh()->buyer_email)->send(new OrderRefundedMail($order->fresh()->load('event')));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $flipped;
     }
 
     /** Release a still-pending order's reserved stock (abandoned / failed / cancelled). */

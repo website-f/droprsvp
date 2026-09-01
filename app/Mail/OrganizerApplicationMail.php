@@ -27,7 +27,7 @@ class OrganizerApplicationMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(markdown: 'emails.organizer-application', with: [
+        return new Content(view: 'emails.organizer-application', with: [
             'name' => $this->profile->user?->name,
             'approved' => $this->approved,
             'reason' => $this->profile->review_reason,

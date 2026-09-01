@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Mail\PayoutPaidMail;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -80,6 +82,21 @@ class PayoutService
             return;
         }
         $payout->update(['status' => 'paid', 'paid_at' => now(), 'method' => $method ?? 'Manual', 'note' => $note]);
+        $this->notifyPaid($payout);
+    }
+
+    /** Email the organizer that their payout went through (non-fatal). */
+    private function notifyPaid(Payout $payout): void
+    {
+        $email = $payout->user?->email;
+        if (! $email) {
+            return;
+        }
+        try {
+            Mail::to($email)->send(new PayoutPaidMail($payout));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -110,6 +127,10 @@ class PayoutService
             'status' => $completed ? 'paid' : 'processing',
             'paid_at' => $completed ? now() : null,
         ]);
+
+        if ($completed) {
+            $this->notifyPaid($payout);
+        }
     }
 
     /** Re-check a CHIP Send payout's status and settle/revert it. Idempotent. */
@@ -124,6 +145,7 @@ class PayoutService
             return;
         }
 
+        $wasPaid = $payout->status === 'paid';
         $payout->chip_send_state = $state;
         if ($state === \App\Services\Payments\ChipSendGateway::DONE) {
             $payout->status = 'paid';
@@ -136,6 +158,10 @@ class PayoutService
             $payout->status = 'processing';
         }
         $payout->save();
+
+        if (! $wasPaid && $payout->status === 'paid') {
+            $this->notifyPaid($payout);
+        }
     }
 
     private function uniqueReference(): string
