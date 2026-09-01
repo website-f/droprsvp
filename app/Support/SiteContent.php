@@ -110,6 +110,12 @@ class SiteContent
     public static function defaultLanding(): array
     {
         return [
+            'hero' => [
+                'style' => 'classic',   // classic (the built-in hero) | banners (image carousel)
+                'autoplay' => true,
+                'interval' => 5,         // seconds between banner slides
+                'banners' => [],         // [{image, heading, subheading, cta_label, cta_url}]
+            ],
             'organizer' => [
                 'enabled' => true, // replaces the old always-on host CTA band
                 'heading' => 'Hosting an event?',

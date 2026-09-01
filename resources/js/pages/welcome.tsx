@@ -3,9 +3,10 @@ import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare,
 import { useEffect, useMemo, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
+import {  HeroBanners } from '@/components/landing/hero-banners';
+import type {Banner} from '@/components/landing/hero-banners';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
-import { SearchAutocomplete } from '@/components/search-autocomplete';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
@@ -45,6 +46,7 @@ return 'Free';
 interface Organizer { id: number; slug: string; name: string; events_count: number; followers: number; next_slug: string | null; is_following: boolean; is_self: boolean }
 
 interface LandingSections {
+    hero: { style: 'classic' | 'banners'; autoplay: boolean; interval: number; banners: Banner[] };
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; lat: number | null; lng: number | null }> };
@@ -64,6 +66,7 @@ export default function Welcome() {
         organizers?: Organizer[];
     };
     const signedIn = !!auth?.user;
+    const hero = sections?.hero;
     const org = sections?.organizer;
     const eventTime = sections?.event_time;
     const nearby = sections?.nearby_cities;
@@ -116,33 +119,37 @@ export default function Welcome() {
                 <PublicHeader />
 
                 {/* ---------------------------------------------------------- Hero */}
-                <section className="relative overflow-hidden">
-                    <HeroArt />
-                    <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-16 text-center sm:pt-24 lg:pb-28 lg:pt-28">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
-                            <Sparkles className="size-3.5" /> Events in Kuala Lumpur &amp; beyond
-                        </span>
+                {hero?.style === 'banners' && (hero.banners?.length ?? 0) > 0 ? (
+                    <HeroBanners banners={hero.banners} autoplay={hero.autoplay} interval={hero.interval} />
+                ) : (
+                    <section className="relative overflow-hidden">
+                        <HeroArt />
+                        <div className="relative mx-auto max-w-3xl px-6 pb-16 pt-16 text-center sm:pt-20 lg:pb-20 lg:pt-24">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
+                                <Sparkles className="size-3.5" /> Events in Kuala Lumpur &amp; beyond
+                            </span>
 
-                        <h1 className="mt-6 font-bold leading-[1.03] tracking-tight text-balance" style={{ fontSize: 'clamp(2.5rem, 6.5vw, 4.5rem)' }}>
-                            Find your people.
-                            <br className="hidden sm:block" /> Fill your events.
-                        </h1>
+                            <h1 className="mt-6 font-bold leading-[1.03] tracking-tight text-balance" style={{ fontSize: 'clamp(2.5rem, 6.5vw, 4.5rem)' }}>
+                                Find your people.
+                                <br className="hidden sm:block" /> Fill your events.
+                            </h1>
 
-                        <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-                            Discover what’s happening near you — or host your own. Sell tickets, manage seating and
-                            check guests in, all from one place.
-                        </p>
+                            <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+                                Discover what’s happening near you — or host your own. Sell tickets, manage seating and
+                                check guests in, all from one place.
+                            </p>
 
-                        {/* Search — autocomplete with trending + live suggestions */}
-                        <div className="mx-auto mt-9 w-full max-w-2xl">
-                            <SearchAutocomplete variant="hero" placeholder="Search events, e.g. “live music”" />
+                            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                                <Button asChild size="lg"><Link href="/en-my/all">Browse events</Link></Button>
+                                <Button asChild size="lg" variant="outline"><Link href="/get-started">Create an event</Link></Button>
+                            </div>
+
+                            <p className="mt-5 text-xs text-muted-foreground">
+                                Free to browse · Instant e-tickets · QR check-in
+                            </p>
                         </div>
-
-                        <p className="mt-5 text-xs text-muted-foreground">
-                            Free to browse · Instant e-tickets · QR check-in
-                        </p>
-                    </div>
-                </section>
+                    </section>
+                )}
 
                 {/* ------------------------------------------ Event-time chips */}
                 {eventTime?.enabled && eventTime.items.length > 0 && (

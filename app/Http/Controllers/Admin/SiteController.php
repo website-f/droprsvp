@@ -21,6 +21,16 @@ class SiteController extends Controller
     public function saveLanding(Request $request)
     {
         $data = $request->validate([
+            'hero' => ['array'],
+            'hero.style' => ['nullable', 'in:classic,banners'],
+            'hero.autoplay' => ['boolean'],
+            'hero.interval' => ['nullable', 'integer', 'min:2', 'max:15'],
+            'hero.banners' => ['array', 'max:8'],
+            'hero.banners.*.image' => ['nullable', 'string', 'max:2048'],
+            'hero.banners.*.heading' => ['nullable', 'string', 'max:120'],
+            'hero.banners.*.subheading' => ['nullable', 'string', 'max:200'],
+            'hero.banners.*.cta_label' => ['nullable', 'string', 'max:60'],
+            'hero.banners.*.cta_url' => ['nullable', 'string', 'max:2048'],
             'organizer' => ['array'],
             'organizer.enabled' => ['boolean'],
             'organizer.heading' => ['nullable', 'string', 'max:120'],

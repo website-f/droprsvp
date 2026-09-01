@@ -9,8 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { uploadImage } from '@/lib/upload';
 
 interface City { name: string; slug: string }
+interface Banner { image: string; heading: string; subheading: string; cta_label: string; cta_url: string }
 
 interface Sections {
+    hero: { style: 'classic' | 'banners'; autoplay: boolean; interval: number; banners: Banner[] };
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: string[] };
@@ -60,6 +62,24 @@ return;
 }
     };
 
+    // Hero banners.
+    const emptyBanner = (): Banner => ({ image: '', heading: '', subheading: '', cta_label: '', cta_url: '' });
+    const patchHero = (val: Partial<Sections['hero']>) => setData({ ...data, hero: { ...data.hero, ...val } });
+    const patchBanner = (i: number, val: Partial<Banner>) => patchHero({ banners: data.hero.banners.map((b, idx) => (idx === i ? { ...b, ...val } : b)) });
+    const uploadBanner = async (i: number, file?: File) => {
+        if (!file) {
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            patchBanner(i, { image: await uploadImage(file) });
+        } catch { /* keep */ } finally {
+            setUploading(false);
+        }
+    };
+
     const save = () => form.post('/admin/site/landing', { preserveScroll: true });
 
     return (
@@ -76,6 +96,63 @@ return;
                 {flash?.success && <div className="mb-4 rounded-lg bg-secondary px-4 py-2 text-sm">{flash.success}</div>}
 
                 <div className="grid gap-6">
+                    {/* Hero */}
+                    <Card>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Hero</h2>
+                            <div className="inline-flex rounded-lg border border-border p-0.5">
+                                <button type="button" onClick={() => patchHero({ style: 'classic' })} className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${data.hero.style !== 'banners' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>Classic</button>
+                                <button type="button" onClick={() => {
+ patchHero({ style: 'banners' });
+
+ if (data.hero.banners.length === 0) {
+patchHero({ style: 'banners', banners: [emptyBanner()] });
+} 
+}} className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${data.hero.style === 'banners' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>Banners</button>
+                            </div>
+                        </div>
+
+                        {data.hero.style !== 'banners' ? (
+                            <p className="text-sm text-muted-foreground">The built-in hero (headline + Browse / Create buttons). Search lives in the top bar, so there’s no search box here.</p>
+                        ) : (
+                            <>
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <Toggle on={data.hero.autoplay} onChange={(v) => patchHero({ autoplay: v })} label={data.hero.autoplay ? 'Auto-swipe on' : 'Auto-swipe off'} />
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-xs">Seconds / slide</Label>
+                                        <input type="number" min={2} max={15} className="h-9 w-20 rounded-lg border border-input bg-background px-2 text-sm" value={data.hero.interval} onChange={(e) => patchHero({ interval: Math.max(2, Math.min(15, +e.target.value || 5)) })} />
+                                    </div>
+                                </div>
+
+                                {data.hero.banners.map((b, i) => (
+                                    <div key={i} className="grid gap-3 rounded-lg border border-border p-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-semibold text-muted-foreground">Banner {i + 1}</span>
+                                            <Button type="button" variant="ghost" size="icon" aria-label="Remove banner" onClick={() => patchHero({ banners: data.hero.banners.filter((_, idx) => idx !== i) })}><Trash2 className="size-4" /></Button>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            {b.image && <img src={b.image} alt="" className="h-16 w-28 rounded-lg border border-border object-cover" />}
+                                            <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm">
+                                                <Upload className="size-4" />{uploading ? 'Uploading…' : (b.image ? 'Replace image' : 'Upload image')}
+                                                <input type="file" accept="image/*" hidden onChange={(e) => uploadBanner(i, e.target.files?.[0])} />
+                                            </label>
+                                            <span className="text-xs text-muted-foreground">Recommended 1200×420</span>
+                                        </div>
+                                        <div className="grid gap-1.5"><Label className="text-xs">Heading</Label><input className={field} value={b.heading} onChange={(e) => patchBanner(i, { heading: e.target.value })} placeholder="From pop ballads to emo encores" /></div>
+                                        <div className="grid gap-1.5"><Label className="text-xs">Subheading</Label><input className={field} value={b.subheading} onChange={(e) => patchBanner(i, { subheading: e.target.value })} /></div>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <div className="grid gap-1.5"><Label className="text-xs">Button label</Label><input className={field} value={b.cta_label} onChange={(e) => patchBanner(i, { cta_label: e.target.value })} placeholder="Get Into Live Music" /></div>
+                                            <div className="grid gap-1.5"><Label className="text-xs">Button link</Label><input className={field} value={b.cta_url} onChange={(e) => patchBanner(i, { cta_url: e.target.value })} placeholder="/en-my/all/music" /></div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {data.hero.banners.length < 8 && (
+                                    <Button type="button" variant="outline" size="sm" className="w-max" onClick={() => patchHero({ banners: [...data.hero.banners, emptyBanner()] })}><Plus className="size-3.5" /> Add banner</Button>
+                                )}
+                            </>
+                        )}
+                    </Card>
+
                     {/* Organizer */}
                     <Card>
                         <div className="flex items-center justify-between">
