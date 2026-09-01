@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Lock } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { Wordmark } from '@/components/brand';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,11 @@ export default function CheckoutShow({ order, required }: { order: OrderView; re
         e.preventDefault();
         form.post(`/checkout/${order.reference}/pay`);
     };
+
+    // While a paid order is submitting, we're creating the gateway checkout and
+    // about to hard-redirect the buyer — show a full-screen "redirecting" veil so
+    // it never looks frozen (especially on slower connections).
+    const redirecting = form.processing && !isFree;
 
     const req = (label: string, on: boolean) => on ? <>{label} <span className="text-destructive">*</span></> : <>{label}</>;
     const missing =
@@ -142,6 +147,18 @@ export default function CheckoutShow({ order, required }: { order: OrderView; re
                     </aside>
                 </main>
             </div>
+
+            {/* Redirecting-to-payment veil */}
+            {redirecting && (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/80 px-6 text-center backdrop-blur-sm">
+                    <Loader2 className="size-8 animate-spin text-foreground" />
+                    <div>
+                        <p className="text-base font-semibold">Redirecting to secure payment…</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Please don’t close or refresh this page.</p>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="size-3.5" /> Payments are processed securely by our payment provider.</div>
+                </div>
+            )}
         </>
     );
 }

@@ -7,6 +7,7 @@ import {  HeroBanners } from '@/components/landing/hero-banners';
 import type {Banner} from '@/components/landing/hero-banners';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
+import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
@@ -468,10 +469,8 @@ function ContactForm() {
                 </div>
             </div>
             <div className="grid gap-1.5">
-                <label htmlFor="c-cat" className="text-sm font-medium">How can we help?</label>
-                <select id="c-cat" className={cfield} value={data.category} onChange={(e) => setData('category', e.target.value)}>
-                    {CONTACT_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                <label className="text-sm font-medium">How can we help?</label>
+                <AppSelect value={data.category} onChange={(v) => setData('category', v)} options={CONTACT_CATEGORIES} />
             </div>
             <div className="grid gap-1.5">
                 <label htmlFor="c-msg" className="text-sm font-medium">Message</label>

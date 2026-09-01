@@ -1,24 +1,24 @@
 import { Head, useForm } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { RichEditor } from '@/components/rich-editor';
-import { SeoFields, type SeoData } from '@/components/seo-fields';
-import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
-import { uploadImage } from '@/lib/upload';
 import { ExternalLink, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
+import { RichEditor } from '@/components/rich-editor';
+import { SeoFields  } from '@/components/seo-fields';
+import type {SeoData} from '@/components/seo-fields';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CreatableSelect } from '@/components/ui/creatable-select';
+import { Label } from '@/components/ui/label';
+import { uploadImage } from '@/lib/upload';
 
 interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; seo: SeoData }
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, meta_keywords: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
-const field = 'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 export default function PostForm({ post, categories }: { post: PostProp | null; categories: string[] }) {
     const isEdit = !!post;
-    const [baseUrl, setBaseUrl] = useState('');
-    useEffect(() => setBaseUrl(window.location.origin ? `${window.location.origin}` : ''), []);
+    const [baseUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
 
     const form = useForm({
         title: post?.title ?? '',
@@ -36,8 +36,12 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
     const published = post?.status === 'published';
 
     const onPickCover = async (file: File | undefined) => {
-        if (!file) return;
+        if (!file) {
+return;
+}
+
         setUploading(true);
+
         try {
             setData('cover_image', await uploadImage(file));
         } catch {
@@ -49,7 +53,12 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
 
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
-        isEdit ? form.put(`/admin/cms/posts/${post!.id}`) : form.post('/admin/cms/posts');
+
+        if (isEdit) {
+            form.put(`/admin/cms/posts/${post!.id}`);
+        } else {
+            form.post('/admin/cms/posts');
+        }
     };
 
     return (
@@ -71,8 +80,8 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
                         <SettingsCard title="Post">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="category">Category</Label>
-                                <input id="category" list="cms-categories" className={field} value={data.category} onChange={(e) => setData('category', e.target.value)} placeholder="e.g. News" />
-                                <datalist id="cms-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+                                <CreatableSelect id="category" value={data.category} onChange={(v) => setData('category', v)} options={categories} placeholder="Choose or create a category…" />
+                                <p className="text-xs text-muted-foreground">Pick an existing one or type a new name to create it.</p>
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="excerpt">Excerpt</Label>

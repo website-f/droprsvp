@@ -92,4 +92,22 @@ class EventCategoryTest extends TestCase
         $this->actingAs(User::factory()->create())->get('/admin/categories')->assertForbidden();
         $this->actingAs(User::factory()->create())->post('/admin/categories', ['name' => 'X'])->assertForbidden();
     }
+
+    public function test_superadmin_can_manage_post_categories(): void
+    {
+        $admin = $this->superadmin();
+
+        $this->actingAs($admin)->post('/admin/post-categories', ['name' => 'News'])->assertRedirect();
+        $cat = \App\Models\CmsCategory::firstWhere('name', 'News');
+        $this->assertSame('news', $cat->slug);
+
+        $this->actingAs($admin)->put("/admin/post-categories/{$cat->id}", ['name' => 'Updates', 'slug' => 'updates'])->assertRedirect();
+        $this->assertSame('Updates', $cat->fresh()->name);
+        $this->assertSame('updates', $cat->fresh()->slug);
+
+        $this->actingAs($admin)->delete("/admin/post-categories/{$cat->id}")->assertRedirect();
+        $this->assertDatabaseMissing('cms_categories', ['id' => $cat->id]);
+
+        $this->actingAs(User::factory()->create())->post('/admin/post-categories', ['name' => 'X'])->assertForbidden();
+    }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\CmsPageController;
+use App\Http\Controllers\Admin\CmsCategoryController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\EventCategoryController;
 use App\Http\Controllers\Admin\EventSeoController;
@@ -261,6 +262,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('categories/reorder', [EventCategoryController::class, 'reorder'])->name('categories.reorder');
         Route::put('categories/{category}', [EventCategoryController::class, 'update'])->name('categories.update');
         Route::delete('categories/{category}', [EventCategoryController::class, 'destroy'])->name('categories.destroy');
+
+        // Post (blog) categories — managed on the same tabbed page.
+        Route::post('post-categories', [CmsCategoryController::class, 'store'])->name('post-categories.store');
+        Route::put('post-categories/{cmsCategory}', [CmsCategoryController::class, 'update'])->name('post-categories.update');
+        Route::delete('post-categories/{cmsCategory}', [CmsCategoryController::class, 'destroy'])->name('post-categories.destroy');
 
         // Per-event SEO manager.
         Route::get('seo/events', [EventSeoController::class, 'index'])->name('seo.events');

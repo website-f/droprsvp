@@ -3,8 +3,8 @@ import { Render  } from '@measured/puck';
 import type {Data} from '@measured/puck';
 import { PageSections, hasSections  } from '@/components/cms/page-sections';
 import type {PageSection} from '@/components/cms/page-sections';
-import { config  } from '@/components/cms/puck-config';
-import type {PostCard} from '@/components/cms/puck-config';
+import { renderConfig } from '@/components/cms/puck-render';
+import type {PostCard} from '@/components/cms/puck-render';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 
@@ -30,7 +30,7 @@ export default function PublicPage({ page, seo, preview }: { page: Page; seo: Se
                 {built ? (
                     // Puck page: rendered from structured data with the same widgets as the editor.
                     <main className="flex-1">
-                        <Render config={config} data={page.puck!} metadata={{ posts: page.posts ?? [] }} />
+                        <Render config={renderConfig} data={page.puck!} metadata={{ posts: page.posts ?? [] }} />
                     </main>
                 ) : (
                     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">

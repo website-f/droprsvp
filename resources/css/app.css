@@ -231,10 +231,31 @@
     color: var(--foreground);
 }
 .rte .ql-editor.ql-blank::before { color: var(--muted-foreground); font-style: normal; left: 20px; }
+.rte .ql-editor { overflow-wrap: anywhere; }
+.rte .ql-editor h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
 .rte .ql-editor h2 { font-size: 1.5rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
 .rte .ql-editor h3 { font-size: 1.2rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+.rte .ql-editor h4 { font-size: 1.05rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+.rte .ql-editor h5 { font-size: 0.95rem; font-weight: 600; margin: 0.75rem 0 0.4rem; }
+.rte .ql-editor h6 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin: 0.75rem 0 0.4rem; }
 .rte .ql-editor blockquote { border-left: 2px solid var(--border); padding-left: 1rem; color: var(--muted-foreground); }
-.rte .ql-editor img { border-radius: 0.75rem; border: 1px solid var(--border); }
+.rte .ql-editor img { border-radius: 0.75rem; border: 1px solid var(--border); max-width: 100%; height: auto; }
+.rte .ql-editor pre, .rte .ql-editor pre.ql-syntax { overflow-x: auto; background: var(--muted); border-radius: 0.5rem; padding: 0.75rem 1rem; font-size: 0.85rem; }
+/* Header picker labels for all six levels + Normal. */
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="1"]::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="1"]::before { content: 'Heading 1'; }
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="2"]::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="2"]::before { content: 'Heading 2'; }
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::before { content: 'Heading 3'; }
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="4"]::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="4"]::before { content: 'Heading 4'; }
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="5"]::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="5"]::before { content: 'Heading 5'; }
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="6"]::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="6"]::before { content: 'Heading 6'; }
+.rte .ql-snow .ql-picker.ql-header .ql-picker-label:not([data-value])::before,
+.rte .ql-snow .ql-picker.ql-header .ql-picker-item:not([data-value])::before { content: 'Normal'; }
 .rte:focus-within { outline: 3px solid color-mix(in srgb, var(--ring) 20%, transparent); outline-offset: 0; border-color: var(--ring); }
 /* Quill icons/strokes follow the theme foreground. */
 .rte .ql-snow .ql-stroke { stroke: var(--foreground); }

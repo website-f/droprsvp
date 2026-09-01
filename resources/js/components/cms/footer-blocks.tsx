@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import { Mail } from 'lucide-react';
 import { LogoMark, Wordmark } from '@/components/brand';
 
 /**
@@ -22,6 +23,7 @@ export function Footer({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-s
                 <div className="max-w-xs">
                     <Link href="/" aria-label="DropRSVP home"><Wordmark height={footerHeight} /></Link>
                     {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
+                    <a href="mailto:support@droprsvp.com" className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"><Mail className="size-3.5" /> support@droprsvp.com</a>
                     {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
                 </div>
 

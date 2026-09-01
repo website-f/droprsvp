@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CmsCategory;
 use App\Models\EventCategory;
 use App\Models\Setting;
 use App\Support\SiteContent;
@@ -26,6 +27,13 @@ class EventCategoryController extends Controller
                     'sort_order' => $c->sort_order,
                     'events_count' => $c->events_count,
                     'content' => $c->content,
+                ]),
+            'postCategories' => CmsCategory::withCount('posts')->orderBy('name')->get()
+                ->map(fn (CmsCategory $c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'posts_count' => $c->posts_count,
                 ]),
             'browseSeo' => SiteContent::discoverSeo(),
         ]);

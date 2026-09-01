@@ -32,9 +32,31 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
+        // When a session times out, protected routes bounce guests to /login.
+        // Flash a message so the frontend can toast "your session expired" instead
+        // of silently dumping the user on the login page.
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if (! $request->expectsJson()) {
+                $request->session()->flash('flash_warning', 'Your session has expired — please sign in again.');
+            }
+
+            return route('login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A stale CSRF token (419) after the session expires — send the user to
+        // log in again with the same friendly notice rather than a blank error page.
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+            $request->session()->flash('flash_warning', 'Your session has expired — please sign in again.');
+
+            return redirect()->route('login');
+        });
     })->create();

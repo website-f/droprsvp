@@ -9,7 +9,7 @@ export interface AppSelectOption { value: string; label: string; disabled?: bool
  * non-empty; use `placeholder` for the empty state.
  */
 export function AppSelect({
-    value, onChange, options, placeholder, id, className, disabled,
+    value, onChange, options, placeholder, id, className, disabled, 'aria-label': ariaLabel,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -18,10 +18,11 @@ export function AppSelect({
     id?: string;
     className?: string;
     disabled?: boolean;
+    'aria-label'?: string;
 }) {
     return (
         <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
-            <SelectTrigger id={id} className={cn('h-11 w-full', className)}>
+            <SelectTrigger id={id} aria-label={ariaLabel} className={cn('h-11 w-full', className)}>
                 <SelectValue placeholder={placeholder ?? 'Select…'} />
             </SelectTrigger>
             <SelectContent>

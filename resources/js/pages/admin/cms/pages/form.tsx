@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type {Data} from '@measured/puck';
 import { ExternalLink, LayoutTemplate, Loader2 } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import type {PostCard} from '@/components/cms/puck-config';
 import { SeoFields  } from '@/components/seo-fields';
@@ -31,6 +31,24 @@ export default function PageForm({ page }: { page: PageProp | null }) {
     const { data, setData, processing, errors } = form;
     const published = page?.status === 'published';
     const built = !!(page && page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
+
+    // Warm the heavy Drop Builder chunk in the background while the user is on the
+    // form, so opening it is instant even on slower devices/connections.
+    useEffect(() => {
+        const warm = () => {
+ import('@/components/cms/builder-canvas'); 
+};
+        const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (id: number) => void };
+        const id = w.requestIdleCallback ? w.requestIdleCallback(warm) : window.setTimeout(warm, 1500);
+
+        return () => {
+            if (w.requestIdleCallback && w.cancelIdleCallback) {
+                w.cancelIdleCallback(id);
+            } else {
+                clearTimeout(id);
+            }
+        };
+    }, []);
 
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
