@@ -250,7 +250,7 @@ export default function Welcome() {
                             </div>
                             <Link href={`/en-my/${cityEvents.slug}`} className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">See all <ArrowRight className="size-4" /></Link>
                         </Reveal>
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                             {cityEvents.events.map((e, i) => <Reveal key={e.slug} delay={i * 60}><EventCard e={e} /></Reveal>)}
                         </div>
                         <Button asChild variant="outline" className="mt-6 w-full sm:hidden"><Link href={`/en-my/${cityEvents.slug}`}>See all events in {cityEvents.city}</Link></Button>
@@ -264,7 +264,7 @@ export default function Welcome() {
                             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">For you</h2>
                             <p className="mt-1.5 text-sm text-muted-foreground">Picked from the kinds of events you’ve been to.</p>
                         </Reveal>
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                             {forYou.map((e, i) => <Reveal key={e.slug} delay={i * 60}><EventCard e={e} /></Reveal>)}
                         </div>
                     </section>
@@ -301,7 +301,7 @@ export default function Welcome() {
                                 </Button>
                             </Reveal>
 
-                            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 {featured.map((e, i) => (
                                     <Reveal key={e.slug} delay={i * 80}><EventCard e={e} /></Reveal>
                                 ))}
@@ -354,7 +354,7 @@ export default function Welcome() {
                 <section className="relative overflow-hidden">
                     <div aria-hidden className="pointer-events-none absolute -left-24 top-0 size-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
                     <div aria-hidden className="pointer-events-none absolute -right-24 bottom-0 size-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
-                    <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 sm:py-20 lg:grid-cols-2">
+                    <div className="relative mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-16 sm:py-20 lg:grid-cols-2">
                         <Reveal className="order-2 lg:order-1">
                             <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: '#6c63ff1f', color: '#6c63ff' }}>
                                 <Sparkles className="size-3.5" /> For every kind of gathering
@@ -380,7 +380,9 @@ export default function Welcome() {
                         <Reveal delay={120} className="order-1 lg:order-2">
                             <div className="relative mx-auto max-w-lg">
                                 <div aria-hidden className="absolute inset-0 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-[#6c63ff1a] via-transparent to-[#ff65841a]" />
-                                <img src="/vector/undraw_having-fun_kkeu.svg" alt="" loading="lazy" className="mx-auto block h-auto w-full max-w-[22rem] sm:max-w-md drsvp-float" />
+                                {/* Explicit aspect-ratio so height never depends on the SVG's
+                                    intrinsic size (Safari reports it as 0 for these files). */}
+                                <img src="/vector/undraw_having-fun_kkeu.svg" alt="" loading="lazy" style={{ aspectRatio: '733 / 639' }} className="mx-auto block h-auto w-full max-w-[22rem] object-contain sm:max-w-md drsvp-float" />
                             </div>
                         </Reveal>
                     </div>
@@ -393,14 +395,14 @@ export default function Welcome() {
                             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Everything you need to run the night</h2>
                             <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">From the first ticket sold to the last guest through the door.</p>
                         </Reveal>
-                        <div className="grid gap-6 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                             {[
                                 { art: 'undraw_conference-call_jgi5', tint: '#6c63ff', title: 'Discover & connect', body: 'A community-first marketplace — browse by interest and location and find events worth your time.' },
                                 { art: 'undraw_festivities_q090', tint: '#f5a524', title: 'Sell tickets', body: 'Multi-tier ticketing, discount codes, seat & table management and secure online payments.' },
                                 { art: 'undraw_public-speaking_m17t', tint: '#ff6584', title: 'Check them in', body: 'QR entry passes and a fast scanner so your team gets everyone through the door.' },
                             ].map((s, i) => (
                                 <Reveal key={s.title} delay={i * 90}>
-                                    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                                    <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                                         <div className="aspect-[16/10] p-6" style={{ backgroundColor: `${s.tint}12` }}>
                                             {/* h-full w-full + object-contain gives the SVG explicit bounds so
                                                 Safari can't blow it out to its intrinsic 960px inside a flex box. */}
@@ -421,7 +423,7 @@ export default function Welcome() {
                 {(org?.enabled ?? true) && (
                     <section className="px-6 pb-20">
                         <Reveal>
-                            <div className="relative mx-auto grid max-w-6xl items-center gap-8 overflow-hidden rounded-3xl bg-foreground px-8 py-14 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
+                            <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 overflow-hidden rounded-3xl bg-foreground px-8 py-14 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
                                 <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full opacity-50 blur-2xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
                                 <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-80 rounded-full opacity-40 blur-2xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
                                 <div className="relative">
@@ -449,7 +451,7 @@ export default function Welcome() {
                 {/* ----------------------------------------------- Contact us */}
                 {(contact?.enabled ?? true) && (
                     <section id="contact" className="border-t border-border bg-muted/30">
-                        <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-16 sm:py-20 lg:grid-cols-[1fr_1.15fr]">
+                        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-6 py-16 sm:py-20 lg:grid-cols-[1fr_1.15fr]">
                             <Reveal>
                                 <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"><Headset className="size-3.5" /> We’re here to help</span>
                                 <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">{contact?.heading ?? 'Get in touch'}</h2>
