@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CalendarDays, Globe, Images, Info, MapPin, MessageCircle, Send, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
+import { CalendarDays, CornerDownRight, Globe, Images, Info, MapPin, MessageCircle, Send, Shield, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
@@ -15,10 +15,27 @@ interface Organizer {
 }
 interface Members { attendees: { name: string }[]; followers: { name: string }[] }
 interface Photo { path: string; caption: string | null }
-interface Reply { id: number; author: string; body: string; when: string; is_organizer: boolean }
-interface Post extends Reply { replies: Reply[] }
-interface Viewer { authed: boolean; is_self: boolean; is_following: boolean }
+interface Post { id: number; author: string; body: string; when: string | null; is_organizer: boolean; replies: Post[] }
+interface DiscussionData { posts: Post[]; pagination: { page: number; per_page: number; total: number; has_more: boolean } }
+interface Viewer { authed: boolean; is_self: boolean; can_moderate: boolean; is_following: boolean }
 type Tab = 'about' | 'events' | 'members' | 'photos' | 'discussion';
+
+/** Everything a nested Comment needs from the page — passed down so the tree can render + reply at any depth. */
+interface CommentCtx {
+    viewer: Viewer;
+    organizerName: string;
+    replyTo: number | null;
+    setReplyTo: (id: number | null) => void;
+    asOrganizer: boolean;
+    setAsOrganizer: (v: boolean) => void;
+    body: string;
+    onBody: (v: string) => void;
+    processing: boolean;
+    submit: (parentId: number | null) => void;
+    reset: () => void;
+}
+
+const REPLY_PREVIEW = 3; // replies shown before "view more"
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7'];
@@ -79,21 +96,131 @@ function MemberGrid({ people, empty }: { people: { name: string }[]; empty: stri
     );
 }
 
+/** The inline reply box — shared by the top composer and every nested Comment. */
+function ReplyComposer({ ctx, parentId, placeholder }: { ctx: CommentCtx; parentId: number | null; placeholder: string }) {
+    return (
+        <form onSubmit={(e) => {
+ e.preventDefault(); ctx.submit(parentId); 
+}} className="grid gap-2">
+            <textarea autoFocus value={ctx.body} onChange={(e) => ctx.onBody(e.target.value)} rows={2} placeholder={placeholder}
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+            <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" size="sm" disabled={ctx.processing || !ctx.body.trim()}><Send className="size-3.5" /> Reply</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => {
+ ctx.setReplyTo(null); ctx.reset(); 
+}}>Cancel</Button>
+                {ctx.viewer.can_moderate && (
+                    <label className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <input type="checkbox" checked={ctx.asOrganizer} onChange={(e) => ctx.setAsOrganizer(e.target.checked)} className="size-3.5 rounded border-border" />
+                        <Shield className="size-3.5" /> Reply as {ctx.organizerName}
+                    </label>
+                )}
+            </div>
+        </form>
+    );
+}
+
+/** One comment in the thread + its nested reply chain (first 3 shown, rest behind "view more"). */
+function Comment({ post, depth, ctx }: { post: Post; depth: number; ctx: CommentCtx }) {
+    const [expanded, setExpanded] = useState(false);
+    const replies = post.replies ?? [];
+    const shown = expanded ? replies : replies.slice(0, REPLY_PREVIEW);
+    const hidden = replies.length - shown.length;
+    const isReplying = ctx.replyTo === post.id;
+
+    return (
+        <div className={depth > 0 ? 'border-l-2 border-border pl-4' : ''}>
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: TINTS[post.id % TINTS.length] }}>{initials(post.author)}</span>
+                <span className="text-sm font-semibold">{post.author}</span>
+                {post.is_organizer && <Badge variant="secondary">Organizer</Badge>}
+                {post.when && <span className="text-xs text-muted-foreground">{post.when}</span>}
+            </div>
+            <p className="mt-1.5 whitespace-pre-line text-sm text-foreground/85">{post.body}</p>
+
+            {ctx.viewer.authed && (
+                <button type="button" onClick={() => {
+ ctx.setReplyTo(isReplying ? null : post.id); ctx.reset(); ctx.setAsOrganizer(false); 
+}}
+                    className="mt-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                    <CornerDownRight className="size-3.5" /> Reply
+                </button>
+            )}
+
+            {isReplying && <div className="mt-2"><ReplyComposer ctx={ctx} parentId={post.id} placeholder={`Reply to ${post.author}…`} /></div>}
+
+            {replies.length > 0 && (
+                <div className="mt-3 space-y-3">
+                    {shown.map((r) => <Comment key={r.id} post={r} depth={depth + 1} ctx={ctx} />)}
+                    {hidden > 0 && (
+                        <button type="button" onClick={() => setExpanded(true)} className="flex items-center gap-1 text-xs font-semibold text-foreground/70 hover:text-foreground">
+                            <MessageCircle className="size-3.5" /> View {hidden} more {hidden === 1 ? 'reply' : 'replies'}
+                        </button>
+                    )}
+                    {expanded && replies.length > REPLY_PREVIEW && (
+                        <button type="button" onClick={() => setExpanded(false)} className="text-xs font-medium text-muted-foreground hover:text-foreground">Show less</button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function OrganizerProfile({ organizer, upcoming, past, members, photos, similar, discussion, viewer }: {
-    organizer: Organizer; upcoming: EventCard[]; past: EventCard[]; members: Members; photos: Photo[]; similar: EventCard[]; discussion: Post[]; viewer: Viewer;
+    organizer: Organizer; upcoming: EventCard[]; past: EventCard[]; members: Members; photos: Photo[]; similar: EventCard[]; discussion: DiscussionData; viewer: Viewer;
 }) {
     const [tab, setTab] = useState<Tab>('events');
     const [replyTo, setReplyTo] = useState<number | null>(null);
-    const ask = useForm({ body: '', parent_id: null as number | null });
+    const [asOrganizer, setAsOrganizer] = useState(false);
+    const ask = useForm({ body: '', parent_id: null as number | null, as_organizer: false });
     const follow = () => (viewer.authed
         ? router.post(`/organizers/${organizer.id}/follow`, {}, { preserveScroll: true })
         : router.visit('/login'));
 
+    // Discussion pagination — first page arrives as a prop; "load more" appends via the JSON feed.
+    const [posts, setPosts] = useState<Post[]>(discussion.posts);
+    const [dpage, setDpage] = useState(discussion.pagination.page);
+    const [hasMore, setHasMore] = useState(discussion.pagination.has_more);
+    const [loadingMore, setLoadingMore] = useState(false);
+    // Re-sync to the prop when it changes (a new post/reply reloads the wall back to page 1).
+    // Adjusting state during render is React's recommended alternative to a resync effect.
+    const [syncedFrom, setSyncedFrom] = useState(discussion);
+
+    if (syncedFrom !== discussion) {
+        setSyncedFrom(discussion);
+        setPosts(discussion.posts);
+        setDpage(discussion.pagination.page);
+        setHasMore(discussion.pagination.has_more);
+    }
+
+    const loadMore = async () => {
+        setLoadingMore(true);
+
+        try {
+            const res = await fetch(`/o/${organizer.slug}/discussion?discuss_page=${dpage + 1}`, { headers: { Accept: 'application/json' } });
+
+            if (res.ok) {
+                const data: DiscussionData = await res.json();
+                setPosts((p) => [...p, ...data.posts]);
+                setDpage(data.pagination.page);
+                setHasMore(data.pagination.has_more);
+            }
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
     const postDiscussion = (parentId: number | null) => {
-        ask.transform((d) => ({ ...d, parent_id: parentId }));
+        ask.transform((d) => ({ ...d, parent_id: parentId, as_organizer: asOrganizer }));
         ask.post(`/o/${organizer.slug}/discussion`, { preserveScroll: true, onSuccess: () => {
- ask.reset(); setReplyTo(null); 
-} });
+            ask.reset(); setReplyTo(null); setAsOrganizer(false);
+        } });
+    };
+
+    const commentCtx: CommentCtx = {
+        viewer, organizerName: organizer.name, replyTo, setReplyTo, asOrganizer, setAsOrganizer,
+        body: ask.data.body, onBody: (v) => ask.setData('body', v), processing: ask.processing,
+        submit: postDiscussion, reset: () => ask.reset(),
     };
 
     const TABS: { key: Tab; label: string; icon: typeof Info; count?: number }[] = [
@@ -101,7 +228,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
         { key: 'events', label: 'Events', icon: CalendarDays, count: organizer.events_count },
         { key: 'members', label: 'Members', icon: Users, count: organizer.members + organizer.followers },
         { key: 'photos', label: 'Photos', icon: Images, count: photos.length },
-        { key: 'discussion', label: 'Discussion', icon: MessageCircle, count: discussion.length },
+        { key: 'discussion', label: 'Discussion', icon: MessageCircle, count: discussion.pagination.total },
     ];
 
     return (
@@ -234,16 +361,30 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 
                     {tab === 'discussion' && (
                         <div className="mx-auto max-w-2xl">
-                            {/* Composer */}
+                            {/* Top composer — a new top-level post */}
                             {viewer.authed ? (
-                                <form onSubmit={(e) => {
+                                replyTo === null ? (
+                                    <form onSubmit={(e) => {
  e.preventDefault(); postDiscussion(null); 
 }} className="mb-6 grid gap-2">
-                                    <textarea value={replyTo === null ? ask.data.body : ''} onChange={(e) => {
- setReplyTo(null); ask.setData('body', e.target.value); 
-}} rows={3} placeholder={`Ask ${organizer.name} a question…`} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
-                                    <div><Button type="submit" size="sm" disabled={ask.processing || replyTo !== null || !ask.data.body.trim()}><Send className="size-3.5" /> Post</Button></div>
-                                </form>
+                                        <textarea value={ask.data.body} onChange={(e) => ask.setData('body', e.target.value)} rows={3} placeholder={`Ask ${organizer.name} a question…`} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <Button type="submit" size="sm" disabled={ask.processing || !ask.data.body.trim()}><Send className="size-3.5" /> Post</Button>
+                                            {viewer.can_moderate && (
+                                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                    <input type="checkbox" checked={asOrganizer} onChange={(e) => setAsOrganizer(e.target.checked)} className="size-3.5 rounded border-border" />
+                                                    <Shield className="size-3.5" /> Post as {organizer.name}
+                                                </label>
+                                            )}
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <div className="mb-6 rounded-xl border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                                        Replying below — <button type="button" onClick={() => {
+ setReplyTo(null); ask.reset(); 
+}} className="font-medium text-foreground hover:underline">write a new post instead</button>
+                                    </div>
+                                )
                             ) : (
                                 <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-4 text-sm">
                                     <span className="text-muted-foreground">Log in to join the discussion.</span>
@@ -251,56 +392,25 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                 </div>
                             )}
 
-                            {discussion.length === 0 ? (
+                            {posts.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No posts yet — be the first to say hello.</p>
                             ) : (
-                                <ul className="grid gap-4">
-                                    {discussion.map((c) => (
-                                        <li key={c.id} className="rounded-xl border border-border p-4">
-                                            <div className="flex items-center gap-2">
-                                                <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: TINTS[c.id % TINTS.length] }}>{initials(c.author)}</span>
-                                                <span className="text-sm font-semibold">{c.author}</span>
-                                                {c.is_organizer && <Badge variant="secondary">Organizer</Badge>}
-                                                <span className="text-xs text-muted-foreground">{c.when}</span>
-                                            </div>
-                                            <p className="mt-2 whitespace-pre-line text-sm text-foreground/85">{c.body}</p>
-
-                                            {(c.replies.length > 0 || viewer.is_self) && (
-                                                <div className="mt-3 space-y-3 border-l-2 border-border pl-4">
-                                                    {c.replies.map((r) => (
-                                                        <div key={r.id}>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-semibold">{r.author}</span>
-                                                                {r.is_organizer && <Badge variant="secondary">Organizer</Badge>}
-                                                                <span className="text-xs text-muted-foreground">{r.when}</span>
-                                                            </div>
-                                                            <p className="mt-1 whitespace-pre-line text-sm text-foreground/85">{r.body}</p>
-                                                        </div>
-                                                    ))}
-                                                    {viewer.is_self && (
-                                                        replyTo === c.id ? (
-                                                            <form onSubmit={(e) => {
- e.preventDefault(); postDiscussion(c.id); 
-}} className="grid gap-2">
-                                                                <textarea autoFocus value={ask.data.body} onChange={(e) => ask.setData('body', e.target.value)} rows={2} placeholder="Write a reply…" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
-                                                                <div className="flex gap-2">
-                                                                    <Button type="submit" size="sm" disabled={ask.processing || !ask.data.body.trim()}><Send className="size-3.5" /> Reply</Button>
-                                                                    <Button type="button" size="sm" variant="ghost" onClick={() => {
- setReplyTo(null); ask.reset(); 
-}}>Cancel</Button>
-                                                                </div>
-                                                            </form>
-                                                        ) : (
-                                                            <button type="button" onClick={() => {
- setReplyTo(c.id); ask.reset(); 
-}} className="text-xs font-medium text-muted-foreground hover:text-foreground">Reply</button>
-                                                        )
-                                                    )}
-                                                </div>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
+                                <>
+                                    <ul className="grid gap-4">
+                                        {posts.map((c) => (
+                                            <li key={c.id} className="rounded-xl border border-border p-4">
+                                                <Comment post={c} depth={0} ctx={commentCtx} />
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    {hasMore && (
+                                        <div className="mt-6 text-center">
+                                            <Button type="button" variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+                                                {loadingMore ? 'Loading…' : 'Load more discussion'}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}

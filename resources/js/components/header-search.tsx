@@ -18,7 +18,7 @@ const EMPTY: Suggestions = { hot: [], events: [], categories: [], cities: [] };
  * a location, submitting to the discover page (`/en-my/{city}?q=…`). The location
  * uses our themed Select (not a native <select>). Responsive — stacks on mobile.
  */
-export function HeaderSearch({ className = '' }: { className?: string }) {
+export function HeaderSearch({ className = '', onSubmitted }: { className?: string; onSubmitted?: () => void }) {
     const cities = ((usePage().props as { cities?: City[] }).cities ?? []) as City[];
     const [q, setQ] = useState('');
     const [city, setCity] = useState('all');
@@ -70,6 +70,7 @@ export function HeaderSearch({ className = '' }: { className?: string }) {
 
     const go = (url: string) => {
         setOpen(false);
+        onSubmitted?.();
         router.visit(url);
     };
     const submit = (e: React.FormEvent) => {
@@ -80,6 +81,7 @@ export function HeaderSearch({ className = '' }: { className?: string }) {
         }
 
         setOpen(false);
+        onSubmitted?.();
         const base = city === 'all' ? '/en-my/all' : `/en-my/${city}`;
         router.get(base, q.trim() ? { q: q.trim() } : {});
     };

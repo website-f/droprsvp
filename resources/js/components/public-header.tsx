@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Menu, X } from 'lucide-react';
+import { Menu, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Wordmark } from '@/components/brand';
@@ -30,6 +30,9 @@ export function PublicHeader() {
     const { auth, nav, branding } = usePage().props;
     const items = (nav ?? []) as PublicNavItem[];
     const [open, setOpen] = useState(false);
+    // Mobile: search + location are hidden until the search icon is tapped, then
+    // they slide open full-width. Keeps the small-screen header uncluttered.
+    const [searchOpen, setSearchOpen] = useState(false);
 
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
@@ -48,6 +51,16 @@ export function PublicHeader() {
 
                 <div className="ml-auto flex items-center gap-2 md:ml-0">
                     <AppearanceToggle />
+                    {/* Search toggle (mobile only) */}
+                    <button
+                        type="button"
+                        aria-label="Search"
+                        aria-expanded={searchOpen}
+                        onClick={() => setSearchOpen((v) => !v)}
+                        className="flex size-10 items-center justify-center rounded-lg border border-border md:hidden"
+                    >
+                        {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
+                    </button>
                     <div className="hidden items-center gap-2 md:flex">
                         <Link href="/help" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
                         {auth?.user ? (
@@ -70,9 +83,14 @@ export function PublicHeader() {
                 </div>
             </div>
 
-            {/* Search + location (mobile — always visible) */}
-            <div className="px-4 pb-3 md:hidden">
-                <HeaderSearch />
+            {/* Search + location (mobile) — hidden until the search icon is tapped, then
+                slides open full-width. The grid-rows 0fr→1fr trick animates height cleanly. */}
+            <div
+                className={`grid overflow-hidden px-4 transition-all duration-300 ease-out md:hidden ${searchOpen ? 'grid-rows-[1fr] pb-3 opacity-100' : 'grid-rows-[0fr] pb-0 opacity-0'}`}
+            >
+                <div className="min-h-0">
+                    <HeaderSearch onSubmitted={() => setSearchOpen(false)} />
+                </div>
             </div>
 
             {/* Mobile drawer */}

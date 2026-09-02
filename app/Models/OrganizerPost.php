@@ -15,8 +15,24 @@ class OrganizerPost extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /** Direct children (one level), oldest first, with their author loaded. */
     public function replies(): HasMany
     {
-        return $this->hasMany(OrganizerPost::class, 'parent_id')->oldest();
+        return $this->hasMany(self::class, 'parent_id')->oldest()->with('author:id,name');
+    }
+
+    /**
+     * The whole reply subtree eager-loaded in a single walk — each reply pulls its
+     * own author and its own nested replies, so a Facebook-style chain of any depth
+     * comes back in one query per level instead of N+1 per comment.
+     */
+    public function repliesRecursive(): HasMany
+    {
+        return $this->replies()->with('repliesRecursive');
     }
 }

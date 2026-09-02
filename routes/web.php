@@ -67,6 +67,8 @@ Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('event
 
 // Public organizer profile (all their events + follow) — pretty slug URL.
 Route::get('o/{organizer:slug}', [OrganizerController::class, 'show'])->name('organizers.show');
+// Load-more feed for the discussion wall (public read, paginated).
+Route::get('o/{organizer:slug}/discussion', [OrganizerController::class, 'discussionFeed'])->name('organizers.discussion.feed');
 
 // Global search autocomplete suggestions (JSON).
 Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');

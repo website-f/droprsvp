@@ -71,34 +71,59 @@ class OrganizerController extends Controller
             'photos' => \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
                 ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
             'similar' => $this->similarEvents($organizer, $eventIds),
-            'discussion' => $this->discussion($organizer),
+            'discussion' => $this->discussion($organizer, $request),
             'viewer' => [
                 'authed' => (bool) $user,
                 'is_self' => $user?->id === $organizer->id,
+                // Admins and the wall's own organizer can moderate: reply on behalf of
+                // the organizer (so the reply carries the Organizer badge).
+                'can_moderate' => (bool) ($user && ($user->id === $organizer->id || $user->hasRole('superadmin'))),
                 'is_following' => $user && $user->id !== $organizer->id ? $user->isFollowing($organizer) : false,
             ],
         ]);
     }
 
-    /** Threaded discussion wall for the organizer (top-level posts + replies). */
-    private function discussion(User $organizer): array
+    /** One page of the threaded discussion wall (top-level posts + full nested reply tree). */
+    private function discussion(User $organizer, Request $request): array
     {
-        return \App\Models\OrganizerPost::where('organizer_id', $organizer->id)->whereNull('parent_id')
-            ->with(['author:id,name', 'replies.author:id,name'])->latest()->limit(50)->get()
-            ->map(fn ($post) => [
-                'id' => $post->id,
-                'author' => $post->author?->name ?? 'User',
-                'body' => $post->body,
-                'when' => $post->created_at->diffForHumans(),
-                'is_organizer' => $post->user_id === $organizer->id,
-                'replies' => $post->replies->map(fn ($r) => [
-                    'id' => $r->id,
-                    'author' => $r->author?->name ?? 'User',
-                    'body' => $r->body,
-                    'when' => $r->created_at->diffForHumans(),
-                    'is_organizer' => $r->user_id === $organizer->id,
-                ])->all(),
-            ])->all();
+        $perPage = 10;
+        $page = max(1, (int) $request->query('discuss_page', 1));
+
+        $base = \App\Models\OrganizerPost::where('organizer_id', $organizer->id)->whereNull('parent_id');
+        $total = (clone $base)->count();
+
+        $posts = $base->with(['author:id,name', 'repliesRecursive'])
+            ->latest()->forPage($page, $perPage)->get()
+            ->map(fn ($post) => $this->mapPost($post, $organizer))->all();
+
+        return [
+            'posts' => $posts,
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'has_more' => $page * $perPage < $total,
+            ],
+        ];
+    }
+
+    /** Recursively shape a post and its nested replies for the client. */
+    private function mapPost(\App\Models\OrganizerPost $post, User $organizer): array
+    {
+        return [
+            'id' => $post->id,
+            'author' => $post->author?->name ?? 'User',
+            'body' => $post->body,
+            'when' => $post->created_at?->diffForHumans(),
+            'is_organizer' => $post->user_id === $organizer->id,
+            'replies' => $post->repliesRecursive->map(fn ($r) => $this->mapPost($r, $organizer))->all(),
+        ];
+    }
+
+    /** JSON feed for "load more" pagination of the discussion wall. */
+    public function discussionFeed(Request $request, User $organizer)
+    {
+        return response()->json($this->discussion($organizer, $request));
     }
 
     /** Post to the organizer's discussion wall (signed-in users). */
@@ -107,18 +132,25 @@ class OrganizerController extends Controller
         $data = $request->validate([
             'body' => ['required', 'string', 'max:2000'],
             'parent_id' => ['nullable', 'integer'],
+            'as_organizer' => ['nullable', 'boolean'],
         ]);
 
-        // A reply must target a top-level post on this same wall.
+        $user = $request->user();
+        $canModerate = $user->id === $organizer->id || $user->hasRole('superadmin');
+
+        // A reply must target an existing post on THIS wall (any depth — chains are allowed).
         if (! empty($data['parent_id'])) {
             $parent = \App\Models\OrganizerPost::where('id', $data['parent_id'])
-                ->where('organizer_id', $organizer->id)->whereNull('parent_id')->first();
+                ->where('organizer_id', $organizer->id)->first();
             abort_unless($parent, 422);
         }
 
+        // Moderators can post as the organizer; everyone else always posts as themselves.
+        $asOrganizer = $canModerate && ! empty($data['as_organizer']);
+
         \App\Models\OrganizerPost::create([
             'organizer_id' => $organizer->id,
-            'user_id' => $request->user()->id,
+            'user_id' => $asOrganizer ? $organizer->id : $user->id,
             'parent_id' => $data['parent_id'] ?? null,
             'body' => $data['body'],
         ]);
