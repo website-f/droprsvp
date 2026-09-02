@@ -68,6 +68,8 @@ class OrganizerController extends Controller
             'upcoming' => $upcoming->values(),
             'past' => $past->values(),
             'members' => ['attendees' => $attendees, 'followers' => $followers],
+            'photos' => \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
+                ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
             'similar' => $this->similarEvents($organizer, $eventIds),
             'viewer' => [
                 'authed' => (bool) $user,

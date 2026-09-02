@@ -110,6 +110,11 @@ class Event extends Model
         return $this->hasMany(EventReview::class)->latest();
     }
 
+    public function photos(): HasMany
+    {
+        return $this->hasMany(EventPhoto::class)->latest();
+    }
+
     public function seo(): MorphOne
     {
         return $this->morphOne(SeoMeta::class, 'seoable');

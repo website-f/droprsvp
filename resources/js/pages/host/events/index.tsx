@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArmchairIcon, CalendarDays, ChartColumn, MoreHorizontal, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2 } from 'lucide-react';
+import { ArmchairIcon, CalendarDays, ChartColumn, ImagePlus, MoreHorizontal, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -100,6 +100,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/analytics`}><ChartColumn className="size-4" /> Analytics</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/orders`}><Receipt className="size-4" /> Orders</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/checkin`}><ScanLine className="size-4" /> Check-in</Link></DropdownMenuItem>
+                                                <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/photos`}><ImagePlus className="size-4" /> Photos</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/seating`}><ArmchairIcon className="size-4" /> Seating</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/promote`}><Rocket className="size-4" /> Promote</Link></DropdownMenuItem>
                                                 <DropdownMenuSeparator />

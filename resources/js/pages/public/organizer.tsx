@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, Globe, Info, MapPin, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
+import { CalendarDays, Globe, Images, Info, MapPin, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +14,9 @@ interface Organizer {
     location: string | null; event_types: string[]; followers: number; members: number; events_count: number; joined: string | null;
 }
 interface Members { attendees: { name: string }[]; followers: { name: string }[] }
+interface Photo { path: string; caption: string | null }
 interface Viewer { authed: boolean; is_self: boolean; is_following: boolean }
-type Tab = 'about' | 'events' | 'members';
+type Tab = 'about' | 'events' | 'members' | 'photos';
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7'];
@@ -76,8 +77,8 @@ function MemberGrid({ people, empty }: { people: { name: string }[]; empty: stri
     );
 }
 
-export default function OrganizerProfile({ organizer, upcoming, past, members, similar, viewer }: {
-    organizer: Organizer; upcoming: EventCard[]; past: EventCard[]; members: Members; similar: EventCard[]; viewer: Viewer;
+export default function OrganizerProfile({ organizer, upcoming, past, members, photos, similar, viewer }: {
+    organizer: Organizer; upcoming: EventCard[]; past: EventCard[]; members: Members; photos: Photo[]; similar: EventCard[]; viewer: Viewer;
 }) {
     const [tab, setTab] = useState<Tab>('events');
     const follow = () => (viewer.authed
@@ -88,6 +89,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, s
         { key: 'about', label: 'About', icon: Info },
         { key: 'events', label: 'Events', icon: CalendarDays, count: organizer.events_count },
         { key: 'members', label: 'Members', icon: Users, count: organizer.members + organizer.followers },
+        { key: 'photos', label: 'Photos', icon: Images, count: photos.length },
     ];
 
     return (
@@ -204,6 +206,18 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, s
                                 <MemberGrid people={members.followers} empty="No followers yet." />
                             </section>
                         </div>
+                    )}
+
+                    {tab === 'photos' && (
+                        photos.length === 0 ? (
+                            <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No photos yet — {organizer.name} hasn’t shared any event photos.</p>
+                        ) : (
+                            <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [&>*]:mb-3">
+                                {photos.map((ph, i) => (
+                                    <img key={i} src={ph.path} alt={ph.caption ?? ''} loading="lazy" className="w-full break-inside-avoid rounded-xl border border-border object-cover" />
+                                ))}
+                            </div>
+                        )
                     )}
 
                     {/* Similar events */}

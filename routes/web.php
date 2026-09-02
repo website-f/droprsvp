@@ -212,6 +212,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');
         Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
 
+        // Event photo album (organizer uploads; shown on their public profile).
+        Route::get('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'index'])->name('events.photos');
+        Route::post('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'store'])->name('events.photos.store');
+        Route::delete('events/{event}/photos/{photo}', [\App\Http\Controllers\Host\EventPhotoController::class, 'destroy'])->name('events.photos.destroy');
+
         // Orders + refunds.
         Route::get('events/{event}/orders', [OrderController::class, 'index'])->name('events.orders');
         Route::post('events/{event}/orders/{order}/refund', [OrderController::class, 'refund'])->name('events.orders.refund');
