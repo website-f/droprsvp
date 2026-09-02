@@ -40,6 +40,23 @@ class PayoutTest extends TestCase
                 ->where('balance.available', 90));
     }
 
+    public function test_balance_applies_a_fixed_per_order_fee(): void
+    {
+        \App\Models\Setting::put('platform_fee_type', 'fixed');
+        \App\Models\Setting::put('platform_fee_fixed', 2);
+        $host = $this->organizer();
+        $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
+        // Two paid orders → RM2 each → RM4 fee, regardless of order value.
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => 100, 'paid_at' => now()]);
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => 50, 'paid_at' => now()]);
+
+        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+        $this->assertSame(150.0, $balance['gross']);
+        $this->assertSame(4.0, $balance['fee']);
+        $this->assertSame(146.0, $balance['net']);
+        $this->assertSame('fixed', $balance['fee_type']);
+    }
+
     public function test_upcoming_event_revenue_is_held_until_the_event_ends(): void
     {
         Config::set('droprsvp.platform_fee_percent', 0);

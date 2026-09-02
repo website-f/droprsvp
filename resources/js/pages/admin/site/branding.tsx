@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ImageUp, Loader2, RotateCcw, Save } from 'lucide-react';
+import { Eye, ImageUp, Loader2, RotateCcw, Save } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -77,7 +77,7 @@ function LogoSlot({ label, hint, value, fallback, invert, onUpload, onRemove }: 
     );
 }
 
-function SizeRow({ label, hint, value, min, max, onChange, previewSrc, invert }: { label: string; hint: string; value: number; min: number; max: number; onChange: (v: number) => void; previewSrc: string; invert: boolean }) {
+function SizeRow({ label, hint, value, min, max, onChange }: { label: string; hint: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
     return (
         <div className="grid gap-1.5">
             <div className="flex items-center justify-between">
@@ -85,16 +85,28 @@ function SizeRow({ label, hint, value, min, max, onChange, previewSrc, invert }:
                 <span className="text-xs tabular-nums text-muted-foreground">{value}px</span>
             </div>
             <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-foreground" />
-            {/* Live preview — the logo drawn at the exact height, on light + dark. */}
-            <div className="grid grid-cols-2 gap-1.5">
-                <div className="flex h-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-white px-2">
-                    <img src={previewSrc} alt="" style={{ height: value }} className="max-w-full object-contain" />
-                </div>
-                <div className="flex h-16 items-center justify-center overflow-hidden rounded-lg border border-border bg-neutral-900 px-2">
-                    <img src={previewSrc} alt="" style={{ height: value }} className={`max-w-full object-contain ${invert ? 'invert' : ''}`} />
-                </div>
-            </div>
             <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+    );
+}
+
+/** One light/dark surface of the live preview: the wordmark drawn at every configured height. */
+function PreviewSurface({ tone, src, invert, rows }: { tone: 'light' | 'dark'; src: string; invert: boolean; rows: { label: string; h: number }[] }) {
+    const dark = tone === 'dark';
+
+    return (
+        <div className={`rounded-xl border p-4 ${dark ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+            <div className={`mb-3 text-[11px] font-medium uppercase tracking-wide ${dark ? 'text-neutral-400' : 'text-neutral-500'}`}>{dark ? 'Dark background' : 'Light background'}</div>
+            <div className="grid gap-3">
+                {rows.map((r) => (
+                    <div key={r.label} className="flex items-center gap-3">
+                        <span className={`w-32 shrink-0 text-[11px] tabular-nums ${dark ? 'text-neutral-400' : 'text-neutral-500'}`}>{r.label} · {r.h}px</span>
+                        <div className={`flex min-h-6 flex-1 items-center overflow-hidden border-l pl-3 ${dark ? 'border-neutral-800' : 'border-neutral-200'}`}>
+                            <img src={src} alt="" style={{ height: r.h }} className={`w-auto max-w-full object-contain transition-[height] duration-100 ${dark && invert ? 'invert' : ''}`} />
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
@@ -104,6 +116,13 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
     const { data, setData, processing } = form;
 
     const save = () => form.post('/admin/site/branding', { preserveScroll: true, onSuccess: () => toast.success('Branding saved') });
+
+    const previewRows = [
+        { label: 'Header', h: data.header_height },
+        { label: 'Sidebar', h: data.sidebar_height },
+        { label: 'Footer', h: data.footer_height },
+        { label: 'Auth & checkout', h: data.auth_height },
+    ];
 
     return (
         <>
@@ -141,10 +160,10 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
                 <div className="mt-4 rounded-2xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold">Size &amp; appearance</h2>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        <SizeRow label="Header logo" hint="Public site top bar." value={data.header_height} min={24} max={80} onChange={(v) => setData('header_height', v)} previewSrc={data.logo_full || DEFAULTS.logo_full} invert={data.invert_dark} />
-                        <SizeRow label="Sidebar logo" hint="Dashboard sidebar." value={data.sidebar_height} min={24} max={72} onChange={(v) => setData('sidebar_height', v)} previewSrc={data.logo_full || DEFAULTS.logo_full} invert={data.invert_dark} />
-                        <SizeRow label="Footer logo" hint="Site footer." value={data.footer_height} min={20} max={64} onChange={(v) => setData('footer_height', v)} previewSrc={data.logo_full || DEFAULTS.logo_full} invert={data.invert_dark} />
-                        <SizeRow label="Auth &amp; checkout" hint="Sign-up, login &amp; checkout." value={data.auth_height} min={20} max={56} onChange={(v) => setData('auth_height', v)} previewSrc={data.logo_full || DEFAULTS.logo_full} invert={data.invert_dark} />
+                        <SizeRow label="Header logo" hint="Public site top bar." value={data.header_height} min={24} max={80} onChange={(v) => setData('header_height', v)} />
+                        <SizeRow label="Sidebar logo" hint="Dashboard sidebar." value={data.sidebar_height} min={24} max={72} onChange={(v) => setData('sidebar_height', v)} />
+                        <SizeRow label="Footer logo" hint="Site footer." value={data.footer_height} min={20} max={64} onChange={(v) => setData('footer_height', v)} />
+                        <SizeRow label="Auth &amp; checkout" hint="Sign-up, login &amp; checkout." value={data.auth_height} min={20} max={56} onChange={(v) => setData('auth_height', v)} />
                     </div>
                     <div className="mt-6 rounded-lg border border-border p-3">
                         <SwitchField
@@ -153,6 +172,20 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
                             label="Invert logo in dark mode"
                             description="Keep on for a dark/monochrome logo so it shows on dark backgrounds. Turn off if your logo is already light or full-colour."
                         />
+                    </div>
+
+                    {/* Full-width live preview — the wordmark at every configured height, on
+                        light and dark, resizing the moment a slider moves. */}
+                    <div className="mt-6 border-t border-border pt-5">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <Eye className="size-4 text-muted-foreground" />
+                            <h3 className="text-sm font-semibold">Live preview</h3>
+                            <span className="text-xs text-muted-foreground">Resizes as you drag the sliders above.</span>
+                        </div>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                            <PreviewSurface tone="light" src={data.logo_full || DEFAULTS.logo_full} invert={false} rows={previewRows} />
+                            <PreviewSurface tone="dark" src={data.logo_full || DEFAULTS.logo_full} invert={data.invert_dark} rows={previewRows} />
+                        </div>
                     </div>
                 </div>
             </div>

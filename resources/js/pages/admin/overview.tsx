@@ -12,7 +12,7 @@ function Card({ icon: Icon, label, value }: { icon: React.ComponentType<{ classN
     );
 }
 
-export default function Overview({ stats, boost_revenue }: { stats: Stats; boost_revenue: number }) {
+export default function Overview({ stats, boost_revenue, fee_label }: { stats: Stats; boost_revenue: number; fee_label: string }) {
     const rm = (n: number) => `RM ${n.toFixed(2)}`;
 
     return (
@@ -23,7 +23,7 @@ export default function Overview({ stats, boost_revenue }: { stats: Stats; boost
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Card icon={Wallet} label="Gross revenue" value={rm(stats.gross)} />
-                    <Card icon={Banknote} label="Platform fees" value={rm(stats.platform_fees)} />
+                    <Card icon={Banknote} label={`Platform fees · ${fee_label}`} value={rm(stats.platform_fees)} />
                     <Card icon={Ticket} label="Tickets sold" value={String(stats.tickets_sold)} />
                     <Card icon={CalendarDays} label="Events" value={`${stats.published}/${stats.events}`} />
                     <Card icon={Users} label="Organizers" value={String(stats.organizers)} />

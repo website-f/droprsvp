@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Host;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Promotion;
-use App\Models\Setting;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
 use App\Services\PromotionService;
+use App\Support\PlatformFee;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -39,7 +39,8 @@ class PromotionController extends Controller
                 'days' => $this->promotions->days(),
             ],
             // Transparency: what the platform charges on ticket sales.
-            'platform_fee_percent' => (float) Setting::get('platform_fee_percent', config('droprsvp.platform_fee_percent')),
+            'platform_fee_percent' => PlatformFee::percent(),
+            'platform_fee_label' => PlatformFee::label(),
             'result' => $result,
         ];
     }

@@ -9,6 +9,7 @@ interface Props {
     event: { slug: string; title: string; status: string; boosted_until: string | null };
     boost: { price: number; days: number };
     platform_fee_percent: number;
+    platform_fee_label: string;
     result?: 'paid' | 'processing' | null;
 }
 
@@ -18,7 +19,7 @@ const BENEFITS = [
     { icon: BadgeCheck, text: 'Priority consideration for the homepage “Happening soon”' },
 ];
 
-export default function Promote({ event, boost, platform_fee_percent, result }: Props) {
+export default function Promote({ event, boost, platform_fee_label, result }: Props) {
     const form = useForm({});
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [redirecting, setRedirecting] = useState(false);
@@ -87,7 +88,7 @@ export default function Promote({ event, boost, platform_fee_percent, result }: 
                 {/* Fee transparency */}
                 <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
                     <ArrowUpRight className="mt-0.5 size-4 shrink-0" />
-                    <span>Heads up: DropRSVP keeps a <strong className="text-foreground">{platform_fee_percent}%</strong> platform fee on your ticket sales. Boosting is a separate, optional promotion.</span>
+                    <span>Heads up: DropRSVP keeps a <strong className="text-foreground">{platform_fee_label}</strong> platform fee on your ticket sales. Boosting is a separate, optional promotion.</span>
                 </div>
             </div>
         </>

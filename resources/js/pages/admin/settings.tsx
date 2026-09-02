@@ -11,7 +11,8 @@ interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean;
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
 interface Announcement { active: boolean; style: string; level: string; title: string; body: string; cta_label: string; cta_url: string; version: number }
 interface SettingsData {
-    fee_percent: number; boost_price: number; boost_days: number; premium_price: number; premium_days: number;
+    fee_type: 'percent' | 'fixed'; fee_percent: number; fee_fixed: number;
+    boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
     checkout_required: CheckoutRequired; ticketing_modes: TicketingModes; announcement: Announcement; trending_keywords: string;
 }
@@ -44,7 +45,9 @@ export default function Settings({ settings }: { settings: SettingsData }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const [tab, setTab] = useState<Tab>('payments');
     const form = useForm({
+        fee_type: settings.fee_type,
         fee_percent: String(settings.fee_percent),
+        fee_fixed: String(settings.fee_fixed),
         boost_price: String(settings.boost_price),
         boost_days: String(settings.boost_days),
         premium_price: String(settings.premium_price),
@@ -105,7 +108,27 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                 <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
                     {tab === 'payments' && (
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <Field label="Platform fee (%)" hint="Kept from each organizer's gross ticket revenue."><input type="number" min={0} max={100} step="0.1" className={input} value={data.fee_percent} onChange={(e) => setData('fee_percent', e.target.value)} /></Field>
+                            <div className="sm:col-span-2 grid gap-1.5">
+                                <Label>Platform fee</Label>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="inline-flex h-10 rounded-lg border border-border p-0.5">
+                                        <button type="button" onClick={() => setData('fee_type', 'percent')} className={`flex items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors ${data.fee_type === 'percent' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><Percent className="size-3.5" /> Percentage</button>
+                                        <button type="button" onClick={() => setData('fee_type', 'fixed')} className={`flex items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors ${data.fee_type === 'fixed' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><Banknote className="size-3.5" /> Fixed (RM)</button>
+                                    </div>
+                                    {data.fee_type === 'percent' ? (
+                                        <div className="relative w-36">
+                                            <input type="number" min={0} max={100} step="0.1" className={`${input} pr-8`} value={data.fee_percent} onChange={(e) => setData('fee_percent', e.target.value)} />
+                                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                                        </div>
+                                    ) : (
+                                        <div className="relative w-36">
+                                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">RM</span>
+                                            <input type="number" min={0} step="0.5" className={`${input} pl-10`} value={data.fee_fixed} onChange={(e) => setData('fee_fixed', e.target.value)} />
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">{data.fee_type === 'percent' ? "Kept from each organizer's gross ticket revenue." : 'A flat amount kept from each paid order — capped at the order total.'}</p>
+                            </div>
                             <Field label="Event boost price (RM)"><input type="number" min={0} step="1" className={input} value={data.boost_price} onChange={(e) => setData('boost_price', e.target.value)} /></Field>
                             <Field label="Boost duration (days)"><input type="number" min={1} step="1" className={input} value={data.boost_days} onChange={(e) => setData('boost_days', e.target.value)} /></Field>
                             <Field label="Premium price / period (RM)"><input type="number" min={0} step="1" className={input} value={data.premium_price} onChange={(e) => setData('premium_price', e.target.value)} /></Field>

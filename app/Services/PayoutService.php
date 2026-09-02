@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Mail\PayoutPaidMail;
 use App\Models\Order;
 use App\Models\Payout;
-use App\Models\Setting;
 use App\Models\User;
+use App\Support\PlatformFee;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -18,15 +18,14 @@ class PayoutService
      * event has taken place ("matured") — money from upcoming events is held as
      * pending clearance so refunds/cancellations can't leave the platform short.
      *
-     * @return array{gross:float,fee_percent:float,fee:float,net:float,withdrawn:float,available:float,pending_clearance:float}
+     * @return array{gross:float,fee_percent:float,fee_type:string,fee_label:string,fee:float,net:float,withdrawn:float,available:float,pending_clearance:float}
      */
     public function balanceFor(User $organizer): array
     {
-        $feePercent = (float) Setting::get('platform_fee_percent', config('droprsvp.platform_fee_percent'));
-        $netOf = fn (float $gross) => round($gross - round($gross * $feePercent / 100, 2), 2);
-
         $eventIds = $organizer->events()->pluck('id');
-        $gross = (float) Order::whereIn('event_id', $eventIds)->where('status', 'paid')->sum('total');
+        $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid');
+        $gross = (float) (clone $paid)->sum('total');
+        $grossOrders = (clone $paid)->count();
 
         // An event's takings mature once it has happened: ends_at (or starts_at when
         // there's no end) is in the past; date-less events mature immediately.
@@ -35,10 +34,14 @@ class PayoutService
                 ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNotNull('starts_at')->where('starts_at', '<=', now()))
                 ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNull('starts_at'));
         })->pluck('id');
-        $maturedGross = (float) Order::whereIn('event_id', $maturedIds)->where('status', 'paid')->sum('total');
+        $maturedPaid = Order::whereIn('event_id', $maturedIds)->where('status', 'paid');
+        $maturedGross = (float) (clone $maturedPaid)->sum('total');
+        $maturedOrders = (clone $maturedPaid)->count();
 
-        $net = $netOf($gross);
-        $maturedNet = $netOf($maturedGross);
+        // Fee may be a % of gross or a flat amount per paid order.
+        $fee = PlatformFee::on($gross, $grossOrders);
+        $net = round($gross - $fee, 2);
+        $maturedNet = round($maturedGross - PlatformFee::on($maturedGross, $maturedOrders), 2);
 
         // Everything already requested or paid out is no longer available.
         $withdrawn = (float) Payout::where('user_id', $organizer->id)
@@ -47,8 +50,10 @@ class PayoutService
 
         return [
             'gross' => $gross,
-            'fee_percent' => $feePercent,
-            'fee' => round($gross * $feePercent / 100, 2),
+            'fee_percent' => PlatformFee::percent(),
+            'fee_type' => PlatformFee::type(),
+            'fee_label' => PlatformFee::label(),
+            'fee' => $fee,
             'net' => $net,
             'withdrawn' => round($withdrawn, 2),
             'available' => max(0.0, round($maturedNet - $withdrawn, 2)),

@@ -1,8 +1,14 @@
-import { Circle, Plus, RectangleHorizontal, RotateCw, Trash2, X } from 'lucide-react';
+import {
+    Bath, Camera, Circle, ConciergeBell, DoorOpen, Footprints, Gift, LayoutGrid, Music, Plus,
+    Presentation, RectangleHorizontal, RotateCw, Shapes, SquareParking, Star, Store, Trash2,
+    UtensilsCrossed, X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { RotateHandle, usePanZoom, ZoomControls } from '@/components/floorplan';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { newProp, PROP_KINDS,  SEAT, tableGeom } from '@/lib/table-geometry';
 import type {PropRow} from '@/lib/table-geometry';
@@ -33,6 +39,14 @@ export function newTable(index: number): TableRow {
 
 const field = 'h-9 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const PROP_ORDER = ['stage', 'entrance', 'dancefloor', 'catering', 'reception', 'gift', 'booth', 'photo', 'vip', 'restroom', 'walkway', 'parking', 'custom'];
+
+/** Each fixture kind gets an icon so the plan reads at a glance, whatever the event. */
+const PROP_ICON: Record<string, LucideIcon> = {
+    stage: Presentation, entrance: DoorOpen, dancefloor: Music, catering: UtensilsCrossed,
+    reception: ConciergeBell, gift: Gift, booth: Store, photo: Camera, vip: Star,
+    restroom: Bath, walkway: Footprints, parking: SquareParking, custom: Shapes,
+};
+const propIcon = (kind: string): LucideIcon => PROP_ICON[kind] ?? Shapes;
 
 type Sel = { t: 'table' | 'prop'; i: number } | null;
 
@@ -141,7 +155,24 @@ export function TableLayoutEditor({
         <div className="grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={addTable}><Plus className="size-3.5" /> Add table</Button>
-                <div className="w-44"><AppSelect value="" onChange={addProp} options={[{ value: '', label: 'Add prop…' }, ...PROP_ORDER.map((k) => ({ value: k, label: PROP_KINDS[k][0] }))]} /></div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" size="sm"><LayoutGrid className="size-3.5" /> Add prop</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="max-h-72 w-52 overflow-y-auto">
+                        {PROP_ORDER.map((k) => {
+                            const Icon = propIcon(k);
+                            const color = PROP_KINDS[k][3];
+
+                            return (
+                                <DropdownMenuItem key={k} onSelect={() => addProp(k)}>
+                                    <span className="flex size-5 items-center justify-center rounded-md" style={{ backgroundColor: `${color}1f`, color }}><Icon className="size-3.5" /></span>
+                                    {PROP_KINDS[k][0]}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <span className="text-xs text-muted-foreground">Drag to arrange · click to edit · rotate &amp; resize in the panel.</span>
             </div>
 
@@ -161,9 +192,12 @@ export function TableLayoutEditor({
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Add a table or prop to start your floorplan.</div>
                     )}
 
-                    {/* Props (behind tables) */}
+                    {/* Props (behind tables) — soft fixture look: tinted fill, dashed
+                        outline in the prop's ink colour, an icon + label centred. */}
                     {props.map((p, i) => {
                         const active = sel?.t === 'prop' && sel.i === i;
+                        const Icon = propIcon(p.kind);
+                        const compact = p.height < 64; // short bars (walkway, entrance) → icon beside label
 
                         return (
                             <div
@@ -172,16 +206,16 @@ export function TableLayoutEditor({
                                 onPointerDown={(e) => startDrag(e, 'prop', i)}
                                 onPointerMove={onDragMove}
                                 onPointerUp={endDrag}
-                                style={{ left: p.pos_x, top: p.pos_y, width: p.width, height: p.height, transform: `rotate(${p.rotation}deg)` }}
-                                className={`group absolute flex cursor-move touch-none select-none items-center justify-center rounded-lg border-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm ${active ? 'ring-2 ring-foreground' : ''}`}
+                                style={{ left: p.pos_x, top: p.pos_y, width: p.width, height: p.height, transform: `rotate(${p.rotation}deg)`, backgroundColor: `${p.color}1a`, borderColor: p.color, color: p.color }}
+                                className={`group absolute flex cursor-move touch-none select-none items-center justify-center gap-1 rounded-xl border-2 px-2 text-center shadow-sm transition-[box-shadow,border-style] ${compact ? 'flex-row' : 'flex-col'} ${active ? 'border-solid ring-2 ring-foreground ring-offset-2 ring-offset-background' : 'border-dashed'}`}
                             >
-                                <span className="absolute inset-0 rounded-md opacity-90" style={{ backgroundColor: p.color }} />
-                                <span className="relative px-1">{p.label}</span>
+                                <Icon className="size-[18px] shrink-0 opacity-90" />
+                                <span className="max-w-full truncate text-[11px] font-semibold leading-tight">{p.label}</span>
                                 {active && <RotateHandle onChange={(deg) => patchProp(i, { rotation: deg })} />}
                                 <button type="button" aria-label="Delete prop" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {
- e.stopPropagation(); removeProp(i); 
+ e.stopPropagation(); removeProp(i);
 }} className={`absolute -right-2 -top-2 z-10 flex size-5 items-center justify-center rounded-full bg-destructive text-white shadow ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><X className="size-3" /></button>
-                                <span role="button" aria-label="Resize" onPointerDown={(e) => startResize(e, i)} onPointerMove={onResizeMove} onPointerUp={endResize} className={`absolute -bottom-1.5 -right-1.5 z-10 size-3.5 cursor-nwse-resize rounded-sm border-2 border-foreground bg-background ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                                <span role="button" aria-label="Resize" onPointerDown={(e) => startResize(e, i)} onPointerMove={onResizeMove} onPointerUp={endResize} className={`absolute -bottom-1.5 -right-1.5 z-10 size-3.5 cursor-nwse-resize rounded-sm border-2 bg-background ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} style={{ borderColor: p.color }} />
                             </div>
                         );
                     })}
@@ -201,9 +235,9 @@ export function TableLayoutEditor({
                                 style={{ left: t.pos_x, top: t.pos_y, width: geo.size, height: geo.size, transform: `rotate(${t.rotation}deg)` }}
                                 className={`group absolute cursor-move touch-none select-none rounded-2xl ${active ? 'ring-2 ring-foreground' : ''}`}
                             >
-                                {geo.seats.map((s, si) => <span key={si} style={{ left: s.x, top: s.y, width: SEAT, height: SEAT }} className="absolute rounded-full bg-foreground/25" />)}
-                                <div style={{ left: geo.body.left, top: geo.body.top, width: geo.body.w, height: geo.body.h }} className={`absolute flex items-center justify-center border border-foreground/30 bg-foreground/10 text-center text-[10px] font-semibold leading-tight text-foreground ${geo.body.round ? 'rounded-full' : 'rounded-md'}`}>
-                                    <span className="px-1">{t.name}<br /><span className="font-normal text-muted-foreground">{t.capacity} seats</span></span>
+                                {geo.seats.map((s, si) => <span key={si} style={{ left: s.x, top: s.y, width: SEAT, height: SEAT }} className={`absolute rounded-full border border-foreground/20 ${active ? 'bg-foreground/30' : 'bg-foreground/15'}`} />)}
+                                <div style={{ left: geo.body.left, top: geo.body.top, width: geo.body.w, height: geo.body.h }} className={`absolute flex items-center justify-center border text-center text-[10px] font-semibold leading-tight shadow-sm ${active ? 'border-foreground bg-foreground text-background' : 'border-foreground/30 bg-card text-foreground'} ${geo.body.round ? 'rounded-full' : 'rounded-md'}`}>
+                                    <span className="px-1">{t.name}<br /><span className={`font-normal ${active ? 'text-background/70' : 'text-muted-foreground'}`}>{t.capacity} seats</span></span>
                                 </div>
                                 {active && <RotateHandle onChange={(deg) => patchTable(i, { rotation: deg })} />}
                                 <button type="button" aria-label="Delete table" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {

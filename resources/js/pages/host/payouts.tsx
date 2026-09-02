@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
-interface Balance { gross: number; fee_percent: number; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
+interface Balance { gross: number; fee_percent: number; fee_type: string; fee_label: string; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
 interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
 interface Bank { bank_code: string | null; account_number: string | null; account_name: string | null }
 interface BankOption { value: string; label: string }
@@ -50,7 +50,7 @@ export default function Payouts({ balance, payouts, bank, banks }: { balance: Ba
 
                     <div className="mt-5 border-t border-border pt-3">
                         <Line label="Gross ticket revenue" value={rm(balance.gross)} />
-                        <Line label={`Platform fee (${balance.fee_percent}%)`} value={`− ${rm(balance.fee)}`} />
+                        <Line label={`Platform fee (${balance.fee_label})`} value={`− ${rm(balance.fee)}`} />
                         <Line label="Net earnings" value={rm(balance.net)} strong />
                         {balance.pending_clearance > 0 && <Line label="Held until events end" value={`− ${rm(balance.pending_clearance)}`} />}
                         <Line label="Already paid out / requested" value={`− ${rm(balance.withdrawn)}`} />

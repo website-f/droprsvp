@@ -48,21 +48,25 @@ export function rectTable(capacity: number): TableGeo {
 export const tableGeom = (shape: 'round' | 'rect', capacity: number): TableGeo =>
     shape === 'round' ? roundTable(capacity) : rectTable(capacity);
 
-/** Floorplan prop kinds → [default label, default width, default height, default colour]. */
+/**
+ * Floorplan prop kinds → [default label, default width, default height, default colour].
+ * Colours are chosen as "ink" tones: deep enough to read as a border + label on a
+ * soft ~10% tint of themselves (the fixture look, portalkahwin-style).
+ */
 export const PROP_KINDS: Record<string, [string, number, number, string]> = {
-    stage: ['Stage', 260, 120, '#111827'],
-    entrance: ['Entrance', 150, 60, '#6c63ff'],
-    reception: ['Reception', 180, 70, '#2ec4b6'],
-    catering: ['Buffet', 300, 80, '#f5a524'],
-    gift: ['Gift table', 170, 70, '#a855f7'],
-    booth: ['Booth', 160, 100, '#3b82f6'],
-    photo: ['Photo booth', 160, 110, '#ff6584'],
-    dancefloor: ['Dance floor', 220, 180, '#10b981'],
-    vip: ['VIP', 200, 90, '#ef4444'],
-    restroom: ['Restroom', 130, 80, '#64748b'],
-    walkway: ['Walkway', 340, 60, '#94a3b8'],
-    parking: ['Parking', 240, 120, '#64748b'],
-    custom: ['Prop', 200, 90, '#6c63ff'],
+    stage: ['Stage', 260, 120, '#334155'],
+    entrance: ['Entrance', 150, 60, '#6366f1'],
+    reception: ['Reception', 180, 70, '#0d9488'],
+    catering: ['Buffet', 300, 80, '#d97706'],
+    gift: ['Gift table', 170, 70, '#9333ea'],
+    booth: ['Booth', 160, 100, '#2563eb'],
+    photo: ['Photo booth', 160, 110, '#e11d48'],
+    dancefloor: ['Dance floor', 220, 180, '#059669'],
+    vip: ['VIP', 200, 90, '#a16207'],
+    restroom: ['Restroom', 130, 80, '#475569'],
+    walkway: ['Walkway', 340, 60, '#64748b'],
+    parking: ['Parking', 240, 120, '#475569'],
+    custom: ['Prop', 200, 90, '#6366f1'],
 };
 
 export interface PropRow {

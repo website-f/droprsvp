@@ -49,7 +49,7 @@ export function LayoutEditorOverlay({ open, onClose, mode, sections, onSections,
     );
 }
 
-interface Cell { x: number; y: number; w: number; h: number; round: boolean; color: string; label: string }
+interface Cell { x: number; y: number; w: number; h: number; round: boolean; color: string; label: string; table?: boolean }
 
 /** A small, static, scaled thumbnail of the current layout, shown in the ticket section. */
 export function LayoutPreview({ mode, tables, propsList, sections }: { mode: 'reserved' | 'tables'; tables: TableRow[]; propsList: PropRow[]; sections: LayoutSectionRow[] }) {
@@ -59,13 +59,13 @@ export function LayoutPreview({ mode, tables, propsList, sections }: { mode: 're
             ...tables.map((t) => {
  const g = tableGeom(t.shape, t.capacity);
 
- return { x: t.pos_x, y: t.pos_y, w: g.size, h: g.size, round: t.shape === 'round', color: '#6c63ff', label: t.name }; 
+ return { x: t.pos_x, y: t.pos_y, w: g.size, h: g.size, round: t.shape === 'round', color: '#64748b', label: t.name, table: true };
 }),
         ]
         : sections.map((s) => {
  const b = boxSize(s);
 
- return { x: s.x, y: s.y, w: b.w, h: b.h, round: false, color: s.color || '#6c63ff', label: s.name }; 
+ return { x: s.x, y: s.y, w: b.w, h: b.h, round: false, color: s.color || '#6366f1', label: s.name };
 });
 
     if (cells.length === 0) {
@@ -79,9 +79,14 @@ export function LayoutPreview({ mode, tables, propsList, sections }: { mode: 're
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-muted/20 p-2">
             <div className="relative mx-auto" style={{ width: bw * scale, height: bh * scale }}>
-                {cells.map((c, i) => (
-                    <div key={i} className={`absolute flex items-center justify-center overflow-hidden px-0.5 text-[8px] font-medium leading-none text-white ${c.round ? 'rounded-full' : 'rounded'}`} style={{ left: c.x * scale, top: c.y * scale, width: c.w * scale, height: c.h * scale, backgroundColor: c.color, opacity: 0.85 }}>{c.label}</div>
-                ))}
+                {cells.map((c, i) => c.table
+                    ? (
+                        <div key={i} className={`absolute flex items-center justify-center overflow-hidden border border-foreground/30 bg-card px-0.5 text-[8px] font-medium leading-none text-foreground shadow-sm ${c.round ? 'rounded-full' : 'rounded'}`} style={{ left: c.x * scale, top: c.y * scale, width: c.w * scale, height: c.h * scale }}>{c.label}</div>
+                    )
+                    : (
+                        <div key={i} className="absolute flex items-center justify-center overflow-hidden rounded border border-dashed px-0.5 text-[8px] font-semibold leading-none" style={{ left: c.x * scale, top: c.y * scale, width: c.w * scale, height: c.h * scale, backgroundColor: `${c.color}26`, borderColor: c.color, color: c.color }}>{c.label}</div>
+                    ),
+                )}
             </div>
         </div>
     );
