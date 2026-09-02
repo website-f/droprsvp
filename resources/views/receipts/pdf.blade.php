@@ -1,4 +1,5 @@
-@php($style = ($style ?? []) + ['accent' => '#27272a', 'footer_note' => 'powered by DropRSVP', 'show_logo' => false, 'logo' => ''])
+@php($style = ($style ?? []) + \App\Support\ReceiptTemplate::DEFAULTS)
+@php($logo = $style['show_logo'] && $style['logo'] ? '<img src="'.e($style['logo']).'" alt="" style="max-height: 34px; margin-bottom: 8px;">' : '')
 <!DOCTYPE html>
 <html>
 <head>
@@ -30,24 +31,29 @@
     <table>
         <tr>
             <td style="width: 60%; vertical-align: top;">
-                @if ($style['show_logo'] && $style['logo'])
-                    <img src="{{ $style['logo'] }}" alt="" style="max-height: 34px; margin-bottom: 8px;">
-                @endif
+                @if ($style['logo_align'] === 'left'){!! $logo !!}@endif
                 <div class="seller">{{ $receipt['seller']['name'] }}</div>
-                @if ($receipt['seller']['detail'])
+                @if ($style['show_seller_detail'] && $receipt['seller']['detail'])
                     <div class="muted" style="margin-top: 3px;">{{ $receipt['seller']['detail'] }}</div>
                 @endif
             </td>
             <td style="width: 40%; vertical-align: top;" class="right">
-                <div class="eyebrow">{{ $receipt['title'] }}</div>
+                @if ($style['logo_align'] === 'right'){!! $logo !!}@endif
+                <div class="eyebrow">{{ $style['title'] ?: $receipt['title'] }}</div>
                 <h1 class="doc" style="color: {{ $style['accent'] }};">{{ $receipt['number'] }}</h1>
                 <div class="muted" style="margin-top: 3px;">{{ $receipt['date'] }}</div>
-                <div style="margin-top: 7px;">
-                    <span class="badge {{ $receipt['status'] === 'refunded' ? 'refunded' : 'paid' }}">{{ $receipt['status'] }}</span>
-                </div>
+                @if ($style['show_status'])
+                    <div style="margin-top: 7px;">
+                        <span class="badge {{ $receipt['status'] === 'refunded' ? 'refunded' : 'paid' }}">{{ $receipt['status'] }}</span>
+                    </div>
+                @endif
             </td>
         </tr>
     </table>
+
+    @if ($style['header_note'])
+        <div style="margin-top: 14px; color: {{ $style['accent'] }}; font-weight: bold;">{{ $style['header_note'] }}</div>
+    @endif
 
     {{-- Parties --}}
     <table style="margin-top: 26px;">
@@ -59,7 +65,7 @@
                     <div class="muted">{{ $receipt['party']['detail'] }}</div>
                 @endif
             </td>
-            @if ($receipt['context'])
+            @if ($style['show_context'] && $receipt['context'])
                 <td style="width: 40%; vertical-align: top;" class="right">
                     <div class="eyebrow">For</div>
                     <div style="margin-top: 4px; font-weight: bold;">{{ $receipt['context'] }}</div>
@@ -97,7 +103,7 @@
             <td style="width: 38%;">
                 <table class="totals">
                     <tr><td class="muted">Subtotal</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['subtotal'], 2) }}</td></tr>
-                    @if ($receipt['tax'] > 0)
+                    @if ($style['show_tax'] && $receipt['tax'] > 0)
                         <tr><td class="muted">Tax</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['tax'], 2) }}</td></tr>
                     @endif
                     <tr class="total-row"><td style="color: {{ $style['accent'] }};">Total</td><td class="right" style="color: {{ $style['accent'] }};">{{ $receipt['currency'] }} {{ number_format($receipt['total'], 2) }}</td></tr>
@@ -105,6 +111,10 @@
             </td>
         </tr>
     </table>
+
+    @if (trim($style['notes']) !== '')
+        <div style="margin-top: 28px; padding-top: 12px; border-top: 1px solid #e7e7ea; color: #8a8a92; font-size: 10px; white-space: pre-line;">{{ $style['notes'] }}</div>
+    @endif
 
     <div class="footer">{{ $style['footer_note'] }}</div>
 </div>

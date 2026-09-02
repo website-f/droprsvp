@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
-use App\Support\Receipt;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 /**
@@ -29,46 +27,9 @@ class SettingsController extends Controller
                 'support_email' => (string) Setting::get('support_email', ''),
                 'checkout_required' => self::checkoutRequired(),
                 'ticketing_modes' => self::ticketingModes(),
-                'receipt_style' => self::receiptStyle(),
                 'trending_keywords' => (string) Setting::get('trending_keywords', ''),
             ],
         ]);
-    }
-
-    /**
-     * Superadmin-editable receipt / invoice template style. Everything the PDF
-     * template themes with — accent colour, footer note and an optional logo.
-     *
-     * @return array{accent: string, footer_note: string, show_logo: bool, logo: string}
-     */
-    public static function receiptStyle(): array
-    {
-        $saved = Setting::getArray('receipt_style', []);
-
-        return [
-            'accent' => (string) ($saved['accent'] ?? '#27272a'),
-            'footer_note' => (string) ($saved['footer_note'] ?? 'powered by DropRSVP'),
-            'show_logo' => (bool) ($saved['show_logo'] ?? false),
-            'logo' => (string) ($saved['logo'] ?? ''),
-        ];
-    }
-
-    /** A sample receipt rendered with the CURRENT saved style, so admins can preview the template. */
-    public function receiptPreview()
-    {
-        $receipt = [
-            'seller' => ['name' => config('app.name', 'DropRSVP'), 'detail' => 'Sample organizer · Kuala Lumpur'],
-            'title' => 'Receipt', 'number' => 'DRSVP-SAMPLE', 'date' => now()->format('j M Y'), 'status' => 'paid',
-            'party_label' => 'Billed to', 'party' => ['name' => 'Jane Doe', 'detail' => 'jane@example.com'],
-            'context' => 'Sample Event 2026',
-            'items' => [
-                ['description' => 'General Admission', 'qty' => 2, 'unit' => 50.0, 'total' => 100.0],
-                ['description' => 'VIP Table', 'qty' => 1, 'unit' => 150.0, 'total' => 150.0],
-            ],
-            'currency' => 'MYR', 'subtotal' => 250.0, 'tax' => 15.0, 'total' => 265.0,
-        ];
-
-        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => Receipt::style()])->stream('receipt-preview.pdf');
     }
 
     /**
@@ -117,10 +78,6 @@ class SettingsController extends Controller
             'tax_inclusive' => ['boolean'],
             'support_email' => ['nullable', 'email', 'max:180'],
             'trending_keywords' => ['nullable', 'string', 'max:1000'],
-            'receipt_style.accent' => ['nullable', 'string', 'max:20'],
-            'receipt_style.footer_note' => ['nullable', 'string', 'max:120'],
-            'receipt_style.show_logo' => ['boolean'],
-            'receipt_style.logo' => ['nullable', 'string', 'max:2048'],
         ]);
 
         Setting::put('platform_fee_percent', $data['fee_percent']);
@@ -146,14 +103,6 @@ class SettingsController extends Controller
             'general' => true,
             'reserved' => $request->boolean('ticketing_modes.reserved'),
             'tables' => $request->boolean('ticketing_modes.tables'),
-        ]);
-
-        // Receipt / invoice template style.
-        Setting::putArray('receipt_style', [
-            'accent' => $request->input('receipt_style.accent') ?: '#27272a',
-            'footer_note' => $request->input('receipt_style.footer_note') ?: 'powered by DropRSVP',
-            'show_logo' => $request->boolean('receipt_style.show_logo'),
-            'logo' => $request->input('receipt_style.logo') ?: '',
         ]);
 
         return back()->with('flash_success', 'Settings saved.');

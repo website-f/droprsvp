@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Support\Cities;
+use App\Support\ReceiptTemplate;
 use App\Support\SiteContent;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class SiteController extends Controller
@@ -126,5 +128,51 @@ class SiteController extends Controller
         }
 
         return back()->with('success', 'Footer saved.');
+    }
+
+    /** The receipt / invoice template editor — branding, content and layout. */
+    public function receipt()
+    {
+        return inertia('admin/site/receipt', ['template' => ReceiptTemplate::get()]);
+    }
+
+    public function saveReceipt(Request $request)
+    {
+        $data = $request->validate([
+            'accent' => ['nullable', 'string', 'max:20'],
+            'logo' => ['nullable', 'string', 'max:2048'],
+            'show_logo' => ['boolean'],
+            'logo_align' => ['nullable', 'in:left,right'],
+            'title' => ['nullable', 'string', 'max:60'],
+            'header_note' => ['nullable', 'string', 'max:200'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'footer_note' => ['nullable', 'string', 'max:120'],
+            'show_status' => ['boolean'],
+            'show_context' => ['boolean'],
+            'show_seller_detail' => ['boolean'],
+            'show_tax' => ['boolean'],
+        ]);
+
+        ReceiptTemplate::save($data);
+
+        return back()->with('success', 'Receipt template saved.');
+    }
+
+    /** A sample receipt rendered with the current saved template, for previewing the PDF. */
+    public function receiptPreview()
+    {
+        $receipt = [
+            'seller' => ['name' => config('app.name', 'DropRSVP'), 'detail' => 'Sample organizer · Kuala Lumpur'],
+            'title' => 'Receipt', 'number' => 'DRSVP-SAMPLE', 'date' => now()->format('j M Y'), 'status' => 'paid',
+            'party_label' => 'Billed to', 'party' => ['name' => 'Jane Doe', 'detail' => 'jane@example.com'],
+            'context' => 'Sample Event 2026',
+            'items' => [
+                ['description' => 'General Admission', 'qty' => 2, 'unit' => 50.0, 'total' => 100.0],
+                ['description' => 'VIP Table', 'qty' => 1, 'unit' => 150.0, 'total' => 150.0],
+            ],
+            'currency' => 'MYR', 'subtotal' => 250.0, 'tax' => 15.0, 'total' => 265.0,
+        ];
+
+        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved()])->stream('receipt-preview.pdf');
     }
 }

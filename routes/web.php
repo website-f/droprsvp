@@ -287,7 +287,6 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
-        Route::get('settings/receipt/preview', [AdminSettingsController::class, 'receiptPreview'])->name('settings.receipt-preview');
 
         // Event categories (used across discovery + event creation).
         Route::get('categories', [EventCategoryController::class, 'index'])->name('categories.index');
@@ -346,6 +345,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('site/landing', [AdminSiteController::class, 'saveLanding'])->name('site.landing.save');
         Route::get('site/footer', [AdminSiteController::class, 'footer'])->name('site.footer');
         Route::post('site/footer', [AdminSiteController::class, 'saveFooter'])->name('site.footer.save');
+        // Receipt / invoice template editor.
+        Route::get('site/receipt', [AdminSiteController::class, 'receipt'])->name('site.receipt');
+        Route::post('site/receipt', [AdminSiteController::class, 'saveReceipt'])->name('site.receipt.save');
+        Route::get('site/receipt/preview', [AdminSiteController::class, 'receiptPreview'])->name('site.receipt.preview');
         // Branding — logo (wordmark + mark) upload/remove + per-surface sizing.
         Route::get('site/branding', [AdminSiteController::class, 'branding'])->name('site.branding');
         Route::post('site/branding', [AdminSiteController::class, 'saveBranding'])->name('site.branding.save');

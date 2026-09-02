@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Support\Receipt;
+use App\Support\ReceiptTemplate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -52,7 +53,7 @@ class ReceiptController extends Controller
 
     private function pdf(array $receipt)
     {
-        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => Receipt::style()])
+        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved()])
             ->download("receipt-{$receipt['number']}.pdf");
     }
 

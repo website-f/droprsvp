@@ -44,20 +44,24 @@ class SuperadminPanelTest extends TestCase
         $this->assertEquals('8.5', Setting::get('platform_fee_percent'));
     }
 
-    public function test_superadmin_can_style_the_receipt_template_and_preview_it(): void
+    public function test_superadmin_can_edit_the_receipt_template_and_preview_it(): void
     {
         $admin = $this->superadmin();
 
-        $this->actingAs($admin)->post(route('admin.settings.save'), [
-            'fee_percent' => 8.5, 'boost_price' => 49, 'boost_days' => 7, 'premium_price' => 19, 'premium_days' => 30, 'tax_percent' => 0,
-            'receipt_style' => ['accent' => '#6c63ff', 'footer_note' => 'Thank you!', 'show_logo' => false, 'logo' => ''],
+        $this->actingAs($admin)->post(route('admin.site.receipt.save'), [
+            'accent' => '#6c63ff', 'footer_note' => 'Thank you!', 'title' => 'Tax Invoice',
+            'header_note' => 'Thanks!', 'notes' => 'Non-refundable.', 'logo_align' => 'right',
+            'show_logo' => false, 'show_status' => true, 'show_context' => false, 'show_seller_detail' => true, 'show_tax' => false,
         ])->assertRedirect();
 
-        $this->assertSame('#6c63ff', Setting::getArray('receipt_style')['accent']);
-        $this->assertSame('Thank you!', Setting::getArray('receipt_style')['footer_note']);
+        $saved = Setting::getArray('receipt_template');
+        $this->assertSame('#6c63ff', $saved['accent']);
+        $this->assertSame('Tax Invoice', $saved['title']);
+        $this->assertFalse($saved['show_context']);
+        $this->assertFalse($saved['show_tax']);
 
-        // The sample-PDF preview renders with the saved style.
-        $res = $this->actingAs($admin)->get(route('admin.settings.receipt-preview'));
+        // The sample-PDF preview renders with the saved template.
+        $res = $this->actingAs($admin)->get(route('admin.site.receipt.preview'));
         $res->assertOk();
         $this->assertStringContainsString('application/pdf', (string) $res->headers->get('content-type'));
     }

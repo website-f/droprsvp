@@ -62,17 +62,31 @@ class SiteContent
      */
     public static function footer(): array
     {
-        // v2 key: the footer moved from a columns array to a Puck document.
-        return Cache::rememberForever('site.footer_v2', function () {
+        // Bumped to v3 when the legal-row / copyright / background props were added.
+        return Cache::rememberForever('site.footer_v3', function () {
             $saved = Setting::getArray('footer', []);
 
-            return ! empty($saved['content']) ? $saved : self::defaultFooter();
+            if (empty($saved['content'])) {
+                return self::defaultFooter();
+            }
+
+            // Backfill any Footer props added after this footer was last saved (legal
+            // links, copyright, support email, background) so the editor shows the
+            // current defaults instead of blanks the admin would accidentally erase.
+            $defaults = self::defaultFooter()['content'][0]['props'] ?? [];
+            foreach ($saved['content'] as $i => $block) {
+                if (($block['type'] ?? null) === 'Footer') {
+                    $saved['content'][$i]['props'] = array_merge($defaults, $block['props'] ?? []);
+                }
+            }
+
+            return $saved;
         });
     }
 
     public static function forgetFooter(): void
     {
-        Cache::forget('site.footer_v2');
+        Cache::forget('site.footer_v3');
     }
 
     /**

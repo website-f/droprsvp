@@ -12,40 +12,6 @@ use App\Models\Payout;
  */
 class Receipt
 {
-    /**
-     * The superadmin-configured template style, with a local logo inlined as a
-     * data URI (dompdf can't reliably fetch remote images on shared hosting).
-     *
-     * @return array{accent: string, footer_note: string, show_logo: bool, logo: string}
-     */
-    public static function style(): array
-    {
-        $style = \App\Http\Controllers\Admin\SettingsController::receiptStyle();
-
-        if ($style['show_logo'] && $style['logo'] !== '') {
-            $uri = self::logoDataUri($style['logo']);
-            $style['logo'] = $uri ?? '';
-            $style['show_logo'] = $uri !== null;
-        }
-
-        return $style;
-    }
-
-    /** Turn a local /uploads or /storage logo path into a base64 data URI, or null. */
-    private static function logoDataUri(string $url): ?string
-    {
-        $path = parse_url($url, PHP_URL_PATH) ?: $url;
-        $file = public_path(ltrim($path, '/'));
-        if (! is_file($file)) {
-            return null;
-        }
-
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        $mime = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'webp' => 'image/webp', 'gif' => 'image/gif', 'svg' => 'image/svg+xml'][$ext] ?? 'image/png';
-
-        return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($file));
-    }
-
     /** A buyer's purchase receipt, headed by the event's organizer. */
     public static function forOrder(Order $order): array
     {
