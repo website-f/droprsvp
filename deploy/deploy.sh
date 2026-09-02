@@ -70,7 +70,16 @@ if [ -d "$WEB_ROOT" ] && [ "$WEB_ROOT" != "$APP_DIR/public" ]; then
   for f in "$APP_DIR"/public/*; do
     n=$(basename "$f")
     [ "$n" = "index.php" ] && continue   # keep the bridge front controller
-    ln -sfn "$f" "$n"
+    if [ "$n" = "storage" ]; then
+      # public/storage is ITSELF a symlink (storage:link -> ../storage/app/public).
+      # Linking public_html/storage to it creates a symlink-to-a-symlink, which Apache
+      # (SymLinksIfOwnerMatch) refuses to traverse — that is why uploaded images loaded
+      # locally (Herd serves public/ directly) but 404'd intermittently in production.
+      # Point straight at the REAL directory so it is a single, ownership-matching hop.
+      ln -sfn "$APP_DIR/storage/app/public" "$n"
+    else
+      ln -sfn "$f" "$n"
+    fi
   done
   # The glob above skips dotfiles, so .htaccess is never symlinked. Copy it so the
   # canonical-host + trailing-slash rules stay in sync with the repo on every deploy.
