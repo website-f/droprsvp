@@ -30,7 +30,7 @@ export default function Contact({ categories, seo }: { categories: Category[]; s
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />
 
-                <main className="mx-auto grid w-full max-w-5xl flex-1 gap-10 px-6 py-12 lg:grid-cols-[1fr_1.2fr]">
+                <main className="mx-auto grid w-full max-w-6xl flex-1 gap-10 px-6 py-12 lg:grid-cols-[1fr_1.2fr]">
                     {/* Intro */}
                     <div>
                         <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"><Headset className="size-3.5" /> We're here to help</span>

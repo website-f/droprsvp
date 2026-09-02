@@ -18,13 +18,13 @@ export function Footer({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-s
 
     return (
         <footer className="mt-auto border-t border-border bg-muted/30">
-            <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Brand */}
-                <div className="max-w-xs">
+                <div className="flex max-w-xs flex-col items-start">
                     <Link href="/" aria-label="DropRSVP home"><Wordmark height={footerHeight} /></Link>
                     {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
-                    <a href="mailto:support@droprsvp.com" className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"><Mail className="size-3.5" /> support@droprsvp.com</a>
-                    {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
+                    <a href="mailto:support@droprsvp.com" className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"><Mail className="size-3.5 shrink-0" /> support@droprsvp.com</a>
+                    {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex w-max rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
                 </div>
 
                 {/* Link columns */}
@@ -41,7 +41,7 @@ export function Footer({ tagline, ctaLabel = 'Create an event', ctaUrl = '/get-s
             </div>
 
             <div className="border-t border-border">
-                <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
+                <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
                     <LogoMark className="size-6" />
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                         <Link href="/contact" className="hover:text-foreground">Contact</Link>

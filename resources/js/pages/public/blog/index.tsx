@@ -16,7 +16,7 @@ export default function BlogIndex({ posts, seo }: { posts: Paginated; seo: Seo }
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />
 
-                <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-12">
+                <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
                     <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Blog</h1>
 
                     {posts.data.length === 0 ? (

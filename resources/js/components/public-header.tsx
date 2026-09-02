@@ -33,7 +33,7 @@ export function PublicHeader() {
 
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-            <div className="mx-auto flex max-w-[1280px] items-center gap-4 px-6 py-3">
+            <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
                 <Link href="/" aria-label="DropRSVP home" className="shrink-0">
                     <Wordmark height={branding?.header_height ?? 44} />
                 </Link>
@@ -78,7 +78,7 @@ export function PublicHeader() {
             {/* Mobile drawer */}
             {open && (
                 <div className="border-t border-border bg-background md:hidden">
-                    <nav className="mx-auto flex max-w-[1280px] flex-col gap-1 px-6 py-3">
+                    <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
                         {items.map((item, i) => (
                             <div key={`m-${item.url}-${i}`} className="py-1.5">
                                 <NavLink item={item} onClick={() => setOpen(false)} />

@@ -29,7 +29,7 @@ export default function HelpIndex({ categories, filters }: { categories: Categor
                     </div>
                 </section>
 
-                <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
+                <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
                     {categories.length === 0 ? (
                         <p className="text-center text-sm text-muted-foreground">No articles found{filters.q ? ` for “${filters.q}”` : ''}.</p>
                     ) : (

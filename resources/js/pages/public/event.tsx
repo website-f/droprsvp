@@ -193,12 +193,12 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                 )}
 
                 {event.cover_image && (
-                    <div className="mx-auto max-w-5xl px-6 pt-6">
+                    <div className="mx-auto max-w-6xl px-6 pt-6">
                         <img src={event.cover_image} alt={event.title} className="aspect-[16/6] w-full rounded-2xl object-cover" />
                     </div>
                 )}
 
-                <main className="mx-auto grid max-w-5xl gap-10 px-6 py-10 lg:grid-cols-[1fr_360px]">
+                <main className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[1fr_360px]">
                     <div>
                         {event.category && <Badge variant="secondary" className="mb-3">{event.category}</Badge>}
                         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{event.title}</h1>
