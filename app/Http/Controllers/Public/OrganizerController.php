@@ -71,12 +71,59 @@ class OrganizerController extends Controller
             'photos' => \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
                 ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
             'similar' => $this->similarEvents($organizer, $eventIds),
+            'discussion' => $this->discussion($organizer),
             'viewer' => [
                 'authed' => (bool) $user,
                 'is_self' => $user?->id === $organizer->id,
                 'is_following' => $user && $user->id !== $organizer->id ? $user->isFollowing($organizer) : false,
             ],
         ]);
+    }
+
+    /** Threaded discussion wall for the organizer (top-level posts + replies). */
+    private function discussion(User $organizer): array
+    {
+        return \App\Models\OrganizerPost::where('organizer_id', $organizer->id)->whereNull('parent_id')
+            ->with(['author:id,name', 'replies.author:id,name'])->latest()->limit(50)->get()
+            ->map(fn ($post) => [
+                'id' => $post->id,
+                'author' => $post->author?->name ?? 'User',
+                'body' => $post->body,
+                'when' => $post->created_at->diffForHumans(),
+                'is_organizer' => $post->user_id === $organizer->id,
+                'replies' => $post->replies->map(fn ($r) => [
+                    'id' => $r->id,
+                    'author' => $r->author?->name ?? 'User',
+                    'body' => $r->body,
+                    'when' => $r->created_at->diffForHumans(),
+                    'is_organizer' => $r->user_id === $organizer->id,
+                ])->all(),
+            ])->all();
+    }
+
+    /** Post to the organizer's discussion wall (signed-in users). */
+    public function discuss(Request $request, User $organizer)
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+            'parent_id' => ['nullable', 'integer'],
+        ]);
+
+        // A reply must target a top-level post on this same wall.
+        if (! empty($data['parent_id'])) {
+            $parent = \App\Models\OrganizerPost::where('id', $data['parent_id'])
+                ->where('organizer_id', $organizer->id)->whereNull('parent_id')->first();
+            abort_unless($parent, 422);
+        }
+
+        \App\Models\OrganizerPost::create([
+            'organizer_id' => $organizer->id,
+            'user_id' => $request->user()->id,
+            'parent_id' => $data['parent_id'] ?? null,
+            'body' => $data['body'],
+        ]);
+
+        return back()->with('success', 'Posted.');
     }
 
     /** Upcoming events from OTHER organizers in the same categories — "you might also like". */

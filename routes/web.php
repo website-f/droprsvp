@@ -171,6 +171,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
     // Follow organizers + the following feed.
     Route::post('organizers/{organizer}/follow', [FollowController::class, 'toggle'])->name('organizers.follow');
+    Route::post('o/{organizer:slug}/discussion', [OrganizerController::class, 'discuss'])->name('organizers.discuss');
     Route::get('following', [FollowController::class, 'index'])->name('following');
 
     // Buyer account — purchase history + re-download/re-send tickets + invoices.

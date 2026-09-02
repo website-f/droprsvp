@@ -1,5 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, Globe, Images, Info, MapPin, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { CalendarDays, Globe, Images, Info, MapPin, MessageCircle, Send, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
@@ -15,8 +15,10 @@ interface Organizer {
 }
 interface Members { attendees: { name: string }[]; followers: { name: string }[] }
 interface Photo { path: string; caption: string | null }
+interface Reply { id: number; author: string; body: string; when: string; is_organizer: boolean }
+interface Post extends Reply { replies: Reply[] }
 interface Viewer { authed: boolean; is_self: boolean; is_following: boolean }
-type Tab = 'about' | 'events' | 'members' | 'photos';
+type Tab = 'about' | 'events' | 'members' | 'photos' | 'discussion';
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7'];
@@ -77,19 +79,29 @@ function MemberGrid({ people, empty }: { people: { name: string }[]; empty: stri
     );
 }
 
-export default function OrganizerProfile({ organizer, upcoming, past, members, photos, similar, viewer }: {
-    organizer: Organizer; upcoming: EventCard[]; past: EventCard[]; members: Members; photos: Photo[]; similar: EventCard[]; viewer: Viewer;
+export default function OrganizerProfile({ organizer, upcoming, past, members, photos, similar, discussion, viewer }: {
+    organizer: Organizer; upcoming: EventCard[]; past: EventCard[]; members: Members; photos: Photo[]; similar: EventCard[]; discussion: Post[]; viewer: Viewer;
 }) {
     const [tab, setTab] = useState<Tab>('events');
+    const [replyTo, setReplyTo] = useState<number | null>(null);
+    const ask = useForm({ body: '', parent_id: null as number | null });
     const follow = () => (viewer.authed
         ? router.post(`/organizers/${organizer.id}/follow`, {}, { preserveScroll: true })
         : router.visit('/login'));
+
+    const postDiscussion = (parentId: number | null) => {
+        ask.transform((d) => ({ ...d, parent_id: parentId }));
+        ask.post(`/o/${organizer.slug}/discussion`, { preserveScroll: true, onSuccess: () => {
+ ask.reset(); setReplyTo(null); 
+} });
+    };
 
     const TABS: { key: Tab; label: string; icon: typeof Info; count?: number }[] = [
         { key: 'about', label: 'About', icon: Info },
         { key: 'events', label: 'Events', icon: CalendarDays, count: organizer.events_count },
         { key: 'members', label: 'Members', icon: Users, count: organizer.members + organizer.followers },
         { key: 'photos', label: 'Photos', icon: Images, count: photos.length },
+        { key: 'discussion', label: 'Discussion', icon: MessageCircle, count: discussion.length },
     ];
 
     return (
@@ -218,6 +230,79 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                 ))}
                             </div>
                         )
+                    )}
+
+                    {tab === 'discussion' && (
+                        <div className="mx-auto max-w-2xl">
+                            {/* Composer */}
+                            {viewer.authed ? (
+                                <form onSubmit={(e) => {
+ e.preventDefault(); postDiscussion(null); 
+}} className="mb-6 grid gap-2">
+                                    <textarea value={replyTo === null ? ask.data.body : ''} onChange={(e) => {
+ setReplyTo(null); ask.setData('body', e.target.value); 
+}} rows={3} placeholder={`Ask ${organizer.name} a question…`} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                                    <div><Button type="submit" size="sm" disabled={ask.processing || replyTo !== null || !ask.data.body.trim()}><Send className="size-3.5" /> Post</Button></div>
+                                </form>
+                            ) : (
+                                <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                                    <span className="text-muted-foreground">Log in to join the discussion.</span>
+                                    <Button asChild size="sm"><Link href="/login">Log in</Link></Button>
+                                </div>
+                            )}
+
+                            {discussion.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No posts yet — be the first to say hello.</p>
+                            ) : (
+                                <ul className="grid gap-4">
+                                    {discussion.map((c) => (
+                                        <li key={c.id} className="rounded-xl border border-border p-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: TINTS[c.id % TINTS.length] }}>{initials(c.author)}</span>
+                                                <span className="text-sm font-semibold">{c.author}</span>
+                                                {c.is_organizer && <Badge variant="secondary">Organizer</Badge>}
+                                                <span className="text-xs text-muted-foreground">{c.when}</span>
+                                            </div>
+                                            <p className="mt-2 whitespace-pre-line text-sm text-foreground/85">{c.body}</p>
+
+                                            {(c.replies.length > 0 || viewer.is_self) && (
+                                                <div className="mt-3 space-y-3 border-l-2 border-border pl-4">
+                                                    {c.replies.map((r) => (
+                                                        <div key={r.id}>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-semibold">{r.author}</span>
+                                                                {r.is_organizer && <Badge variant="secondary">Organizer</Badge>}
+                                                                <span className="text-xs text-muted-foreground">{r.when}</span>
+                                                            </div>
+                                                            <p className="mt-1 whitespace-pre-line text-sm text-foreground/85">{r.body}</p>
+                                                        </div>
+                                                    ))}
+                                                    {viewer.is_self && (
+                                                        replyTo === c.id ? (
+                                                            <form onSubmit={(e) => {
+ e.preventDefault(); postDiscussion(c.id); 
+}} className="grid gap-2">
+                                                                <textarea autoFocus value={ask.data.body} onChange={(e) => ask.setData('body', e.target.value)} rows={2} placeholder="Write a reply…" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                                                                <div className="flex gap-2">
+                                                                    <Button type="submit" size="sm" disabled={ask.processing || !ask.data.body.trim()}><Send className="size-3.5" /> Reply</Button>
+                                                                    <Button type="button" size="sm" variant="ghost" onClick={() => {
+ setReplyTo(null); ask.reset(); 
+}}>Cancel</Button>
+                                                                </div>
+                                                            </form>
+                                                        ) : (
+                                                            <button type="button" onClick={() => {
+ setReplyTo(c.id); ask.reset(); 
+}} className="text-xs font-medium text-muted-foreground hover:text-foreground">Reply</button>
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     )}
 
                     {/* Similar events */}
