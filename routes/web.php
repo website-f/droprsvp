@@ -215,6 +215,13 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/checkin', [CheckInController::class, 'index'])->name('events.checkin');
         Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
 
+        // Visitor / admission management — list, detail, export + fullscreen scanner.
+        Route::get('events/{event}/attendees', [\App\Http\Controllers\Host\AttendeeController::class, 'index'])->name('events.attendees');
+        Route::get('events/{event}/attendees/export', [\App\Http\Controllers\Host\AttendeeController::class, 'export'])->name('events.attendees.export');
+        Route::post('events/{event}/attendees/scan', [\App\Http\Controllers\Host\AttendeeController::class, 'scan'])->name('events.attendees.scan');
+        Route::post('events/{event}/attendees/{ticket}/check-in', [\App\Http\Controllers\Host\AttendeeController::class, 'checkIn'])->whereNumber('ticket')->name('events.attendees.checkin');
+        Route::post('events/{event}/attendees/{ticket}/undo', [\App\Http\Controllers\Host\AttendeeController::class, 'undo'])->whereNumber('ticket')->name('events.attendees.undo');
+
         // Event photo album (organizer uploads; shown on their public profile).
         Route::get('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'index'])->name('events.photos');
         Route::post('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'store'])->name('events.photos.store');
