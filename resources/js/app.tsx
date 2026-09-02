@@ -1,6 +1,7 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { FlashWatcher } from '@/components/flash-watcher';
+import { PromptProvider } from '@/components/prompt-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -45,9 +46,11 @@ createInertiaApp({
         return (
             <TooltipProvider delayDuration={0}>
                 <ConfirmProvider>
-                    {app}
-                    <FlashWatcher />
-                    <Toaster />
+                    <PromptProvider>
+                        {app}
+                        <FlashWatcher />
+                        <Toaster />
+                    </PromptProvider>
                 </ConfirmProvider>
             </TooltipProvider>
         );

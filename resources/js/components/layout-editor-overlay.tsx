@@ -1,6 +1,5 @@
-import { Minus, Plus, X } from 'lucide-react';
-import { useState  } from 'react';
-import type {ReactNode} from 'react';
+import { X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { SeatLayoutEditor } from '@/components/seat-layout-editor';
 import type { LayoutSectionRow } from '@/components/seat-layout-editor';
 import { TableLayoutEditor } from '@/components/table-layout-editor';
@@ -24,8 +23,6 @@ interface OverlayProps {
 
 /** Full-screen floorplan editor with zoom, hosting the reserved OR table editor. */
 export function LayoutEditorOverlay({ open, onClose, mode, sections, onSections, tables, onTables, propsList, onProps, toolbar }: OverlayProps) {
-    const [zoom, setZoom] = useState(1);
-
     if (!open) {
         return null;
     }
@@ -34,20 +31,18 @@ export function LayoutEditorOverlay({ open, onClose, mode, sections, onSections,
         <div className="fixed inset-0 z-[70] flex flex-col bg-background">
             <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
                 <h2 className="text-sm font-semibold">{mode === 'tables' ? 'Table floorplan editor' : 'Reserved seating editor'}</h2>
-                <div className="ml-auto flex items-center gap-0.5 rounded-lg border border-border p-0.5">
-                    <button type="button" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(2)))} className="flex size-7 items-center justify-center rounded-md hover:bg-accent" aria-label="Zoom out"><Minus className="size-4" /></button>
-                    <button type="button" onClick={() => setZoom(1)} className="min-w-12 text-xs font-medium tabular-nums">{Math.round(zoom * 100)}%</button>
-                    <button type="button" onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))} className="flex size-7 items-center justify-center rounded-md hover:bg-accent" aria-label="Zoom in"><Plus className="size-4" /></button>
+                <span className="hidden text-xs text-muted-foreground sm:inline">Scroll to zoom · drag empty space to pan · drag the ⟳ handle to rotate</span>
+                <div className="ml-auto flex items-center gap-2">
+                    <Button size="sm" onClick={onClose}>Done</Button>
+                    <button type="button" onClick={onClose} aria-label="Close editor" className="flex size-8 items-center justify-center rounded-lg hover:bg-accent"><X className="size-5" /></button>
                 </div>
-                <Button size="sm" onClick={onClose}>Done</Button>
-                <button type="button" onClick={onClose} aria-label="Close editor" className="flex size-8 items-center justify-center rounded-lg hover:bg-accent"><X className="size-5" /></button>
             </div>
             <div className="flex-1 overflow-auto p-4">
                 <div className="mx-auto max-w-5xl">
                     {toolbar && <div className="mb-3 flex flex-wrap items-center gap-2">{toolbar}</div>}
                     {mode === 'tables'
-                        ? <TableLayoutEditor tables={tables} onTables={onTables} props={propsList} onProps={onProps} zoom={zoom} />
-                        : <SeatLayoutEditor value={sections} onChange={onSections} zoom={zoom} />}
+                        ? <TableLayoutEditor tables={tables} onTables={onTables} props={propsList} onProps={onProps} />
+                        : <SeatLayoutEditor value={sections} onChange={onSections} />}
                 </div>
             </div>
         </div>

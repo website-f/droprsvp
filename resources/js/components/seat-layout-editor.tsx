@@ -1,5 +1,6 @@
 import { Armchair, LayoutPanelTop, RotateCw, Trash2, Users, X } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { RotateHandle, usePanZoom, ZoomControls } from '@/components/floorplan';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -42,7 +43,8 @@ function MiniSeats({ section }: { section: LayoutSectionRow }) {
     );
 }
 
-export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutSectionRow[]; onChange: (next: LayoutSectionRow[]) => void; zoom?: number }) {
+export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[]; onChange: (next: LayoutSectionRow[]) => void }) {
+    const { zoom, pan, containerRef, onWheel, startPan, onPanMove, endPan, zoomBy, reset } = usePanZoom();
     const [selected, setSelected] = useState<number | null>(null);
     const drag = useRef<{ i: number; sx: number; sy: number; ox: number; oy: number } | null>(null);
 
@@ -50,6 +52,7 @@ export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutS
     // so each handler closes over the current `value`/`onChange` (no window listeners).
     const startDrag = (e: React.PointerEvent, i: number) => {
         e.preventDefault();
+        e.stopPropagation();
         setSelected(i);
         drag.current = { i, sx: e.clientX, sy: e.clientY, ox: value[i].x, oy: value[i].y };
 
@@ -135,10 +138,18 @@ export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutS
                 <span className="self-center text-xs text-muted-foreground">Drag blocks to match your venue. Click one to edit it.</span>
             </div>
 
-            {/* Canvas */}
-            <div className="max-h-[70vh] min-h-[380px] overflow-auto rounded-xl border border-border bg-[repeating-linear-gradient(45deg,transparent,transparent_11px,rgba(0,0,0,0.02)_11px,rgba(0,0,0,0.02)_12px)]">
-              <div style={{ width: bounds.w * zoom, height: bounds.h * zoom }}>
-                <div className="relative" style={{ width: bounds.w, height: bounds.h, transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
+            {/* Infinite canvas — scroll to zoom, drag empty space to pan */}
+            <div
+                ref={containerRef}
+                onWheel={onWheel}
+                onPointerDown={(e) => {
+ setSelected(null); startPan(e); 
+}}
+                onPointerMove={onPanMove}
+                onPointerUp={endPan}
+                className="relative h-[62vh] min-h-[380px] touch-none overflow-hidden rounded-xl border border-border bg-[repeating-linear-gradient(45deg,transparent,transparent_11px,rgba(0,0,0,0.02)_11px,rgba(0,0,0,0.02)_12px)]"
+            >
+                <div className="absolute left-0 top-0" style={{ width: bounds.w, height: bounds.h, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}>
                     {value.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Add a stage and some blocks to build your layout.</div>
                     )}
@@ -149,6 +160,7 @@ export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutS
                         return (
                             <div
                                 key={i}
+                                data-floor-item
                                 onPointerDown={(e) => startDrag(e, i)}
                                 onPointerMove={onDragMove}
                                 onPointerUp={endDrag}
@@ -169,6 +181,8 @@ export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutS
                                         </div>
                                     </>
                                 )}
+
+                                {active && <RotateHandle onChange={(deg) => patch(i, 'rotation', String(deg))} />}
 
                                 {/* Delete (appears on hover / when selected) */}
                                 <button
@@ -196,7 +210,7 @@ export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutS
                         );
                     })}
                 </div>
-              </div>
+                <ZoomControls zoom={zoom} zoomBy={zoomBy} reset={reset} />
             </div>
 
             {/* Property panel */}

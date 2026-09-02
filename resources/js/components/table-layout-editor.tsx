@@ -1,5 +1,6 @@
 import { Circle, Plus, RectangleHorizontal, RotateCw, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { RotateHandle, usePanZoom, ZoomControls } from '@/components/floorplan';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -36,20 +37,19 @@ const PROP_ORDER = ['stage', 'entrance', 'dancefloor', 'catering', 'reception', 
 type Sel = { t: 'table' | 'prop'; i: number } | null;
 
 /**
- * Banquet floorplan editor — drag round/rect tables and custom props (stage,
- * entrance, dance floor…), rotate and resize them, and set seats per table.
- * `zoom` scales the canvas; drag/resize deltas are divided by it so editing stays
- * 1:1 at any zoom.
+ * Banquet floorplan editor on an infinite pan/zoom canvas — drag round/rect
+ * tables and custom props (stage, entrance, dance floor…), rotate them with an
+ * on-item handle, resize props, and set seats per table.
  */
 export function TableLayoutEditor({
-    tables, onTables, props, onProps, zoom = 1,
+    tables, onTables, props, onProps,
 }: {
     tables: TableRow[];
     onTables: (v: TableRow[]) => void;
     props: PropRow[];
     onProps: (v: PropRow[]) => void;
-    zoom?: number;
 }) {
+    const { zoom, pan, containerRef, onWheel, startPan, onPanMove, endPan, zoomBy, reset } = usePanZoom();
     const [sel, setSel] = useState<Sel>(null);
     const drag = useRef<{ kind: 'table' | 'prop'; i: number; sx: number; sy: number; ox: number; oy: number } | null>(null);
     const rez = useRef<{ i: number; sx: number; sy: number; ow: number; oh: number } | null>(null);
@@ -75,6 +75,7 @@ export function TableLayoutEditor({
 
     const startDrag = (e: React.PointerEvent, kind: 'table' | 'prop', i: number) => {
         e.preventDefault();
+        e.stopPropagation();
         setSel({ t: kind, i });
         const src = kind === 'table' ? tables[i] : props[i];
         drag.current = { kind, i, sx: e.clientX, sy: e.clientY, ox: src.pos_x, oy: src.pos_y };
@@ -144,70 +145,75 @@ export function TableLayoutEditor({
                 <span className="text-xs text-muted-foreground">Drag to arrange · click to edit · rotate &amp; resize in the panel.</span>
             </div>
 
-            {/* Canvas */}
+            {/* Infinite canvas — scroll to zoom, drag empty space to pan */}
             <div
-                className="relative h-full max-h-[70vh] min-h-[380px] w-full overflow-auto rounded-xl border border-border bg-[radial-gradient(circle,theme(colors.border)_1px,transparent_1px)] [background-size:20px_20px]"
+                ref={containerRef}
+                onWheel={onWheel}
                 onPointerDown={(e) => {
- if (e.target === e.currentTarget) {
-setSel(null);
-} 
+ setSel(null); startPan(e); 
 }}
+                onPointerMove={onPanMove}
+                onPointerUp={endPan}
+                className="relative h-[62vh] min-h-[380px] w-full touch-none overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle,theme(colors.border)_1px,transparent_1px)] [background-size:20px_20px]"
             >
-                <div style={{ width: bw * zoom, height: bh * zoom }}>
-                    <div className="relative" style={{ width: bw, height: bh, transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
-                        {tables.length === 0 && props.length === 0 && (
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Add a table or prop to start your floorplan.</div>
-                        )}
+                <div className="absolute left-0 top-0" style={{ width: bw, height: bh, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}>
+                    {tables.length === 0 && props.length === 0 && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Add a table or prop to start your floorplan.</div>
+                    )}
 
-                        {/* Props (behind tables) */}
-                        {props.map((p, i) => {
-                            const active = sel?.t === 'prop' && sel.i === i;
+                    {/* Props (behind tables) */}
+                    {props.map((p, i) => {
+                        const active = sel?.t === 'prop' && sel.i === i;
 
-                            return (
-                                <div
-                                    key={`p-${i}`}
-                                    onPointerDown={(e) => startDrag(e, 'prop', i)}
-                                    onPointerMove={onDragMove}
-                                    onPointerUp={endDrag}
-                                    style={{ left: p.pos_x, top: p.pos_y, width: p.width, height: p.height, transform: `rotate(${p.rotation}deg)` }}
-                                    className={`group absolute flex cursor-move touch-none select-none items-center justify-center rounded-lg border-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm ${active ? 'ring-2 ring-foreground' : ''}`}
-                                >
-                                    <span className="absolute inset-0 rounded-md opacity-90" style={{ backgroundColor: p.color }} />
-                                    <span className="relative px-1">{p.label}</span>
-                                    <button type="button" aria-label="Delete prop" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {
+                        return (
+                            <div
+                                key={`p-${i}`}
+                                data-floor-item
+                                onPointerDown={(e) => startDrag(e, 'prop', i)}
+                                onPointerMove={onDragMove}
+                                onPointerUp={endDrag}
+                                style={{ left: p.pos_x, top: p.pos_y, width: p.width, height: p.height, transform: `rotate(${p.rotation}deg)` }}
+                                className={`group absolute flex cursor-move touch-none select-none items-center justify-center rounded-lg border-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm ${active ? 'ring-2 ring-foreground' : ''}`}
+                            >
+                                <span className="absolute inset-0 rounded-md opacity-90" style={{ backgroundColor: p.color }} />
+                                <span className="relative px-1">{p.label}</span>
+                                {active && <RotateHandle onChange={(deg) => patchProp(i, { rotation: deg })} />}
+                                <button type="button" aria-label="Delete prop" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {
  e.stopPropagation(); removeProp(i); 
 }} className={`absolute -right-2 -top-2 z-10 flex size-5 items-center justify-center rounded-full bg-destructive text-white shadow ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><X className="size-3" /></button>
-                                    <span role="button" aria-label="Resize" onPointerDown={(e) => startResize(e, i)} onPointerMove={onResizeMove} onPointerUp={endResize} className={`absolute -bottom-1.5 -right-1.5 z-10 size-3.5 cursor-nwse-resize rounded-sm border-2 border-foreground bg-background ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                                <span role="button" aria-label="Resize" onPointerDown={(e) => startResize(e, i)} onPointerMove={onResizeMove} onPointerUp={endResize} className={`absolute -bottom-1.5 -right-1.5 z-10 size-3.5 cursor-nwse-resize rounded-sm border-2 border-foreground bg-background ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                            </div>
+                        );
+                    })}
+
+                    {/* Tables */}
+                    {tables.map((t, i) => {
+                        const geo = tableGeom(t.shape, t.capacity);
+                        const active = sel?.t === 'table' && sel.i === i;
+
+                        return (
+                            <div
+                                key={`t-${i}`}
+                                data-floor-item
+                                onPointerDown={(e) => startDrag(e, 'table', i)}
+                                onPointerMove={onDragMove}
+                                onPointerUp={endDrag}
+                                style={{ left: t.pos_x, top: t.pos_y, width: geo.size, height: geo.size, transform: `rotate(${t.rotation}deg)` }}
+                                className={`group absolute cursor-move touch-none select-none rounded-2xl ${active ? 'ring-2 ring-foreground' : ''}`}
+                            >
+                                {geo.seats.map((s, si) => <span key={si} style={{ left: s.x, top: s.y, width: SEAT, height: SEAT }} className="absolute rounded-full bg-foreground/25" />)}
+                                <div style={{ left: geo.body.left, top: geo.body.top, width: geo.body.w, height: geo.body.h }} className={`absolute flex items-center justify-center border border-foreground/30 bg-foreground/10 text-center text-[10px] font-semibold leading-tight text-foreground ${geo.body.round ? 'rounded-full' : 'rounded-md'}`}>
+                                    <span className="px-1">{t.name}<br /><span className="font-normal text-muted-foreground">{t.capacity} seats</span></span>
                                 </div>
-                            );
-                        })}
-
-                        {/* Tables */}
-                        {tables.map((t, i) => {
-                            const geo = tableGeom(t.shape, t.capacity);
-                            const active = sel?.t === 'table' && sel.i === i;
-
-                            return (
-                                <div
-                                    key={`t-${i}`}
-                                    onPointerDown={(e) => startDrag(e, 'table', i)}
-                                    onPointerMove={onDragMove}
-                                    onPointerUp={endDrag}
-                                    style={{ left: t.pos_x, top: t.pos_y, width: geo.size, height: geo.size, transform: `rotate(${t.rotation}deg)` }}
-                                    className={`group absolute cursor-move touch-none select-none rounded-2xl ${active ? 'ring-2 ring-foreground' : ''}`}
-                                >
-                                    {geo.seats.map((s, si) => <span key={si} style={{ left: s.x, top: s.y, width: SEAT, height: SEAT }} className="absolute rounded-full bg-foreground/25" />)}
-                                    <div style={{ left: geo.body.left, top: geo.body.top, width: geo.body.w, height: geo.body.h }} className={`absolute flex items-center justify-center border border-foreground/30 bg-foreground/10 text-center text-[10px] font-semibold leading-tight text-foreground ${geo.body.round ? 'rounded-full' : 'rounded-md'}`}>
-                                        <span className="px-1">{t.name}<br /><span className="font-normal text-muted-foreground">{t.capacity} seats</span></span>
-                                    </div>
-                                    <button type="button" aria-label="Delete table" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {
+                                {active && <RotateHandle onChange={(deg) => patchTable(i, { rotation: deg })} />}
+                                <button type="button" aria-label="Delete table" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {
  e.stopPropagation(); removeTable(i); 
 }} className={`absolute right-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-destructive text-white shadow ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><X className="size-3" /></button>
-                                </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })}
                 </div>
+                <ZoomControls zoom={zoom} zoomBy={zoomBy} reset={reset} />
             </div>
 
             {/* Table properties */}

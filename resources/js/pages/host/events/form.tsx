@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { LayoutEditorOverlay, LayoutPreview } from '@/components/layout-editor-overlay';
+import { usePrompt } from '@/components/prompt-dialog';
 import {  newSection } from '@/components/seat-layout-editor';
 import type {LayoutSectionRow} from '@/components/seat-layout-editor';
 import { newTable } from '@/components/table-layout-editor';
@@ -113,6 +114,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     // Warn before losing unsaved event edits (refresh, back, or navigating away).
     useUnsavedChanges(form.isDirty && !processing);
     const mode = data.ticketing_mode;
+    const prompt = usePrompt();
     const [editorOpen, setEditorOpen] = useState(false);
     const tabCls = (active: boolean) => `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`;
     const coverRef = useRef<HTMLInputElement>(null);
@@ -167,8 +169,8 @@ galleryRef.current.value = '';
     const patchTicket = (i: number, key: keyof TicketRow, val: string | boolean) =>
         setData('ticketTypes', data.ticketTypes.map((t, idx) => (idx === i ? { ...t, [key]: val } : t)));
 
-    const saveTemplate = () => {
-        const name = window.prompt('Name this seating template (e.g. "Main Hall 400"):');
+    const saveTemplate = async () => {
+        const name = await prompt({ title: 'Save seating template', label: 'Template name', placeholder: 'e.g. Main Hall 400', confirmText: 'Save' });
 
         if (!name?.trim()) {
             return;

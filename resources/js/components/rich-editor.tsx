@@ -2,6 +2,7 @@ import { Code2, Eye } from 'lucide-react';
 import Quill from 'quill';
 import { useEffect, useRef, useState } from 'react';
 import 'quill/dist/quill.snow.css';
+import { usePrompt } from '@/components/prompt-dialog';
 import { uploadImage } from '@/lib/upload';
 
 /** Pull the 11-char video id out of any common YouTube URL shape. */
@@ -48,11 +49,14 @@ export const contentClass =
 export function RichEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
     'use no memo';
 
+    const prompt = usePrompt();
     const hostRef = useRef<HTMLDivElement>(null);
     const quillRef = useRef<Quill | null>(null);
     const onChangeRef = useRef(onChange);
+    const promptRef = useRef(prompt);
     useEffect(() => {
         onChangeRef.current = onChange;
+        promptRef.current = prompt;
     });
 
     const [htmlMode, setHtmlMode] = useState(false);
@@ -79,17 +83,17 @@ return;
                     handlers: {
                         // Insert a YouTube link as a playable, responsive embed.
                         video() {
-                            const url = window.prompt('Paste a YouTube link');
-
-                            if (!url) {
-                                return;
-                            }
-
-                            const id = youtubeId(url.trim());
-                            const src = id ? `https://www.youtube.com/embed/${id}` : url.trim();
                             const range = quill.getSelection(true);
-                            quill.insertEmbed(range.index, 'video', src, 'user');
-                            quill.setSelection(range.index + 1, 0);
+                            promptRef.current({ title: 'Insert YouTube video', label: 'YouTube link', placeholder: 'https://www.youtube.com/watch?v=…', confirmText: 'Insert' }).then((url) => {
+                                if (!url) {
+                                    return;
+                                }
+
+                                const id = youtubeId(url.trim());
+                                const src = id ? `https://www.youtube.com/embed/${id}` : url.trim();
+                                quill.insertEmbed(range.index, 'video', src, 'user');
+                                quill.setSelection(range.index + 1, 0);
+                            });
                         },
                         image() {
                             const input = document.createElement('input');
