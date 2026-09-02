@@ -36,6 +36,8 @@ class AttendeeController extends Controller
             'ticketTypes' => $event->ticketTypes()->orderBy('sort_order')->get(['id', 'name'])
                 ->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->values(),
             'stats' => $this->stats($event),
+            // Arriving from the "Check-in (scan)" shortcut opens the scanner immediately.
+            'openScanner' => $request->boolean('scan'),
         ]);
     }
 

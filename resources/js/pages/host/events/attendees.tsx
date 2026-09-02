@@ -26,6 +26,7 @@ interface Props {
     filters: Filters;
     ticketTypes: { id: number; name: string }[];
     stats: Stats;
+    openScanner?: boolean;
 }
 interface ScanResponse { result: 'ok' | 'already' | 'valid' | 'invalid' | 'notfound'; message: string; ticket?: Row; stats?: Stats }
 
@@ -36,7 +37,7 @@ const STATUS_LABEL: Record<string, string> = {
     checked_in: 'Checked in', valid: 'Not checked in', void: 'Void', refunded: 'Refunded',
 };
 
-export default function Attendees({ event, tickets, filters, ticketTypes, stats }: Props) {
+export default function Attendees({ event, tickets, filters, ticketTypes, stats, openScanner = false }: Props) {
     // Rows + stats live locally so scans/check-ins update instantly without a reload;
     // they re-sync whenever Inertia replaces the props (filter change / pagination).
     const [rows, setRows] = useState<Row[]>(tickets.data);
@@ -53,8 +54,8 @@ export default function Attendees({ event, tickets, filters, ticketTypes, stats 
     const searchTimer = useRef<number | undefined>(undefined);
     const [detail, setDetail] = useState<Row | null>(null);
 
-    // Scanner state.
-    const [scanOpen, setScanOpen] = useState(false);
+    // Scanner state — opens immediately when reached via the "Check-in (scan)" shortcut.
+    const [scanOpen, setScanOpen] = useState(openScanner);
     const [auto, setAuto] = useState(true);
     const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
     const [pending, setPending] = useState<Row | null>(null); // valid ticket awaiting manual confirm
