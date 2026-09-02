@@ -13,8 +13,9 @@ return [
 
     'site_name' => env('APP_NAME', 'DropRSVP'),
 
-    // BCP-47 / OG locale, e.g. "en_US", "ms_MY".
-    'locale' => env('SEO_LOCALE', 'en_US'),
+    // BCP-47 / OG locale, e.g. "en_US", "ms_MY". Malaysian English by default —
+    // drives og:locale and JSON-LD inLanguage (en-MY), matching <html lang>.
+    'locale' => env('SEO_LOCALE', 'en_MY'),
 
     // Title template — {title} and {site} are replaced. Home uses {site} only.
     'title_separator' => env('SEO_TITLE_SEPARATOR', '·'),
