@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Switch, SwitchField } from '@/components/ui/switch';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { uploadImage } from '@/lib/upload';
 
 interface Category { id: number; name: string }
@@ -95,6 +96,8 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0' })),
     });
     const { data, setData, errors, processing } = form;
+    // Warn before losing unsaved event edits (refresh, back, or navigating away).
+    useUnsavedChanges(form.isDirty && !processing);
     const coverRef = useRef<HTMLInputElement>(null);
     const galleryRef = useRef<HTMLInputElement>(null);
     const [uploadingCover, setUploadingCover] = useState(false);

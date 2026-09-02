@@ -9,6 +9,7 @@ import type {SeoData} from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SwitchField } from '@/components/ui/switch';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 // Heavy (pulls the Puck runtime) — only loaded when a built page is previewed.
 const PagePreview = lazy(() => import('@/components/cms/page-preview'));
@@ -29,6 +30,7 @@ export default function PageForm({ page }: { page: PageProp | null }) {
         seo: page?.seo ?? emptySeo(),
     });
     const { data, setData, processing, errors } = form;
+    useUnsavedChanges(form.isDirty && !processing);
     const published = page?.status === 'published';
     const built = !!(page && page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
 

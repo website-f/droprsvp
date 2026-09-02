@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CreatableSelect } from '@/components/ui/creatable-select';
 import { Label } from '@/components/ui/label';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { uploadImage } from '@/lib/upload';
 
 interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; seo: SeoData }
@@ -31,6 +32,7 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
         seo: post?.seo ?? emptySeo(),
     });
     const { data, setData, processing, errors } = form;
+    useUnsavedChanges(form.isDirty && !processing);
     const fileRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const published = post?.status === 'published';

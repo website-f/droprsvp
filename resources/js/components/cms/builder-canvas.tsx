@@ -3,11 +3,12 @@ import { Puck, usePuck } from '@measured/puck';
 import type { Data } from '@measured/puck';
 import '@measured/puck/puck.css';
 import { ArrowLeft, Eye } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { COMPONENT_ICONS, config, emptyData } from '@/components/cms/puck-config';
 import type { PostCard } from '@/components/cms/puck-config';
 import { Button } from '@/components/ui/button';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 export interface BuilderPage { id: number; title: string; slug: string; status: string; data: Data | null; posts?: PostCard[] }
 
@@ -28,7 +29,7 @@ function cookie(name: string): string | undefined {
 }
 
 /** Back / Preview / Save — replaces Puck's default Publish button. */
-function HeaderActions({ page }: { page: BuilderPage }) {
+function HeaderActions({ page, onSaved }: { page: BuilderPage; onSaved: (data: Data) => void }) {
     'use no memo';
     const { appState } = usePuck();
     const [saving, setSaving] = useState(false);
@@ -47,6 +48,8 @@ function HeaderActions({ page }: { page: BuilderPage }) {
             if (!res.ok) {
                 throw new Error();
             }
+
+            onSaved(appState.data); // clear the unsaved-changes guard
 
             return true;
         } catch {
@@ -82,6 +85,11 @@ function HeaderActions({ page }: { page: BuilderPage }) {
 
 export default function BuilderCanvas({ page }: { page: BuilderPage }) {
     'use no memo';
+    // Track unsaved layout edits by comparing the live Puck data to what was last
+    // saved, so leaving the builder (Back, refresh, nav) warns before discarding.
+    const [dirty, setDirty] = useState(false);
+    const savedSnapshot = useRef(JSON.stringify(page.data ?? emptyData));
+    useUnsavedChanges(dirty);
 
     return (
         <div className="h-screen">
@@ -92,7 +100,13 @@ export default function BuilderCanvas({ page }: { page: BuilderPage }) {
                 headerTitle={page.title}
                 headerPath={`/${page.slug}`}
                 onPublish={() => {}}
-                overrides={{ headerActions: () => <HeaderActions page={page} />, drawerItem: ({ name }) => <DrawerItem name={name} /> }}
+                onChange={(data) => setDirty(JSON.stringify(data) !== savedSnapshot.current)}
+                overrides={{
+                    headerActions: () => <HeaderActions page={page} onSaved={(data) => {
+ savedSnapshot.current = JSON.stringify(data); setDirty(false); 
+}} />,
+                    drawerItem: ({ name }) => <DrawerItem name={name} />,
+                }}
             />
         </div>
     );
