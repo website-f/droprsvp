@@ -106,7 +106,7 @@ class HomeController extends Controller
             'title' => $event->title,
             'cover_image' => $event->cover_image,
             'category' => $event->category?->name,
-            'when' => optional($event->starts_at)?->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y'),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),

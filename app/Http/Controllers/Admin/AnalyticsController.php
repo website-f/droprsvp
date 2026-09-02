@@ -113,7 +113,7 @@ class AnalyticsController extends Controller
             'slug' => $e->slug,
             'title' => $e->title,
             'status' => $e->status,
-            'when' => optional($e->starts_at)?->setTimezone($e->timezone)->format('j M Y'),
+            'when' => $e->starts_at?->setTimezone($e->timezone)->format('j M Y'),
             'impressions' => $impressions,
             'clicks' => $clicks,
             'ctr' => $impressions > 0 ? round($clicks / $impressions * 100, 1) : 0.0,

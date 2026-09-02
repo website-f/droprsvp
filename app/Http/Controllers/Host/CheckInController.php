@@ -23,7 +23,7 @@ class CheckInController extends Controller
                 ->get(['attendee_name', 'checked_in_at'])
                 ->map(fn ($t) => [
                     'name' => $t->attendee_name ?: 'Guest',
-                    'at' => optional($t->checked_in_at)->setTimezone($event->timezone)->format('g:i A'),
+                    'at' => $t->checked_in_at?->setTimezone($event->timezone)->format('g:i A'),
                 ]),
             'scan' => $request->session()->get('scan'),
         ]);
@@ -45,7 +45,7 @@ class CheckInController extends Controller
         } elseif (in_array($ticket->status, ['void', 'refunded'], true)) {
             $result = ['ok' => false, 'name' => $ticket->attendee_name, 'message' => "Ticket is not valid ({$ticket->status})."];
         } elseif ($ticket->status === 'checked_in') {
-            $result = ['ok' => false, 'already' => true, 'name' => $ticket->attendee_name, 'message' => 'Already checked in at '.optional($ticket->checked_in_at)->setTimezone($event->timezone)->format('g:i A').'.'];
+            $result = ['ok' => false, 'already' => true, 'name' => $ticket->attendee_name, 'message' => 'Already checked in at '.$ticket->checked_in_at?->setTimezone($event->timezone)->format('g:i A').'.'];
         } else {
             $ticket->update(['status' => 'checked_in', 'checked_in_at' => now(), 'checked_in_by' => $request->user()->id]);
             $result = ['ok' => true, 'name' => $ticket->attendee_name ?: 'Guest', 'message' => 'Checked in.'];

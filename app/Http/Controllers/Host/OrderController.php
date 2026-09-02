@@ -31,7 +31,7 @@ class OrderController extends Controller
                     'currency' => $o->currency,
                     'status' => $o->status,
                     'notes' => $o->notes,
-                    'date' => optional($o->paid_at)->setTimezone($event->timezone)->format('j M Y, g:i A'),
+                    'date' => $o->paid_at?->setTimezone($event->timezone)->format('j M Y, g:i A'),
                 ]),
         ]);
     }

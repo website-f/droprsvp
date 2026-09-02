@@ -30,7 +30,7 @@ class TicketController extends Controller
                 'event' => [
                     'title' => $event->title,
                     'slug' => $event->slug,
-                    'when' => optional($event->starts_at)?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
+                    'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
                     'venue_name' => $event->venue_name,
                     'is_online' => $event->is_online,
                 ],

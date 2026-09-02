@@ -239,7 +239,7 @@ class DiscoverController extends Controller
             'category' => $event->category?->name,
             'city' => $event->city,
             'boosted' => $event->isBoosted(),
-            'when' => optional($event->starts_at)?->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y'),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),

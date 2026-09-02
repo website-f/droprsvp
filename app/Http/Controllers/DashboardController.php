@@ -38,7 +38,7 @@ class DashboardController extends Controller
                 ->map(fn ($e) => [
                     'title' => $e->title,
                     'slug' => $e->slug,
-                    'when' => optional($e->starts_at)->setTimezone($e->timezone)->format('D, j M · g:i A'),
+                    'when' => $e->starts_at?->setTimezone($e->timezone)->format('D, j M · g:i A'),
                     'sold' => $e->sold_count,
                 ]),
             'calendar' => $user->events()
@@ -48,8 +48,8 @@ class DashboardController extends Controller
                 ->map(fn ($e) => [
                     'id' => $e->id,
                     'title' => $e->title,
-                    'date' => optional($e->starts_at)->setTimezone($e->timezone)->toDateString(),
-                    'time' => optional($e->starts_at)->setTimezone($e->timezone)->format('g:i A'),
+                    'date' => $e->starts_at?->setTimezone($e->timezone)->toDateString(),
+                    'time' => $e->starts_at?->setTimezone($e->timezone)->format('g:i A'),
                     'venue' => $e->is_online ? 'Online' : $e->venue_name,
                     'url' => "/host/events/{$e->slug}/edit",
                     'tone' => $e->status === 'published' ? 'default' : 'muted',

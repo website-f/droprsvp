@@ -148,7 +148,7 @@ class CheckoutController extends Controller
             'event' => [
                 'title' => $order->event->title,
                 'slug' => $order->event->slug,
-                'when' => optional($order->event->starts_at)?->setTimezone($order->event->timezone)->format('D, j M Y · g:i A'),
+                'when' => $order->event->starts_at?->setTimezone($order->event->timezone)->format('D, j M Y · g:i A'),
                 'venue_name' => $order->event->venue_name,
                 'is_online' => $order->event->is_online,
             ],
