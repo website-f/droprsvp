@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { uploadImage } from '@/lib/upload';
 
 interface City { name: string; slug: string }
-interface Banner { image: string; heading: string; subheading: string; cta_label: string; cta_url: string }
+interface Banner { image: string; heading: string; subheading: string; cta_label: string; cta_url: string; align?: 'left' | 'center' | 'right' }
 
 interface Sections {
     hero: { style: 'classic' | 'banners'; autoplay: boolean; interval: number; banners: Banner[] };
@@ -80,7 +80,7 @@ return;
     };
 
     // Hero banners.
-    const emptyBanner = (): Banner => ({ image: '', heading: '', subheading: '', cta_label: '', cta_url: '' });
+    const emptyBanner = (): Banner => ({ image: '', heading: '', subheading: '', cta_label: '', cta_url: '', align: 'center' });
     const patchHero = (val: Partial<Sections['hero']>) => setData({ ...data, hero: { ...data.hero, ...val } });
     const patchBanner = (i: number, val: Partial<Banner>) => patchHero({ banners: data.hero.banners.map((b, idx) => (idx === i ? { ...b, ...val } : b)) });
     const uploadBanner = async (i: number, file?: File) => {
@@ -160,6 +160,14 @@ patchHero({ style: 'banners', banners: [emptyBanner()] });
                                         <div className="grid gap-3 sm:grid-cols-2">
                                             <div className="grid gap-1.5"><Label className="text-xs">Button label</Label><input className={field} value={b.cta_label} onChange={(e) => patchBanner(i, { cta_label: e.target.value })} placeholder="Get Into Live Music" /></div>
                                             <div className="grid gap-1.5"><Label className="text-xs">Button link</Label><input className={field} value={b.cta_url} onChange={(e) => patchBanner(i, { cta_url: e.target.value })} placeholder="/en-my/all/music" /></div>
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label className="text-xs">Text position</Label>
+                                            <div className="inline-flex w-max rounded-lg border border-border p-0.5">
+                                                {(['left', 'center', 'right'] as const).map((a) => (
+                                                    <button key={a} type="button" onClick={() => patchBanner(i, { align: a })} className={`rounded-md px-3 py-1 text-xs font-medium capitalize ${(b.align ?? 'center') === a ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>{a}</button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, ClipboardList, Flame, Megaphone, Percent, ReceiptText, Send, Settings2 } from 'lucide-react';
+import { ArmchairIcon, Banknote, ClipboardList, Flame, Percent, ReceiptText, Send, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ interface SettingsData {
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'checkout' | 'ticketing' | 'announce' | 'search' | 'general';
+type Tab = 'payments' | 'tax' | 'checkout' | 'ticketing' | 'search' | 'general';
 
 const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
     { key: 'phone', label: 'Phone number' },
@@ -71,7 +71,6 @@ export default function Settings({ settings }: { settings: SettingsData }) {
         { key: 'tax', label: 'Tax', icon: Percent },
         { key: 'checkout', label: 'Checkout', icon: ClipboardList },
         { key: 'ticketing', label: 'Ticketing', icon: ArmchairIcon },
-        { key: 'announce', label: 'Announce', icon: Megaphone },
         { key: 'search', label: 'Search', icon: Flame },
         { key: 'general', label: 'General', icon: Settings2 },
     ];
@@ -158,7 +157,7 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                         </div>
                     )}
 
-                    {tab === 'announce' && (
+                    {tab === 'general' && (
                         <div className="grid gap-6 lg:grid-cols-2">
                             {/* Announcement banner / modal (saved with Settings) */}
                             <div className="grid content-start gap-3">

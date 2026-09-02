@@ -2,7 +2,14 @@ import { Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-export interface Banner { image: string; heading: string; subheading: string; cta_label: string; cta_url: string }
+export interface Banner { image: string; heading: string; subheading: string; cta_label: string; cta_url: string; align?: 'left' | 'center' | 'right' }
+
+const ALIGN_ITEMS = { left: 'items-start text-left', center: 'items-center text-center', right: 'items-end text-right' } as const;
+const ALIGN_GRADIENT = {
+    left: 'from-black/70 via-black/35 to-transparent',
+    center: 'from-black/55 via-black/35 to-black/55',
+    right: 'from-transparent via-black/35 to-black/70',
+} as const;
 
 /**
  * Eventbrite-style hero carousel: full-width image banners with a heading +
@@ -56,14 +63,15 @@ go(i + (dx < 0 ? 1 : -1));
             >
                 <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${i * 100}%)` }}>
                     {slides.map((b, idx) => {
+                        const align = b.align ?? 'center';
                         const content = (
                             <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden bg-muted sm:aspect-[1200/420]" style={{ flex: '0 0 100%' }}>
                                 {b.image && <img src={b.image} alt={b.heading || ''} className="absolute inset-0 size-full object-cover" loading={idx === 0 ? 'eager' : 'lazy'} />}
-                                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-transparent" />
+                                <div className={`absolute inset-0 bg-gradient-to-r ${ALIGN_GRADIENT[align]}`} />
                                 {(b.heading || b.subheading || b.cta_label) && (
-                                    <div className="relative flex h-full max-w-lg flex-col justify-center gap-3 p-6 text-white sm:p-10">
-                                        {b.heading && <h2 className="text-2xl font-extrabold uppercase leading-tight tracking-tight sm:text-4xl">{b.heading}</h2>}
-                                        {b.subheading && <p className="text-sm text-white/85 sm:text-base">{b.subheading}</p>}
+                                    <div className={`relative flex h-full flex-col justify-center gap-3 p-6 text-white sm:p-10 ${ALIGN_ITEMS[align]}`}>
+                                        {b.heading && <h2 className="max-w-2xl text-2xl font-extrabold uppercase leading-tight tracking-tight sm:text-4xl">{b.heading}</h2>}
+                                        {b.subheading && <p className="max-w-xl text-sm text-white/85 sm:text-base">{b.subheading}</p>}
                                         {b.cta_label && b.cta_url && (
                                             isInternal(b.cta_url)
                                                 ? <Link href={b.cta_url} className="mt-1 w-max rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-transform hover:scale-[1.03]">{b.cta_label}</Link>

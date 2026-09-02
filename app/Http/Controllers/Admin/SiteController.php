@@ -33,6 +33,7 @@ class SiteController extends Controller
             'hero.banners.*.subheading' => ['nullable', 'string', 'max:200'],
             'hero.banners.*.cta_label' => ['nullable', 'string', 'max:60'],
             'hero.banners.*.cta_url' => ['nullable', 'string', 'max:2048'],
+            'hero.banners.*.align' => ['nullable', 'in:left,center,right'],
             'organizer' => ['array'],
             'organizer.enabled' => ['boolean'],
             'organizer.heading' => ['nullable', 'string', 'max:120'],
