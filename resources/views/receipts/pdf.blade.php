@@ -1,3 +1,4 @@
+@php($style = ($style ?? []) + ['accent' => '#27272a', 'footer_note' => 'powered by DropRSVP', 'show_logo' => false, 'logo' => ''])
 <!DOCTYPE html>
 <html>
 <head>
@@ -29,6 +30,9 @@
     <table>
         <tr>
             <td style="width: 60%; vertical-align: top;">
+                @if ($style['show_logo'] && $style['logo'])
+                    <img src="{{ $style['logo'] }}" alt="" style="max-height: 34px; margin-bottom: 8px;">
+                @endif
                 <div class="seller">{{ $receipt['seller']['name'] }}</div>
                 @if ($receipt['seller']['detail'])
                     <div class="muted" style="margin-top: 3px;">{{ $receipt['seller']['detail'] }}</div>
@@ -36,7 +40,7 @@
             </td>
             <td style="width: 40%; vertical-align: top;" class="right">
                 <div class="eyebrow">{{ $receipt['title'] }}</div>
-                <h1 class="doc">{{ $receipt['number'] }}</h1>
+                <h1 class="doc" style="color: {{ $style['accent'] }};">{{ $receipt['number'] }}</h1>
                 <div class="muted" style="margin-top: 3px;">{{ $receipt['date'] }}</div>
                 <div style="margin-top: 7px;">
                     <span class="badge {{ $receipt['status'] === 'refunded' ? 'refunded' : 'paid' }}">{{ $receipt['status'] }}</span>
@@ -96,13 +100,13 @@
                     @if ($receipt['tax'] > 0)
                         <tr><td class="muted">Tax</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['tax'], 2) }}</td></tr>
                     @endif
-                    <tr class="total-row"><td>Total</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['total'], 2) }}</td></tr>
+                    <tr class="total-row"><td style="color: {{ $style['accent'] }};">Total</td><td class="right" style="color: {{ $style['accent'] }};">{{ $receipt['currency'] }} {{ number_format($receipt['total'], 2) }}</td></tr>
                 </table>
             </td>
         </tr>
     </table>
 
-    <div class="footer">powered by DropRSVP</div>
+    <div class="footer">{{ $style['footer_note'] }}</div>
 </div>
 </body>
 </html>

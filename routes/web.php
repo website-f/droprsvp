@@ -287,6 +287,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
+        Route::get('settings/receipt/preview', [AdminSettingsController::class, 'receiptPreview'])->name('settings.receipt-preview');
 
         // Event categories (used across discovery + event creation).
         Route::get('categories', [EventCategoryController::class, 'index'])->name('categories.index');
