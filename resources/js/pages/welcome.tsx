@@ -401,8 +401,10 @@ export default function Welcome() {
                             ].map((s, i) => (
                                 <Reveal key={s.title} delay={i * 90}>
                                     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                                        <div className="flex aspect-[16/10] items-center justify-center p-6" style={{ backgroundColor: `${s.tint}12` }}>
-                                            <img src={`/vector/${s.art}.svg`} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+                                        <div className="aspect-[16/10] p-6" style={{ backgroundColor: `${s.tint}12` }}>
+                                            {/* h-full w-full + object-contain gives the SVG explicit bounds so
+                                                Safari can't blow it out to its intrinsic 960px inside a flex box. */}
+                                            <img src={`/vector/${s.art}.svg`} alt="" loading="lazy" className="h-full w-full object-contain" />
                                         </div>
                                         <div className="p-6">
                                             <h3 className="text-lg font-semibold">{s.title}</h3>

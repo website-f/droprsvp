@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Menu, Search, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Wordmark } from '@/components/brand';
 import { Footer } from '@/components/cms/footer-blocks';
@@ -35,6 +35,19 @@ export function PublicHeader() {
     // Mobile: search + location are hidden until the search icon is tapped, then
     // they slide open full-width. Keeps the small-screen header uncluttered.
     const [searchOpen, setSearchOpen] = useState(false);
+    // The panel animates open with overflow-hidden (grid-rows 0fr→1fr). Once it's
+    // fully open we switch to overflow-visible so the autocomplete dropdown can
+    // spill below the header instead of being clipped away.
+    const [searchExpanded, setSearchExpanded] = useState(false);
+
+    useEffect(() => {
+        // Wait for the open animation before allowing overflow; collapse (hide)
+        // on the next tick when closing. Both go through a timer so we never call
+        // setState synchronously inside the effect body.
+        const t = setTimeout(() => setSearchExpanded(searchOpen), searchOpen ? 320 : 0);
+
+        return () => clearTimeout(t);
+    }, [searchOpen]);
 
     return (
         <>
@@ -88,11 +101,12 @@ export function PublicHeader() {
             </div>
 
             {/* Search + location (mobile) — hidden until the search icon is tapped, then
-                slides open full-width. The grid-rows 0fr→1fr trick animates height cleanly. */}
+                slides open full-width. The grid-rows 0fr→1fr trick animates height cleanly.
+                overflow-hidden while animating, then visible so the suggestions can show. */}
             <div
-                className={`grid overflow-hidden px-4 transition-all duration-300 ease-out md:hidden ${searchOpen ? 'grid-rows-[1fr] pb-3 opacity-100' : 'grid-rows-[0fr] pb-0 opacity-0'}`}
+                className={`grid px-4 transition-all duration-300 ease-out md:hidden ${searchExpanded ? 'overflow-visible' : 'overflow-hidden'} ${searchOpen ? 'grid-rows-[1fr] pb-3 opacity-100' : 'grid-rows-[0fr] pb-0 opacity-0'}`}
             >
-                <div className="min-h-0">
+                <div className={searchExpanded ? '' : 'min-h-0 overflow-hidden'}>
                     <HeaderSearch onSubmitted={() => setSearchOpen(false)} />
                 </div>
             </div>
