@@ -1,5 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, ArrowUpRight, BadgeCheck, Rocket, Sparkles, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { PaymentConfirm, PaymentRedirecting } from '@/components/payment-flow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -7,6 +9,7 @@ interface Props {
     event: { slug: string; title: string; status: string; boosted_until: string | null };
     boost: { price: number; days: number };
     platform_fee_percent: number;
+    result?: 'paid' | 'processing' | null;
 }
 
 const BENEFITS = [
@@ -15,15 +18,32 @@ const BENEFITS = [
     { icon: BadgeCheck, text: 'Priority consideration for the homepage “Happening soon”' },
 ];
 
-export default function Promote({ event, boost, platform_fee_percent }: Props) {
+export default function Promote({ event, boost, platform_fee_percent, result }: Props) {
     const form = useForm({});
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [redirecting, setRedirecting] = useState(false);
     const boosted = !!event.boosted_until;
     const until = event.boosted_until ? new Date(event.boosted_until).toLocaleDateString(undefined, { dateStyle: 'medium' }) : null;
+
+    const proceed = () => {
+        setConfirmOpen(false);
+        setRedirecting(true);
+        form.post(`/host/events/${event.slug}/promote`, { onFinish: () => setRedirecting(false) });
+    };
 
     return (
         <>
             <Head title={`Promote · ${event.title}`} />
+            <PaymentRedirecting show={redirecting} />
+            <PaymentConfirm
+                open={confirmOpen} onOpenChange={setConfirmOpen}
+                heading={`Boost “${event.title}”`} lines={[{ label: 'Event boost', value: `${boost.days} days` }]} total={boost.price}
+                note="You’ll be handed to our secure payment provider to complete the payment."
+                processing={form.processing || redirecting} onProceed={proceed} ctaLabel="Proceed to payment"
+            />
             <div className="mx-auto w-full max-w-2xl flex-1 p-4">
+                {result === 'paid' && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">🚀 Payment successful — your event is boosted!</div>}
+                {result === 'processing' && <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-500">Payment received — we’re activating your boost. Give it a moment and refresh if it isn’t showing yet.</div>}
                 <div className="mb-6 flex items-center gap-3">
                     <Button asChild variant="ghost" size="icon"><Link href="/host/events" aria-label="Back"><ArrowLeft className="size-4" /></Link></Button>
                     <div>
@@ -57,13 +77,9 @@ export default function Promote({ event, boost, platform_fee_percent }: Props) {
                                 </li>
                             ))}
                         </ul>
-                        <form onSubmit={(e) => {
- e.preventDefault(); form.post(`/host/events/${event.slug}/promote`); 
-}}>
-                            <Button type="submit" size="lg" className="mt-6 w-full" disabled={form.processing}>
-                                <Rocket className="size-4" /> {boosted ? 'Extend boost' : 'Boost now'} · RM {boost.price.toFixed(2)}
-                            </Button>
-                        </form>
+                        <Button type="button" size="lg" className="mt-6 w-full" onClick={() => setConfirmOpen(true)} disabled={form.processing || redirecting}>
+                            <Rocket className="size-4" /> {boosted ? 'Extend boost' : 'Boost now'} · RM {boost.price.toFixed(2)}
+                        </Button>
                         <p className="mt-3 text-center text-xs text-muted-foreground">Secure payment · powered by DropRSVP</p>
                     </div>
                 </div>

@@ -104,11 +104,21 @@ class ChipGateway implements PaymentGateway
     /** True when the purchase for this order is settled at CHIP (return-page fallback). */
     public function isPaid(Order $order): bool
     {
-        if (! $order->payment_ref) {
+        return $this->purchaseIsPaid($order->payment_ref);
+    }
+
+    /**
+     * True when a hosted purchase (by CHIP purchase id) is settled. Generic across
+     * orders, subscriptions and promotions — lets each return page reconcile
+     * synchronously instead of waiting on the webhook.
+     */
+    public function purchaseIsPaid(?string $paymentRef): bool
+    {
+        if (! $paymentRef) {
             return false;
         }
 
-        $res = $this->api()->get('/purchases/'.$order->payment_ref.'/');
+        $res = $this->api()->get('/purchases/'.$paymentRef.'/');
 
         return $res->successful() && ($res->json('status') === 'paid');
     }
