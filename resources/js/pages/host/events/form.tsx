@@ -4,6 +4,8 @@ import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Plus, Trash2 } from 'lu
 import { useRef, useState } from 'react';
 import {  newSection, SeatLayoutEditor } from '@/components/seat-layout-editor';
 import type {LayoutSectionRow} from '@/components/seat-layout-editor';
+import { newTable, TableLayoutEditor } from '@/components/table-layout-editor';
+import type { TableRow } from '@/components/table-layout-editor';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -27,10 +29,14 @@ interface EventProp {
     description: string | null; cover_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null; show_participants: boolean; show_reviews: boolean; seating_enabled: boolean;
+    ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
     seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null }>;
+    seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number }>;
 }
+type TicketingMode = 'general' | 'reserved' | 'tables';
+interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const dt = (v: string | null | undefined) => (v ? v.slice(0, 16) : '');
@@ -69,8 +75,10 @@ function readImageMeta(file: File): Promise<{ w: number; h: number; size: number
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
 const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
-export default function EventForm({ event, categories, cities = [], seatTemplates = [] }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[] }) {
+export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean }) {
     const isEdit = !!event;
+    // A mode is offered if the platform allows it (superadmins always see all).
+    const modeAllowed = (m: TicketingMode) => m === 'general' || isSuperadmin || ticketingModes[m];
 
     const form = useForm({
         title: event?.title ?? '',
@@ -90,6 +98,9 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         show_participants: event?.show_participants ?? true,
         show_reviews: event?.show_reviews ?? true,
         seating_enabled: event?.seating_enabled ?? false,
+        ticketing_mode: (event?.ticketing_mode ?? (event?.seating_enabled ? 'reserved' : 'general')) as TicketingMode,
+        auto_assign_tables: event?.auto_assign_tables ?? false,
+        tables: (event?.seating_tables ?? []).map((t): TableRow => ({ id: t.id, name: t.name, shape: t.shape, capacity: t.capacity, pos_x: t.pos_x, pos_y: t.pos_y })),
         publish: false,
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
@@ -98,6 +109,8 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     const { data, setData, errors, processing } = form;
     // Warn before losing unsaved event edits (refresh, back, or navigating away).
     useUnsavedChanges(form.isDirty && !processing);
+    const mode = data.ticketing_mode;
+    const tabCls = (active: boolean) => `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`;
     const coverRef = useRef<HTMLInputElement>(null);
     const galleryRef = useRef<HTMLInputElement>(null);
     const [uploadingCover, setUploadingCover] = useState(false);
@@ -358,24 +371,37 @@ form.post('/host/events');
                     </div>
                 </section>
 
-                {/* Ticketing — general admission OR reserved seating */}
+                {/* Ticketing — general admission, reserved seating, or table management */}
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Ticketing</h2>
-                        <div className="inline-flex rounded-lg border border-border p-0.5">
-                            <button type="button" onClick={() => setData('seating_enabled', false)} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${!data.seating_enabled ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><Plus className="size-3.5" /> General admission</button>
-                            <button type="button" onClick={() => {
- setData('seating_enabled', true);
+                        <div className="inline-flex flex-wrap rounded-lg border border-border p-0.5">
+                            {modeAllowed('general') && (
+                                <button type="button" onClick={() => setData('ticketing_mode', 'general')} className={tabCls(mode === 'general')}><Plus className="size-3.5" /> General admission</button>
+                            )}
+                            {modeAllowed('reserved') && (
+                                <button type="button" onClick={() => {
+                                    setData('ticketing_mode', 'reserved');
 
- if (data.sections.length === 0) {
-setData('sections', [newSection('stage', 40, 20, 0), newSection('seated', 40, 100, 1)]);
-}
-}} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${data.seating_enabled ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><ArmchairIcon className="size-3.5" /> Reserved seating</button>
+                                    if (data.sections.length === 0) {
+                                        setData('sections', [newSection('stage', 40, 20, 0), newSection('seated', 40, 100, 1)]);
+                                    }
+                                }} className={tabCls(mode === 'reserved')}><ArmchairIcon className="size-3.5" /> Reserved seating</button>
+                            )}
+                            {modeAllowed('tables') && (
+                                <button type="button" onClick={() => {
+                                    setData('ticketing_mode', 'tables');
+
+                                    if (data.tables.length === 0) {
+                                        setData('tables', [newTable(0)]);
+                                    }
+                                }} className={tabCls(mode === 'tables')}><LayoutGrid className="size-3.5" /> Table management</button>
+                            )}
                         </div>
                     </div>
 
                     {/* ---------- Reserved seating: drag-and-drop layout ---------- */}
-                    {data.seating_enabled ? (
+                    {mode === 'reserved' ? (
                         <div className="grid gap-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm text-muted-foreground">Build your venue: drag blocks into place, set prices &amp; colours. Buyers pick their exact seat.</p>
@@ -393,6 +419,22 @@ setData('sections', [newSection('stage', 40, 20, 0), newSection('seated', 40, 10
                         </div>
                     ) : (
                     <>
+                    {/* ---------- Table management: banquet floorplan + auto-assign ---------- */}
+                    {mode === 'tables' && (
+                        <div className="mb-5 grid gap-4">
+                            <SwitchField
+                                checked={data.auto_assign_tables}
+                                onCheckedChange={(v) => setData('auto_assign_tables', v)}
+                                label="Auto-assign attendees to tables"
+                                description="Seat each paid attendee at a table with free space automatically on purchase. You can still rearrange anyone from the Seating page."
+                            />
+                            <TableLayoutEditor value={data.tables} onChange={(t) => setData('tables', t)} />
+                            <div className="border-t border-border pt-4">
+                                <p className="text-sm font-medium">Tickets</p>
+                                <p className="text-xs text-muted-foreground">Attendees buy these tickets, then get seated at one of your tables.</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="mb-4 flex justify-end">
                         <Button type="button" variant="outline" size="sm" onClick={() => setData('ticketTypes', [...data.ticketTypes, emptyTicket()])}><Plus className="size-3.5" /> Add ticket type</Button>
                     </div>

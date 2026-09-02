@@ -15,7 +15,7 @@ class Event extends Model
 
     protected $fillable = [
         'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'gallery',
-        'show_participants', 'show_reviews', 'seating_enabled',
+        'show_participants', 'show_reviews', 'seating_enabled', 'ticketing_mode', 'auto_assign_tables',
         'status', 'cancelled_reason', 'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address', 'city',
         'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at', 'boosted_until',
     ];
@@ -27,6 +27,7 @@ class Event extends Model
             'show_participants' => 'boolean',
             'show_reviews' => 'boolean',
             'seating_enabled' => 'boolean',
+            'auto_assign_tables' => 'boolean',
             'gallery' => 'array',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',

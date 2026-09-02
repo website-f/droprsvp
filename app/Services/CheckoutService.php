@@ -166,6 +166,11 @@ class CheckoutService
             // Confirm any held seats as sold.
             Seat::where('order_id', $locked->id)->where('status', 'held')->update(['status' => 'sold']);
 
+            // Banquet events can auto-seat each new admission at a table with space.
+            if ($locked->event?->auto_assign_tables) {
+                app(\App\Services\TableAssignmentService::class)->assign($locked->event, $locked->tickets()->whereNull('seating_table_id')->get());
+            }
+
             return true;
         });
 

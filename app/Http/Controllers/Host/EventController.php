@@ -30,12 +30,15 @@ class EventController extends Controller
             'cities' => Cities::all(),
             'seatTemplates' => \App\Models\SeatTemplate::where('user_id', $request->user()->id)
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
+            'ticketingModes' => \App\Http\Controllers\Admin\SettingsController::ticketingModes(),
+            'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $data['ticketing_mode'] = $this->resolveMode($request, $data);
 
         $event = new Event($this->eventAttributes($data));
         $event->user_id = $request->user()->id;
@@ -44,7 +47,8 @@ class EventController extends Controller
 
         $this->syncSessions($event, $data['sessions'] ?? []);
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
-        $this->syncSeatSections($event, ($data['seating_enabled'] ?? false) ? ($data['sections'] ?? []) : []);
+        $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
+        $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
 
         return redirect()->route('host.events.index')->with('success', 'Event created.');
     }
@@ -53,7 +57,7 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
-        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats')]);
+        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats'), 'seatingTables' => fn ($q) => $q->orderBy('sort_order')]);
 
         return inertia('host/events/form', [
             'event' => $event,
@@ -61,6 +65,8 @@ class EventController extends Controller
             'cities' => Cities::all(),
             'seatTemplates' => \App\Models\SeatTemplate::where('user_id', $request->user()->id)
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
+            'ticketingModes' => \App\Http\Controllers\Admin\SettingsController::ticketingModes(),
+            'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
         ]);
     }
 
@@ -69,11 +75,13 @@ class EventController extends Controller
         $this->authorize('update', $event);
 
         $data = $this->validated($request);
+        $data['ticketing_mode'] = $this->resolveMode($request, $data);
         $event->fill($this->eventAttributes($data))->save();
 
         $this->syncSessions($event, $data['sessions'] ?? []);
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
-        $this->syncSeatSections($event, ($data['seating_enabled'] ?? false) ? ($data['sections'] ?? []) : []);
+        $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
+        $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
 
         return redirect()->route('host.events.index')->with('success', 'Event updated.');
     }
@@ -88,6 +96,47 @@ class EventController extends Controller
 
     // ---- helpers -----------------------------------------------------------
 
+    /**
+     * The event's ticketing mode, forced to 'general' when the chosen mode has been
+     * disabled platform-wide (superadmins bypass the gate and may use any mode).
+     */
+    private function resolveMode(Request $request, array $data): string
+    {
+        // Fall back to the legacy seating_enabled flag when no explicit mode is sent.
+        $mode = $data['ticketing_mode'] ?? (($data['seating_enabled'] ?? false) ? 'reserved' : 'general');
+        if (! in_array($mode, ['general', 'reserved', 'tables'], true)) {
+            $mode = 'general';
+        }
+
+        $allowed = \App\Http\Controllers\Admin\SettingsController::ticketingModes();
+        if (! $request->user()->hasRole('superadmin') && ! ($allowed[$mode] ?? false)) {
+            $mode = 'general';
+        }
+
+        return $mode;
+    }
+
+    /** Upsert the event's banquet tables and drop any the host removed. */
+    private function syncTables(Event $event, array $rows): void
+    {
+        $keep = [];
+        foreach (array_values($rows) as $i => $row) {
+            $attrs = [
+                'name' => $row['name'],
+                'shape' => in_array($row['shape'] ?? 'round', ['round', 'rect'], true) ? $row['shape'] : 'round',
+                'capacity' => max(1, (int) $row['capacity']),
+                'pos_x' => (int) ($row['pos_x'] ?? 0),
+                'pos_y' => (int) ($row['pos_y'] ?? 0),
+                'sort_order' => $i,
+            ];
+            $model = ! empty($row['id']) ? $event->seatingTables()->whereKey($row['id'])->first() : null;
+            $model ? $model->update($attrs) : $model = $event->seatingTables()->create($attrs);
+            $keep[] = $model->id;
+        }
+        // Dropping a removed table unassigns its tickets via the seating_table_id FK.
+        $event->seatingTables()->whereKeyNot($keep)->delete();
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -101,6 +150,15 @@ class EventController extends Controller
             'show_participants' => ['boolean'],
             'show_reviews' => ['boolean'],
             'seating_enabled' => ['boolean'],
+            'ticketing_mode' => ['nullable', 'in:general,reserved,tables'],
+            'auto_assign_tables' => ['boolean'],
+            'tables' => ['array'],
+            'tables.*.id' => ['nullable', 'integer'],
+            'tables.*.name' => ['required', 'string', 'max:80'],
+            'tables.*.shape' => ['nullable', 'in:round,rect'],
+            'tables.*.capacity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'tables.*.pos_x' => ['nullable', 'integer'],
+            'tables.*.pos_y' => ['nullable', 'integer'],
             'sections' => ['array'],
             'sections.*.id' => ['nullable', 'integer'],
             'sections.*.name' => ['required', 'string', 'max:120'],
@@ -161,7 +219,11 @@ class EventController extends Controller
             'gallery' => $data['gallery'] ?? [],
             'show_participants' => $data['show_participants'] ?? true,
             'show_reviews' => $data['show_reviews'] ?? true,
-            'seating_enabled' => $data['seating_enabled'] ?? false,
+            // seating_enabled is derived from the mode so the existing reserved-seating
+            // checkout/rendering keeps working unchanged.
+            'ticketing_mode' => $data['ticketing_mode'] ?? 'general',
+            'seating_enabled' => ($data['ticketing_mode'] ?? 'general') === 'reserved',
+            'auto_assign_tables' => ($data['ticketing_mode'] ?? 'general') === 'tables' ? ($data['auto_assign_tables'] ?? false) : false,
             'visibility' => $data['visibility'],
             'timezone' => $data['timezone'],
             'is_online' => $data['is_online'] ?? false,

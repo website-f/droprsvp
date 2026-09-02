@@ -26,9 +26,30 @@ class SettingsController extends Controller
                 'tax_inclusive' => (bool) Setting::get('tax_inclusive', false),
                 'support_email' => (string) Setting::get('support_email', ''),
                 'checkout_required' => self::checkoutRequired(),
+                'ticketing_modes' => self::ticketingModes(),
                 'trending_keywords' => (string) Setting::get('trending_keywords', ''),
             ],
         ]);
+    }
+
+    /**
+     * Which ticketing modes organizers may choose when building an event. General
+     * admission is the always-available baseline; reserved seating and table
+     * management can be switched off platform-wide. Superadmins always see all.
+     *
+     * @return array{general: bool, reserved: bool, tables: bool}
+     */
+    public static function ticketingModes(): array
+    {
+        $defaults = ['general' => true, 'reserved' => true, 'tables' => true];
+        $saved = Setting::getArray('ticketing_modes', []);
+        $out = [];
+        foreach ($defaults as $mode => $default) {
+            $out[$mode] = (bool) ($saved[$mode] ?? $default);
+        }
+        $out['general'] = true; // never disable the baseline
+
+        return $out;
     }
 
     /** Which checkout buyer fields are required (name + email are always required). */
@@ -76,6 +97,13 @@ class SettingsController extends Controller
             $cr[$field] = $request->boolean("checkout_required.{$field}");
         }
         Setting::putArray('checkout_required', $cr);
+
+        // Which ticketing modes organizers may use (general is always on).
+        Setting::putArray('ticketing_modes', [
+            'general' => true,
+            'reserved' => $request->boolean('ticketing_modes.reserved'),
+            'tables' => $request->boolean('ticketing_modes.tables'),
+        ]);
 
         return back()->with('flash_success', 'Settings saved.');
     }

@@ -59,6 +59,18 @@ class SeatingController extends Controller
         return back()->with('success', 'Tables saved.');
     }
 
+    /** Auto-seat every unassigned admission across the tables (respecting capacity). */
+    public function autoAssign(Request $request, Event $event, \App\Services\TableAssignmentService $svc)
+    {
+        $this->authorize('update', $event);
+
+        $count = $svc->autoAssign($event);
+
+        return back()->with('success', $count > 0
+            ? "Auto-assigned {$count} attendee".($count === 1 ? '' : 's').' to tables.'
+            : 'Nothing to assign — everyone is already seated, or the tables are full.');
+    }
+
     /** Assign (or clear) a ticket's table, enforcing capacity. */
     public function assign(Request $request, Event $event)
     {

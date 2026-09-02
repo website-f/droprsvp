@@ -235,6 +235,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');
         Route::post('events/{event}/seating/tables', [SeatingController::class, 'saveTables'])->name('events.seating.tables');
         Route::post('events/{event}/seating/assign', [SeatingController::class, 'assign'])->name('events.seating.assign');
+        Route::post('events/{event}/seating/auto-assign', [SeatingController::class, 'autoAssign'])->name('events.seating.auto-assign');
 
         // Payouts (the organizer's own balance + requests).
         Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');

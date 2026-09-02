@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Banknote, ClipboardList, Flame, Percent, Settings2 } from 'lucide-react';
+import { ArmchairIcon, Banknote, ClipboardList, Flame, Percent, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,15 +7,16 @@ import { Switch } from '@/components/ui/switch';
 import { TagInput } from '@/components/ui/tag-input';
 
 interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
+interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
 interface SettingsData {
     fee_percent: number; boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
-    checkout_required: CheckoutRequired; trending_keywords: string;
+    checkout_required: CheckoutRequired; ticketing_modes: TicketingModes; trending_keywords: string;
 }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'checkout' | 'search' | 'general';
+type Tab = 'payments' | 'tax' | 'checkout' | 'ticketing' | 'search' | 'general';
 
 const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
     { key: 'phone', label: 'Phone number' },
@@ -50,15 +51,18 @@ export default function Settings({ settings }: { settings: SettingsData }) {
         tax_inclusive: settings.tax_inclusive,
         support_email: settings.support_email ?? '',
         checkout_required: settings.checkout_required,
+        ticketing_modes: settings.ticketing_modes,
         trending_keywords: settings.trending_keywords ?? '',
     });
     const { data, setData, processing } = form;
     const setRequired = (key: keyof CheckoutRequired, v: boolean) => setData('checkout_required', { ...data.checkout_required, [key]: v });
+    const setMode = (key: keyof TicketingModes, v: boolean) => setData('ticketing_modes', { ...data.ticketing_modes, [key]: v });
 
     const TABS: { key: Tab; label: string; icon: typeof Banknote }[] = [
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
         { key: 'checkout', label: 'Checkout', icon: ClipboardList },
+        { key: 'ticketing', label: 'Ticketing', icon: ArmchairIcon },
         { key: 'search', label: 'Search', icon: Flame },
         { key: 'general', label: 'General', icon: Settings2 },
     ];
@@ -124,6 +128,24 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {tab === 'ticketing' && (
+                        <div className="grid gap-3">
+                            <p className="text-sm text-muted-foreground">Choose which ticketing modes organizers can use when building an event. General admission is always available.</p>
+                            <div className="flex items-center justify-between rounded-lg border border-border p-3 opacity-70">
+                                <div><div className="text-sm font-medium">General admission</div><div className="text-xs text-muted-foreground">Free / paid / donation tickets. Always on.</div></div>
+                                <Switch checked disabled onCheckedChange={() => {}} aria-label="General admission (always on)" />
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                                <div><div className="text-sm font-medium">Reserved seating</div><div className="text-xs text-muted-foreground">Seat maps with a stage — for concerts &amp; theatres.</div></div>
+                                <Switch checked={data.ticketing_modes.reserved} onCheckedChange={(v) => setMode('reserved', v)} />
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                                <div><div className="text-sm font-medium">Table management</div><div className="text-xs text-muted-foreground">Banquet tables with capacity &amp; auto-assign — for dinners &amp; galas.</div></div>
+                                <Switch checked={data.ticketing_modes.tables} onCheckedChange={(v) => setMode('tables', v)} />
+                            </div>
                         </div>
                     )}
 

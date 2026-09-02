@@ -1,8 +1,8 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArmchairIcon, ArrowLeft, Plus, Save, Trash2, Wand2 } from 'lucide-react';
+import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { AppSelect } from '@/components/ui/app-select';
-import { ArmchairIcon, ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 
 interface TableView { id: number; name: string; capacity: number; assigned: number }
 interface TicketView { id: number; name: string; type: string | null; table_id: number | null }
@@ -83,7 +83,14 @@ export default function Seating({ event, tables, tickets }: Props) {
 
                 {/* Assign attendees */}
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Seat attendees</h2>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Seat attendees</h2>
+                        {tables.length > 0 && tickets.length > 0 && (
+                            <Button type="button" variant="outline" size="sm" onClick={() => router.post(`/host/events/${event.slug}/seating/auto-assign`, {}, { preserveScroll: true })}>
+                                <Wand2 className="size-3.5" /> Auto-assign
+                            </Button>
+                        )}
+                    </div>
                     {tickets.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No attendees yet — tickets appear here once sold.</p>
                     ) : tables.length === 0 ? (
