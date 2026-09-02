@@ -1,8 +1,10 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { CheckCircle2, Download, Landmark, Pencil, Plus } from 'lucide-react';
+import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
 interface Balance { gross: number; fee_percent: number; fee_type: string; fee_label: string; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
@@ -25,14 +27,25 @@ export default function Payouts({ balance, payouts, bank, banks }: { balance: Ba
     const errors = usePage().props.errors as Record<string, string>;
     const rm = (n: number) => `RM ${n.toFixed(2)}`;
 
+    const [bankOpen, setBankOpen] = useState(false);
+    const hasBank = !!(bank.bank_code && bank.account_number && bank.account_name);
+    const bankName = banks.find((b) => b.value === bank.bank_code)?.label ?? bank.bank_code ?? '';
+    const maskedAccount = bank.account_number ? `•••• ${bank.account_number.slice(-4)}` : '';
+
     const bankForm = useForm({
         bank_code: bank.bank_code ?? '',
         account_number: bank.account_number ?? '',
         account_name: bank.account_name ?? '',
     });
+    const openBank = () => {
+        // Reset the form to the saved values (or blanks) each time it opens.
+        bankForm.setData({ bank_code: bank.bank_code ?? '', account_number: bank.account_number ?? '', account_name: bank.account_name ?? '' });
+        bankForm.clearErrors();
+        setBankOpen(true);
+    };
     const saveBank = (e: React.FormEvent) => {
         e.preventDefault();
-        bankForm.post('/host/payouts/bank', { preserveScroll: true });
+        bankForm.post('/host/payouts/bank', { preserveScroll: true, onSuccess: () => setBankOpen(false) });
     };
 
     return (
@@ -65,29 +78,70 @@ export default function Payouts({ balance, payouts, bank, banks }: { balance: Ba
                     </Button>
                 </div>
 
-                {/* Bank account for automated payouts */}
-                <form onSubmit={saveBank} className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold">Payout bank account</h2>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Where we send your money. Required for automated (instant) payouts.</p>
-                    <div className="mt-4 grid gap-3">
-                        <div className="grid gap-1.5">
-                            <Label>Bank</Label>
-                            <AppSelect value={bankForm.data.bank_code} onChange={(v) => bankForm.setData('bank_code', v)} options={[{ value: '', label: 'Select your bank…' }, ...banks]} />
-                            {bankForm.errors.bank_code && <p className="text-xs text-destructive">{bankForm.errors.bank_code}</p>}
+                {/* Payout bank account — empty state → modal → saved card */}
+                <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">Payout bank account</h2>
+                            <p className="mt-0.5 text-xs text-muted-foreground">Where we send your money. Required for automated (instant) payouts.</p>
                         </div>
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="account_number">Account number</Label>
-                            <input id="account_number" inputMode="numeric" className={field} value={bankForm.data.account_number} onChange={(e) => bankForm.setData('account_number', e.target.value.replace(/[^0-9]/g, ''))} placeholder="e.g. 1234567890" />
-                            {bankForm.errors.account_number && <p className="text-xs text-destructive">{bankForm.errors.account_number}</p>}
-                        </div>
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="account_name">Account holder name</Label>
-                            <input id="account_name" className={field} value={bankForm.data.account_name} onChange={(e) => bankForm.setData('account_name', e.target.value)} placeholder="As it appears on your bank account" />
-                            {bankForm.errors.account_name && <p className="text-xs text-destructive">{bankForm.errors.account_name}</p>}
-                        </div>
-                        <Button type="submit" variant="outline" className="w-max" disabled={bankForm.processing}>Save bank details</Button>
+                        {hasBank && <Button type="button" variant="outline" size="sm" onClick={openBank}><Pencil className="size-3.5" /> Edit</Button>}
                     </div>
-                </form>
+
+                    <div className="mt-4">
+                        {hasBank ? (
+                            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-foreground/5 text-foreground"><Landmark className="size-5" /></div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="truncate font-semibold">{bankName}</span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="size-3" /> Ready</span>
+                                    </div>
+                                    <div className="mt-1 font-mono text-sm tabular-nums text-muted-foreground">{maskedAccount}</div>
+                                    <div className="mt-0.5 truncate text-sm text-muted-foreground">{bank.account_name}</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-8 text-center">
+                                <div className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"><Landmark className="size-5" /></div>
+                                <p className="mt-3 text-sm font-medium">No bank details set up</p>
+                                <p className="mt-1 max-w-xs text-xs text-muted-foreground">Add your bank account so we can send your payouts. Required for automated (instant) transfers.</p>
+                                <Button type="button" className="mt-4" onClick={openBank}><Plus className="size-4" /> Set up bank</Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Bank details modal */}
+                <Dialog open={bankOpen} onOpenChange={setBankOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{hasBank ? 'Edit bank details' : 'Set up your bank'}</DialogTitle>
+                            <DialogDescription>Where we send your payouts. Make sure the account holder name matches your bank exactly.</DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={saveBank} className="grid gap-3">
+                            <div className="grid gap-1.5">
+                                <Label>Bank</Label>
+                                <AppSelect value={bankForm.data.bank_code} onChange={(v) => bankForm.setData('bank_code', v)} options={[{ value: '', label: 'Select your bank…' }, ...banks]} />
+                                {bankForm.errors.bank_code && <p className="text-xs text-destructive">{bankForm.errors.bank_code}</p>}
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="account_number">Account number</Label>
+                                <input id="account_number" inputMode="numeric" className={field} value={bankForm.data.account_number} onChange={(e) => bankForm.setData('account_number', e.target.value.replace(/[^0-9]/g, ''))} placeholder="e.g. 1234567890" />
+                                {bankForm.errors.account_number && <p className="text-xs text-destructive">{bankForm.errors.account_number}</p>}
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="account_name">Account holder name</Label>
+                                <input id="account_name" className={field} value={bankForm.data.account_name} onChange={(e) => bankForm.setData('account_name', e.target.value)} placeholder="As it appears on your bank account" />
+                                {bankForm.errors.account_name && <p className="text-xs text-destructive">{bankForm.errors.account_name}</p>}
+                            </div>
+                            <DialogFooter className="mt-2 gap-2">
+                                <Button type="button" variant="ghost" onClick={() => setBankOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={bankForm.processing}>{bankForm.processing ? 'Saving…' : 'Save bank details'}</Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
 
                 <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">History</h2>

@@ -21,7 +21,9 @@ const EMPTY: Suggestions = { hot: [], events: [], categories: [], cities: [] };
 export function HeaderSearch({ className = '', onSubmitted }: { className?: string; onSubmitted?: () => void }) {
     const cities = ((usePage().props as { cities?: City[] }).cities ?? []) as City[];
     const [q, setQ] = useState('');
-    const [city, setCity] = useState('all');
+    // Default the location to Kuala Lumpur (falling back to "Anywhere" only if KL
+    // isn't in the list), rather than starting country-wide.
+    const [city, setCity] = useState(() => (cities.some((c) => c.slug === 'kuala-lumpur') || cities.length === 0 ? 'kuala-lumpur' : 'all'));
     const [open, setOpen] = useState(false);
     const [sug, setSug] = useState<Suggestions>(EMPTY);
     const [active, setActive] = useState(-1);
@@ -99,9 +101,10 @@ export function HeaderSearch({ className = '', onSubmitted }: { className?: stri
 
     return (
         <div ref={boxRef} className={`relative ${className}`}>
-            <form onSubmit={submit} className="flex w-full items-stretch gap-2 sm:gap-0 sm:rounded-full sm:border sm:border-border sm:bg-card sm:pl-2 sm:pr-1 sm:shadow-sm">
+            {/* One column on mobile (full-width query), a single pill row on sm+. */}
+            <form onSubmit={submit} className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-0 sm:rounded-full sm:border sm:border-border sm:bg-card sm:pl-2 sm:pr-1 sm:shadow-sm">
                 {/* Query */}
-                <label className="flex h-11 flex-1 items-center gap-2 rounded-full border border-border bg-card px-4 sm:h-12 sm:border-0 sm:bg-transparent sm:px-2">
+                <label className="flex h-11 w-full items-center gap-2 rounded-full border border-border bg-card px-4 sm:h-12 sm:w-auto sm:flex-1 sm:border-0 sm:bg-transparent sm:px-2">
                     <Search className="size-4 shrink-0 text-muted-foreground" />
                     <input
                         value={q}
@@ -121,7 +124,7 @@ export function HeaderSearch({ className = '', onSubmitted }: { className?: stri
                     <Select value={city} onValueChange={setCity}>
                         <SelectTrigger
                             aria-label="Location"
-                            className="h-11 flex-1 gap-2 rounded-full border-border bg-card px-4 shadow-none sm:h-12 sm:min-w-[9rem] sm:border-0 sm:bg-transparent sm:px-1 sm:shadow-none dark:bg-card sm:dark:bg-transparent"
+                            className="h-11 flex-1 gap-2 rounded-full border-border bg-card px-4 shadow-none sm:h-12 sm:min-w-[9rem] sm:flex-none sm:border-0 sm:bg-transparent sm:px-1 sm:shadow-none dark:bg-card sm:dark:bg-transparent"
                         >
                             <MapPin className="size-4 shrink-0 text-muted-foreground" />
                             <SelectValue placeholder="Anywhere" />

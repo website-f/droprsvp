@@ -4,21 +4,30 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\EventCategory;
 use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Analytics;
+use App\Support\AnalyticsWindow;
 use Illuminate\Http\Request;
 
 class AnalyticsController extends Controller
 {
+    /** Event statuses offered in the table's status filter. */
+    private const STATUSES = ['draft', 'pending', 'published', 'cancelled'];
+
     /** Platform-wide analytics for the superadmin, with optional per-event drill-down. */
     public function index(Request $request)
     {
+        $w = AnalyticsWindow::fromRequest($request);
         $paid = Order::where('status', 'paid');
+        // Sales-derived views (charts, demographics, top events) respect the window;
+        // the headline KPI cards stay as platform-wide totals.
+        $paidInWindow = (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]);
 
-        $topEvents = Order::where('status', 'paid')
+        $topEvents = (clone $paidInWindow)
             ->selectRaw('event_id, SUM(total) as revenue')
             ->groupBy('event_id')->orderByDesc('revenue')->limit(6)
             ->with('event:id,title')->get()
@@ -34,40 +43,53 @@ class AnalyticsController extends Controller
                 'revenue' => (float) (clone $paid)->sum('total'),
                 'impressions' => (int) EventDailyStat::sum('impressions'),
             ],
-            'reach' => Analytics::trendSummed(EventDailyStat::query(), 30),
-            'revenue' => Analytics::revenueByDay(Order::query(), 30),
+            'reach' => Analytics::reach(EventDailyStat::query(), $w),
+            'revenue' => Analytics::revenue(Order::query(), $w),
             'topEvents' => $topEvents,
             'demographics' => [
-                'gender' => Analytics::breakdown((clone $paid), 'buyer_gender', Analytics::GENDER_LABELS),
-                'age' => Analytics::ordered((clone $paid), 'buyer_age_band', Analytics::AGE_ORDER),
-                'source' => Analytics::breakdown((clone $paid), 'buyer_source', Analytics::SOURCE_LABELS),
+                'gender' => Analytics::breakdown((clone $paidInWindow), 'buyer_gender', Analytics::GENDER_LABELS),
+                'age' => Analytics::ordered((clone $paidInWindow), 'buyer_age_band', Analytics::AGE_ORDER),
+                'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
-            // Advanced, scalable events table (search + sort + paginate) — replaces
-            // the old "pick from every event" dropdown.
-            'events' => $this->eventsQuery($request)->paginate(15)->withQueryString()
+            // Advanced, scalable events table: window + search + status + category
+            // + sort + paginate — replaces the old "pick from every event" dropdown.
+            'events' => $this->eventsQuery($request, $w)->paginate(15)->withQueryString()
                 ->through(fn (Event $e) => $this->eventRow($e)),
             'filters' => [
                 'q' => (string) $request->query('q', ''),
                 'sort' => $this->sortKey($request),
                 'dir' => $this->sortDir($request),
+                'status' => $this->statusFilter($request),
+                'category' => $this->categoryFilter($request),
+                'period' => $w['period'],
+                'from' => $w['from_date'],
+                'to' => $w['to_date'],
+                'periodLabel' => $w['label'],
             ],
+            'statusOptions' => self::STATUSES,
+            'categoryOptions' => EventCategory::orderBy('name')->get(['id', 'name'])
+                ->map(fn ($c) => ['value' => (string) $c->id, 'label' => $c->name])->all(),
             'exportUrl' => route('admin.analytics.export', $request->query()),
         ]);
     }
 
     /** One event's analytics on its own page (opened from the events table). */
-    public function show(Event $event)
+    public function show(Request $request, Event $event)
     {
-        $data = $this->eventBreakdown($event->slug);
+        $w = AnalyticsWindow::fromRequest($request);
+        $data = $this->eventBreakdown($event->slug, $w);
         abort_unless($data, 404);
 
-        return inertia('admin/analytics/event', ['data' => $data]);
+        return inertia('admin/analytics/event', [
+            'data' => $data,
+            'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label']],
+        ]);
     }
 
     /** Stream the (filtered) events table as CSV. */
     public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        $rows = $this->eventsQuery($request)->get();
+        $rows = $this->eventsQuery($request, AnalyticsWindow::fromRequest($request))->get();
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
@@ -80,12 +102,18 @@ class AnalyticsController extends Controller
         }, 'events-analytics-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
     }
 
-    /** Shared query for the table + export: search + sort + the row aggregates. */
-    private function eventsQuery(Request $request): \Illuminate\Database\Eloquent\Builder
+    /**
+     * Shared query for the table + export: the row aggregates constrained to the
+     * selected window, plus search / status / category filters and sort.
+     */
+    private function eventsQuery(Request $request, array $w): \Illuminate\Database\Eloquent\Builder
     {
         $q = trim((string) $request->query('q', ''));
+        $status = $this->statusFilter($request);
+        $category = $this->categoryFilter($request);
         $sort = $this->sortKey($request);
         $dir = $this->sortDir($request);
+        [$from, $to] = [$w['from'], $w['to']];
 
         $column = match ($sort) {
             'revenue' => 'revenue',
@@ -97,11 +125,29 @@ class AnalyticsController extends Controller
 
         return Event::query()
             ->when($q !== '', fn ($b) => $b->where('title', 'like', "%{$q}%"))
-            ->withCount(['tickets as sold' => fn ($t) => $t->whereIn('status', ['valid', 'checked_in'])])
-            ->withSum('dailyStats as impressions', 'impressions')
-            ->withSum('dailyStats as clicks', 'clicks')
-            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')], 'total')
+            ->when($status !== '', fn ($b) => $b->where('status', $status))
+            ->when($category !== '', fn ($b) => $b->where('category_id', $category))
+            ->withCount(['tickets as sold' => fn ($t) => $t->whereIn('status', ['valid', 'checked_in'])->whereBetween('created_at', [$from, $to])])
+            ->withSum(['dailyStats as impressions' => fn ($s) => $s->whereBetween('stat_date', [$w['from_date'], $w['to_date']])], 'impressions')
+            ->withSum(['dailyStats as clicks' => fn ($s) => $s->whereBetween('stat_date', [$w['from_date'], $w['to_date']])], 'clicks')
+            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')->whereBetween('paid_at', [$from, $to])], 'total')
             ->orderBy($column, $dir);
+    }
+
+    /** Sanitised status filter ('' = all). */
+    private function statusFilter(Request $request): string
+    {
+        $s = (string) $request->query('status', '');
+
+        return in_array($s, self::STATUSES, true) ? $s : '';
+    }
+
+    /** Sanitised category id filter ('' = all). */
+    private function categoryFilter(Request $request): string
+    {
+        $c = (string) $request->query('category', '');
+
+        return ($c !== '' && EventCategory::whereKey($c)->exists()) ? $c : '';
     }
 
     private function eventRow(Event $e): array
@@ -134,7 +180,7 @@ class AnalyticsController extends Controller
     }
 
     /** One event's analytics (same shape as the organizer's per-event page), or null. */
-    private function eventBreakdown(?string $slug): ?array
+    private function eventBreakdown(?string $slug, array $w): ?array
     {
         if (! $slug) {
             return null;
@@ -146,6 +192,7 @@ class AnalyticsController extends Controller
         }
 
         $paid = Order::where('event_id', $event->id)->where('status', 'paid');
+        $paidInWindow = (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]);
         $impressions = (int) $event->dailyStats()->sum('impressions');
         $clicks = (int) $event->dailyStats()->sum('clicks');
         $sold = (int) $event->tickets()->whereIn('status', ['valid', 'checked_in'])->count();
@@ -160,12 +207,12 @@ class AnalyticsController extends Controller
                 'revenue' => (float) (clone $paid)->sum('total'),
                 'conversion' => $clicks > 0 ? round($sold / $clicks * 100, 1) : 0.0,
             ],
-            'trend' => Analytics::trend($event->dailyStats(), 30),
+            'trend' => Analytics::reach($event->dailyStats(), $w),
             'demographics' => [
-                'gender' => Analytics::breakdown((clone $paid), 'buyer_gender', Analytics::GENDER_LABELS),
-                'age' => Analytics::ordered((clone $paid), 'buyer_age_band', Analytics::AGE_ORDER),
-                'city' => Analytics::top((clone $paid), 'buyer_city', 6),
-                'source' => Analytics::breakdown((clone $paid), 'buyer_source', Analytics::SOURCE_LABELS),
+                'gender' => Analytics::breakdown((clone $paidInWindow), 'buyer_gender', Analytics::GENDER_LABELS),
+                'age' => Analytics::ordered((clone $paidInWindow), 'buyer_age_band', Analytics::AGE_ORDER),
+                'city' => Analytics::top((clone $paidInWindow), 'buyer_city', 6),
+                'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
         ];
     }

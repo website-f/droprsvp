@@ -8,6 +8,7 @@ use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Support\Analytics;
+use App\Support\AnalyticsWindow;
 use Illuminate\Http\Request;
 
 class AnalyticsController extends Controller
@@ -15,6 +16,7 @@ class AnalyticsController extends Controller
     /** Analytics across ALL of the organizer's events, with links to drill into each. */
     public function index(Request $request)
     {
+        $w = AnalyticsWindow::fromRequest($request);
         $userId = $request->user()->id;
         $eventIds = Event::where('user_id', $userId)->pluck('id');
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid');
@@ -27,8 +29,8 @@ class AnalyticsController extends Controller
                 'tickets' => (int) Ticket::whereIn('event_id', $eventIds)->whereIn('status', ['valid', 'checked_in'])->count(),
                 'revenue' => (float) (clone $paid)->sum('total'),
             ],
-            'reach' => Analytics::trendSummed(EventDailyStat::whereIn('event_id', $eventIds), 30),
-            'revenue' => Analytics::revenueByDay(Order::whereIn('event_id', $eventIds), 30),
+            'reach' => Analytics::reach(EventDailyStat::whereIn('event_id', $eventIds), $w),
+            'revenue' => Analytics::revenue(Order::whereIn('event_id', $eventIds), $w),
             'events' => Event::where('user_id', $userId)->latest()->get()->map(fn (Event $e) => [
                 'slug' => $e->slug,
                 'title' => $e->title,
@@ -37,6 +39,7 @@ class AnalyticsController extends Controller
                 'sold' => (int) $e->tickets()->whereIn('status', ['valid', 'checked_in'])->count(),
                 'revenue' => (float) Order::where('event_id', $e->id)->where('status', 'paid')->sum('total'),
             ])->all(),
+            'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label']],
         ]);
     }
 
@@ -45,11 +48,13 @@ class AnalyticsController extends Controller
     {
         $this->authorize('update', $event);
 
-        $trend = Analytics::trend($event->dailyStats(), 30);
+        $w = AnalyticsWindow::fromRequest($request);
+        $trend = Analytics::reach($event->dailyStats(), $w);
 
         $impressions = (int) $event->dailyStats()->sum('impressions');
         $clicks = (int) $event->dailyStats()->sum('clicks');
         $paid = Order::where('event_id', $event->id)->where('status', 'paid');
+        $paidInWindow = (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]);
         $sold = (int) $event->tickets()->whereIn('status', ['valid', 'checked_in'])->count();
         $revenue = (float) (clone $paid)->sum('total');
 
@@ -65,11 +70,12 @@ class AnalyticsController extends Controller
             ],
             'trend' => $trend,
             'demographics' => [
-                'gender' => Analytics::breakdown((clone $paid), 'buyer_gender', Analytics::GENDER_LABELS),
-                'age' => Analytics::ordered((clone $paid), 'buyer_age_band', Analytics::AGE_ORDER),
-                'city' => Analytics::top((clone $paid), 'buyer_city', 6),
-                'source' => Analytics::breakdown((clone $paid), 'buyer_source', Analytics::SOURCE_LABELS),
+                'gender' => Analytics::breakdown((clone $paidInWindow), 'buyer_gender', Analytics::GENDER_LABELS),
+                'age' => Analytics::ordered((clone $paidInWindow), 'buyer_age_band', Analytics::AGE_ORDER),
+                'city' => Analytics::top((clone $paidInWindow), 'buyer_city', 6),
+                'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
+            'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label']],
         ]);
     }
 }

@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { CalendarDays, ChartColumn, Eye, MousePointerClick, Ticket, Wallet } from 'lucide-react';
+import { AnalyticsToolbar } from '@/components/analytics-toolbar';
+import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
 import { PALETTE, RevenueBars, TrendChart } from '@/components/charts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,7 @@ interface Props {
     reach: Reach[];
     revenue: { date: string; revenue: number }[];
     events: EventRow[];
+    filters: AnalyticsPeriod;
 }
 
 function Kpi({ icon: Icon, label, value, tint }: { icon: typeof Eye; label: string; value: string; tint: string }) {
@@ -32,7 +35,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function HostAnalytics({ kpis, reach, revenue, events }: Props) {
+export default function HostAnalytics({ kpis, reach, revenue, events, filters }: Props) {
     return (
         <>
             <Head title="Analytics" />
@@ -49,6 +52,8 @@ export default function HostAnalytics({ kpis, reach, revenue, events }: Props) {
                     <Button asChild variant="outline" className="shrink-0"><Link href="/host/events"><CalendarDays className="size-4" /> Manage events</Link></Button>
                 </div>
 
+                <div className="mb-6 flex justify-end"><AnalyticsToolbar path="/host/analytics" filters={filters} /></div>
+
                 {/* Aggregate KPIs */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                     <Kpi icon={CalendarDays} label="Events" value={kpis.events.toLocaleString()} tint={PALETTE[0]} />
@@ -59,8 +64,8 @@ export default function HostAnalytics({ kpis, reach, revenue, events }: Props) {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    <Panel title="Reach (last 30 days)"><TrendChart data={reach} /></Panel>
-                    <Panel title="Revenue (last 30 days)"><RevenueBars data={revenue} /></Panel>
+                    <Panel title={`Reach · ${filters.periodLabel}`}><TrendChart data={reach} /></Panel>
+                    <Panel title={`Revenue · ${filters.periodLabel}`}><RevenueBars data={revenue} /></Panel>
                 </div>
 
                 {/* Per-event list */}

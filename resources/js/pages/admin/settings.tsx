@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, ClipboardList, Flame, Percent, ReceiptText, Send, Settings2 } from 'lucide-react';
+import { ArmchairIcon, Banknote, ClipboardList, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -181,43 +181,62 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                     )}
 
                     {tab === 'general' && (
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            {/* Announcement banner / modal (saved with Settings) */}
-                            <div className="grid content-start gap-3">
-                                <h2 className="text-sm font-semibold">Site announcement</h2>
-                                <p className="text-sm text-muted-foreground">A banner or first-load modal shown across the public site. Editing it re-shows for everyone.</p>
-                                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                                    <div><div className="text-sm font-medium">Show announcement</div><div className="text-xs text-muted-foreground">Turn the banner / modal on or off.</div></div>
-                                    <Switch checked={data.announcement.active} onCheckedChange={(v) => setAnnounce('active', v)} />
+                        <div className="grid gap-8">
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                {/* Announcement banner / modal (saved with Settings) */}
+                                <div className="grid content-start gap-3 rounded-xl border border-border p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <h2 className="flex items-center gap-2 text-sm font-semibold"><Megaphone className="size-4" /> Site announcement</h2>
+                                        <Switch checked={data.announcement.active} onCheckedChange={(v) => setAnnounce('active', v)} aria-label="Show announcement" />
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">A banner or first-load modal shown across the public site. Toggle it on, then edit — saving re-shows it for everyone.</p>
+                                    <div className={`grid gap-3 transition-opacity ${data.announcement.active ? '' : 'pointer-events-none opacity-50'}`}>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <Field label="Style"><AppSelect value={data.announcement.style} onChange={(v) => setAnnounce('style', v)} options={[{ value: 'banner', label: 'Top banner' }, { value: 'modal', label: 'Popup modal' }]} /></Field>
+                                            <Field label="Tone"><AppSelect value={data.announcement.level} onChange={(v) => setAnnounce('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
+                                        </div>
+                                        <Field label="Title"><input className={input} value={data.announcement.title} onChange={(e) => setAnnounce('title', e.target.value)} placeholder="Big news!" /></Field>
+                                        <Field label="Message"><textarea rows={2} className={area} value={data.announcement.body} onChange={(e) => setAnnounce('body', e.target.value)} /></Field>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <Field label="Button label"><input className={input} value={data.announcement.cta_label} onChange={(e) => setAnnounce('cta_label', e.target.value)} placeholder="Learn more" /></Field>
+                                            <Field label="Button link"><input className={input} value={data.announcement.cta_url} onChange={(e) => setAnnounce('cta_url', e.target.value)} placeholder="/en-my/all" /></Field>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Announcement saves with the <strong>Save changes</strong> button above.</p>
                                 </div>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <Field label="Style"><AppSelect value={data.announcement.style} onChange={(v) => setAnnounce('style', v)} options={[{ value: 'banner', label: 'Top banner' }, { value: 'modal', label: 'Popup modal' }]} /></Field>
-                                    <Field label="Tone"><AppSelect value={data.announcement.level} onChange={(v) => setAnnounce('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
+
+                                {/* Broadcast — separate one-shot push to inboxes */}
+                                <div className="grid content-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                                    <h2 className="flex items-center gap-2 text-sm font-semibold"><Send className="size-4" /> Send a broadcast</h2>
+                                    <p className="text-sm text-muted-foreground">Push a notification to the bell inbox of a group of users. Sends immediately.</p>
+                                    <Field label="Audience"><AppSelect value={broadcast.data.audience} onChange={(v) => broadcast.setData('audience', v)} options={[{ value: 'all', label: 'Everyone' }, { value: 'organizers', label: 'Organizers' }, { value: 'buyers', label: 'Buyers' }, { value: 'admins', label: 'Admins' }]} /></Field>
+                                    <Field label="Title"><input className={input} value={broadcast.data.title} onChange={(e) => broadcast.setData('title', e.target.value)} placeholder="Scheduled maintenance" /></Field>
+                                    <Field label="Message"><textarea rows={2} className={area} value={broadcast.data.body} onChange={(e) => broadcast.setData('body', e.target.value)} /></Field>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <Field label="Link (optional)"><input className={input} value={broadcast.data.url} onChange={(e) => broadcast.setData('url', e.target.value)} placeholder="/premium" /></Field>
+                                        <Field label="Tone"><AppSelect value={broadcast.data.level} onChange={(v) => broadcast.setData('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
+                                    </div>
+                                    <div>
+                                        <Button type="button" onClick={() => broadcast.post('/admin/broadcast', { preserveScroll: true, onSuccess: () => broadcast.reset('title', 'body', 'url') })} disabled={broadcast.processing || !broadcast.data.title.trim()}>
+                                            <Send className="size-4" /> {broadcast.processing ? 'Sending…' : 'Send broadcast'}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <Field label="Title"><input className={input} value={data.announcement.title} onChange={(e) => setAnnounce('title', e.target.value)} placeholder="Big news!" /></Field>
-                                <Field label="Message"><textarea rows={2} className={area} value={data.announcement.body} onChange={(e) => setAnnounce('body', e.target.value)} /></Field>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <Field label="Button label"><input className={input} value={data.announcement.cta_label} onChange={(e) => setAnnounce('cta_label', e.target.value)} placeholder="Learn more" /></Field>
-                                    <Field label="Button link"><input className={input} value={data.announcement.cta_url} onChange={(e) => setAnnounce('cta_url', e.target.value)} placeholder="/en-my/all" /></Field>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Announcement saves with the <strong>Save changes</strong> button above.</p>
                             </div>
 
-                            {/* Broadcast — separate one-shot push to inboxes */}
-                            <div className="grid content-start gap-3 rounded-xl border border-border bg-card p-4">
-                                <h2 className="flex items-center gap-2 text-sm font-semibold"><Send className="size-4" /> Send a broadcast</h2>
-                                <p className="text-sm text-muted-foreground">Push a notification to the bell inbox of a group of users. Sends immediately.</p>
-                                <Field label="Audience"><AppSelect value={broadcast.data.audience} onChange={(v) => broadcast.setData('audience', v)} options={[{ value: 'all', label: 'Everyone' }, { value: 'organizers', label: 'Organizers' }, { value: 'buyers', label: 'Buyers' }, { value: 'admins', label: 'Admins' }]} /></Field>
-                                <Field label="Title"><input className={input} value={broadcast.data.title} onChange={(e) => broadcast.setData('title', e.target.value)} placeholder="Scheduled maintenance" /></Field>
-                                <Field label="Message"><textarea rows={2} className={area} value={broadcast.data.body} onChange={(e) => broadcast.setData('body', e.target.value)} /></Field>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <Field label="Link (optional)"><input className={input} value={broadcast.data.url} onChange={(e) => broadcast.setData('url', e.target.value)} placeholder="/premium" /></Field>
-                                    <Field label="Tone"><AppSelect value={broadcast.data.level} onChange={(v) => broadcast.setData('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
-                                </div>
-                                <div>
-                                    <Button type="button" onClick={() => broadcast.post('/admin/broadcast', { preserveScroll: true, onSuccess: () => broadcast.reset('title', 'body', 'url') })} disabled={broadcast.processing || !broadcast.data.title.trim()}>
-                                        <Send className="size-4" /> {broadcast.processing ? 'Sending…' : 'Send broadcast'}
-                                    </Button>
+                            {/* Divider between the messaging tools and the general options */}
+                            <div className="border-t border-border pt-6">
+                                <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold"><LifeBuoy className="size-4" /> Support &amp; documents</h2>
+                                <div className="grid gap-4">
+                                    <Field label="Support email" hint="Shown to users who need help."><input type="email" className={input} value={data.support_email} onChange={(e) => setData('support_email', e.target.value)} placeholder="support@droprsvp.com" /></Field>
+
+                                    <Link href="/admin/site/receipt" className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:border-foreground/30 hover:bg-muted/40">
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex size-9 items-center justify-center rounded-lg bg-muted"><ReceiptText className="size-4" /></span>
+                                            <div><div className="text-sm font-medium">Receipt &amp; invoice template</div><div className="text-xs text-muted-foreground">Branding, content and layout of the PDF buyers download.</div></div>
+                                        </div>
+                                        <span className="text-sm font-medium text-muted-foreground">Open editor →</span>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -231,19 +250,6 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                         </div>
                     )}
 
-                    {tab === 'general' && (
-                        <div className="grid gap-4">
-                            <Field label="Support email" hint="Shown to users who need help."><input type="email" className={input} value={data.support_email} onChange={(e) => setData('support_email', e.target.value)} placeholder="support@droprsvp.com" /></Field>
-
-                            <Link href="/admin/site/receipt" className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:border-foreground/30 hover:bg-muted/40">
-                                <div className="flex items-center gap-3">
-                                    <span className="flex size-9 items-center justify-center rounded-lg bg-muted"><ReceiptText className="size-4" /></span>
-                                    <div><div className="text-sm font-medium">Receipt &amp; invoice template</div><div className="text-xs text-muted-foreground">Branding, content and layout of the PDF buyers download.</div></div>
-                                </div>
-                                <span className="text-sm font-medium text-muted-foreground">Open editor →</span>
-                            </Link>
-                        </div>
-                    )}
                 </section>
             </div>
         </>

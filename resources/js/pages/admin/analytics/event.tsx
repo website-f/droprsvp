@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Eye, MousePointerClick, Percent, Ticket, Wallet } from 'lucide-react';
+import { AnalyticsToolbar } from '@/components/analytics-toolbar';
+import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
 import { BarsChart, DonutChart, PALETTE, TrendChart } from '@/components/charts';
 
 interface Slice { name: string; value: number }
@@ -32,16 +34,19 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function AdminEventAnalytics({ data }: { data: Data }) {
+export default function AdminEventAnalytics({ data, filters }: { data: Data; filters: AnalyticsPeriod }) {
     return (
         <>
             <Head title={`${data.event.title} — analytics`} />
             <div className="mx-auto w-full max-w-6xl flex-1 p-4">
                 <Link href="/admin/analytics" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to all events</Link>
 
-                <div className="mb-6 flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-bold tracking-tight">{data.event.title}</h1>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize text-muted-foreground">{data.event.status}</span>
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="text-2xl font-bold tracking-tight">{data.event.title}</h1>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize text-muted-foreground">{data.event.status}</span>
+                    </div>
+                    <AnalyticsToolbar path={`/admin/analytics/${data.event.slug}`} filters={filters} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -54,7 +59,7 @@ export default function AdminEventAnalytics({ data }: { data: Data }) {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    <Panel title="Reach (last 30 days)"><TrendChart data={data.trend} /></Panel>
+                    <Panel title={`Reach · ${filters.periodLabel}`}><TrendChart data={data.trend} /></Panel>
                     <Panel title="Audience age"><BarsChart data={data.demographics.age} color={PALETTE[2]} height={260} /></Panel>
                     <Panel title="Top cities"><BarsChart data={data.demographics.city} color={PALETTE[0]} height={260} /></Panel>
                     <Panel title="Traffic sources"><DonutChart data={data.demographics.source} /></Panel>

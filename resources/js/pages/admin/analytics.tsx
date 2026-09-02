@@ -1,13 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowUpDown, CalendarCheck, CalendarDays, ChartColumn, Download, Eye, Search, Ticket, Users, Wallet } from 'lucide-react';
 import { useState } from 'react';
+import { AnalyticsToolbar } from '@/components/analytics-toolbar';
 import { BarsChart, DonutChart, PALETTE, RevenueBars, TrendChart } from '@/components/charts';
+import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
 interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number }
 interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Filters { q: string; sort: string; dir: string; status: string; category: string; period: string; from: string; to: string; periodLabel: string }
 interface Props {
     kpis: { events: number; published: number; users: number; tickets: number; revenue: number; impressions: number };
     reach: Reach[];
@@ -15,7 +18,9 @@ interface Props {
     topEvents: Slice[];
     demographics: { gender: Slice[]; age: Slice[]; source: Slice[] };
     events: Paginated;
-    filters: { q: string; sort: string; dir: string };
+    filters: Filters;
+    statusOptions: string[];
+    categoryOptions: { value: string; label: string }[];
     exportUrl: string;
 }
 
@@ -52,43 +57,55 @@ function Th({ label, k, activeSort, onSort, className = '' }: { label: string; k
     );
 }
 
-export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, exportUrl }: Props) {
+export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
 
-    const query = () => {
-        const params: Record<string, string> = {};
+    // The date-range window params — the toolbar owns these; everything else keeps them.
+    const windowParams: Record<string, string> = filters.period === 'custom'
+        ? { period: 'custom', from: filters.from, to: filters.to }
+        : { period: filters.period };
+    const windowQs = new URLSearchParams(windowParams).toString();
+    // All non-window filters currently in effect (passed to the toolbar to preserve).
+    const extra: Record<string, string> = {
+        ...(q ? { q } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.category ? { category: filters.category } : {}),
+        ...(filters.sort !== 'created_at' ? { sort: filters.sort } : {}),
+        ...(filters.dir !== 'desc' ? { dir: filters.dir } : {}),
+    };
 
-        if (q) {
-            params.q = q;
+    const nav = (overrides: Record<string, string | undefined>) => {
+        const merged: Record<string, string | undefined> = { ...windowParams, ...extra, ...overrides };
+        const clean: Record<string, string> = {};
+
+        for (const [k, v] of Object.entries(merged)) {
+            if (v) {
+                clean[k] = v;
+            }
         }
 
-        if (filters.sort !== 'created_at') {
-            params.sort = filters.sort;
-        }
-
-        if (filters.dir !== 'desc') {
-            params.dir = filters.dir;
-        }
-
-        return params;
+        router.get('/admin/analytics', clean, { preserveScroll: true, preserveState: true });
     };
 
     const search = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/admin/analytics', query(), { preserveScroll: true, preserveState: true });
+        nav({ q: q || undefined });
     };
     const sortBy = (key: string) => {
         const dir = filters.sort === key && filters.dir === 'desc' ? 'asc' : 'desc';
-        router.get('/admin/analytics', { ...query(), sort: key, dir }, { preserveScroll: true, preserveState: true });
+        nav({ sort: key, dir });
     };
 
     return (
         <>
             <Head title="Analytics" />
             <div className="mx-auto w-full max-w-6xl flex-1 p-4">
-                <div className="mb-6">
-                    <h1 className="mb-1 text-2xl font-bold tracking-tight">Platform analytics</h1>
-                    <p className="text-sm text-muted-foreground">Everything happening across DropRSVP.</p>
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h1 className="mb-1 text-2xl font-bold tracking-tight">Platform analytics</h1>
+                        <p className="text-sm text-muted-foreground">Everything happening across DropRSVP.</p>
+                    </div>
+                    <AnalyticsToolbar path="/admin/analytics" filters={filters} extra={extra} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -101,8 +118,8 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    <Panel title="Reach (last 30 days)"><TrendChart data={reach} /></Panel>
-                    <Panel title="Revenue (last 30 days)"><RevenueBars data={revenue} /></Panel>
+                    <Panel title={`Reach · ${filters.periodLabel}`}><TrendChart data={reach} /></Panel>
+                    <Panel title={`Revenue · ${filters.periodLabel}`}><RevenueBars data={revenue} /></Panel>
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -114,14 +131,27 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
 
                 {/* Advanced events table — scales past the old dropdown */}
                 <section className="mt-8 rounded-2xl border border-border bg-card shadow-sm">
-                    <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h2 className="flex items-center gap-2 text-sm font-semibold"><ChartColumn className="size-4" /> All events <span className="text-muted-foreground">({events.total.toLocaleString()})</span></h2>
-                        <div className="flex items-center gap-2">
-                            <form onSubmit={search} className="relative">
-                                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search events…" className="h-9 w-44 rounded-lg border border-input bg-card pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 sm:w-56" />
-                            </form>
-                            <Button asChild variant="outline" size="sm"><a href={exportUrl}><Download className="size-4" /> Export CSV</a></Button>
+                    <div className="flex flex-col gap-3 border-b border-border p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h2 className="flex items-center gap-2 text-sm font-semibold"><ChartColumn className="size-4" /> All events <span className="text-muted-foreground">({events.total.toLocaleString()})</span></h2>
+                            <div className="flex items-center gap-2">
+                                <form onSubmit={search} className="relative">
+                                    <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search events…" className="h-9 w-44 rounded-lg border border-input bg-card pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 sm:w-56" />
+                                </form>
+                                <Button asChild variant="outline" size="sm"><a href={exportUrl}><Download className="size-4" /> Export CSV</a></Button>
+                            </div>
+                        </div>
+                        {/* Advanced filters — status + category (the window applies from the toolbar above) */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-medium text-muted-foreground">Filter:</span>
+                            <div className="w-40"><AppSelect value={filters.status || 'all'} onChange={(v) => nav({ status: v === 'all' ? undefined : v })} options={[{ value: 'all', label: 'All statuses' }, ...statusOptions.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))]} /></div>
+                            <div className="w-44"><AppSelect value={filters.category || 'all'} onChange={(v) => nav({ category: v === 'all' ? undefined : v })} options={[{ value: 'all', label: 'All categories' }, ...categoryOptions]} /></div>
+                            {(filters.status || filters.category || filters.q) && (
+                                <button type="button" onClick={() => {
+ setQ(''); router.get('/admin/analytics', windowParams, { preserveScroll: true, preserveState: true }); 
+}} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Clear filters</button>
+                            )}
                         </div>
                     </div>
 
@@ -154,7 +184,7 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                                         <td className="px-3 py-2 text-right tabular-nums">{e.ctr}%</td>
                                         <td className="px-3 py-2 text-right tabular-nums">{e.sold.toLocaleString()}</td>
                                         <td className="px-3 py-2 text-right font-medium tabular-nums">{rm(e.revenue)}</td>
-                                        <td className="px-3 py-2 text-right"><Button asChild size="sm" variant="outline"><Link href={`/admin/analytics/${e.slug}`}>View analytics</Link></Button></td>
+                                        <td className="px-3 py-2 text-right"><Button asChild size="sm" variant="outline"><Link href={`/admin/analytics/${e.slug}?${windowQs}`}>View analytics</Link></Button></td>
                                     </tr>
                                 ))}
                             </tbody>

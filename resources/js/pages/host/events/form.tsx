@@ -543,10 +543,10 @@ form.post('/host/events');
                     </div>
                 </section>
 
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-3">
-                    <Button type="button" variant="outline" disabled={processing} onClick={() => save(false)}>Save draft</Button>
-                    <Button type="button" disabled={processing} onClick={() => save(true)}>Publish</Button>
+                {/* Actions — generous, responsive spacing off the last card */}
+                <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-end">
+                    <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing} onClick={() => save(false)}>Save draft</Button>
+                    <Button type="button" className="w-full sm:w-auto" disabled={processing} onClick={() => save(true)}>Publish</Button>
                 </div>
             </form>
         </>

@@ -12,53 +12,71 @@ class Analytics
     public const SOURCE_LABELS = ['instagram' => 'Instagram', 'facebook' => 'Facebook', 'tiktok' => 'TikTok', 'friend' => 'Friend', 'search' => 'Search', 'email' => 'Email', 'other' => 'Other'];
     public const AGE_ORDER = ['under-18' => 'Under 18', '18-24' => '18–24', '25-34' => '25–34', '35-44' => '35–44', '45-54' => '45–54', '55+' => '55+'];
 
-    /** Last $days of impressions + clicks from a daily-stats query, zero-filled. */
-    public static function trend($query, int $days): array
+    /**
+     * Impressions + clicks over a resolved window, bucketed by day or month.
+     * Works for a single event's dailyStats or a summed platform query alike
+     * (the SUM + groupBy collapses either to one row per date).
+     */
+    public static function reach($query, array $w): array
     {
-        $from = today()->subDays($days - 1);
-        $rows = (clone $query)->where('stat_date', '>=', $from)->get(['stat_date', 'impressions', 'clicks'])
-            ->keyBy(fn ($r) => $r->stat_date->toDateString());
-
-        $out = [];
-        for ($i = 0; $i < $days; $i++) {
-            $d = $from->copy()->addDays($i);
-            $r = $rows->get($d->toDateString());
-            $out[] = ['date' => $d->format('j M'), 'impressions' => (int) ($r->impressions ?? 0), 'clicks' => (int) ($r->clicks ?? 0)];
-        }
-
-        return $out;
-    }
-
-    /** Platform reach: impressions + clicks SUMMED across all events per day, zero-filled. */
-    public static function trendSummed($query, int $days): array
-    {
-        $from = today()->subDays($days - 1);
-        $rows = (clone $query)->where('stat_date', '>=', $from)
+        $rows = (clone $query)->whereBetween('stat_date', [$w['from_date'], $w['to_date']])
             ->selectRaw('stat_date, SUM(impressions) as impressions, SUM(clicks) as clicks')
             ->groupBy('stat_date')->get()
             ->keyBy(fn ($r) => \Illuminate\Support\Carbon::parse((string) $r->stat_date)->toDateString());
 
-        $out = [];
-        for ($i = 0; $i < $days; $i++) {
-            $d = $from->copy()->addDays($i);
-            $r = $rows->get($d->toDateString());
-            $out[] = ['date' => $d->format('j M'), 'impressions' => (int) ($r->impressions ?? 0), 'clicks' => (int) ($r->clicks ?? 0)];
-        }
-
-        return $out;
+        return self::bucketed($w, fn (\Carbon\CarbonInterface $d) => [
+            'impressions' => (int) (optional($rows->get($d->toDateString()))->impressions ?? 0),
+            'clicks' => (int) (optional($rows->get($d->toDateString()))->clicks ?? 0),
+        ], ['impressions' => 0, 'clicks' => 0]);
     }
 
-    /** Revenue per day from an orders query (uses paid_at), zero-filled. */
-    public static function revenueByDay($query, int $days): array
+    /** Revenue over a resolved window (uses paid_at), bucketed by day or month. */
+    public static function revenue($query, array $w): array
     {
-        $from = today()->subDays($days - 1);
-        $rows = (clone $query)->whereNotNull('paid_at')->where('paid_at', '>=', $from->copy()->startOfDay())
+        $rows = (clone $query)->whereNotNull('paid_at')
+            ->whereBetween('paid_at', [$w['from'], $w['to']])
             ->selectRaw('DATE(paid_at) as d, SUM(total) as t')->groupBy('d')->pluck('t', 'd');
 
+        return self::bucketed($w, fn (\Carbon\CarbonInterface $d) => ['revenue' => round((float) ($rows[$d->toDateString()] ?? 0), 2)], ['revenue' => 0.0]);
+    }
+
+    /**
+     * Roll per-day values into the window's buckets (daily rows, or summed into
+     * calendar months for long ranges). $dayVal returns the metrics for one day;
+     * $zero seeds a bucket's accumulator. Portable across SQLite + MySQL because
+     * the month grouping happens in PHP, not SQL.
+     */
+    private static function bucketed(array $w, callable $dayVal, array $zero): array
+    {
+        // Dates are CarbonImmutable, so every step reassigns (addDay/addMonth
+        // return a new instance rather than mutating in place).
         $out = [];
-        for ($i = 0; $i < $days; $i++) {
-            $d = $from->copy()->addDays($i);
-            $out[] = ['date' => $d->format('j M'), 'revenue' => round((float) ($rows[$d->toDateString()] ?? 0), 2)];
+        $from = $w['from'];
+        $to = $w['to'];
+
+        if ($w['bucket'] === 'month') {
+            $cur = $from->startOfMonth();
+            $lastMonth = $to->startOfMonth();
+            while ($cur->lte($lastMonth)) {
+                $agg = $zero;
+                $monthEnd = $cur->endOfMonth();
+                for ($d = $cur; $d->lte($monthEnd); $d = $d->addDay()) {
+                    if ($d->lt($from) || $d->gt($to)) {
+                        continue;
+                    }
+                    foreach ($dayVal($d) as $k => $v) {
+                        $agg[$k] += $v;
+                    }
+                }
+                $out[] = ['date' => $cur->format('M Y')] + $agg;
+                $cur = $cur->addMonth();
+            }
+
+            return $out;
+        }
+
+        for ($d = $from; $d->lte($to); $d = $d->addDay()) {
+            $out[] = ['date' => $d->format('j M')] + $dayVal($d);
         }
 
         return $out;

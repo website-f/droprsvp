@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Eye, MousePointerClick, Percent, Ticket, TrendingUp, Wallet } from 'lucide-react';
+import { AnalyticsToolbar } from '@/components/analytics-toolbar';
+import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
 import { BarsChart, DonutChart, PALETTE, TrendChart } from '@/components/charts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +12,7 @@ interface Props {
     kpis: { impressions: number; clicks: number; ctr: number; sold: number; revenue: number; conversion: number };
     trend: { date: string; impressions: number; clicks: number }[];
     demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
+    filters: AnalyticsPeriod;
 }
 
 function Kpi({ icon: Icon, label, value, tint }: { icon: typeof Eye; label: string; value: string; tint: string }) {
@@ -31,7 +34,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function EventAnalytics({ event, kpis, trend, demographics }: Props) {
+export default function EventAnalytics({ event, kpis, trend, demographics, filters }: Props) {
     const hasAudience = demographics.gender.length + demographics.age.length + demographics.city.length + demographics.source.length > 0;
 
     return (
@@ -47,6 +50,8 @@ export default function EventAnalytics({ event, kpis, trend, demographics }: Pro
                     <Badge variant={event.status === 'published' ? 'default' : 'secondary'} className="ml-auto capitalize">{event.status}</Badge>
                 </div>
 
+                <div className="mb-6 flex justify-end"><AnalyticsToolbar path={`/host/events/${event.slug}/analytics`} filters={filters} /></div>
+
                 {/* KPIs */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                     <Kpi icon={Eye} label="Impressions" value={kpis.impressions.toLocaleString()} tint={PALETTE[0]} />
@@ -59,7 +64,7 @@ export default function EventAnalytics({ event, kpis, trend, demographics }: Pro
 
                 {/* Trend */}
                 <div className="mt-6">
-                    <Panel title="Reach over the last 30 days">
+                    <Panel title={`Reach · ${filters.periodLabel}`}>
                         <TrendChart data={trend} />
                     </Panel>
                 </div>

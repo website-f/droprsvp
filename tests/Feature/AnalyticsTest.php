@@ -15,6 +15,15 @@ class AnalyticsTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function superadmin(): User
+    {
+        Role::findOrCreate('superadmin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        return $admin;
+    }
+
     private function publishedEvent(?User $host = null, array $overrides = []): Event
     {
         $host ??= User::factory()->create();
@@ -127,6 +136,60 @@ class AnalyticsTest extends TestCase
                 ->where('filters.q', 'Jazz')
                 ->has('events.data', 1)
                 ->where('events.data.0.slug', 'jazz-bay'));
+    }
+
+    public function test_period_filter_changes_the_reach_window(): void
+    {
+        $admin = $this->superadmin();
+
+        $this->actingAs($admin)->get('/admin/analytics?period=7d')
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->has('reach', 7)
+                ->has('revenue', 7)
+                ->where('filters.period', '7d'));
+    }
+
+    public function test_custom_range_buckets_by_day(): void
+    {
+        $admin = $this->superadmin();
+        $from = now()->subDays(9)->toDateString();
+        $to = now()->toDateString();
+
+        $this->actingAs($admin)->get("/admin/analytics?period=custom&from={$from}&to={$to}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->has('reach', 10) // 10 inclusive days
+                ->where('filters.period', 'custom'));
+    }
+
+    public function test_status_filter_narrows_the_events_table(): void
+    {
+        $admin = $this->superadmin();
+        $this->publishedEvent(null, ['title' => 'Live One', 'slug' => 'live-one']);
+        $this->publishedEvent(null, ['title' => 'Draft One', 'slug' => 'draft-one', 'status' => 'draft']);
+
+        $this->actingAs($admin)->get('/admin/analytics?status=draft')
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->where('filters.status', 'draft')
+                ->has('events.data', 1)
+                ->where('events.data.0.slug', 'draft-one'));
+    }
+
+    public function test_category_filter_narrows_the_events_table(): void
+    {
+        $admin = $this->superadmin();
+        $cat = \App\Models\EventCategory::create(['name' => 'Music', 'slug' => 'music', 'sort_order' => 0]);
+        $this->publishedEvent(null, ['title' => 'Cat One', 'slug' => 'cat-one', 'category_id' => $cat->id]);
+        $this->publishedEvent(null, ['title' => 'No Cat', 'slug' => 'no-cat']);
+
+        $this->actingAs($admin)->get('/admin/analytics?category='.$cat->id)
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->where('filters.category', (string) $cat->id)
+                ->has('events.data', 1)
+                ->where('events.data.0.slug', 'cat-one'));
     }
 
     public function test_superadmin_can_export_events_analytics_as_csv(): void
