@@ -1,11 +1,12 @@
 import type {FormDataConvertible} from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Plus, Trash2 } from 'lucide-react';
+import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import {  newSection, SeatLayoutEditor } from '@/components/seat-layout-editor';
+import { LayoutEditorOverlay, LayoutPreview } from '@/components/layout-editor-overlay';
+import {  newSection } from '@/components/seat-layout-editor';
 import type {LayoutSectionRow} from '@/components/seat-layout-editor';
-import { newTable, TableLayoutEditor } from '@/components/table-layout-editor';
-import type { TableRow } from '@/components/table-layout-editor';
+import { newTable } from '@/components/table-layout-editor';
+import type { PropRow, TableRow } from '@/components/table-layout-editor';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -32,8 +33,9 @@ interface EventProp {
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
-    seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null }>;
-    seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number }>;
+    seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null; rotation?: number | null }>;
+    seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number; rotation?: number }>;
+    props?: Array<{ id: number; kind: string; label: string | null; color: string | null; pos_x: number; pos_y: number; width: number; height: number; rotation: number }>;
 }
 type TicketingMode = 'general' | 'reserved' | 'tables';
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
@@ -100,16 +102,18 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         seating_enabled: event?.seating_enabled ?? false,
         ticketing_mode: (event?.ticketing_mode ?? (event?.seating_enabled ? 'reserved' : 'general')) as TicketingMode,
         auto_assign_tables: event?.auto_assign_tables ?? false,
-        tables: (event?.seating_tables ?? []).map((t): TableRow => ({ id: t.id, name: t.name, shape: t.shape, capacity: t.capacity, pos_x: t.pos_x, pos_y: t.pos_y })),
+        tables: (event?.seating_tables ?? []).map((t): TableRow => ({ id: t.id, name: t.name, shape: t.shape, capacity: t.capacity, pos_x: t.pos_x, pos_y: t.pos_y, rotation: t.rotation ?? 0 })),
+        props: (event?.props ?? []).map((p): PropRow => ({ id: p.id, kind: p.kind, label: p.label ?? '', color: p.color ?? '#6c63ff', pos_x: p.pos_x, pos_y: p.pos_y, width: p.width, height: p.height, rotation: p.rotation ?? 0 })),
         publish: false,
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
-        sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0' })),
+        sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0' })),
     });
     const { data, setData, errors, processing } = form;
     // Warn before losing unsaved event edits (refresh, back, or navigating away).
     useUnsavedChanges(form.isDirty && !processing);
     const mode = data.ticketing_mode;
+    const [editorOpen, setEditorOpen] = useState(false);
     const tabCls = (active: boolean) => `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`;
     const coverRef = useRef<HTMLInputElement>(null);
     const galleryRef = useRef<HTMLInputElement>(null);
@@ -183,7 +187,7 @@ galleryRef.current.value = '';
             name: s.name, color: s.color ?? '#6c63ff', kind: s.kind, price: s.price != null ? String(s.price) : '0',
             rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8',
             capacity: s.capacity != null ? String(s.capacity) : '100',
-            x: s.x ?? 40, y: s.y ?? (40 + i * 40), width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start ?? 'A', curve: s.curve != null ? String(s.curve) : '0',
+            x: s.x ?? 40, y: s.y ?? (40 + i * 40), width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start ?? 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0',
         })));
     };
 
@@ -400,22 +404,14 @@ form.post('/host/events');
                         </div>
                     </div>
 
-                    {/* ---------- Reserved seating: drag-and-drop layout ---------- */}
+                    {/* ---------- Reserved seating: preview + full-screen editor ---------- */}
                     {mode === 'reserved' ? (
-                        <div className="grid gap-4">
+                        <div className="grid gap-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-sm text-muted-foreground">Build your venue: drag blocks into place, set prices &amp; colours. Buyers pick their exact seat.</p>
-                                <div className="flex items-center gap-2">
-                                    {seatTemplates.length > 0 && (
-                                        <div className="w-48">
-                                            <AppSelect value="" onChange={loadTemplate} options={[{ value: '', label: 'Load a template…' }, ...seatTemplates.map((t) => ({ value: String(t.id), label: t.name }))]} />
-                                        </div>
-                                    )}
-                                    {data.sections.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={saveTemplate}><LayoutGrid className="size-3.5" /> Save template</Button>}
-                                </div>
+                                <p className="text-sm text-muted-foreground">Design your seat map — stage, seated rows and standing areas. Buyers pick their exact seat.</p>
+                                <Button type="button" size="sm" onClick={() => setEditorOpen(true)}><Maximize2 className="size-3.5" /> Open editor</Button>
                             </div>
-
-                            <SeatLayoutEditor value={data.sections} onChange={(s) => setData('sections', s)} />
+                            <LayoutPreview mode="reserved" tables={data.tables} propsList={data.props} sections={data.sections} />
                         </div>
                     ) : (
                     <>
@@ -428,7 +424,11 @@ form.post('/host/events');
                                 label="Auto-assign attendees to tables"
                                 description="Seat each paid attendee at a table with free space automatically on purchase. You can still rearrange anyone from the Seating page."
                             />
-                            <TableLayoutEditor value={data.tables} onChange={(t) => setData('tables', t)} />
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm text-muted-foreground">Design your floorplan — round/rect tables plus stage &amp; props. Buyers get seated at a table.</p>
+                                <Button type="button" size="sm" onClick={() => setEditorOpen(true)}><Maximize2 className="size-3.5" /> Open editor</Button>
+                            </div>
+                            <LayoutPreview mode="tables" tables={data.tables} propsList={data.props} sections={data.sections} />
                             <div className="border-t border-border pt-4">
                                 <p className="text-sm font-medium">Tickets</p>
                                 <p className="text-xs text-muted-foreground">Attendees buy these tickets, then get seated at one of your tables.</p>
@@ -505,6 +505,28 @@ form.post('/host/events');
                         ))}
                     </div>
                     </>
+                    )}
+
+                    {(mode === 'reserved' || mode === 'tables') && (
+                        <LayoutEditorOverlay
+                            open={editorOpen}
+                            onClose={() => setEditorOpen(false)}
+                            mode={mode === 'tables' ? 'tables' : 'reserved'}
+                            sections={data.sections}
+                            onSections={(s) => setData('sections', s)}
+                            tables={data.tables}
+                            onTables={(t) => setData('tables', t)}
+                            propsList={data.props}
+                            onProps={(p) => setData('props', p)}
+                            toolbar={mode === 'reserved' ? (
+                                <>
+                                    {seatTemplates.length > 0 && (
+                                        <div className="w-44"><AppSelect value="" onChange={loadTemplate} options={[{ value: '', label: 'Load a template…' }, ...seatTemplates.map((t) => ({ value: String(t.id), label: t.name }))]} /></div>
+                                    )}
+                                    {data.sections.length > 0 && <Button type="button" variant="outline" size="sm" onClick={saveTemplate}><LayoutGrid className="size-3.5" /> Save template</Button>}
+                                </>
+                            ) : undefined}
+                        />
                     )}
                 </section>
 

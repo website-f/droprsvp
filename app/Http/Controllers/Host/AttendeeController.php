@@ -30,7 +30,7 @@ class AttendeeController extends Controller
             ->through(fn (Ticket $t) => $this->row($t, $event));
 
         return inertia('host/events/attendees', [
-            'event' => ['title' => $event->title, 'slug' => $event->slug],
+            'event' => ['title' => $event->title, 'slug' => $event->slug, 'mode' => $event->ticketing_mode],
             'tickets' => $tickets,
             'filters' => $filters,
             'ticketTypes' => $event->ticketTypes()->orderBy('sort_order')->get(['id', 'name'])

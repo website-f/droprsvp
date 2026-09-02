@@ -49,6 +49,7 @@ class EventController extends Controller
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
         $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
         $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
+        $this->syncProps($event, $data['ticketing_mode'] === 'tables' ? ($data['props'] ?? []) : []);
         $this->flagPolicy($event);
 
         return redirect()->route('host.events.index')->with('success', 'Event created.');
@@ -58,7 +59,7 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
-        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats'), 'seatingTables' => fn ($q) => $q->orderBy('sort_order')]);
+        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats'), 'seatingTables' => fn ($q) => $q->orderBy('sort_order'), 'props']);
 
         return inertia('host/events/form', [
             'event' => $event,
@@ -83,6 +84,7 @@ class EventController extends Controller
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
         $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
         $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
+        $this->syncProps($event, $data['ticketing_mode'] === 'tables' ? ($data['props'] ?? []) : []);
         $this->flagPolicy($event);
 
         return redirect()->route('host.events.index')->with('success', 'Event updated.');
@@ -187,6 +189,7 @@ class EventController extends Controller
                 'capacity' => max(1, (int) $row['capacity']),
                 'pos_x' => (int) ($row['pos_x'] ?? 0),
                 'pos_y' => (int) ($row['pos_y'] ?? 0),
+                'rotation' => max(0, min(359, (int) ($row['rotation'] ?? 0))),
                 'sort_order' => $i,
             ];
             $model = ! empty($row['id']) ? $event->seatingTables()->whereKey($row['id'])->first() : null;
@@ -195,6 +198,30 @@ class EventController extends Controller
         }
         // Dropping a removed table unassigns its tickets via the seating_table_id FK.
         $event->seatingTables()->whereKeyNot($keep)->delete();
+    }
+
+    /** Upsert the event's floorplan props (stage, entrance…) and drop removed ones. */
+    private function syncProps(Event $event, array $rows): void
+    {
+        $keep = [];
+        foreach (array_values($rows) as $i => $row) {
+            $kind = array_key_exists($row['kind'] ?? 'custom', \App\Models\EventProp::KINDS) ? $row['kind'] : 'custom';
+            $attrs = [
+                'kind' => $kind,
+                'label' => $row['label'] ?? null,
+                'color' => $row['color'] ?? null,
+                'pos_x' => (int) ($row['pos_x'] ?? 20),
+                'pos_y' => (int) ($row['pos_y'] ?? 20),
+                'width' => max(30, (int) ($row['width'] ?? 160)),
+                'height' => max(30, (int) ($row['height'] ?? 90)),
+                'rotation' => max(0, min(359, (int) ($row['rotation'] ?? 0))),
+                'sort_order' => $i,
+            ];
+            $model = ! empty($row['id']) ? $event->props()->whereKey($row['id'])->first() : null;
+            $model ? $model->update($attrs) : $model = $event->props()->create($attrs);
+            $keep[] = $model->id;
+        }
+        $event->props()->whereKeyNot($keep)->delete();
     }
 
     private function validated(Request $request): array
@@ -219,6 +246,17 @@ class EventController extends Controller
             'tables.*.capacity' => ['required', 'integer', 'min:1', 'max:1000'],
             'tables.*.pos_x' => ['nullable', 'integer'],
             'tables.*.pos_y' => ['nullable', 'integer'],
+            'tables.*.rotation' => ['nullable', 'integer', 'min:0', 'max:359'],
+            'props' => ['array'],
+            'props.*.id' => ['nullable', 'integer'],
+            'props.*.kind' => ['required', 'string', 'max:24'],
+            'props.*.label' => ['nullable', 'string', 'max:60'],
+            'props.*.color' => ['nullable', 'string', 'max:20'],
+            'props.*.pos_x' => ['nullable', 'integer'],
+            'props.*.pos_y' => ['nullable', 'integer'],
+            'props.*.width' => ['nullable', 'integer', 'min:30', 'max:2000'],
+            'props.*.height' => ['nullable', 'integer', 'min:30', 'max:2000'],
+            'props.*.rotation' => ['nullable', 'integer', 'min:0', 'max:359'],
             'sections' => ['array'],
             'sections.*.id' => ['nullable', 'integer'],
             'sections.*.name' => ['required', 'string', 'max:120'],
@@ -234,6 +272,7 @@ class EventController extends Controller
             'sections.*.height' => ['nullable', 'integer', 'min:20', 'max:2000'],
             'sections.*.row_label_start' => ['nullable', 'string', 'max:4'],
             'sections.*.curve' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'sections.*.rotation' => ['nullable', 'integer', 'min:0', 'max:359'],
             'visibility' => ['required', 'in:public,unlisted,private'],
             'timezone' => ['required', 'string', 'max:64'],
             'is_online' => ['boolean'],
@@ -390,6 +429,7 @@ class EventController extends Controller
                 'height' => isset($row['height']) ? (int) $row['height'] : null,
                 'row_label_start' => $start,
                 'curve' => $kind === 'seated' ? max(0, min(100, (int) ($row['curve'] ?? 0))) : 0,
+                'rotation' => max(0, min(359, (int) ($row['rotation'] ?? 0))),
             ];
             $section ? $section->update($attrs) : $section = $event->seatSections()->create($attrs);
 

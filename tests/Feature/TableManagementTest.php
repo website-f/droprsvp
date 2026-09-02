@@ -46,6 +46,22 @@ class TableManagementTest extends TestCase
         $this->assertSame('rect', $event->seatingTables()->where('name', 'Table 2')->value('shape'));
     }
 
+    public function test_tables_event_persists_props_and_rotation(): void
+    {
+        $host = $this->organizer();
+
+        $this->actingAs($host)->post(route('host.events.store'), $this->payload([
+            'tables' => [['name' => 'T1', 'shape' => 'round', 'capacity' => 8, 'pos_x' => 10, 'pos_y' => 10, 'rotation' => 45]],
+            'props' => [['kind' => 'stage', 'label' => 'Main stage', 'color' => '#111827', 'pos_x' => 5, 'pos_y' => 5, 'width' => 200, 'height' => 80, 'rotation' => 10]],
+        ]))->assertRedirect();
+
+        $event = Event::where('title', 'Gala Dinner')->firstOrFail();
+        $this->assertSame(45, $event->seatingTables()->first()->rotation);
+        $this->assertCount(1, $event->props);
+        $this->assertSame('stage', $event->props->first()->kind);
+        $this->assertSame(10, $event->props->first()->rotation);
+    }
+
     public function test_disabled_mode_is_forced_to_general_for_organizers(): void
     {
         Setting::putArray('ticketing_modes', ['general' => true, 'reserved' => true, 'tables' => false]);

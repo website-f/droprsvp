@@ -21,7 +21,7 @@ interface Paginated<T> {
 interface Filters { q: string; status: string; type: string }
 interface Stats { total: number; checked_in: number }
 interface Props {
-    event: { title: string; slug: string };
+    event: { title: string; slug: string; mode?: string };
     tickets: Paginated<Row>;
     filters: Filters;
     ticketTypes: { id: number; name: string }[];
@@ -189,7 +189,11 @@ p.set('type', filters.type);
                     <Button asChild variant="ghost" size="icon"><Link href="/host/events"><ArrowLeft className="size-4" /></Link></Button>
                     <div className="flex-1">
                         <h1 className="text-xl font-bold tracking-tight">Attendees</h1>
-                        <p className="text-sm text-muted-foreground">{event.title}</p>
+                        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                            {event.title}
+                            {event.mode === 'tables' && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Table management</span>}
+                            {event.mode === 'reserved' && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Reserved seating</span>}
+                        </p>
                     </div>
                     <Button onClick={() => {
  setFeedback(null); setPending(null); setScanOpen(true); 

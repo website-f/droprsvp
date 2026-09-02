@@ -82,6 +82,11 @@ class Event extends Model
         return $this->hasMany(SeatSection::class)->orderBy('sort_order');
     }
 
+    public function props(): HasMany
+    {
+        return $this->hasMany(EventProp::class)->orderBy('sort_order');
+    }
+
     public function seats(): HasMany
     {
         return $this->hasMany(Seat::class);

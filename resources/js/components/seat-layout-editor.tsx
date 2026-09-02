@@ -1,4 +1,4 @@
-import { Armchair, LayoutPanelTop, Trash2, Users, X } from 'lucide-react';
+import { Armchair, LayoutPanelTop, RotateCw, Trash2, Users, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ export interface LayoutSectionRow {
     id?: number;
     name: string; color: string; kind: 'seated' | 'ga' | 'stage';
     price: string; rows: string; cols: string; capacity: string;
-    x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: string;
+    x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: string; rotation: string;
 }
 
 const COLORS = ['#6c63ff', '#2ec4b6', '#f5a524', '#ff6584', '#3b82f6', '#a855f7', '#ef4444', '#10b981'];
@@ -21,7 +21,7 @@ export function newSection(kind: LayoutSectionRow['kind'], x = 40, y = 40, i = 0
         color: kind === 'stage' ? '#111827' : COLORS[i % COLORS.length],
         kind, price: '0', rows: '4', cols: '8', capacity: '100',
         x, y, width: kind === 'stage' ? 280 : kind === 'ga' ? 180 : null, height: kind === 'stage' ? 48 : kind === 'ga' ? 110 : null,
-        row_label_start: 'A', curve: '0',
+        row_label_start: 'A', curve: '0', rotation: '0',
     };
 }
 
@@ -42,7 +42,7 @@ function MiniSeats({ section }: { section: LayoutSectionRow }) {
     );
 }
 
-export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[]; onChange: (next: LayoutSectionRow[]) => void }) {
+export function SeatLayoutEditor({ value, onChange, zoom = 1 }: { value: LayoutSectionRow[]; onChange: (next: LayoutSectionRow[]) => void; zoom?: number }) {
     const [selected, setSelected] = useState<number | null>(null);
     const drag = useRef<{ i: number; sx: number; sy: number; ox: number; oy: number } | null>(null);
 
@@ -66,8 +66,8 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
             return;
         }
 
-        const nx = Math.max(0, Math.round(d.ox + (e.clientX - d.sx)));
-        const ny = Math.max(0, Math.round(d.oy + (e.clientY - d.sy)));
+        const nx = Math.max(0, Math.round(d.ox + (e.clientX - d.sx) / zoom));
+        const ny = Math.max(0, Math.round(d.oy + (e.clientY - d.sy) / zoom));
         onChange(value.map((s, idx) => (idx === d.i ? { ...s, x: nx, y: ny } : s)));
     };
     const endDrag = () => {
@@ -96,8 +96,8 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
             return;
         }
 
-        const w = Math.max(SEAT + 16, d.ow + (e.clientX - d.sx));
-        const h = Math.max(SEAT + HEADER, d.oh + (e.clientY - d.sy));
+        const w = Math.max(SEAT + 16, d.ow + (e.clientX - d.sx) / zoom);
+        const h = Math.max(SEAT + HEADER, d.oh + (e.clientY - d.sy) / zoom);
         const s = value[d.i];
 
         if (s.kind === 'seated') {
@@ -136,8 +136,9 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
             </div>
 
             {/* Canvas */}
-            <div className="max-h-[520px] overflow-auto rounded-xl border border-border bg-[repeating-linear-gradient(45deg,transparent,transparent_11px,rgba(0,0,0,0.02)_11px,rgba(0,0,0,0.02)_12px)]">
-                <div className="relative" style={{ width: bounds.w, height: bounds.h }}>
+            <div className="max-h-[70vh] min-h-[380px] overflow-auto rounded-xl border border-border bg-[repeating-linear-gradient(45deg,transparent,transparent_11px,rgba(0,0,0,0.02)_11px,rgba(0,0,0,0.02)_12px)]">
+              <div style={{ width: bounds.w * zoom, height: bounds.h * zoom }}>
+                <div className="relative" style={{ width: bounds.w, height: bounds.h, transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
                     {value.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Add a stage and some blocks to build your layout.</div>
                     )}
@@ -152,7 +153,7 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                                 onPointerMove={onDragMove}
                                 onPointerUp={endDrag}
                                 className={`group absolute cursor-move touch-none select-none rounded-lg border-2 shadow-sm ${active ? 'border-foreground ring-2 ring-foreground/20' : 'border-transparent'}`}
-                                style={{ left: s.x, top: s.y, width: b.w, height: b.h, backgroundColor: s.kind === 'stage' ? s.color : `${s.color}14` }}
+                                style={{ left: s.x, top: s.y, width: b.w, height: b.h, transform: `rotate(${+s.rotation || 0}deg)`, backgroundColor: s.kind === 'stage' ? s.color : `${s.color}14` }}
                             >
                                 {s.kind === 'stage' ? (
                                     <div className="flex size-full items-center justify-center overflow-hidden text-xs font-semibold uppercase tracking-[0.2em] text-white">{s.name || 'STAGE'}</div>
@@ -195,6 +196,7 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                         );
                     })}
                 </div>
+              </div>
             </div>
 
             {/* Property panel */}
@@ -257,6 +259,11 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                             </div>
                         </div>
                     )}
+
+                    <div className="grid gap-1.5">
+                        <Label className="flex items-center gap-1.5"><RotateCw className="size-3.5" /> Rotation — <span className="font-normal text-muted-foreground">{+sel.rotation || 0}°</span></Label>
+                        <input type="range" min={0} max={359} step={1} value={+sel.rotation || 0} onChange={(e) => patch(selected, 'rotation', e.target.value)} className="w-full accent-foreground" />
+                    </div>
                 </div>
             )}
 
