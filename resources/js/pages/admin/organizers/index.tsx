@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 
 interface Application {
     id: number; name: string | null; email: string | null; business_name: string | null; website: string | null;
-    phone: string | null; status: string; submitted_at: string | null;
+    phone: string | null; status: string; is_appeal?: boolean; submitted_at: string | null;
 }
 interface Paginated { data: Application[]; prev_page_url: string | null; next_page_url: string | null }
-interface Props { applications: Paginated; filters: { status: string }; counts: { pending: number; approved: number; rejected: number } }
+interface Props { applications: Paginated; filters: { status: string }; counts: { pending: number; appealed: number; approved: number; rejected: number } }
 
 const STATUS_TONE: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { pending: 'secondary', approved: 'default', rejected: 'destructive', incomplete: 'outline' };
 
@@ -18,7 +18,9 @@ function Row({ app }: { app: Application }) {
             <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-semibold">{app.business_name || app.name}</span>
-                    <Badge variant={STATUS_TONE[app.status] ?? 'outline'} className="capitalize">{app.status}</Badge>
+                    {app.is_appeal
+                        ? <Badge className="bg-amber-500 text-white hover:bg-amber-500">Appeal</Badge>
+                        : <Badge variant={STATUS_TONE[app.status] ?? 'outline'} className="capitalize">{app.status}</Badge>}
                     {app.submitted_at && <span className="text-xs text-muted-foreground">· {app.submitted_at}</span>}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -34,10 +36,11 @@ function Row({ app }: { app: Application }) {
 
 export default function OrganizersIndex({ applications, filters, counts }: Props) {
     const flash = usePage().props.flash as { success?: string } | undefined;
-    const go = (status: string) => router.get('/admin/organizers', status === 'all' ? {} : { status }, { preserveScroll: true, preserveState: true });
+    const go = (status: string) => router.get('/admin/organizers', { status }, { preserveScroll: true, preserveState: true });
 
     const tabs = [
         { v: 'pending', l: `Pending (${counts.pending})` },
+        { v: 'appealed', l: `Appeals (${counts.appealed})` },
         { v: 'approved', l: `Approved (${counts.approved})` },
         { v: 'rejected', l: `Rejected (${counts.rejected})` },
         { v: 'all', l: 'All' },

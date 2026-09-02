@@ -38,6 +38,25 @@ class OrganizerApprovalTest extends TestCase
         $this->actingAs($user)->get(route('host.events.index'))->assertRedirect(route('host.apply'));
     }
 
+    public function test_reappealed_organizers_show_under_the_appeals_tab_not_pending(): void
+    {
+        $admin = $this->superadmin();
+        // A first-time pending applicant (never reviewed).
+        $fresh = $this->organizer();
+        $fresh->organizerProfile()->create(['status' => 'pending', 'submitted_at' => now()]);
+        // An appellant: rejected before (reviewed_at set), re-submitted → pending again.
+        $appellant = $this->organizer();
+        $appellant->organizerProfile()->create(['status' => 'pending', 'submitted_at' => now(), 'reviewed_at' => now()->subDay()]);
+
+        // Pending tab excludes the appeal; Appeals tab shows only it.
+        $this->actingAs($admin)->get(route('admin.organizers.index', ['status' => 'pending']))
+            ->assertInertia(fn ($p) => $p->where('counts.pending', 1)->where('counts.appealed', 1)
+                ->has('applications.data', 1)->where('applications.data.0.is_appeal', false));
+
+        $this->actingAs($admin)->get(route('admin.organizers.index', ['status' => 'appealed']))
+            ->assertInertia(fn ($p) => $p->has('applications.data', 1)->where('applications.data.0.is_appeal', true));
+    }
+
     public function test_an_organizer_with_no_profile_is_grandfathered_in(): void
     {
         // Existing organizers (no application row) keep working.

@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import 'quill/dist/quill.snow.css';
 import { uploadImage } from '@/lib/upload';
 
+/** Pull the 11-char video id out of any common YouTube URL shape. */
+function youtubeId(url: string): string | null {
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([\w-]{11})/);
+
+    return m ? m[1] : null;
+}
+
 /**
  * Shared styling for rendered rich-text content on public pages. Kept in lockstep
  * with the editor so the live site matches what was authored. Long words/URLs
@@ -25,7 +32,7 @@ export const contentClass =
     '[&_a]:underline [&_a]:underline-offset-2 [&_a]:text-primary [&_a]:break-words ' +
     '[&_hr]:my-8 [&_hr]:border-border ' +
     '[&_img]:my-5 [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:max-w-full [&_img]:h-auto ' +
-    '[&_iframe]:my-5 [&_iframe]:max-w-full [&_iframe]:rounded-xl [&_video]:max-w-full ' +
+    '[&_iframe]:my-5 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-xl [&_iframe]:border [&_iframe]:border-border [&_video]:max-w-full ' +
     '[&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-4 [&_pre]:text-sm ' +
     '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.9em] [&_pre_code]:bg-transparent [&_pre_code]:p-0 ' +
     '[&_table]:my-5 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:border-collapse ' +
@@ -65,11 +72,25 @@ return;
                         [{ header: [1, 2, 3, 4, 5, 6, false] }],
                         ['bold', 'italic', 'underline', 'strike'],
                         [{ list: 'ordered' }, { list: 'bullet' }],
-                        ['blockquote', 'code-block', 'link', 'image'],
+                        ['blockquote', 'code-block', 'link', 'image', 'video'],
                         [{ align: [] }],
                         ['clean'],
                     ],
                     handlers: {
+                        // Insert a YouTube link as a playable, responsive embed.
+                        video() {
+                            const url = window.prompt('Paste a YouTube link');
+
+                            if (!url) {
+                                return;
+                            }
+
+                            const id = youtubeId(url.trim());
+                            const src = id ? `https://www.youtube.com/embed/${id}` : url.trim();
+                            const range = quill.getSelection(true);
+                            quill.insertEmbed(range.index, 'video', src, 'user');
+                            quill.setSelection(range.index + 1, 0);
+                        },
                         image() {
                             const input = document.createElement('input');
                             input.type = 'file';
@@ -140,6 +161,7 @@ quill.clipboard.dangerouslyPasteHTML(htmlDraft || '');
 
     return (
         <div className="rte overflow-hidden rounded-xl border border-input bg-card shadow-sm">
+            <style>{`.rte .ql-editor .ql-video{display:block;width:100%;aspect-ratio:16/9;height:auto;border-radius:12px;margin:1rem 0;}`}</style>
             <div className="flex items-center justify-end border-b border-input bg-muted/40 px-2 py-1.5">
                 <button
                     type="button"

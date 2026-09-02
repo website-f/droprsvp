@@ -13,10 +13,14 @@ class OrganizerController extends Controller
     /** Superadmin — organizer/vendor applications to review. */
     public function index(Request $request)
     {
-        $status = in_array($request->query('status'), ['pending', 'approved', 'rejected'], true) ? $request->query('status') : 'pending';
+        $status = in_array($request->query('status'), ['pending', 'appealed', 'approved', 'rejected', 'all'], true) ? $request->query('status') : 'pending';
 
+        // An "appeal" is a rejected organizer who re-submitted: back to pending, but
+        // with reviewed_at set from the earlier rejection. First-time pending has none.
         $applications = OrganizerProfile::whereNotNull('status')->with('user:id,name,email')
-            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
+            ->when($status === 'pending', fn ($q) => $q->where('status', 'pending')->whereNull('reviewed_at'))
+            ->when($status === 'appealed', fn ($q) => $q->where('status', 'pending')->whereNotNull('reviewed_at'))
+            ->when(in_array($status, ['approved', 'rejected'], true), fn ($q) => $q->where('status', $status))
             ->orderByRaw("case status when 'pending' then 0 when 'rejected' then 1 else 2 end")
             ->orderByDesc('submitted_at')
             ->paginate(12)
@@ -32,6 +36,7 @@ class OrganizerController extends Controller
                 'poster' => $p->poster,
                 'gallery' => $p->gallery ?? [],
                 'status' => $p->status,
+                'is_appeal' => $p->status === 'pending' && $p->reviewed_at !== null,
                 'reason' => $p->review_reason,
                 'submitted_at' => optional($p->submitted_at)->format('j M Y'),
             ]);
@@ -40,7 +45,8 @@ class OrganizerController extends Controller
             'applications' => $applications,
             'filters' => ['status' => $status],
             'counts' => [
-                'pending' => OrganizerProfile::where('status', 'pending')->count(),
+                'pending' => OrganizerProfile::where('status', 'pending')->whereNull('reviewed_at')->count(),
+                'appealed' => OrganizerProfile::where('status', 'pending')->whereNotNull('reviewed_at')->count(),
                 'approved' => OrganizerProfile::where('status', 'approved')->count(),
                 'rejected' => OrganizerProfile::where('status', 'rejected')->count(),
             ],
