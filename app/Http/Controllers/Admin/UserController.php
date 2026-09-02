@@ -146,7 +146,9 @@ class UserController extends Controller
 
         $user->delete();
 
-        return back()->with('flash_success', "{$user->name} moved to the Archive.");
+        // Redirect to the list, never back() — deleting from the user's detail page
+        // would otherwise reload the now-soft-deleted user's URL and 404.
+        return redirect()->route('admin.users.index')->with('flash_success', "{$user->name} moved to the Archive.");
     }
 
     /** @return array{q:string, role:string, country:string, age:string} */

@@ -1,10 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { ExternalLink, LifeBuoy, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
-import { LifeBuoy, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface Row { id: number; title: string; category: string; status: string; updated_at: string }
+interface Row { id: number; slug: string; title: string; category: string; status: string; updated_at: string }
 
 export default function HelpIndex({ articles }: { articles: Row[] }) {
     const confirm = useConfirm();
@@ -43,6 +43,9 @@ export default function HelpIndex({ articles }: { articles: Row[] }) {
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                         <Badge variant={a.status === 'published' ? 'default' : 'secondary'}>{a.status}</Badge>
+                                        {a.status === 'published' && (
+                                            <Button asChild variant="ghost" size="sm" title="View live"><a href={`/help/${a.slug}`} target="_blank" rel="noopener"><ExternalLink className="size-4" /></a></Button>
+                                        )}
                                         <Button asChild variant="outline" size="sm"><Link href={`/admin/cms/help/${a.id}/edit`}><Pencil className="size-4" /></Link></Button>
                                         <Button variant="ghost" size="sm" onClick={() => remove(a)}><Trash2 className="size-4 text-destructive" /></Button>
                                     </div>

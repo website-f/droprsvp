@@ -50,6 +50,30 @@ class UserModerationTest extends TestCase
         $this->actingAs($u->fresh())->get('/dashboard')->assertOk();
     }
 
+    public function test_deleting_a_disabled_user_redirects_to_the_list_not_their_page(): void
+    {
+        $admin = $this->superadmin();
+        $u = User::factory()->create(['disabled_at' => now()]);
+
+        // Deleting from the user's own detail page must land on the list, not reload
+        // the now-soft-deleted user's URL (which would 404).
+        $this->actingAs($admin)
+            ->from(route('admin.users.show', $u))
+            ->delete("/admin/users/{$u->id}")
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertSoftDeleted('users', ['id' => $u->id]);
+    }
+
+    public function test_cannot_delete_an_enabled_user(): void
+    {
+        $admin = $this->superadmin();
+        $u = User::factory()->create(); // not disabled
+
+        $this->actingAs($admin)->delete("/admin/users/{$u->id}")->assertRedirect();
+        $this->assertNotSoftDeleted('users', ['id' => $u->id]);
+    }
+
     public function test_cannot_disable_self_or_a_superadmin(): void
     {
         $admin = $this->superadmin();

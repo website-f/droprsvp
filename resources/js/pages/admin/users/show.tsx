@@ -64,7 +64,9 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
 
     const remove = async () => {
         if (await confirm({ title: `Delete ${user.name}?`, description: 'They’ll be moved to the Archive — you can restore or permanently delete them there.', confirmText: 'Delete', destructive: true })) {
-            router.delete(`/admin/users/${user.id}`, { onSuccess: () => router.visit('/admin/users') });
+            // The server redirects to the users list on success (deleting from here
+            // must not reload this now-deleted user's page, which would 404).
+            router.delete(`/admin/users/${user.id}`);
         }
     };
 

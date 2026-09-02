@@ -177,6 +177,14 @@ class SiteContent
                             ['label' => 'Log in', 'url' => '/login'],
                         ]],
                     ],
+                    'supportEmail' => 'support@droprsvp.com',
+                    'background' => 'muted',
+                    'legalLinks' => [
+                        ['label' => 'Contact', 'url' => '/contact'],
+                        ['label' => 'Privacy Policy', 'url' => '/privacy-policy'],
+                        ['label' => 'Terms & Conditions', 'url' => '/terms'],
+                    ],
+                    'copyright' => '© {year} DropRSVP. All rights reserved.',
                 ],
             ]],
         ];

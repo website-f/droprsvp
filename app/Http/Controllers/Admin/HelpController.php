@@ -14,7 +14,7 @@ class HelpController extends Controller
     {
         return inertia('admin/cms/help/index', [
             'articles' => HelpArticle::orderBy('category')->orderBy('sort')->get()
-                ->map(fn ($a) => ['id' => $a->id, 'title' => $a->title, 'category' => $a->category, 'status' => $a->status, 'updated_at' => $a->updated_at->format('j M Y')]),
+                ->map(fn ($a) => ['id' => $a->id, 'slug' => $a->slug, 'title' => $a->title, 'category' => $a->category, 'status' => $a->status, 'updated_at' => $a->updated_at->format('j M Y')]),
         ]);
     }
 
