@@ -49,6 +49,7 @@ class EventController extends Controller
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
         $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
         $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
+        $this->flagPolicy($event);
 
         return redirect()->route('host.events.index')->with('success', 'Event created.');
     }
@@ -82,6 +83,7 @@ class EventController extends Controller
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
         $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
         $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
+        $this->flagPolicy($event);
 
         return redirect()->route('host.events.index')->with('success', 'Event updated.');
     }
@@ -92,6 +94,64 @@ class EventController extends Controller
         $event->delete();
 
         return redirect()->route('host.events.index')->with('success', 'Event deleted.');
+    }
+
+    /** Appeal an admin cancellation with a reason + proof attachments (organizer). */
+    public function reappeal(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+        abort_unless($event->status === 'cancelled', 422);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'attachments' => ['required', 'array', 'min:1', 'max:6'],
+            'attachments.*' => ['required', 'string', 'max:2048'],
+        ]);
+
+        $event->update([
+            'appeal_status' => 'pending',
+            'appeal_reason' => $data['reason'],
+            'appeal_attachments' => array_values($data['attachments']),
+            'appealed_at' => now(),
+        ]);
+
+        \App\Models\AppNotification::notifyMany(\App\Models\User::role('superadmin')->pluck('id'), [
+            'type' => 'event',
+            'title' => 'Event cancellation appeal',
+            'body' => "{$request->user()->name} appealed the cancellation of “{$event->title}”.",
+            'url' => route('admin.events.show', $event->slug, false),
+            'level' => 'warning',
+        ]);
+
+        return back()->with('success', 'Appeal submitted — our team will review it.');
+    }
+
+    /**
+     * Flag an event whose text matches a policy keyword and notify admins to review.
+     * Keywords are a comma-separated superadmin setting (with a sensible default).
+     */
+    private function flagPolicy(Event $event): void
+    {
+        $keywords = array_filter(array_map('trim', explode(',', (string) \App\Models\Setting::get(
+            'policy_keywords', 'weapon,firearm,drugs,gambling,counterfeit,scam,escort,nude'
+        ))));
+        if (empty($keywords)) {
+            return;
+        }
+
+        $haystack = strtolower(trim(($event->title ?? '').' '.($event->subtitle ?? '').' '.strip_tags((string) $event->description)));
+        $hit = collect($keywords)->first(fn ($k) => $k !== '' && str_contains($haystack, strtolower($k)));
+        if (! $hit) {
+            return;
+        }
+
+        \App\Models\AppNotification::notifyMany(\App\Models\User::role('superadmin')->pluck('id'), [
+            'type' => 'policy',
+            'title' => 'Event may need review',
+            'body' => "“{$event->title}” matched a policy keyword (“{$hit}”). Please review.",
+            'url' => route('admin.events.show', $event->slug, false),
+            'level' => 'warning',
+        ]);
     }
 
     // ---- helpers -----------------------------------------------------------

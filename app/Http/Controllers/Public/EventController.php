@@ -16,6 +16,12 @@ class EventController extends Controller
     /** Public event page (server-rendered for SEO). */
     public function show(Request $request, Event $event)
     {
+        // A cancelled event is taken down — send the public to the homepage rather
+        // than a bare 404 (the owner can still preview it).
+        if ($event->status === 'cancelled' && $request->user()?->id !== $event->user_id) {
+            return redirect()->route('home')->with('warning', 'That event has been cancelled.');
+        }
+
         abort_unless($this->visibleTo($request, $event), 404);
 
         $event->load([

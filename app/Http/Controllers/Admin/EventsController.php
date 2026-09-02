@@ -48,6 +48,12 @@ class EventsController extends Controller
                 'cover_image' => $event->cover_image,
                 'status' => $event->status,
                 'cancelled_reason' => $event->cancelled_reason,
+                'appeal' => $event->appeal_status ? [
+                    'status' => $event->appeal_status,
+                    'reason' => $event->appeal_reason,
+                    'attachments' => $event->appeal_attachments ?? [],
+                    'when' => $event->appealed_at?->format('j M Y, g:i A'),
+                ] : null,
                 'visibility' => $event->visibility,
                 'category' => $event->category?->name,
                 'city' => $event->city,
@@ -75,11 +81,38 @@ class EventsController extends Controller
         return redirect()->route('admin.events.show', $event->slug)->with('success', 'Event cancelled.');
     }
 
-    /** Restore a cancelled event back to draft so the organizer can re-review it. */
+    /** Restore a cancelled event back to draft (also approves any pending appeal). */
     public function restore(Event $event)
     {
-        $event->update(['status' => 'draft', 'cancelled_reason' => null, 'published_at' => null]);
+        $event->update([
+            'status' => 'draft', 'cancelled_reason' => null, 'published_at' => null,
+            'appeal_status' => null, 'appeal_reason' => null, 'appeal_attachments' => null, 'appealed_at' => null,
+        ]);
+
+        \App\Models\AppNotification::notify($event->user_id, [
+            'type' => 'event',
+            'title' => 'Your event was restored',
+            'body' => "“{$event->title}” has been restored to draft. Review and republish it.",
+            'url' => route('host.events.edit', $event->slug, false),
+            'level' => 'success',
+        ]);
 
         return redirect()->route('admin.events.show', $event->slug)->with('success', 'Event restored to draft.');
+    }
+
+    /** Dismiss an organizer's appeal — the event stays cancelled. */
+    public function dismissAppeal(Event $event)
+    {
+        $event->update(['appeal_status' => 'dismissed']);
+
+        \App\Models\AppNotification::notify($event->user_id, [
+            'type' => 'event',
+            'title' => 'Appeal reviewed',
+            'body' => "Your appeal for “{$event->title}” was not approved — it remains cancelled.",
+            'url' => route('host.events.index', [], false),
+            'level' => 'warning',
+        ]);
+
+        return redirect()->route('admin.events.show', $event->slug)->with('success', 'Appeal dismissed.');
     }
 }

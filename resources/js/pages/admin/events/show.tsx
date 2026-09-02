@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
+interface Appeal { status: string; reason: string | null; attachments: string[]; when: string | null }
 interface EventDetail {
     slug: string; title: string; subtitle: string | null; description: string | null; cover_image: string | null;
-    status: string; cancelled_reason: string | null; visibility: string; category: string | null; city: string | null;
+    status: string; cancelled_reason: string | null; appeal: Appeal | null; visibility: string; category: string | null; city: string | null;
     is_online: boolean; venue_name: string | null; venue_address: string | null; when: string | null;
     organizer: { name: string | null; email: string | null };
     sold: number; revenue: number;
@@ -42,6 +43,14 @@ return;
 }
 
         router.post(`/admin/all-events/${event.slug}/restore`, {}, { preserveScroll: true });
+    };
+
+    const doDismiss = async () => {
+        if (!(await confirm({ title: 'Dismiss the appeal?', description: 'The event stays cancelled and the organizer is notified.', confirmText: 'Dismiss appeal', destructive: true }))) {
+            return;
+        }
+
+        router.post(`/admin/all-events/${event.slug}/dismiss-appeal`, {}, { preserveScroll: true });
     };
 
     const statusVariant = event.status === 'published' ? 'default' : cancelled ? 'destructive' : 'secondary';
@@ -107,7 +116,32 @@ return;
                     {cancelled ? (
                         <div className="grid gap-3">
                             <p className="text-sm text-muted-foreground">This event is <strong>cancelled</strong>{event.cancelled_reason ? <> — “{event.cancelled_reason}”</> : ''}.</p>
-                            <Button variant="outline" className="w-max" onClick={doRestore}><RotateCcw className="size-4" /> Restore to draft</Button>
+
+                            {event.appeal && (
+                                <div className={`grid gap-2 rounded-lg border p-3 ${event.appeal.status === 'pending' ? 'border-amber-500/40 bg-amber-500/10' : 'border-border bg-muted/40'}`}>
+                                    <div className="flex items-center gap-2 text-sm font-semibold">
+                                        Organizer appeal
+                                        <Badge variant={event.appeal.status === 'pending' ? 'default' : 'secondary'} className="capitalize">{event.appeal.status}</Badge>
+                                        {event.appeal.when && <span className="text-xs font-normal text-muted-foreground">· {event.appeal.when}</span>}
+                                    </div>
+                                    {event.appeal.reason && <p className="whitespace-pre-line text-sm text-foreground/80">{event.appeal.reason}</p>}
+                                    {event.appeal.attachments.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {event.appeal.attachments.map((src, i) => (
+                                                <a key={i} href={src} target="_blank" rel="noreferrer"><img src={src} alt={`Proof ${i + 1}`} className="size-20 rounded-lg border border-border object-cover" /></a>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {event.appeal.status === 'pending' && (
+                                        <div className="flex gap-2">
+                                            <Button size="sm" onClick={doRestore}><RotateCcw className="size-4" /> Approve &amp; restore</Button>
+                                            <Button size="sm" variant="outline" onClick={doDismiss}>Dismiss appeal</Button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {!(event.appeal && event.appeal.status === 'pending') && <Button variant="outline" className="w-max" onClick={doRestore}><RotateCcw className="size-4" /> Restore to draft</Button>}
                         </div>
                     ) : (
                         <div className="grid gap-3">

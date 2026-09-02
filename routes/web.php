@@ -203,6 +203,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/edit', [EventController::class, 'edit'])->name('events.edit');
         Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
+        // Appeal an admin cancellation (reason + proof attachments).
+        Route::post('events/{event}/reappeal', [EventController::class, 'reappeal'])->name('events.reappeal');
 
         // Reusable seating templates.
         Route::post('seat-templates', [\App\Http\Controllers\Host\SeatTemplateController::class, 'store'])->name('seat-templates.store');
@@ -316,6 +318,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('all-events/{event}', [AdminEventsController::class, 'show'])->name('events.show');
         Route::post('all-events/{event}/cancel', [AdminEventsController::class, 'cancel'])->name('events.cancel');
         Route::post('all-events/{event}/restore', [AdminEventsController::class, 'restore'])->name('events.restore');
+        Route::post('all-events/{event}/dismiss-appeal', [AdminEventsController::class, 'dismissAppeal'])->name('events.dismiss-appeal');
         // Organizer/vendor applications.
         Route::get('organizers', [AdminOrganizerController::class, 'index'])->name('organizers.index');
         Route::get('organizers/{organizer}', [AdminOrganizerController::class, 'show'])->name('organizers.show');

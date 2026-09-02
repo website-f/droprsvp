@@ -1,8 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { ArmchairIcon, CalendarDays, ChartColumn, ImagePlus, MoreHorizontal, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2, Users } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ArmchairIcon, CalendarDays, ChartColumn, Gavel, ImagePlus, MoreHorizontal, Paperclip, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2, Users, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { uploadImage } from '@/lib/upload';
 
 interface HostEvent {
     id: number;
@@ -17,10 +20,84 @@ interface HostEvent {
     slug: string;
     status: string;
     visibility: string;
+    appeal_status?: string | null;
     starts_at: string | null;
     ticket_types_count: number;
     sessions_count: number;
     orders_count: number;
+}
+
+/** Appeal an admin cancellation — reason + proof attachments, both required. */
+function ReappealDialog({ event, onClose }: { event: HostEvent | null; onClose: () => void }) {
+    const form = useForm<{ reason: string; attachments: string[] }>({ reason: '', attachments: [] });
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+
+    const close = () => {
+ form.reset(); form.clearErrors(); onClose(); 
+};
+
+    const addFiles = async (files: FileList | null) => {
+        if (!files) {
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            const urls: string[] = [];
+
+            for (const f of Array.from(files)) {
+                urls.push(await uploadImage(f));
+            }
+
+            form.setData('attachments', [...form.data.attachments, ...urls].slice(0, 6));
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const submit = () => {
+        if (event) {
+            form.post(`/host/events/${event.slug}/reappeal`, { preserveScroll: true, onSuccess: close });
+        }
+    };
+
+    return (
+        <Dialog open={!!event} onOpenChange={(o) => !o && close()}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader><DialogTitle>Appeal cancellation</DialogTitle></DialogHeader>
+                <div className="grid gap-3">
+                    <p className="text-sm text-muted-foreground">Tell us why <strong>{event?.title}</strong> should be restored, and attach proof (permits, licences, screenshots). Both are required.</p>
+                    <div className="grid gap-1.5">
+                        <textarea rows={4} value={form.data.reason} onChange={(e) => form.setData('reason', e.target.value)} placeholder="Explain why this event follows our policy…" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                        {form.errors.reason && <p className="text-xs text-destructive">{form.errors.reason}</p>}
+                    </div>
+                    <div className="grid gap-2">
+                        <div className="flex flex-wrap gap-2">
+                            {form.data.attachments.map((src, i) => (
+                                <div key={i} className="relative">
+                                    <img src={src} alt="" className="size-16 rounded-lg border border-border object-cover" />
+                                    <button type="button" onClick={() => form.setData('attachments', form.data.attachments.filter((_, idx) => idx !== i))} className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background" aria-label="Remove"><X className="size-3" /></button>
+                                </div>
+                            ))}
+                            {form.data.attachments.length < 6 && (
+                                <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-[10px] text-muted-foreground hover:border-foreground/40">
+                                    <Paperclip className="size-4" /> {uploading ? '…' : 'Add'}
+                                </button>
+                            )}
+                        </div>
+                        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+                        {form.errors.attachments && <p className="text-xs text-destructive">At least one attachment is required.</p>}
+                    </div>
+                </div>
+                <DialogFooter className="gap-2 sm:gap-2">
+                    <Button variant="outline" onClick={close}>Cancel</Button>
+                    <Button onClick={submit} disabled={form.processing || uploading || !form.data.reason.trim() || form.data.attachments.length === 0}>Submit appeal</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function statusTone(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -45,6 +122,7 @@ function formatDate(value: string | null): string {
 
 export default function EventsIndex({ events }: { events: HostEvent[] }) {
     const confirm = useConfirm();
+    const [appealEvent, setAppealEvent] = useState<HostEvent | null>(null);
     const remove = async (e: HostEvent) => {
         if (await confirm({ title: `Delete “${e.title}”?`, description: 'This cannot be undone.', confirmText: 'Delete', destructive: true })) {
             router.delete(`/host/events/${e.slug}`, { preserveScroll: true });
@@ -91,6 +169,11 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
 
                                     {/* Actions: primary Edit + a tidy "More" dropdown */}
                                     <div className="flex shrink-0 items-center gap-2">
+                                        {e.status === 'cancelled' && (
+                                            e.appeal_status === 'pending'
+                                                ? <Badge variant="secondary" className="shrink-0">Appeal pending</Badge>
+                                                : <Button variant="outline" size="sm" onClick={() => setAppealEvent(e)}><Gavel className="size-3.5" /> <span className="hidden sm:inline">Appeal</span></Button>
+                                        )}
                                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/attendees`}><Users className="size-3.5" /> <span className="hidden sm:inline">Attendees</span></Link></Button>
                                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/edit`}><Pencil className="size-3.5" /> <span className="hidden sm:inline">Edit</span></Link></Button>
                                         <DropdownMenu>
@@ -115,6 +198,8 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                     </div>
                 )}
             </div>
+
+            <ReappealDialog event={appealEvent} onClose={() => setAppealEvent(null)} />
         </>
     );
 }
