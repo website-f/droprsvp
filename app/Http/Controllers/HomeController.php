@@ -13,19 +13,9 @@ use Inertia\Inertia;
 class HomeController extends Controller
 {
     /** The marketing landing page — featured upcoming events + category tiles. */
-    public function index()
+    public function index(\Illuminate\Http\Request $request)
     {
-        $featured = Event::published()
-            ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
-            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
-            ->withCount('reviews')
-            ->withAvg('reviews as reviews_avg', 'rating')
-            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
-            ->orderByRaw('starts_at is null, starts_at asc')
-            ->limit(3)
-            ->get()
-            ->map(fn (Event $e) => $this->card($e))
-            ->values();
+        $featured = $this->upcoming()->limit(3)->get()->map(fn (Event $e) => $this->card($e))->values();
 
         // Homepage SEO is superadmin-editable (title/description/keywords only).
         $home = SiteContent::homeSeo();
@@ -60,7 +50,72 @@ class HomeController extends Controller
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug', 'icon', 'blurb', 'color']),
             'sections' => $sections,
             'organizers' => $this->featuredOrganizers(),
+            // Personalized feeds for signed-in visitors.
+            'cityEvents' => $this->cityEvents($request),
+            'forYou' => $this->forYou(),
         ]);
+    }
+
+    /** Base query: upcoming published events with the counts the card needs. */
+    private function upcoming()
+    {
+        return Event::published()
+            ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
+            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
+            ->withCount('reviews')
+            ->withAvg('reviews as reviews_avg', 'rating')
+            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->orderByRaw('starts_at is null, starts_at asc');
+    }
+
+    /**
+     * "Events in {city}" for a signed-in visitor — from the browser's location
+     * (?near=<city-slug>) if allowed, else their profile city. Null if we don't
+     * know their city or there's nothing on there.
+     */
+    private function cityEvents(\Illuminate\Http\Request $request): ?array
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return null;
+        }
+
+        $near = $request->query('near');
+        $cityName = $near ? Cities::nameForSlug($near) : $user->city;
+        if (! $cityName) {
+            return null;
+        }
+
+        $events = $this->upcoming()->where('city', $cityName)->limit(4)->get()->map(fn (Event $e) => $this->card($e))->values();
+        if ($events->isEmpty()) {
+            return null;
+        }
+
+        return ['city' => $cityName, 'slug' => Cities::slugForName($cityName), 'events' => $events];
+    }
+
+    /** "For you" — upcoming events in the categories the user has attended before. */
+    private function forYou(): ?\Illuminate\Support\Collection
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return null;
+        }
+
+        $attendedIds = \App\Models\Order::where('user_id', $user->id)->where('status', 'paid')->pluck('event_id')->unique();
+        if ($attendedIds->isEmpty()) {
+            return null;
+        }
+
+        $categoryIds = Event::whereIn('id', $attendedIds)->whereNotNull('category_id')->pluck('category_id')->unique();
+        if ($categoryIds->isEmpty()) {
+            return null;
+        }
+
+        $events = $this->upcoming()->whereIn('category_id', $categoryIds)->whereNotIn('id', $attendedIds)
+            ->limit(4)->get()->map(fn (Event $e) => $this->card($e))->values();
+
+        return $events->isEmpty() ? null : $events;
     }
 
     /** Top organizers by number of published events, with their soonest event. */

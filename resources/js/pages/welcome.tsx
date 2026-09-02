@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Send, Sparkles, Star, Tag, UserCheck, UserPlus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
 import {  HeroBanners } from '@/components/landing/hero-banners';
@@ -58,13 +58,57 @@ interface LandingSections {
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const AVATAR_TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7'];
 
+/** A single event card — shared by Featured, "Events in {city}" and "For you". */
+function EventCard({ e }: { e: FeaturedEvent }) {
+    return (
+        <Link href={`/en-my/e/${e.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <div className="aspect-[16/10] overflow-hidden bg-muted">
+                {e.cover_image
+                    ? <img src={e.cover_image} alt={e.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    : <div className="flex size-full items-center justify-center text-muted-foreground"><CalendarDays className="size-8" /></div>}
+            </div>
+            <div className="flex flex-1 flex-col p-5">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                    {e.category && <Badge variant="secondary">{e.category}</Badge>}
+                    {e.when && <span className="text-xs text-muted-foreground">{e.when}</span>}
+                </div>
+                <h3 className="text-lg font-semibold leading-snug group-hover:underline">{e.title}</h3>
+                <div className="mt-auto flex items-center justify-between pt-4 text-sm">
+                    <span className="truncate text-muted-foreground">{e.venue}</span>
+                    {priceLabel(e) && <span className="shrink-0 font-semibold">{priceLabel(e)}</span>}
+                </div>
+                {(e.participants > 0 || e.rating !== null) && (
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                        {e.participants > 0 ? (
+                            <span className="flex items-center gap-2">
+                                <span className="flex -space-x-2">
+                                    {e.faces.map((name, fi) => (
+                                        <span key={fi} title={name} className="flex size-6 items-center justify-center rounded-full text-[9px] font-bold text-white ring-2 ring-card" style={{ backgroundColor: AVATAR_TINTS[fi % AVATAR_TINTS.length] }}>{initials(name)}</span>
+                                    ))}
+                                    <span className="flex size-6 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background ring-2 ring-card">{e.participants > 99 ? '99+' : e.participants}</span>
+                                </span>
+                                going
+                            </span>
+                        ) : <span />}
+                        {e.rating !== null && (
+                            <span className="flex items-center gap-1"><Star className="size-3.5 fill-[#f5a524] text-[#f5a524]" /> {e.rating.toFixed(1)}<span className="text-muted-foreground/70">({e.rating_count})</span></span>
+                        )}
+                    </div>
+                )}
+            </div>
+        </Link>
+    );
+}
+
 export default function Welcome() {
-    const { auth, featured = [], categories = [], sections, organizers = [] } = usePage().props as unknown as {
+    const { auth, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null } = usePage().props as unknown as {
         auth?: { user?: unknown };
         featured?: FeaturedEvent[];
         categories?: { name: string; slug: string; icon?: string | null; blurb?: string | null; color?: string | null }[];
         sections?: LandingSections;
         organizers?: Organizer[];
+        cityEvents?: { city: string; slug: string; events: FeaturedEvent[] } | null;
+        forYou?: FeaturedEvent[] | null;
     };
     const signedIn = !!auth?.user;
     const hero = sections?.hero;
@@ -111,6 +155,22 @@ export default function Welcome() {
 
         return withKm.sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9));
     }, [nearby?.cities, geo]);
+
+    // Once we know the visitor's location, refine "Events in {city}" to their
+    // nearest city (server reads ?near=). Signed-in only; runs once.
+    const refinedNear = useRef(false);
+    useEffect(() => {
+        if (!signedIn || !geo || refinedNear.current) {
+            return;
+        }
+
+        const nearest = nearbyCities.find((c) => c.slug)?.slug;
+
+        if (nearest) {
+            refinedNear.current = true;
+            router.reload({ only: ['cityEvents'], data: { near: nearest } });
+        }
+    }, [signedIn, geo, nearbyCities]);
 
     return (
         <>
@@ -180,6 +240,36 @@ export default function Welcome() {
                     </section>
                 )}
 
+                {/* ------------------------------------ Events in your city (signed-in) */}
+                {cityEvents && cityEvents.events.length > 0 && (
+                    <section className="mx-auto w-full max-w-6xl px-6 py-10">
+                        <Reveal className="mb-6 flex items-end justify-between gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Events in {cityEvents.city}</h2>
+                                <p className="mt-1.5 text-sm text-muted-foreground">Happening near you.</p>
+                            </div>
+                            <Link href={`/en-my/${cityEvents.slug}`} className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">See all <ArrowRight className="size-4" /></Link>
+                        </Reveal>
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                            {cityEvents.events.map((e, i) => <Reveal key={e.slug} delay={i * 60}><EventCard e={e} /></Reveal>)}
+                        </div>
+                        <Button asChild variant="outline" className="mt-6 w-full sm:hidden"><Link href={`/en-my/${cityEvents.slug}`}>See all events in {cityEvents.city}</Link></Button>
+                    </section>
+                )}
+
+                {/* ------------------------------------------- For you (signed-in) */}
+                {forYou && forYou.length > 0 && (
+                    <section className="mx-auto w-full max-w-6xl px-6 py-10">
+                        <Reveal className="mb-6">
+                            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">For you</h2>
+                            <p className="mt-1.5 text-sm text-muted-foreground">Picked from the kinds of events you’ve been to.</p>
+                        </Reveal>
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                            {forYou.map((e, i) => <Reveal key={e.slug} delay={i * 60}><EventCard e={e} /></Reveal>)}
+                        </div>
+                    </section>
+                )}
+
                 {/* ---------------------------------------------- Nearby cities */}
                 {nearby?.enabled && nearbyCities.length > 0 && (
                     <section className="mx-auto w-full max-w-6xl px-6 py-4">
@@ -213,45 +303,7 @@ export default function Welcome() {
 
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 {featured.map((e, i) => (
-                                    <Reveal key={e.slug} delay={i * 80}>
-                                        <Link href={`/en-my/e/${e.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                                            <div className="aspect-[16/10] overflow-hidden bg-muted">
-                                                {e.cover_image
-                                                    ? <img src={e.cover_image} alt={e.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                                    : <div className="flex size-full items-center justify-center text-muted-foreground"><CalendarDays className="size-8" /></div>}
-                                            </div>
-                                            <div className="flex flex-1 flex-col p-5">
-                                                <div className="mb-2 flex flex-wrap items-center gap-2">
-                                                    {e.category && <Badge variant="secondary">{e.category}</Badge>}
-                                                    {e.when && <span className="text-xs text-muted-foreground">{e.when}</span>}
-                                                </div>
-                                                <h3 className="text-lg font-semibold leading-snug group-hover:underline">{e.title}</h3>
-                                                <div className="mt-auto flex items-center justify-between pt-4 text-sm">
-                                                    <span className="truncate text-muted-foreground">{e.venue}</span>
-                                                    {priceLabel(e) && <span className="shrink-0 font-semibold">{priceLabel(e)}</span>}
-                                                </div>
-                                                {/* Participants (stacked avatars + total) + rating */}
-                                                {(e.participants > 0 || e.rating !== null) && (
-                                                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                                                        {e.participants > 0 ? (
-                                                            <span className="flex items-center gap-2">
-                                                                <span className="flex -space-x-2">
-                                                                    {e.faces.map((name, fi) => (
-                                                                        <span key={fi} title={name} className="flex size-6 items-center justify-center rounded-full text-[9px] font-bold text-white ring-2 ring-card" style={{ backgroundColor: AVATAR_TINTS[fi % AVATAR_TINTS.length] }}>{initials(name)}</span>
-                                                                    ))}
-                                                                    <span className="flex size-6 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background ring-2 ring-card">{e.participants > 99 ? '99+' : e.participants}</span>
-                                                                </span>
-                                                                going
-                                                            </span>
-                                                        ) : <span />}
-                                                        {e.rating !== null && (
-                                                            <span className="flex items-center gap-1"><Star className="size-3.5 fill-[#f5a524] text-[#f5a524]" /> {e.rating.toFixed(1)}<span className="text-muted-foreground/70">({e.rating_count})</span></span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </Link>
-                                    </Reveal>
+                                    <Reveal key={e.slug} delay={i * 80}><EventCard e={e} /></Reveal>
                                 ))}
                             </div>
                         </div>
