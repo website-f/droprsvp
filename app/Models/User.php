@@ -113,6 +113,12 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(Event::class);
     }
 
+    /** In-app bell notifications (distinct from Laravel's Notifiable channel). */
+    public function appNotifications(): HasMany
+    {
+        return $this->hasMany(AppNotification::class)->latest();
+    }
+
     public function organizerProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(OrganizerProfile::class);

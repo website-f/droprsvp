@@ -15,6 +15,7 @@ export type Auth = {
     is_superadmin?: boolean;
     is_organizer?: boolean;
     is_premium?: boolean;
+    unread_notifications?: number;
 };
 
 export type Passkey = {

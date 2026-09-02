@@ -133,6 +133,11 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('set-password', [\App\Http\Controllers\Auth\SetPasswordController::class, 'show'])->name('password.set');
     Route::post('set-password', [\App\Http\Controllers\Auth\SetPasswordController::class, 'update'])->name('password.set.save');
+
+    // In-app notifications (bell inbox) — available to any signed-in user.
+    Route::get('notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.read');
+    Route::post('notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->whereNumber('notification')->name('notifications.read-one');
 });
 
 Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::class])->group(function () {
@@ -287,6 +292,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
+        // Broadcast an in-app notification to an audience.
+        Route::post('broadcast', [\App\Http\Controllers\Admin\BroadcastController::class, 'store'])->name('broadcast');
 
         // Event categories (used across discovery + event creation).
         Route::get('categories', [EventCategoryController::class, 'index'])->name('categories.index');

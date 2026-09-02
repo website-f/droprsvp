@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, ClipboardList, Flame, Percent, ReceiptText, Settings2 } from 'lucide-react';
+import { ArmchairIcon, Banknote, ClipboardList, Flame, Megaphone, Percent, ReceiptText, Send, Settings2 } from 'lucide-react';
 import { useState } from 'react';
+import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -8,15 +9,17 @@ import { TagInput } from '@/components/ui/tag-input';
 
 interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
+interface Announcement { active: boolean; style: string; level: string; title: string; body: string; cta_label: string; cta_url: string; version: number }
 interface SettingsData {
     fee_percent: number; boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
-    checkout_required: CheckoutRequired; ticketing_modes: TicketingModes; trending_keywords: string;
+    checkout_required: CheckoutRequired; ticketing_modes: TicketingModes; announcement: Announcement; trending_keywords: string;
 }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
+const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'checkout' | 'ticketing' | 'search' | 'general';
+type Tab = 'payments' | 'tax' | 'checkout' | 'ticketing' | 'announce' | 'search' | 'general';
 
 const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
     { key: 'phone', label: 'Phone number' },
@@ -52,17 +55,23 @@ export default function Settings({ settings }: { settings: SettingsData }) {
         support_email: settings.support_email ?? '',
         checkout_required: settings.checkout_required,
         ticketing_modes: settings.ticketing_modes,
+        announcement: settings.announcement,
         trending_keywords: settings.trending_keywords ?? '',
     });
     const { data, setData, processing } = form;
     const setRequired = (key: keyof CheckoutRequired, v: boolean) => setData('checkout_required', { ...data.checkout_required, [key]: v });
     const setMode = (key: keyof TicketingModes, v: boolean) => setData('ticketing_modes', { ...data.ticketing_modes, [key]: v });
+    const setAnnounce = (key: keyof Announcement, v: string | boolean) => setData('announcement', { ...data.announcement, [key]: v });
+
+    // A broadcast is a separate one-shot action (its own endpoint), not part of the settings save.
+    const broadcast = useForm({ audience: 'all', title: '', body: '', url: '', level: 'info' });
 
     const TABS: { key: Tab; label: string; icon: typeof Banknote }[] = [
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
         { key: 'checkout', label: 'Checkout', icon: ClipboardList },
         { key: 'ticketing', label: 'Ticketing', icon: ArmchairIcon },
+        { key: 'announce', label: 'Announce', icon: Megaphone },
         { key: 'search', label: 'Search', icon: Flame },
         { key: 'general', label: 'General', icon: Settings2 },
     ];
@@ -145,6 +154,49 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                             <div className="flex items-center justify-between rounded-lg border border-border p-3">
                                 <div><div className="text-sm font-medium">Table management</div><div className="text-xs text-muted-foreground">Banquet tables with capacity &amp; auto-assign — for dinners &amp; galas.</div></div>
                                 <Switch checked={data.ticketing_modes.tables} onCheckedChange={(v) => setMode('tables', v)} />
+                            </div>
+                        </div>
+                    )}
+
+                    {tab === 'announce' && (
+                        <div className="grid gap-6 lg:grid-cols-2">
+                            {/* Announcement banner / modal (saved with Settings) */}
+                            <div className="grid content-start gap-3">
+                                <h2 className="text-sm font-semibold">Site announcement</h2>
+                                <p className="text-sm text-muted-foreground">A banner or first-load modal shown across the public site. Editing it re-shows for everyone.</p>
+                                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                                    <div><div className="text-sm font-medium">Show announcement</div><div className="text-xs text-muted-foreground">Turn the banner / modal on or off.</div></div>
+                                    <Switch checked={data.announcement.active} onCheckedChange={(v) => setAnnounce('active', v)} />
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <Field label="Style"><AppSelect value={data.announcement.style} onChange={(v) => setAnnounce('style', v)} options={[{ value: 'banner', label: 'Top banner' }, { value: 'modal', label: 'Popup modal' }]} /></Field>
+                                    <Field label="Tone"><AppSelect value={data.announcement.level} onChange={(v) => setAnnounce('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
+                                </div>
+                                <Field label="Title"><input className={input} value={data.announcement.title} onChange={(e) => setAnnounce('title', e.target.value)} placeholder="Big news!" /></Field>
+                                <Field label="Message"><textarea rows={2} className={area} value={data.announcement.body} onChange={(e) => setAnnounce('body', e.target.value)} /></Field>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <Field label="Button label"><input className={input} value={data.announcement.cta_label} onChange={(e) => setAnnounce('cta_label', e.target.value)} placeholder="Learn more" /></Field>
+                                    <Field label="Button link"><input className={input} value={data.announcement.cta_url} onChange={(e) => setAnnounce('cta_url', e.target.value)} placeholder="/en-my/all" /></Field>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Announcement saves with the <strong>Save changes</strong> button above.</p>
+                            </div>
+
+                            {/* Broadcast — separate one-shot push to inboxes */}
+                            <div className="grid content-start gap-3 rounded-xl border border-border bg-card p-4">
+                                <h2 className="flex items-center gap-2 text-sm font-semibold"><Send className="size-4" /> Send a broadcast</h2>
+                                <p className="text-sm text-muted-foreground">Push a notification to the bell inbox of a group of users. Sends immediately.</p>
+                                <Field label="Audience"><AppSelect value={broadcast.data.audience} onChange={(v) => broadcast.setData('audience', v)} options={[{ value: 'all', label: 'Everyone' }, { value: 'organizers', label: 'Organizers' }, { value: 'buyers', label: 'Buyers' }, { value: 'admins', label: 'Admins' }]} /></Field>
+                                <Field label="Title"><input className={input} value={broadcast.data.title} onChange={(e) => broadcast.setData('title', e.target.value)} placeholder="Scheduled maintenance" /></Field>
+                                <Field label="Message"><textarea rows={2} className={area} value={broadcast.data.body} onChange={(e) => broadcast.setData('body', e.target.value)} /></Field>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <Field label="Link (optional)"><input className={input} value={broadcast.data.url} onChange={(e) => broadcast.setData('url', e.target.value)} placeholder="/premium" /></Field>
+                                    <Field label="Tone"><AppSelect value={broadcast.data.level} onChange={(v) => broadcast.setData('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
+                                </div>
+                                <div>
+                                    <Button type="button" onClick={() => broadcast.post('/admin/broadcast', { preserveScroll: true, onSuccess: () => broadcast.reset('title', 'body', 'url') })} disabled={broadcast.processing || !broadcast.data.title.trim()}>
+                                        <Send className="size-4" /> {broadcast.processing ? 'Sending…' : 'Send broadcast'}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}

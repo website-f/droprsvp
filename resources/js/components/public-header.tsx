@@ -6,6 +6,8 @@ import { Wordmark } from '@/components/brand';
 import { Footer } from '@/components/cms/footer-blocks';
 import type { FooterData } from '@/components/cms/footer-blocks';
 import { HeaderSearch } from '@/components/header-search';
+import { NotificationBell } from '@/components/notification-bell';
+import { SiteAnnouncement } from '@/components/site-announcement';
 import { Button } from '@/components/ui/button';
 import { dashboard, login } from '@/routes';
 import type { PublicNavItem } from '@/types';
@@ -35,6 +37,7 @@ export function PublicHeader() {
     const [searchOpen, setSearchOpen] = useState(false);
 
     return (
+        <>
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
                 <Link href="/" aria-label="DropRSVP home" className="shrink-0">
@@ -51,6 +54,7 @@ export function PublicHeader() {
 
                 <div className="ml-auto flex items-center gap-2 md:ml-0">
                     <AppearanceToggle />
+                    {auth?.user && <NotificationBell />}
                     {/* Search toggle (mobile only) */}
                     <button
                         type="button"
@@ -116,6 +120,8 @@ export function PublicHeader() {
                 </div>
             )}
         </header>
+        <SiteAnnouncement />
+        </>
     );
 }
 

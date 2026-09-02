@@ -108,6 +108,38 @@ class SiteContent
         Cache::forget('site.branding');
     }
 
+    /**
+     * The site-wide announcement (a promo/ads banner or first-load modal),
+     * superadmin-editable under Admin → Settings. Shared on every page; the client
+     * dismisses it by `version` so an edited announcement re-shows.
+     *
+     * @return array{active: bool, style: string, level: string, title: string, body: string, cta_label: string, cta_url: string, version: int}
+     */
+    public static function announcement(): array
+    {
+        return Cache::rememberForever('site.announcement', function () {
+            $saved = Setting::getArray('announcement', []);
+            $style = $saved['style'] ?? 'banner';
+            $level = $saved['level'] ?? 'info';
+
+            return [
+                'active' => (bool) ($saved['active'] ?? false),
+                'style' => in_array($style, ['banner', 'modal'], true) ? $style : 'banner',
+                'level' => in_array($level, ['info', 'success', 'warning'], true) ? $level : 'info',
+                'title' => (string) ($saved['title'] ?? ''),
+                'body' => (string) ($saved['body'] ?? ''),
+                'cta_label' => (string) ($saved['cta_label'] ?? ''),
+                'cta_url' => (string) ($saved['cta_url'] ?? ''),
+                'version' => (int) ($saved['version'] ?? 1),
+            ];
+        });
+    }
+
+    public static function forgetAnnouncement(): void
+    {
+        Cache::forget('site.announcement');
+    }
+
     public static function defaultBranding(): array
     {
         return [

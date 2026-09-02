@@ -45,6 +45,9 @@ class HandleInertiaRequests extends Middleware
                 'is_superadmin' => (bool) $request->user()?->hasRole('superadmin'),
                 'is_organizer' => (bool) $request->user()?->hasAnyRole(['organizer', 'superadmin']),
                 'is_premium' => (bool) $request->user()?->isPremium(),
+                'unread_notifications' => $request->user()
+                    ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
+                    : 0,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Public site navigation (cached; edited under Admin → Menu).
@@ -53,6 +56,8 @@ class HandleInertiaRequests extends Middleware
             'footer' => SiteContent::footer(),
             // Brand logos + sizing (cached; edited under Admin → Branding).
             'branding' => SiteContent::branding(),
+            // Site-wide announcement (banner / modal on public pages; cached).
+            'announcement' => SiteContent::announcement(),
             'flash' => [
                 'success' => $request->session()->get('success') ?? $request->session()->get('flash_success'),
                 'error' => $request->session()->get('flash_error'),

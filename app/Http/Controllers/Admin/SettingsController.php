@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Support\SiteContent;
 use Illuminate\Http\Request;
 
 /**
@@ -27,6 +28,7 @@ class SettingsController extends Controller
                 'support_email' => (string) Setting::get('support_email', ''),
                 'checkout_required' => self::checkoutRequired(),
                 'ticketing_modes' => self::ticketingModes(),
+                'announcement' => SiteContent::announcement(),
                 'trending_keywords' => (string) Setting::get('trending_keywords', ''),
             ],
         ]);
@@ -78,6 +80,13 @@ class SettingsController extends Controller
             'tax_inclusive' => ['boolean'],
             'support_email' => ['nullable', 'email', 'max:180'],
             'trending_keywords' => ['nullable', 'string', 'max:1000'],
+            'announcement.active' => ['boolean'],
+            'announcement.style' => ['nullable', 'in:banner,modal'],
+            'announcement.level' => ['nullable', 'in:info,success,warning'],
+            'announcement.title' => ['nullable', 'string', 'max:120'],
+            'announcement.body' => ['nullable', 'string', 'max:500'],
+            'announcement.cta_label' => ['nullable', 'string', 'max:40'],
+            'announcement.cta_url' => ['nullable', 'string', 'max:512'],
         ]);
 
         Setting::put('platform_fee_percent', $data['fee_percent']);
@@ -104,6 +113,20 @@ class SettingsController extends Controller
             'reserved' => $request->boolean('ticketing_modes.reserved'),
             'tables' => $request->boolean('ticketing_modes.tables'),
         ]);
+
+        // Site-wide announcement (landing banner / modal). Bump version so an edit
+        // re-shows for users who already dismissed the previous one.
+        Setting::putArray('announcement', [
+            'active' => $request->boolean('announcement.active'),
+            'style' => in_array($request->input('announcement.style'), ['banner', 'modal'], true) ? $request->input('announcement.style') : 'banner',
+            'level' => in_array($request->input('announcement.level'), ['info', 'success', 'warning'], true) ? $request->input('announcement.level') : 'info',
+            'title' => (string) $request->input('announcement.title', ''),
+            'body' => (string) $request->input('announcement.body', ''),
+            'cta_label' => (string) $request->input('announcement.cta_label', ''),
+            'cta_url' => (string) $request->input('announcement.cta_url', ''),
+            'version' => SiteContent::announcement()['version'] + 1,
+        ]);
+        SiteContent::forgetAnnouncement();
 
         return back()->with('flash_success', 'Settings saved.');
     }
