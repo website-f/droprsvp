@@ -282,8 +282,11 @@ class CheckoutService
 
     private function uniqueReference(): string
     {
+        // 10 uppercase alphanumerics (~50 bits) — the reference is a capability
+        // token for guest checkout and is exposed to organizers, so it must not
+        // be feasibly guessable/enumerable.
         do {
-            $ref = 'DRSVP-'.strtoupper(Str::random(6));
+            $ref = 'DRSVP-'.strtoupper(Str::random(10));
         } while (Order::where('reference', $ref)->exists());
 
         return $ref;

@@ -32,12 +32,19 @@ class CheckoutController extends Controller
 
         $order = $this->checkout->start($event, $data['items'] ?? [], $request->user()?->id, $data['seats'] ?? []);
 
+        // Bind this order to the browser session that opened it — the reference
+        // is a capability, so only this session (or the authenticated owner) may
+        // view/pay it.
+        $this->rememberOrder($request, $order);
+
         return redirect()->route('checkout.show', $order);
     }
 
     /** Checkout page: order summary + buyer details. */
-    public function show(Order $order)
+    public function show(Request $request, Order $order)
     {
+        $this->authorizeOrderAccess($order, $request);
+
         if ($order->status === 'paid') {
             return redirect()->route('checkout.confirmation', $order);
         }
@@ -47,7 +54,7 @@ class CheckoutController extends Controller
 
         // Prefill from the signed-in account so they don't retype what we already
         // know — they can still edit any field before paying.
-        $user = request()->user();
+        $user = $request->user();
 
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
@@ -66,6 +73,7 @@ class CheckoutController extends Controller
     /** Capture buyer details and hand off to the payment gateway (or settle free orders). */
     public function pay(Request $request, Order $order, PaymentGateway $gateway)
     {
+        $this->authorizeOrderAccess($order, $request);
         abort_unless($order->status === 'pending', 410);
 
         // Which fields the superadmin marked required (name + email always are).
@@ -99,9 +107,13 @@ class CheckoutController extends Controller
         return Inertia::location($gateway->createCheckout($order));
     }
 
-    /** The fake gateway's "payment page" — instantly settles, then confirms. */
-    public function fake(Order $order)
+    /** The fake gateway's "payment page" — instantly settles, then confirms. DEV ONLY. */
+    public function fake(Request $request, Order $order)
     {
+        // Never a real "settle for free" backdoor in production.
+        abort_if(app()->isProduction(), 404);
+        $this->authorizeOrderAccess($order, $request);
+
         if ($order->status === 'pending') {
             $this->checkout->markPaid($order, $order->payment_ref);
         }
@@ -127,13 +139,46 @@ class CheckoutController extends Controller
     }
 
     /** Order confirmation with the issued tickets. */
-    public function confirmation(Order $order)
+    public function confirmation(Request $request, Order $order)
     {
+        // Confirmation exposes buyer PII + the tickets' QR tokens, so it's gated
+        // to the authenticated owner/organizer or the session that checked out.
+        $this->authorizeOrderAccess($order, $request);
+
         $order->load(['items', 'event', 'tickets']);
 
         return Inertia::render('checkout/confirmation', [
             'order' => $this->orderPayload($order, withTickets: true),
         ]);
+    }
+
+    /** Remember an order reference against the current session (capped, deduped). */
+    private function rememberOrder(Request $request, Order $order): void
+    {
+        $refs = (array) $request->session()->get('checkout_orders', []);
+        $refs[] = $order->reference;
+        $request->session()->put('checkout_orders', array_slice(array_values(array_unique($refs)), -20));
+    }
+
+    /**
+     * The order reference is a capability. A request may see/act on an order only
+     * if it's the authenticated owner (buyer, the event's organizer, or a
+     * superadmin) OR the browser session that opened the checkout.
+     */
+    private function authorizeOrderAccess(Order $order, Request $request): void
+    {
+        $user = $request->user();
+        if ($user && (
+            $order->user_id === $user->id
+            || ($order->buyer_email && strcasecmp((string) $order->buyer_email, (string) $user->email) === 0)
+            || $user->hasRole('superadmin')
+            || $order->event?->user_id === $user->id
+        )) {
+            return;
+        }
+
+        $refs = (array) $request->session()->get('checkout_orders', []);
+        abort_unless(in_array($order->reference, $refs, true), 403);
     }
 
     private function orderPayload(Order $order, bool $withTickets = false): array

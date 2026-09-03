@@ -142,12 +142,22 @@ class OrganizerController extends Controller
     /** JSON feed for "load more" pagination of the discussion wall (signed-in only). */
     public function discussionFeed(Request $request, User $organizer)
     {
+        $this->assertOrganizer($organizer);
+
         return response()->json($this->discussion($organizer, $request, (bool) $request->user()));
+    }
+
+    /** The wall only exists for real organizers (matches show()); 404 otherwise. */
+    private function assertOrganizer(User $organizer): void
+    {
+        abort_unless($organizer->hasRole('organizer') || $organizer->events()->published()->exists(), 404);
     }
 
     /** Post to the organizer's discussion wall (signed-in users). */
     public function discuss(Request $request, User $organizer)
     {
+        $this->assertOrganizer($organizer);
+
         $data = $request->validate([
             'body' => ['required', 'string', 'max:2000'],
             'parent_id' => ['nullable', 'integer'],

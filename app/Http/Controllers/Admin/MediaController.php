@@ -9,10 +9,15 @@ use Illuminate\Support\Facades\Storage;
 
 class MediaController extends Controller
 {
-    /** Upload an image (superadmin) → stored on the public disk, returns its URL. */
+    /** Upload an image → stored on the public disk, returns its URL. */
     public function store(Request $request): JsonResponse
     {
-        $request->validate(['file' => ['required', 'image', 'max:5120']]); // ≤ 5 MB
+        // Raster formats only. Laravel's generic `image` rule ALSO allows SVG,
+        // which can carry <script> — a stored-XSS vector since this endpoint is
+        // open to any signed-in user and returns a same-origin URL.
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'], // ≤ 5 MB
+        ]);
 
         $path = $request->file('file')->store('cms', 'public');
 

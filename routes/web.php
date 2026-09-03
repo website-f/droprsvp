@@ -71,7 +71,7 @@ Route::get('o/{organizer:slug}', [OrganizerController::class, 'show'])->name('or
 Route::get('o/{organizer:slug}/discussion', [OrganizerController::class, 'discussionFeed'])->name('organizers.discussion.feed');
 
 // Global search autocomplete suggestions (JSON).
-Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:suggest')->name('search.suggest');
 
 // Locale home = the marketing landing. Browse/discovery lives one level deeper:
 // /en-my/all, /en-my/{city}, /en-my/all/{category}, /en-my/{city}/{category}.
@@ -89,7 +89,7 @@ Route::get('help/{article}', [HelpController::class, 'show'])->name('help.show')
 
 // Public contact form.
 Route::get('contact', [ContactController::class, 'show'])->name('contact.show');
-Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:posting')->name('contact.store');
 
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
@@ -100,10 +100,10 @@ Route::get('robots.txt', function () {
 
 // Checkout (guest-friendly). `checkout/return` is declared before `checkout/{order}`
 // so the literal path wins over the {order} binding.
-Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->name('checkout.start');
+Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->middleware('throttle:checkout')->name('checkout.start');
 Route::get('checkout/return', [CheckoutController::class, 'return'])->name('checkout.return');
 Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('checkout.show');
-Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('checkout.pay');
+Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->middleware('throttle:checkout')->name('checkout.pay');
 Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
 Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
 Route::post('webhooks/chip', [WebhookController::class, 'chip'])->name('webhooks.chip');
@@ -120,9 +120,9 @@ Route::middleware('guest')->group(function () {
     Route::inertia('signup', 'auth/choose')->name('signup');
 
     Route::get('get-started', [OrganizerSignupController::class, 'start'])->name('organizer.start');
-    Route::post('get-started/code', [OrganizerSignupController::class, 'sendCode'])->name('organizer.code');
-    Route::post('get-started/verify', [OrganizerSignupController::class, 'verifyCode'])->name('organizer.verify');
-    Route::post('get-started/complete', [OrganizerSignupController::class, 'complete'])->name('organizer.complete');
+    Route::post('get-started/code', [OrganizerSignupController::class, 'sendCode'])->middleware('throttle:otp')->name('organizer.code');
+    Route::post('get-started/verify', [OrganizerSignupController::class, 'verifyCode'])->middleware('throttle:otp')->name('organizer.verify');
+    Route::post('get-started/complete', [OrganizerSignupController::class, 'complete'])->middleware('throttle:posting')->name('organizer.complete');
 
     // "Continue with Google" (OAuth 2.0).
     Route::get('auth/google/redirect', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->name('google.redirect');
@@ -152,7 +152,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::post('host/welcome', [OrganizerSignupController::class, 'saveOnboarding'])->name('organizer.onboarding');
 
     // Upgrade a signed-in free account to a vendor (organizer).
-    Route::post('become-a-vendor', [OrganizerSignupController::class, 'becomeVendor'])->name('organizer.become');
+    Route::post('become-a-vendor', [OrganizerSignupController::class, 'becomeVendor'])->middleware('throttle:posting')->name('organizer.become');
 
     // Organizer application (submit business details → wait for approval). Role-gated
     // but NOT approval-gated, so applicants can reach them.
@@ -163,7 +163,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     });
 
     // Image uploads (event covers, CMS media) — any signed-in user.
-    Route::post('uploads', [MediaController::class, 'store'])->name('uploads');
+    Route::post('uploads', [MediaController::class, 'store'])->middleware('throttle:uploads')->name('uploads');
 
     // Premium membership.
     Route::get('premium', [MembershipController::class, 'show'])->name('premium');
@@ -171,14 +171,14 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::get('premium/return', [MembershipController::class, 'return'])->name('premium.return');
 
     // Event discussion — post a question / reply (premium or organizer).
-    Route::post('e/{event}/comments', [EventCommentController::class, 'store'])->name('events.comments.store');
+    Route::post('e/{event}/comments', [EventCommentController::class, 'store'])->middleware('throttle:posting')->name('events.comments.store');
 
     // Event rating + review (attendees only).
-    Route::post('e/{event}/reviews', [EventReviewController::class, 'store'])->name('events.reviews.store');
+    Route::post('e/{event}/reviews', [EventReviewController::class, 'store'])->middleware('throttle:posting')->name('events.reviews.store');
 
     // Follow organizers + the following feed.
-    Route::post('organizers/{organizer}/follow', [FollowController::class, 'toggle'])->name('organizers.follow');
-    Route::post('o/{organizer:slug}/discussion', [OrganizerController::class, 'discuss'])->name('organizers.discuss');
+    Route::post('organizers/{organizer}/follow', [FollowController::class, 'toggle'])->middleware('throttle:posting')->name('organizers.follow');
+    Route::post('o/{organizer:slug}/discussion', [OrganizerController::class, 'discuss'])->middleware('throttle:posting')->name('organizers.discuss');
     Route::get('following', [FollowController::class, 'index'])->name('following');
 
     // Buyer account — purchase history + re-download/re-send tickets + invoices.

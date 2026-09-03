@@ -31,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\ThrottleAuthEndpoints::class,
             \App\Http\Middleware\EnsureAccountActive::class,
             \App\Http\Middleware\EnsurePasswordSet::class,
         ]);
