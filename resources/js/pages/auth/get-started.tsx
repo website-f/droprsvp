@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, CalendarDays, CheckCircle2, Mail, QrCode, Ticket } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Loader2, Mail, QrCode, Ticket } from 'lucide-react';
 import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,9 @@ export default function GetStarted() {
                                     <input id="email" type="email" autoFocus autoComplete="email" className={field} value={data.email} onChange={(e) => setData('email', e.target.value)} placeholder="you@example.com" />
                                     {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                                 </div>
-                                <Button type="submit" size="lg" className="h-12" disabled={processing}><Mail className="size-4" /> Send code</Button>
+                                <Button type="submit" size="lg" className="h-12" disabled={processing}>
+                                    {processing ? <><Loader2 className="size-4 animate-spin" /> Sending code…</> : <><Mail className="size-4" /> Send code</>}
+                                </Button>
                                 <p className="text-center text-xs text-muted-foreground">By continuing you agree to the Terms & Privacy Policy.</p>
                             </form>
                         )}
@@ -85,14 +87,18 @@ export default function GetStarted() {
                                     <p className="mt-1.5 text-sm text-muted-foreground">We sent a 6-digit code to <span className="font-medium text-foreground">{data.email}</span>.</p>
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <InputOTP maxLength={6} value={data.code} onChange={(v) => setData('code', v)}>
-                                        <InputOTPGroup>
-                                            {[0, 1, 2, 3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} className="size-12 text-lg" />)}
+                                    <InputOTP maxLength={6} value={data.code} onChange={(v) => setData('code', v)} disabled={processing} containerClassName="justify-center sm:justify-start">
+                                        <InputOTPGroup className="gap-2.5">
+                                            {[0, 1, 2, 3, 4, 5].map((i) => (
+                                                <InputOTPSlot key={i} index={i} className="size-12 rounded-xl! border! border-input text-lg font-semibold shadow-sm transition-all sm:size-14" />
+                                            ))}
                                         </InputOTPGroup>
                                     </InputOTP>
                                     {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
                                 </div>
-                                <Button type="submit" size="lg" className="h-12" disabled={processing || data.code.length < 6}>Verify & continue</Button>
+                                <Button type="submit" size="lg" className="h-12" disabled={processing || data.code.length < 6}>
+                                    {processing ? <><Loader2 className="size-4 animate-spin" /> Verifying…</> : 'Verify & continue'}
+                                </Button>
                                 <p className="text-center text-sm text-muted-foreground">Didn’t get it? <button type="button" onClick={resend} className="font-medium text-foreground underline underline-offset-4">Resend code</button></p>
                             </form>
                         )}
@@ -130,7 +136,9 @@ export default function GetStarted() {
                                     <span className="text-muted-foreground">By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.</span>
                                 </div>
                                 {errors.consent && <p className="text-xs text-destructive">{errors.consent}</p>}
-                                <Button type="submit" size="lg" className="h-12" disabled={processing || !data.consent}>Create account</Button>
+                                <Button type="submit" size="lg" className="h-12" disabled={processing || !data.consent}>
+                                    {processing ? <><Loader2 className="size-4 animate-spin" /> Creating account…</> : 'Create account'}
+                                </Button>
                             </form>
                         )}
                     </div>
