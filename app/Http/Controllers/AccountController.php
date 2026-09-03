@@ -38,16 +38,21 @@ class AccountController extends Controller
 
         $orders = $this->ownedBy($user)
             ->whereIn('status', ['paid', 'refunded'])
-            ->with('event:id,title')
+            ->with('event:id,title,starts_at,timezone,refund_policy')
+            ->withCount(['refundRequests as pending_refunds' => fn ($q) => $q->where('status', 'pending')])
             ->latest()
             ->paginate(12)
             ->through(fn (Order $o) => [
                 'reference' => $o->reference,
                 'event' => $o->event?->title,
                 'total' => (float) $o->total,
+                'refunded_amount' => (float) $o->refunded_amount,
                 'currency' => $o->currency,
                 'status' => $o->status,
                 'date' => optional($o->paid_at ?? $o->created_at)->format('j M Y'),
+                'can_refund' => $o->status === 'paid' && $o->event && $o->event->allowsRefundRequest()
+                    && $o->pending_refunds === 0 && $o->remainingRefundable() > 0,
+                'refund_pending' => $o->pending_refunds > 0,
             ]);
 
         return Inertia::render('account/invoices', ['orders' => $orders]);
@@ -63,6 +68,43 @@ class AccountController extends Controller
         \App\Support\Mailer::defer($email, new TicketsIssued($order));
 
         return back()->with('success', "Tickets re-sent to {$email}.");
+    }
+
+    /** Buyer opens a refund request for a paid order (subject to the event's policy). */
+    public function requestRefund(Request $request, Order $order)
+    {
+        abort_unless($this->belongsToUser($order, $request->user()), 403);
+        abort_unless($order->status === 'paid', 422);
+
+        $order->loadMissing('event');
+        abort_unless($order->event && $order->event->allowsRefundRequest(), 422);
+
+        if ($order->hasPendingRefund() || $order->remainingRefundable() <= 0) {
+            return back()->with('flash_error', 'A refund for this order is already in progress.');
+        }
+
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+
+        \App\Models\RefundRequest::create([
+            'order_id' => $order->id,
+            'user_id' => $request->user()->id,
+            'amount' => $order->remainingRefundable(),
+            'reason' => $data['reason'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        // Ping the event's organizer.
+        if ($order->event->user_id) {
+            \App\Models\AppNotification::notify($order->event->user_id, [
+                'type' => 'refund',
+                'title' => 'New refund request',
+                'body' => "{$request->user()->name} requested a refund for “{$order->event->title}” ({$order->reference}).",
+                'url' => '/host/refunds',
+                'level' => 'warning',
+            ]);
+        }
+
+        return back()->with('flash_success', 'Your refund request has been sent to the organizer.');
     }
 
     /** Orders tied to the account by id, or placed as a guest with the account's email. */

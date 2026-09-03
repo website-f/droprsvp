@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, BadgeCheck, Banknote, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, BadgeCheck, Banknote, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -37,6 +37,7 @@ const organizingNav: NavItem[] = [
     { title: 'Analytics', href: '/host/analytics', icon: ChartColumn },
     { title: 'Finance', href: '/host/finance', icon: CircleDollarSign },
     { title: 'Invoices', href: '/host/invoices', icon: Receipt },
+    { title: 'Refunds', href: '/host/refunds', icon: Undo2 },
     { title: 'Payouts', href: '/host/payouts', icon: Wallet },
 ];
 
@@ -52,6 +53,7 @@ const platformNav: AdminNavItem[] = [
     { title: 'Users', href: '/admin/users', icon: Users, section: 'users' },
     { title: 'Payout requests', href: '/admin/payouts', icon: Banknote, section: 'payouts' },
     { title: 'Finance', href: '/admin/finance', icon: CircleDollarSign, section: 'finance' },
+    { title: 'Refunds', href: '/admin/refunds', icon: Undo2, section: 'refunds' },
     { title: 'Contact messages', href: '/admin/contact', icon: Inbox, section: 'contact' },
     { title: 'Archive', href: '/admin/archive', icon: Archive, section: 'archive' },
     { title: 'Settings', href: '/admin/settings', icon: Settings2, section: 'settings' },

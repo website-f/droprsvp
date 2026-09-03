@@ -30,7 +30,7 @@ interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
     description: string | null; cover_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
-    capacity: number | null; show_participants: boolean; show_reviews: boolean; seating_enabled: boolean;
+    capacity: number | null; show_participants: boolean; show_reviews: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
@@ -100,6 +100,8 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         capacity: event?.capacity ? String(event.capacity) : '',
         show_participants: event?.show_participants ?? true,
         show_reviews: event?.show_reviews ?? true,
+        refund_policy: event?.refund_policy ?? 'until_event',
+        refund_policy_note: event?.refund_policy_note ?? '',
         seating_enabled: event?.seating_enabled ?? false,
         ticketing_mode: (event?.ticketing_mode ?? (event?.seating_enabled ? 'reserved' : 'general')) as TicketingMode,
         auto_assign_tables: event?.auto_assign_tables ?? false,
@@ -540,6 +542,20 @@ form.post('/host/events');
                     </div>
                     <div className="rounded-lg border border-border p-3">
                         <SwitchField checked={data.show_reviews} onCheckedChange={(v) => setData('show_reviews', v)} label="Show reviews & ratings" description="Let attendees rate and review; show the average on the page." />
+                    </div>
+                    <div className="grid gap-2 rounded-lg border border-border p-3">
+                        <div>
+                            <div className="text-sm font-medium">Refund policy</div>
+                            <div className="text-xs text-muted-foreground">Controls whether attendees can request a refund. You always decide each request.</div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-[1fr_1.5fr]">
+                            <AppSelect value={data.refund_policy} onChange={(v) => setData('refund_policy', v)} options={[
+                                { value: 'until_event', label: 'Refundable until event starts' },
+                                { value: 'anytime', label: 'Refundable anytime' },
+                                { value: 'no_refunds', label: 'No refunds' },
+                            ]} />
+                            <input className={field} value={data.refund_policy_note ?? ''} onChange={(e) => setData('refund_policy_note', e.target.value)} placeholder="Optional note shown to attendees" />
+                        </div>
                     </div>
                 </section>
 

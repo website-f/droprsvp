@@ -25,5 +25,6 @@ interface PaymentGateway
     public function parseWebhook(Request $request): ?array;
 
     /** Refund a settled order at the gateway. Returns true on success. */
-    public function refund(Order $order): bool;
+    /** Refund a paid order. $amount refunds a partial sum; null refunds the full order total. */
+    public function refund(Order $order, ?float $amount = null): bool;
 }

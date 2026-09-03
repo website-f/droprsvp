@@ -236,6 +236,8 @@ class EventController extends Controller
             'gallery.*' => ['string', 'max:2048'],
             'show_participants' => ['boolean'],
             'show_reviews' => ['boolean'],
+            'refund_policy' => ['nullable', 'in:no_refunds,until_event,anytime'],
+            'refund_policy_note' => ['nullable', 'string', 'max:500'],
             'seating_enabled' => ['boolean'],
             'ticketing_mode' => ['nullable', 'in:general,reserved,tables'],
             'auto_assign_tables' => ['boolean'],
@@ -318,6 +320,8 @@ class EventController extends Controller
             'gallery' => $data['gallery'] ?? [],
             'show_participants' => $data['show_participants'] ?? true,
             'show_reviews' => $data['show_reviews'] ?? true,
+            'refund_policy' => $data['refund_policy'] ?? 'until_event',
+            'refund_policy_note' => $data['refund_policy_note'] ?? null,
             // seating_enabled is derived from the mode so the existing reserved-seating
             // checkout/rendering keeps working unchanged.
             'ticketing_mode' => $data['ticketing_mode'] ?? 'general',

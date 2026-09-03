@@ -123,14 +123,14 @@ class ChipGateway implements PaymentGateway
         return $res->successful() && ($res->json('status') === 'paid');
     }
 
-    public function refund(Order $order): bool
+    public function refund(Order $order, ?float $amount = null): bool
     {
         if (! $order->payment_ref) {
             return false;
         }
 
         return $this->api()->post('/purchases/'.$order->payment_ref.'/refund/', [
-            'amount' => (int) round((float) $order->total * 100),
+            'amount' => (int) round(($amount ?? (float) $order->total) * 100),
         ])->successful();
     }
 

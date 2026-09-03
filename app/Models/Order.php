@@ -11,7 +11,7 @@ class Order extends Model
     protected $fillable = [
         'reference', 'user_id', 'event_id', 'status', 'buyer_name', 'buyer_email', 'buyer_phone',
         'buyer_gender', 'buyer_age_band', 'buyer_city', 'buyer_source', 'notes',
-        'subtotal', 'discount', 'fees', 'tax', 'total', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
+        'subtotal', 'discount', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class Order extends Model
             'fees' => 'decimal:2',
             'tax' => 'decimal:2',
             'total' => 'decimal:2',
+            'refunded_amount' => 'decimal:2',
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',
             'meta' => 'array',
@@ -53,8 +54,25 @@ class Order extends Model
         return $this->hasMany(Ticket::class);
     }
 
+    public function refundRequests(): HasMany
+    {
+        return $this->hasMany(RefundRequest::class);
+    }
+
     public function isPaid(): bool
     {
         return $this->status === 'paid';
+    }
+
+    /** Amount still refundable on a paid order (total minus what's already refunded). */
+    public function remainingRefundable(): float
+    {
+        return max(0.0, round((float) $this->total - (float) $this->refunded_amount, 2));
+    }
+
+    /** Is there a refund request awaiting an organizer decision? */
+    public function hasPendingRefund(): bool
+    {
+        return $this->refundRequests()->where('status', 'pending')->exists();
     }
 }

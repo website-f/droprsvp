@@ -24,7 +24,7 @@ class FakePaymentGateway implements PaymentGateway
         return null; // the fake gateway settles via its return page, not webhooks
     }
 
-    public function refund(Order $order): bool
+    public function refund(Order $order, ?float $amount = null): bool
     {
         return true; // no real money moved in dev
     }

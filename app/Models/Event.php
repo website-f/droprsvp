@@ -17,6 +17,7 @@ class Event extends Model
         'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'gallery',
         'show_participants', 'show_reviews', 'seating_enabled', 'ticketing_mode', 'auto_assign_tables',
         'status', 'cancelled_reason', 'appeal_status', 'appeal_reason', 'appeal_attachments', 'appealed_at',
+        'refund_policy', 'refund_policy_note',
         'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address', 'city',
         'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at', 'boosted_until',
     ];
@@ -45,6 +46,30 @@ class Event extends Model
     public function isBoosted(): bool
     {
         return $this->boosted_until !== null && $this->boosted_until->isFuture();
+    }
+
+    /** Human label for the event's refund policy. */
+    public function refundPolicyLabel(): string
+    {
+        return match ($this->refund_policy) {
+            'no_refunds' => 'No refunds',
+            'anytime' => 'Refundable anytime',
+            default => 'Refundable until the event starts',
+        };
+    }
+
+    /** Whether a buyer may open a refund request under this event's policy right now. */
+    public function allowsRefundRequest(): bool
+    {
+        if ($this->refund_policy === 'no_refunds') {
+            return false;
+        }
+        if ($this->refund_policy === 'anytime') {
+            return true;
+        }
+
+        // 'until_event' — allowed while the event hasn't started (date-less = allowed).
+        return $this->starts_at === null || $this->starts_at->isFuture();
     }
 
     public function getRouteKeyName(): string

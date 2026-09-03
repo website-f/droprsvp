@@ -233,24 +233,46 @@ class CheckoutService
      * Refund a paid order: void its tickets and release the seats back to stock.
      * Idempotent; call the gateway refund BEFORE this. Returns true if it flipped.
      */
-    public function refund(Order $order): bool
+    /**
+     * Record a refund on a paid order. $amount refunds a partial sum (order stays
+     * paid, tickets remain valid); null — or an amount covering the remaining
+     * balance — is a FULL refund (status → refunded, tickets released). The gateway
+     * refund is triggered by the caller; this only settles the local records.
+     *
+     * @return array{ok: bool, full: bool, amount: float}
+     */
+    public function refund(Order $order, ?float $amount = null): array
     {
-        $flipped = DB::transaction(function () use ($order): bool {
+        $result = DB::transaction(function () use ($order, $amount): array {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->first();
             if ($locked->status !== 'paid') {
-                return false; // only settled orders can be refunded
+                return ['ok' => false, 'full' => false, 'amount' => 0.0]; // only settled orders
             }
 
-            $locked->update(['status' => 'refunded', 'refunded_at' => now()]);
-            $locked->tickets()->whereIn('status', ['valid', 'checked_in'])->update(['status' => 'refunded']);
-            $this->releaseStock($locked);
+            $remaining = max(0.0, round((float) $locked->total - (float) $locked->refunded_amount, 2));
+            $amt = $amount === null ? $remaining : round(min((float) $amount, $remaining), 2);
+            if ($amt <= 0) {
+                return ['ok' => false, 'full' => false, 'amount' => 0.0];
+            }
 
-            return true;
+            $newRefunded = round((float) $locked->refunded_amount + $amt, 2);
+            $full = $newRefunded >= (float) $locked->total - 0.001;
+
+            if ($full) {
+                $locked->update(['status' => 'refunded', 'refunded_at' => now(), 'refunded_amount' => $locked->total]);
+                $locked->tickets()->whereIn('status', ['valid', 'checked_in'])->update(['status' => 'refunded']);
+                $this->releaseStock($locked);
+            } else {
+                $locked->update(['refunded_amount' => $newRefunded]);
+            }
+
+            return ['ok' => true, 'full' => $full, 'amount' => $amt];
         });
 
-        // Notify the buyer, once, after settlement (non-fatal, off the request).
-        if ($flipped && $order->fresh()->buyer_email) {
+        // Only a full refund flips the order + emails the "order refunded" notice
+        // (partial refunds are communicated by the refund-request approval flow).
+        if ($result['ok'] && $result['full'] && $order->fresh()->buyer_email) {
             try {
                 $fresh = $order->fresh()->load('event');
                 defer(fn () => Mail::to($fresh->buyer_email)->send(new OrderRefundedMail($fresh)));
@@ -259,7 +281,7 @@ class CheckoutService
             }
         }
 
-        return $flipped;
+        return $result;
     }
 
     /** Release a still-pending order's reserved stock (abandoned / failed / cancelled). */

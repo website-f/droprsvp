@@ -32,6 +32,7 @@ class RolePermissions
         'users' => ['label' => 'Users', 'prefixes' => ['admin.users']],
         'payouts' => ['label' => 'Payouts', 'prefixes' => ['admin.payouts']],
         'finance' => ['label' => 'Finance', 'prefixes' => ['admin.finance']],
+        'refunds' => ['label' => 'Refunds', 'prefixes' => ['admin.refunds']],
         'contact' => ['label' => 'Contact messages', 'prefixes' => ['admin.contact']],
         'archive' => ['label' => 'Archive', 'prefixes' => ['admin.archive']],
         'content' => ['label' => 'Content (CMS)', 'prefixes' => ['admin.cms', 'admin.seo', 'admin.site.legal', 'admin.site.home-seo']],

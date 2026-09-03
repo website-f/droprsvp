@@ -185,6 +185,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');
     Route::get('my/invoices', [AccountController::class, 'invoices'])->name('account.invoices');
     Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
+    Route::post('my/orders/{order}/refund-request', [AccountController::class, 'requestRefund'])->middleware('throttle:posting')->name('account.orders.refund-request');
     Route::get('my/orders/{order}/receipt', [ReceiptController::class, 'order'])->name('account.orders.receipt');
     Route::get('my/orders/{order}/receipt/pdf', [ReceiptController::class, 'orderPdf'])->name('account.orders.receipt.pdf');
     Route::get('my/payouts/{payout}/receipt', [ReceiptController::class, 'payout'])->name('account.payouts.receipt');
@@ -242,6 +243,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('invoices', [\App\Http\Controllers\Host\InvoiceController::class, 'index'])->name('invoices.index');
         Route::get('invoices/events/{event}', [\App\Http\Controllers\Host\InvoiceController::class, 'event'])->name('invoices.event');
         Route::get('finance', [\App\Http\Controllers\Host\FinanceController::class, 'index'])->name('finance.index');
+
+        // Refund queue — approve/decline buyers' refund requests on the organizer's events.
+        Route::get('refunds', [\App\Http\Controllers\Host\RefundController::class, 'index'])->name('refunds.index');
+        Route::post('refunds/{refundRequest}/approve', [\App\Http\Controllers\Host\RefundController::class, 'approve'])->name('refunds.approve');
+        Route::post('refunds/{refundRequest}/decline', [\App\Http\Controllers\Host\RefundController::class, 'decline'])->name('refunds.decline');
 
         // Seating & table management.
         Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');
@@ -344,6 +350,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Finance — every transaction (tickets/boosts/subscriptions/payouts).
         Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
         Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
+
+        // Refund oversight + reconciliation across all organizers.
+        Route::get('refunds', [\App\Http\Controllers\Admin\RefundController::class, 'index'])->name('refunds.index');
 
         // Archive — soft-deleted items across the platform (restore / permanent delete).
         Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
