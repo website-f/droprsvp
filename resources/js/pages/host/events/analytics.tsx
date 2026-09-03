@@ -1,8 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Eye, MousePointerClick, Percent, Ticket, TrendingUp, Wallet } from 'lucide-react';
-import { AnalyticsToolbar } from '@/components/analytics-toolbar';
+import { useState } from 'react';
+import { AnalyticsToolbar, AudienceFilters } from '@/components/analytics-toolbar';
 import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
-import { BarsChart, DonutChart, PALETTE, TrendChart } from '@/components/charts';
+import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/components/charts';
+import type { ReachMetric } from '@/components/charts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +15,8 @@ interface Props {
     trend: { date: string; impressions: number; clicks: number }[];
     demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
     filters: AnalyticsPeriod;
+    cityOptions: string[];
+    sourceOptions: { value: string; label: string }[];
 }
 
 function Kpi({ icon: Icon, label, value, tint }: { icon: typeof Eye; label: string; value: string; tint: string }) {
@@ -34,8 +38,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function EventAnalytics({ event, kpis, trend, demographics, filters }: Props) {
+export default function EventAnalytics({ event, kpis, trend, demographics, filters, cityOptions, sourceOptions }: Props) {
     const hasAudience = demographics.gender.length + demographics.age.length + demographics.city.length + demographics.source.length > 0;
+    const [metric, setMetric] = useState<ReachMetric>('both');
 
     return (
         <>
@@ -50,7 +55,10 @@ export default function EventAnalytics({ event, kpis, trend, demographics, filte
                     <Badge variant={event.status === 'published' ? 'default' : 'secondary'} className="ml-auto capitalize">{event.status}</Badge>
                 </div>
 
-                <div className="mb-6 flex justify-end"><AnalyticsToolbar path={`/host/events/${event.slug}/analytics`} filters={filters} /></div>
+                <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+                    <AudienceFilters path={`/host/events/${event.slug}/analytics`} city={filters.city} source={filters.source} cities={cityOptions} sources={sourceOptions} />
+                    <AnalyticsToolbar path={`/host/events/${event.slug}/analytics`} filters={filters} />
+                </div>
 
                 {/* KPIs */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -64,9 +72,13 @@ export default function EventAnalytics({ event, kpis, trend, demographics, filte
 
                 {/* Trend */}
                 <div className="mt-6">
-                    <Panel title={`Reach · ${filters.periodLabel}`}>
-                        <TrendChart data={trend} />
-                    </Panel>
+                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>
+                            <MetricToggle value={metric} onChange={setMetric} />
+                        </div>
+                        <TrendChart data={trend} metric={metric} />
+                    </section>
                 </div>
 
                 {/* Audience */}

@@ -1,8 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowUpDown, CalendarCheck, CalendarDays, ChartColumn, Download, Eye, Search, Ticket, Users, Wallet } from 'lucide-react';
 import { useState } from 'react';
-import { AnalyticsToolbar } from '@/components/analytics-toolbar';
-import { BarsChart, DonutChart, PALETTE, RevenueBars, TrendChart } from '@/components/charts';
+import { AnalyticsToolbar, AudienceFilters } from '@/components/analytics-toolbar';
+import { BarsChart, DonutChart, MetricToggle, PALETTE, RevenueBars, TrendChart } from '@/components/charts';
+import type { ReachMetric } from '@/components/charts';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 
@@ -10,7 +11,7 @@ interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
 interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number }
 interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
-interface Filters { q: string; sort: string; dir: string; status: string; category: string; period: string; from: string; to: string; periodLabel: string }
+interface Filters { q: string; sort: string; dir: string; status: string; category: string; city: string; source: string; period: string; from: string; to: string; periodLabel: string }
 interface Props {
     kpis: { events: number; published: number; users: number; tickets: number; revenue: number; impressions: number };
     reach: Reach[];
@@ -21,6 +22,8 @@ interface Props {
     filters: Filters;
     statusOptions: string[];
     categoryOptions: { value: string; label: string }[];
+    cityOptions: string[];
+    sourceOptions: { value: string; label: string }[];
     exportUrl: string;
 }
 
@@ -57,8 +60,9 @@ function Th({ label, k, activeSort, onSort, className = '' }: { label: string; k
     );
 }
 
-export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, exportUrl }: Props) {
+export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
+    const [metric, setMetric] = useState<ReachMetric>('both');
 
     // The date-range window params — the toolbar owns these; everything else keeps them.
     const windowParams: Record<string, string> = filters.period === 'custom'
@@ -70,6 +74,8 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
         ...(q ? { q } : {}),
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.category ? { category: filters.category } : {}),
+        ...(filters.city ? { city: filters.city } : {}),
+        ...(filters.source ? { source: filters.source } : {}),
         ...(filters.sort !== 'created_at' ? { sort: filters.sort } : {}),
         ...(filters.dir !== 'desc' ? { dir: filters.dir } : {}),
     };
@@ -105,7 +111,10 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                         <h1 className="mb-1 text-2xl font-bold tracking-tight">Platform analytics</h1>
                         <p className="text-sm text-muted-foreground">Everything happening across DropRSVP.</p>
                     </div>
-                    <AnalyticsToolbar path="/admin/analytics" filters={filters} extra={extra} />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <AudienceFilters path="/admin/analytics" city={filters.city} source={filters.source} cities={cityOptions} sources={sourceOptions} />
+                        <AnalyticsToolbar path="/admin/analytics" filters={filters} extra={extra} />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -118,7 +127,13 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    <Panel title={`Reach · ${filters.periodLabel}`}><TrendChart data={reach} /></Panel>
+                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>
+                            <MetricToggle value={metric} onChange={setMetric} />
+                        </div>
+                        <TrendChart data={reach} metric={metric} />
+                    </section>
                     <Panel title={`Revenue · ${filters.periodLabel}`}><RevenueBars data={revenue} /></Panel>
                 </div>
 

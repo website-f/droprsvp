@@ -82,6 +82,27 @@ class Analytics
         return $out;
     }
 
+    /** Apply the audience filters (city, traffic source) to a paid-orders query. */
+    public static function applyAudience($query, ?string $city, ?string $source)
+    {
+        return $query
+            ->when($city, fn ($q) => $q->where('buyer_city', $city))
+            ->when($source, fn ($q) => $q->where('buyer_source', $source));
+    }
+
+    /** Distinct cities present in a paid-orders query — for the city filter dropdown. */
+    public static function cityOptions($query, int $limit = 50): array
+    {
+        return (clone $query)->whereNotNull('buyer_city')->where('buyer_city', '!=', '')
+            ->distinct()->orderBy('buyer_city')->limit($limit)->pluck('buyer_city')->values()->all();
+    }
+
+    /** Traffic-source options (value + label) for the source filter dropdown. */
+    public static function sourceOptions(): array
+    {
+        return array_map(fn ($k, $label) => ['value' => $k, 'label' => $label], array_keys(self::SOURCE_LABELS), self::SOURCE_LABELS);
+    }
+
     /** Count rows grouped by $column, mapped through $labels, sorted by count desc. */
     public static function breakdown($query, string $column, array $labels): array
     {

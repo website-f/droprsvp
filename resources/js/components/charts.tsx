@@ -14,8 +14,11 @@ const axisTick = { fill: 'var(--muted-foreground)', fontSize: 11 } as const;
 
 interface Point { date: string; impressions: number; clicks: number }
 
-/** Impressions + clicks over time. */
-export function TrendChart({ data, height = 260 }: { data: Point[]; height?: number }) {
+/** Which series the reach chart draws — the "metric focus" advanced filter. */
+export type ReachMetric = 'both' | 'impressions' | 'clicks';
+
+/** Impressions + clicks over time, optionally focused to a single series. */
+export function TrendChart({ data, height = 260, metric = 'both' }: { data: Point[]; height?: number; metric?: ReachMetric }) {
     'use no memo';
 
     return (
@@ -30,10 +33,23 @@ export function TrendChart({ data, height = 260 }: { data: Point[]; height?: num
                 <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
                 <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--muted-foreground)' }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area type="monotone" dataKey="impressions" name="Impressions" stroke={PALETTE[0]} strokeWidth={2} fill="url(#gImp)" />
-                <Area type="monotone" dataKey="clicks" name="Clicks" stroke={PALETTE[1]} strokeWidth={2} fill="url(#gClk)" />
+                {metric !== 'clicks' && <Area type="monotone" dataKey="impressions" name="Impressions" stroke={PALETTE[0]} strokeWidth={2} fill="url(#gImp)" />}
+                {metric !== 'impressions' && <Area type="monotone" dataKey="clicks" name="Clicks" stroke={PALETTE[1]} strokeWidth={2} fill="url(#gClk)" />}
             </AreaChart>
         </ResponsiveContainer>
+    );
+}
+
+/** Segmented toggle for the reach chart's metric focus. */
+export function MetricToggle({ value, onChange }: { value: ReachMetric; onChange: (v: ReachMetric) => void }) {
+    const opts: [ReachMetric, string][] = [['both', 'Both'], ['impressions', 'Impressions'], ['clicks', 'Clicks']];
+
+    return (
+        <div className="inline-flex rounded-lg border border-border p-0.5">
+            {opts.map(([v, label]) => (
+                <button key={v} type="button" onClick={() => onChange(v)} className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${value === v ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
+            ))}
+        </div>
     );
 }
 

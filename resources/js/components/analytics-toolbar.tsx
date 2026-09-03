@@ -1,8 +1,38 @@
 import { router } from '@inertiajs/react';
 import { CalendarRange } from 'lucide-react';
 import { useState } from 'react';
+import { AppSelect } from '@/components/ui/app-select';
 
-export interface AnalyticsPeriod { period: string; from: string; to: string; periodLabel?: string }
+export interface AnalyticsPeriod { period: string; from: string; to: string; periodLabel?: string; city?: string; source?: string }
+
+/**
+ * Audience filters (city + traffic source) for any analytics page. Navigates by
+ * patching the current URL's query string, so it composes with the period
+ * presets and any table filters already in the URL.
+ */
+export function AudienceFilters({ path, city = '', source = '', cities, sources }: { path: string; city?: string; source?: string; cities: string[]; sources: { value: string; label: string }[] }) {
+    const nav = (patch: Record<string, string>) => {
+        const params = new URLSearchParams(window.location.search);
+
+        for (const [k, v] of Object.entries(patch)) {
+            if (v) {
+                params.set(k, v);
+            } else {
+                params.delete(k);
+            }
+        }
+
+        const qs = params.toString();
+        router.get(qs ? `${path}?${qs}` : path, {}, { preserveScroll: true, preserveState: true });
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <div className="w-36"><AppSelect aria-label="City" value={city || 'all'} onChange={(v) => nav({ city: v === 'all' ? '' : v })} options={[{ value: 'all', label: 'All cities' }, ...cities.map((c) => ({ value: c, label: c }))]} /></div>
+            <div className="w-36"><AppSelect aria-label="Traffic source" value={source || 'all'} onChange={(v) => nav({ source: v === 'all' ? '' : v })} options={[{ value: 'all', label: 'All sources' }, ...sources]} /></div>
+        </div>
+    );
+}
 
 const PRESETS: [string, string][] = [['7d', '7D'], ['30d', '30D'], ['90d', '90D'], ['12m', '12M']];
 const dateInput = 'h-9 rounded-lg border border-input bg-card px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';

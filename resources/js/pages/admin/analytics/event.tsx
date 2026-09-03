@@ -1,8 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Eye, MousePointerClick, Percent, Ticket, Wallet } from 'lucide-react';
-import { AnalyticsToolbar } from '@/components/analytics-toolbar';
+import { useState } from 'react';
+import { AnalyticsToolbar, AudienceFilters } from '@/components/analytics-toolbar';
 import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
-import { BarsChart, DonutChart, PALETTE, TrendChart } from '@/components/charts';
+import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/components/charts';
+import type { ReachMetric } from '@/components/charts';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
@@ -34,7 +36,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function AdminEventAnalytics({ data, filters }: { data: Data; filters: AnalyticsPeriod }) {
+export default function AdminEventAnalytics({ data, filters, cityOptions, sourceOptions }: { data: Data; filters: AnalyticsPeriod; cityOptions: string[]; sourceOptions: { value: string; label: string }[] }) {
+    const [metric, setMetric] = useState<ReachMetric>('both');
+
     return (
         <>
             <Head title={`${data.event.title} — analytics`} />
@@ -46,7 +50,10 @@ export default function AdminEventAnalytics({ data, filters }: { data: Data; fil
                         <h1 className="text-2xl font-bold tracking-tight">{data.event.title}</h1>
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize text-muted-foreground">{data.event.status}</span>
                     </div>
-                    <AnalyticsToolbar path={`/admin/analytics/${data.event.slug}`} filters={filters} />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <AudienceFilters path={`/admin/analytics/${data.event.slug}`} city={filters.city} source={filters.source} cities={cityOptions} sources={sourceOptions} />
+                        <AnalyticsToolbar path={`/admin/analytics/${data.event.slug}`} filters={filters} />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -59,7 +66,13 @@ export default function AdminEventAnalytics({ data, filters }: { data: Data; fil
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    <Panel title={`Reach · ${filters.periodLabel}`}><TrendChart data={data.trend} /></Panel>
+                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>
+                            <MetricToggle value={metric} onChange={setMetric} />
+                        </div>
+                        <TrendChart data={data.trend} metric={metric} />
+                    </section>
                     <Panel title="Audience age"><BarsChart data={data.demographics.age} color={PALETTE[2]} height={260} /></Panel>
                     <Panel title="Top cities"><BarsChart data={data.demographics.city} color={PALETTE[0]} height={260} /></Panel>
                     <Panel title="Traffic sources"><DonutChart data={data.demographics.source} /></Panel>

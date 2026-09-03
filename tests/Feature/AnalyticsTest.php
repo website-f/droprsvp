@@ -192,6 +192,24 @@ class AnalyticsTest extends TestCase
                 ->where('events.data.0.slug', 'cat-one'));
     }
 
+    public function test_analytics_exposes_audience_filter_options_and_echoes_the_selection(): void
+    {
+        $admin = $this->superadmin();
+        $event = $this->publishedEvent();
+        \App\Models\Order::create([
+            'reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid',
+            'total' => 50, 'paid_at' => now(), 'buyer_city' => 'Kuala Lumpur', 'buyer_source' => 'instagram',
+        ]);
+
+        $this->actingAs($admin)->get('/admin/analytics?city=Kuala+Lumpur&source=instagram')
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('admin/analytics')
+                ->where('filters.city', 'Kuala Lumpur')
+                ->where('filters.source', 'instagram')
+                ->has('cityOptions')
+                ->has('sourceOptions'));
+    }
+
     public function test_superadmin_can_export_events_analytics_as_csv(): void
     {
         Role::findOrCreate('superadmin', 'web');

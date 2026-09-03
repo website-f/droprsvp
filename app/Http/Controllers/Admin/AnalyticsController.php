@@ -27,6 +27,13 @@ class AnalyticsController extends Controller
         // the headline KPI cards stay as platform-wide totals.
         $paidInWindow = (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]);
 
+        // Audience filters (city + traffic source) narrow the buyer-derived views.
+        $cities = Analytics::cityOptions((clone $paid));
+        $city = in_array($request->query('city'), $cities, true) ? $request->query('city') : '';
+        $source = array_key_exists($request->query('source'), Analytics::SOURCE_LABELS) ? $request->query('source') : '';
+        $audience = fn ($q) => Analytics::applyAudience($q, $city ?: null, $source ?: null);
+        $paidInWindow = $audience($paidInWindow);
+
         $topEvents = (clone $paidInWindow)
             ->selectRaw('event_id, SUM(total) as revenue')
             ->groupBy('event_id')->orderByDesc('revenue')->limit(6)
@@ -44,7 +51,7 @@ class AnalyticsController extends Controller
                 'impressions' => (int) EventDailyStat::sum('impressions'),
             ],
             'reach' => Analytics::reach(EventDailyStat::query(), $w),
-            'revenue' => Analytics::revenue(Order::query(), $w),
+            'revenue' => Analytics::revenue($audience(Order::query()), $w),
             'topEvents' => $topEvents,
             'demographics' => [
                 'gender' => Analytics::breakdown((clone $paidInWindow), 'buyer_gender', Analytics::GENDER_LABELS),
@@ -61,6 +68,8 @@ class AnalyticsController extends Controller
                 'dir' => $this->sortDir($request),
                 'status' => $this->statusFilter($request),
                 'category' => $this->categoryFilter($request),
+                'city' => $city,
+                'source' => $source,
                 'period' => $w['period'],
                 'from' => $w['from_date'],
                 'to' => $w['to_date'],
@@ -69,6 +78,8 @@ class AnalyticsController extends Controller
             'statusOptions' => self::STATUSES,
             'categoryOptions' => EventCategory::orderBy('name')->get(['id', 'name'])
                 ->map(fn ($c) => ['value' => (string) $c->id, 'label' => $c->name])->all(),
+            'cityOptions' => $cities,
+            'sourceOptions' => Analytics::sourceOptions(),
             'exportUrl' => route('admin.analytics.export', $request->query()),
         ]);
     }
@@ -77,12 +88,14 @@ class AnalyticsController extends Controller
     public function show(Request $request, Event $event)
     {
         $w = AnalyticsWindow::fromRequest($request);
-        $data = $this->eventBreakdown($event->slug, $w);
+        $data = $this->eventBreakdown($event->slug, $w, $request);
         abort_unless($data, 404);
 
         return inertia('admin/analytics/event', [
             'data' => $data,
-            'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label']],
+            'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label'], 'city' => $data['city'], 'source' => $data['source']],
+            'cityOptions' => $data['cityOptions'],
+            'sourceOptions' => Analytics::sourceOptions(),
         ]);
     }
 
@@ -180,7 +193,7 @@ class AnalyticsController extends Controller
     }
 
     /** One event's analytics (same shape as the organizer's per-event page), or null. */
-    private function eventBreakdown(?string $slug, array $w): ?array
+    private function eventBreakdown(?string $slug, array $w, Request $request): ?array
     {
         if (! $slug) {
             return null;
@@ -192,7 +205,14 @@ class AnalyticsController extends Controller
         }
 
         $paid = Order::where('event_id', $event->id)->where('status', 'paid');
-        $paidInWindow = (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]);
+        $cities = Analytics::cityOptions((clone $paid));
+        $city = in_array($request->query('city'), $cities, true) ? $request->query('city') : '';
+        $source = array_key_exists($request->query('source'), Analytics::SOURCE_LABELS) ? $request->query('source') : '';
+        $paidInWindow = Analytics::applyAudience(
+            (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]),
+            $city ?: null,
+            $source ?: null,
+        );
         $impressions = (int) $event->dailyStats()->sum('impressions');
         $clicks = (int) $event->dailyStats()->sum('clicks');
         $sold = (int) $event->tickets()->whereIn('status', ['valid', 'checked_in'])->count();
@@ -214,6 +234,9 @@ class AnalyticsController extends Controller
                 'city' => Analytics::top((clone $paidInWindow), 'buyer_city', 6),
                 'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
+            'city' => $city,
+            'source' => $source,
+            'cityOptions' => $cities,
         ];
     }
 }
