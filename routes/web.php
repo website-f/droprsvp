@@ -185,6 +185,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');
     Route::get('my/invoices', [AccountController::class, 'invoices'])->name('account.invoices');
     Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
+    Route::post('my/orders/{order}/cancel', [AccountController::class, 'cancel'])->middleware('throttle:posting')->name('account.orders.cancel');
     Route::post('my/orders/{order}/refund-request', [AccountController::class, 'requestRefund'])->middleware('throttle:posting')->name('account.orders.refund-request');
     Route::get('my/orders/{order}/receipt', [ReceiptController::class, 'order'])->name('account.orders.receipt');
     Route::get('my/orders/{order}/receipt/pdf', [ReceiptController::class, 'orderPdf'])->name('account.orders.receipt.pdf');

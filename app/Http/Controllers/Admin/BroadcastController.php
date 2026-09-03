@@ -20,12 +20,19 @@ class BroadcastController extends Controller
             'level' => ['nullable', 'in:info,success,warning'],
         ]);
 
-        $ids = match ($data['audience']) {
-            'organizers' => User::role('organizer')->pluck('id'),
-            'admins' => User::role('superadmin')->pluck('id'),
-            'buyers' => User::role('buyer')->pluck('id'),
-            default => User::pluck('id'),
+        $query = match ($data['audience']) {
+            'organizers' => User::role('organizer'),
+            'admins' => User::role('superadmin'),
+            'buyers' => User::role('buyer'),
+            default => User::query(),
         };
+
+        // A platform broadcast is "product news" — honour each recipient's opt-out.
+        // Filtered in PHP (JSON boolean comparisons aren't portable across MySQL/SQLite);
+        // broadcasts are infrequent admin actions, so the extra rows are fine.
+        $ids = $query->get(['id', 'notification_preferences'])
+            ->filter(fn (User $u) => $u->wantsNotification('product_news'))
+            ->pluck('id');
 
         $count = AppNotification::notifyMany($ids, [
             'type' => 'broadcast',

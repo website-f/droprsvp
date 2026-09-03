@@ -284,6 +284,28 @@ class CheckoutService
         return $result;
     }
 
+    /**
+     * Buyer self-cancels a free registration before the event: void its tickets and
+     * hand the seats back. Only valid for a settled free order (total 0); paid orders
+     * must go through the refund flow. Idempotent. Returns true if it cancelled.
+     */
+    public function cancelFree(Order $order): bool
+    {
+        return DB::transaction(function () use ($order): bool {
+            /** @var Order $locked */
+            $locked = Order::whereKey($order->id)->lockForUpdate()->first();
+            if ($locked->status !== 'paid' || (float) $locked->total > 0) {
+                return false;
+            }
+
+            $locked->update(['status' => 'cancelled']);
+            $locked->tickets()->whereIn('status', ['valid', 'checked_in'])->update(['status' => 'cancelled']);
+            $this->releaseStock($locked);
+
+            return true;
+        });
+    }
+
     /** Release a still-pending order's reserved stock (abandoned / failed / cancelled). */
     public function release(Order $order): void
     {

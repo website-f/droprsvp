@@ -31,7 +31,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'google_id', 'avatar', 'password', 'phone', 'gender', 'age_band', 'city', 'country', 'profile_completed_at', 'payout_bank_code', 'payout_bank_account_number', 'payout_bank_account_name', 'chip_bank_account_id'])]
+#[Fillable(['name', 'email', 'google_id', 'avatar', 'password', 'phone', 'gender', 'age_band', 'city', 'country', 'notification_preferences', 'profile_completed_at', 'payout_bank_code', 'payout_bank_account_number', 'payout_bank_account_name', 'chip_bank_account_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -53,7 +53,43 @@ class User extends Authenticatable implements PasskeyUser
             'profile_completed_at' => 'datetime',
             'disabled_at' => 'datetime',
             'must_set_password' => 'boolean',
+            'notification_preferences' => 'array',
         ];
+    }
+
+    /**
+     * Non-transactional notification channels the user can opt out of. Keys map
+     * to the toggles on Settings → Notifications; every category defaults to on.
+     * Transactional mail (receipts, tickets, refund decisions, password) always
+     * sends and is intentionally not listed here.
+     *
+     * @var array<string, string>
+     */
+    public const NOTIFICATION_CHANNELS = [
+        'product_news' => 'Product news & announcements from DropRSVP',
+        'event_reminders' => 'Reminders before events you’re attending',
+        'organizer_updates' => 'Updates from organizers you follow',
+    ];
+
+    /** This user's notification settings, merged over the all-on defaults. */
+    public function notificationSettings(): array
+    {
+        $saved = is_array($this->notification_preferences) ? $this->notification_preferences : [];
+
+        $out = [];
+        foreach (array_keys(self::NOTIFICATION_CHANNELS) as $key) {
+            $out[$key] = (bool) ($saved[$key] ?? true);
+        }
+
+        return $out;
+    }
+
+    /** Whether the user still wants a given non-transactional notification. */
+    public function wantsNotification(string $channel): bool
+    {
+        $saved = is_array($this->notification_preferences) ? $this->notification_preferences : [];
+
+        return (bool) ($saved[$channel] ?? true);
     }
 
     /** Whether the user currently holds an active premium membership. */

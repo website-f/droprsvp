@@ -16,7 +16,7 @@ class AccountController extends Controller
         $user = $request->user();
 
         $orders = $this->ownedBy($user)
-            ->whereIn('status', ['paid', 'refunded'])
+            ->whereIn('status', ['paid', 'refunded', 'cancelled'])
             ->with([
                 'event:id,title,slug,timezone,starts_at,venue_name,is_online,cover_image',
                 'tickets:id,order_id,ticket_type_id,qr_token,attendee_name,status',
@@ -68,6 +68,38 @@ class AccountController extends Controller
         \App\Support\Mailer::defer($email, new TicketsIssued($order));
 
         return back()->with('success', "Tickets re-sent to {$email}.");
+    }
+
+    /**
+     * Buyer cancels a free registration before the event starts. Paid orders can't
+     * be cancelled here — they go through the refund flow, which the organizer settles.
+     */
+    public function cancel(Request $request, Order $order)
+    {
+        abort_unless($this->belongsToUser($order, $request->user()), 403);
+        abort_unless($order->status === 'paid', 422);
+        abort_unless((float) $order->total <= 0, 422); // free registrations only
+
+        $order->loadMissing('event');
+        // Only before the event starts (an undated event stays cancellable).
+        abort_if($order->event && $order->event->starts_at && $order->event->starts_at->isPast(), 422);
+
+        if (! app(\App\Services\CheckoutService::class)->cancelFree($order)) {
+            return back()->with('flash_error', 'This registration can no longer be cancelled.');
+        }
+
+        // Let the organizer know a seat opened back up.
+        if ($order->event && $order->event->user_id) {
+            \App\Models\AppNotification::notify($order->event->user_id, [
+                'type' => 'order',
+                'title' => 'Registration cancelled',
+                'body' => "{$request->user()->name} cancelled their registration for “{$order->event->title}” ({$order->reference}).",
+                'url' => '/host/events/'.$order->event->slug.'/attendees',
+                'level' => 'info',
+            ]);
+        }
+
+        return back()->with('flash_success', 'Your registration has been cancelled.');
     }
 
     /** Buyer opens a refund request for a paid order (subject to the event's policy). */
@@ -134,6 +166,9 @@ class AccountController extends Controller
             'total' => (float) $order->total,
             'currency' => $order->currency,
             'placed_on' => optional($order->created_at)->format('j M Y'),
+            // Free registrations can be self-cancelled up until the event starts.
+            'can_cancel' => $order->status === 'paid' && (float) $order->total <= 0
+                && (! $event || ! $event->starts_at || $event->starts_at->isFuture()),
             'event' => $event ? [
                 'title' => $event->title,
                 'slug' => $event->slug,

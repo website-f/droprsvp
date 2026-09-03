@@ -1,20 +1,33 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { CalendarDays, MapPin, Send, Ticket as TicketIcon, Video, X } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, MapPin, Send, Ticket as TicketIcon, Video } from 'lucide-react';
 
 interface TicketRow { qr_token: string; attendee_name: string | null; type: string | null; status: string }
 interface EventRow { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; cover_image: string | null }
 interface OrderRow {
     reference: string; status: string; total: number; currency: string; placed_on: string | null;
-    event: EventRow | null; tickets: TicketRow[];
+    can_cancel: boolean; event: EventRow | null; tickets: TicketRow[];
 }
 interface Paginated { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null }
 
 const money = (n: number, ccy: string) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: ccy }).format(n);
 
 export default function MyTickets({ orders }: { orders: Paginated }) {
+    const confirm = useConfirm();
     const resend = (ref: string) => router.post(`/my/orders/${ref}/resend`, {}, { preserveScroll: true });
+
+    const cancel = async (o: OrderRow) => {
+        if (await confirm({
+            title: 'Cancel this registration?',
+            description: `Your spot for “${o.event?.title ?? 'this event'}” will be released and your ticket voided. This can’t be undone.`,
+            confirmText: 'Cancel registration',
+            destructive: true,
+        })) {
+            router.post(`/my/orders/${o.reference}/cancel`, {}, { preserveScroll: true });
+        }
+    };
 
     return (
         <>
@@ -36,6 +49,9 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                     <div className="grid gap-5">
                         {orders.data.map((o) => {
                             const refunded = o.status === 'refunded';
+                            const cancelled = o.status === 'cancelled';
+                            const inactive = refunded || cancelled;
+
                             return (
                                 <div key={o.reference} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                                     {/* Event header */}
@@ -56,7 +72,7 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                                                         ? <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground"><Video className="size-3.5" />Online</p>
                                                         : o.event.venue_name && <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="size-3.5" />{o.event.venue_name}</p>)}
                                                 </div>
-                                                <Badge variant={refunded ? 'destructive' : 'secondary'} className="shrink-0 capitalize">{o.status}</Badge>
+                                                <Badge variant={inactive ? 'destructive' : 'secondary'} className="shrink-0 capitalize">{o.status}</Badge>
                                             </div>
                                             <p className="mt-2 text-xs text-muted-foreground">
                                                 Order {o.reference}{o.placed_on && ` · ${o.placed_on}`} · {money(o.total, o.currency)}
@@ -68,11 +84,12 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                                     <ul className="divide-y divide-border">
                                         {o.tickets.map((t) => {
                                             const usable = t.status === 'valid' || t.status === 'checked_in';
+
                                             return (
                                                 <li key={t.qr_token} className="flex items-center justify-between gap-3 px-4 py-3">
                                                     <div className="min-w-0">
                                                         <p className="truncate text-sm font-medium">{t.attendee_name ?? 'Guest'}</p>
-                                                        <p className="text-xs text-muted-foreground">{t.type ?? 'Ticket'}{t.status === 'checked_in' && ' · Checked in'}{(t.status === 'void' || t.status === 'refunded') && ' · Not valid'}</p>
+                                                        <p className="text-xs text-muted-foreground">{t.type ?? 'Ticket'}{t.status === 'checked_in' && ' · Checked in'}{(t.status === 'void' || t.status === 'refunded' || t.status === 'cancelled') && ' · Not valid'}</p>
                                                     </div>
                                                     {usable
                                                         ? <Button asChild variant="outline" size="sm"><a href={`/tickets/${t.qr_token}`} target="_blank" rel="noopener">View ticket</a></Button>
@@ -83,8 +100,13 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                                     </ul>
 
                                     {/* Actions */}
-                                    {!refunded && (
+                                    {!inactive && (
                                         <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/30 px-4 py-2.5">
+                                            {o.can_cancel && (
+                                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => cancel(o)}>
+                                                    <X className="size-4" /> Cancel registration
+                                                </Button>
+                                            )}
                                             <Button variant="ghost" size="sm" onClick={() => resend(o.reference)}><Send className="size-4" /> Re-send to email</Button>
                                         </div>
                                     )}
