@@ -16,15 +16,21 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
-const youNav: NavItem[] = [
+// Buyer "You" nav — tickets, invoices and Go Premium are attendee features.
+const buyerNav: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'My tickets', href: '/my/tickets', icon: Ticket },
     { title: 'Invoices', href: '/my/invoices', icon: Receipt },
     { title: 'Following', href: '/following', icon: UserRoundCheck },
+    { title: 'Go Premium', href: '/premium', icon: Crown },
 ];
 
-// Consumer membership — not shown to superadmins (they already have full access).
-const premiumNav: NavItem = { title: 'Go Premium', href: '/premium', icon: Crown };
+// Sellers (organizers / admins) are charged via event fees and don't buy
+// tickets, so they get a trimmed "You" nav — their money lives under Organizing.
+const sellerNav: NavItem[] = [
+    { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+    { title: 'Following', href: '/following', icon: UserRoundCheck },
+];
 
 const organizingNav: NavItem[] = [
     { title: 'Events', href: '/host/events', icon: CalendarDays },
@@ -95,7 +101,7 @@ export function AppSidebar() {
             <SidebarContent>
                 {/* Quick access stays flat; the heavy admin areas collapse into
                     one main category each so the sidebar stays manageable. */}
-                <NavMain items={auth?.is_superadmin ? youNav : [...youNav, premiumNav]} label="You" />
+                <NavMain items={(isOrganizer || isAdmin) ? sellerNav : buyerNav} label="You" />
                 {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
                 {isAdmin && platformItems.length > 0 && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformItems} />}
                 {isAdmin && sections.includes('content') && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}
