@@ -98,7 +98,7 @@ class CmsPostController extends Controller
         return [
             'title' => $data['title'],
             'excerpt' => $data['excerpt'] ?? null,
-            'body' => $data['body'] ?? null,
+            'body' => \App\Support\HtmlSanitizer::clean($data['body'] ?? null),
             'cover_image' => $data['cover_image'] ?? null,
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
             'published_at' => ($data['publish'] ?? false) ? now() : null,

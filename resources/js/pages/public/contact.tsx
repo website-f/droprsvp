@@ -13,7 +13,8 @@ const field = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm
 
 export default function Contact({ categories, seo }: { categories: Category[]; seo: Seo }) {
     const [sent, setSent] = useState(false);
-    const form = useForm({ name: '', email: '', phone: '', category: 'enquiry', message: '' });
+    // `website` is a honeypot — hidden from users, bots fill it and get silently dropped.
+    const form = useForm({ name: '', email: '', phone: '', category: 'enquiry', message: '', website: '' });
     const { data, setData, processing, errors } = form;
 
     const submit = (e: React.FormEvent) => {
@@ -59,6 +60,12 @@ export default function Contact({ categories, seo }: { categories: Category[]; s
                             </div>
                         ) : (
                             <form onSubmit={submit} className="grid gap-4">
+                                {/* Honeypot — visually hidden + off the tab order; bots fill it, humans don't. */}
+                                <input
+                                    type="text" tabIndex={-1} autoComplete="off" aria-hidden="true"
+                                    name="website" value={data.website} onChange={(e) => setData('website', e.target.value)}
+                                    className="pointer-events-none absolute -left-[9999px] size-0 opacity-0"
+                                />
                                 <div className="grid gap-1.5">
                                     <Label htmlFor="name">Name</Label>
                                     <div className="relative">

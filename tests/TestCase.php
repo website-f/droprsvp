@@ -9,6 +9,15 @@ use Spatie\Permission\Models\Role;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Run defer()'d work (e.g. transactional emails sent after the response)
+        // inline, so tests can assert on it without a request-terminate phase.
+        $this->withoutDefer();
+    }
+
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
     {
         if (! Features::enabled($feature)) {

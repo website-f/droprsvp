@@ -60,7 +60,7 @@ class AccountController extends Controller
         abort_unless($order->status === 'paid', 422);
 
         $email = $order->buyer_email ?: $request->user()->email;
-        Mail::to($email)->send(new TicketsIssued($order));
+        \App\Support\Mailer::defer($email, new TicketsIssued($order));
 
         return back()->with('success', "Tickets re-sent to {$email}.");
     }

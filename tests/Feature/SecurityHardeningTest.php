@@ -105,6 +105,27 @@ class SecurityHardeningTest extends TestCase
         $this->get("/o/{$user->slug}/discussion")->assertNotFound();
     }
 
+    public function test_contact_honeypot_silently_drops_bot_submissions(): void
+    {
+        $this->post('/contact', [
+            'name' => 'Bot', 'email' => 'bot@spam.test', 'phone' => '0100000000',
+            'category' => 'support', 'message' => 'buy cheap stuff', 'website' => 'http://spam.test',
+        ])->assertRedirect();
+
+        $this->assertDatabaseCount('contact_messages', 0);
+    }
+
+    public function test_html_sanitizer_strips_scripts_and_handlers(): void
+    {
+        $dirty = '<p onclick="steal()">hi</p><script>alert(1)</script><a href="javascript:evil()">x</a>';
+        $clean = \App\Support\HtmlSanitizer::clean($dirty);
+
+        $this->assertStringNotContainsString('<script', $clean);
+        $this->assertStringNotContainsString('onclick', $clean);
+        $this->assertStringNotContainsString('javascript:', $clean);
+        $this->assertStringContainsString('hi', $clean); // benign content preserved
+    }
+
     public function test_superadmin_can_still_view_any_order_confirmation(): void
     {
         Role::findOrCreate('superadmin', 'web');

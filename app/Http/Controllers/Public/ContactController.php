@@ -34,6 +34,12 @@ class ContactController extends Controller
 
     public function store(Request $request)
     {
+        // Honeypot: a hidden field genuine users never see/fill. If a bot filled
+        // it, feign success without storing or emailing anything.
+        if (filled($request->input('website'))) {
+            return back(303)->with('success', "Thanks — your message has been sent. We'll be in touch soon.");
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:180'],
@@ -49,11 +55,7 @@ class ContactController extends Controller
         // (Admin → Settings) + real MAIL_* creds to deliver for real.
         $to = Setting::get('support_email') ?: config('mail.from.address');
         if ($to) {
-            try {
-                Mail::to($to)->send(new ContactMessageMail($message));
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            \App\Support\Mailer::defer($to, new ContactMessageMail($message));
         }
 
         return back(303)->with('success', "Thanks — your message has been sent. We'll be in touch soon.");

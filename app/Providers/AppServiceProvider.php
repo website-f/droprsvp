@@ -78,6 +78,17 @@ class AppServiceProvider extends ServiceProvider
     {
         Date::use(CarbonImmutable::class);
 
+        // Production transport hardening — force HTTPS links + secure cookies
+        // regardless of whether the deploy .env sets SESSION_SECURE_COOKIE.
+        if (app()->isProduction()) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+            config([
+                'session.secure' => true,
+                'session.http_only' => true,
+                'session.same_site' => 'lax',
+            ]);
+        }
+
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
         );

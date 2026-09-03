@@ -42,12 +42,8 @@ class CreateNewUser implements CreatesNewUsers
         // flow (/get-started) which grants the organizer role instead.
         $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
-        // Warm welcome (non-fatal — a mail hiccup must not block sign-up).
-        try {
-            Mail::to($user->email)->send(new WelcomeMail($user));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
+        \App\Support\Mailer::defer($user->email, new WelcomeMail($user));
 
         return $user;
     }

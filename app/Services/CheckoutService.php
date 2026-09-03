@@ -178,7 +178,14 @@ class CheckoutService
         if ($newlyPaid && $order->fresh()->buyer_email) {
             $this->provisionBuyerAccount($order->fresh());
             $order->load(['event', 'tickets']);
-            Mail::to($order->buyer_email)->send(new TicketsIssued($order));
+            // Sent after the HTTP response so slow SMTP never delays checkout.
+            defer(function () use ($order) {
+                try {
+                    Mail::to($order->buyer_email)->send(new TicketsIssued($order));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
         }
     }
 
@@ -216,7 +223,7 @@ class CheckoutService
 
             $order->update(['user_id' => $user->id]);
 
-            Mail::to($user->email)->send(new \App\Mail\GuestAccountMail($user, $temp));
+            defer(fn () => Mail::to($user->email)->send(new \App\Mail\GuestAccountMail($user, $temp)));
         } catch (\Throwable $e) {
             report($e); // never block a paid order over account creation
         }
@@ -242,10 +249,11 @@ class CheckoutService
             return true;
         });
 
-        // Notify the buyer, once, after settlement (non-fatal).
+        // Notify the buyer, once, after settlement (non-fatal, off the request).
         if ($flipped && $order->fresh()->buyer_email) {
             try {
-                Mail::to($order->fresh()->buyer_email)->send(new OrderRefundedMail($order->fresh()->load('event')));
+                $fresh = $order->fresh()->load('event');
+                defer(fn () => Mail::to($fresh->buyer_email)->send(new OrderRefundedMail($fresh)));
             } catch (\Throwable $e) {
                 report($e);
             }

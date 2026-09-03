@@ -53,7 +53,7 @@ class OrganizerSignupController extends Controller
             ['code_hash' => Hash::make($code), 'expires_at' => now()->addMinutes(15), 'attempts' => 0],
         );
 
-        Mail::to($email)->send(new RegistrationCodeMail($code));
+        defer(fn () => Mail::to($email)->send(new RegistrationCodeMail($code)));
 
         return back()->with('success', 'We sent a 6-digit code to '.$email.'.');
     }
@@ -118,12 +118,8 @@ class OrganizerSignupController extends Controller
         RegistrationCode::where('email', $verified)->delete();
         $request->session()->forget(self::SESSION_KEY);
 
-        // Warm welcome (non-fatal — a mail hiccup must not block sign-up).
-        try {
-            Mail::to($user->email)->send(new WelcomeMail($user));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
+        \App\Support\Mailer::defer($user->email, new WelcomeMail($user));
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();

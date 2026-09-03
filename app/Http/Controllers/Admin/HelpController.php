@@ -77,7 +77,7 @@ class HelpController extends Controller
             'title' => $data['title'],
             'category' => $data['category'],
             'excerpt' => $data['excerpt'] ?? null,
-            'body' => $data['body'] ?? null,
+            'body' => \App\Support\HtmlSanitizer::clean($data['body'] ?? null),
             'sort' => $data['sort'] ?? 0,
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
             'published_at' => ($data['publish'] ?? false) ? now() : null,

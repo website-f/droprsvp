@@ -106,10 +106,14 @@ class CmsPageController extends Controller
             'data.root' => ['array'],
         ]);
 
+        // Strip active-content (scripts, event handlers, js: URLs) from any HTML
+        // an author placed in the builder before it's stored/rendered raw.
+        $clean = \App\Support\HtmlSanitizer::cleanTree($data['data']);
+
         $page->update([
-            'puck_data' => $data['data'],
+            'puck_data' => $clean,
             // A plain-text snapshot powers search, excerpts and SEO fallbacks.
-            'body' => $this->plainTextFromPuck($data['data']),
+            'body' => $this->plainTextFromPuck($clean),
             'layout' => null,
             'builder_edited_at' => now(),
         ]);
