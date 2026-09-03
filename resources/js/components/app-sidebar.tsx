@@ -29,6 +29,8 @@ const premiumNav: NavItem = { title: 'Go Premium', href: '/premium', icon: Crown
 const organizingNav: NavItem[] = [
     { title: 'Events', href: '/host/events', icon: CalendarDays },
     { title: 'Analytics', href: '/host/analytics', icon: ChartColumn },
+    { title: 'Finance', href: '/host/finance', icon: CircleDollarSign },
+    { title: 'Invoices', href: '/host/invoices', icon: Receipt },
     { title: 'Payouts', href: '/host/payouts', icon: Wallet },
 ];
 

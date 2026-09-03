@@ -14,7 +14,7 @@ class ReceiptController extends Controller
     /** A buyer's order receipt/invoice (owner or superadmin). */
     public function order(Request $request, Order $order)
     {
-        abort_unless($this->ownsOrder($order, $request->user()) || $request->user()->hasRole('superadmin'), 403);
+        abort_unless($this->canViewOrder($order, $request->user()), 403);
         abort_if($order->status === 'pending', 404);
 
         return inertia('receipts/show', [
@@ -26,7 +26,7 @@ class ReceiptController extends Controller
     /** Download the order receipt as a PDF. */
     public function orderPdf(Request $request, Order $order)
     {
-        abort_unless($this->ownsOrder($order, $request->user()) || $request->user()->hasRole('superadmin'), 403);
+        abort_unless($this->canViewOrder($order, $request->user()), 403);
         abort_if($order->status === 'pending', 404);
 
         return $this->pdf(Receipt::forOrder($order));
@@ -61,5 +61,13 @@ class ReceiptController extends Controller
     {
         return $order->user_id === $user->id
             || ($order->buyer_email && $order->buyer_email === $user->email);
+    }
+
+    /** The buyer, the event's organizer, or a superadmin may view an order's invoice. */
+    private function canViewOrder(Order $order, $user): bool
+    {
+        return $this->ownsOrder($order, $user)
+            || $user->hasRole('superadmin')
+            || $order->event?->user_id === $user->id;
     }
 }

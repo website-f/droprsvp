@@ -238,6 +238,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/orders', [OrderController::class, 'index'])->name('events.orders');
         Route::post('events/{event}/orders/{order}/refund', [OrderController::class, 'refund'])->name('events.orders.refund');
 
+        // Organizer money views: invoices (payout + per-event attendee invoices) + finance overview.
+        Route::get('invoices', [\App\Http\Controllers\Host\InvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('invoices/events/{event}', [\App\Http\Controllers\Host\InvoiceController::class, 'event'])->name('invoices.event');
+        Route::get('finance', [\App\Http\Controllers\Host\FinanceController::class, 'index'])->name('finance.index');
+
         // Seating & table management.
         Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');
         Route::post('events/{event}/seating/tables', [SeatingController::class, 'saveTables'])->name('events.seating.tables');
