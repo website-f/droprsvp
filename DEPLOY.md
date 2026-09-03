@@ -198,6 +198,20 @@ for f in "$APP_PUBLIC"/*; do n=$(basename "$f"); [ "$n" = "index.php" ] && conti
 # If your host uses copies instead of symlinks: cp -r "$APP_PUBLIC"/* ~/public_html/
 ```
 
+## Scheduler cron (required for one job)
+
+DropRSVP has a scheduled task that **returns inventory held by abandoned (unpaid)
+carts** — without it, a started-but-never-paid checkout keeps its reserved tickets
+forever and an event can look "sold out" with no real sales. Add ONE cron entry in
+cPanel → *Cron Jobs* (every minute; Laravel decides what actually runs):
+
+```
+* * * * * cd ~/droprsvp && php artisan schedule:run >> /dev/null 2>&1
+```
+
+That fires `orders:release-stale` every 10 minutes. Nothing else depends on the
+scheduler today, but any future recurring job will run from the same single cron.
+
 ## Verify (no browser needed)
 
 ```bash
