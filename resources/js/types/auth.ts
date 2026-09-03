@@ -15,6 +15,11 @@ export type Auth = {
     is_superadmin?: boolean;
     is_organizer?: boolean;
     is_premium?: boolean;
+    /** Superadmin OR staff — controls whether the admin nav shows at all. */
+    is_admin?: boolean;
+    /** Admin section keys this user may access (staff = granted subset; superadmin = all). */
+    admin_sections?: string[];
+    must_set_password?: boolean;
     unread_notifications?: number;
 };
 

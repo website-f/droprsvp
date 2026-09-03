@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, ClipboardList, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2 } from 'lucide-react';
+import { ArmchairIcon, Banknote, ClipboardList, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -41,9 +41,17 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     );
 }
 
-export default function Settings({ settings }: { settings: SettingsData }) {
+interface PermissionSection { key: string; label: string }
+export default function Settings({ settings, rolePermissions, permissionSections }: { settings: SettingsData; rolePermissions: { staff: string[] }; permissionSections: PermissionSection[] }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
+    const isSuperadmin = !!usePage().props.auth?.is_superadmin;
     const [tab, setTab] = useState<Tab>('payments');
+    // The role → section permission matrix has its own save endpoint (superadmin only).
+    const perms = useForm<{ permissions: { staff: string[] } }>({ permissions: { staff: rolePermissions.staff ?? [] } });
+    const togglePerm = (section: string) => {
+        const cur = perms.data.permissions.staff;
+        perms.setData('permissions', { staff: cur.includes(section) ? cur.filter((s) => s !== section) : [...cur, section] });
+    };
     const form = useForm({
         fee_type: settings.fee_type,
         fee_percent: String(settings.fee_percent),
@@ -239,6 +247,31 @@ export default function Settings({ settings }: { settings: SettingsData }) {
                                     </Link>
                                 </div>
                             </div>
+
+                            {/* User permissions — superadmin controls which admin sections staff can access. */}
+                            {isSuperadmin && (
+                                <div className="border-t border-border pt-6">
+                                    <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4" /> User permissions</h2>
+                                    <p className="mb-4 text-sm text-muted-foreground">Choose which admin sections <strong>Staff</strong> accounts can open. Superadmins always have full access and this list.</p>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        {permissionSections.map((s) => {
+                                            const on = perms.data.permissions.staff.includes(s.key);
+
+                                            return (
+                                                <label key={s.key} className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
+                                                    <span className="text-sm font-medium">{s.label}</span>
+                                                    <Switch checked={on} onCheckedChange={() => togglePerm(s.key)} aria-label={s.label} />
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-4">
+                                        <Button type="button" onClick={() => perms.post('/admin/settings/permissions', { preserveScroll: true })} disabled={perms.processing}>
+                                            {perms.processing ? 'Saving…' : 'Save permissions'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -32,19 +32,21 @@ const organizingNav: NavItem[] = [
     { title: 'Payouts', href: '/host/payouts', icon: Wallet },
 ];
 
-// Superadmin-only groups.
-const platformNav: NavItem[] = [
-    { title: 'Overview', href: '/admin/overview', icon: Gauge },
-    { title: 'Analytics', href: '/admin/analytics', icon: ChartColumn },
-    { title: 'All events', href: '/admin/all-events', icon: CalendarDays },
-    { title: 'Categories', href: '/admin/categories', icon: Shapes },
-    { title: 'Organizers', href: '/admin/organizers', icon: BadgeCheck },
-    { title: 'Users', href: '/admin/users', icon: Users },
-    { title: 'Payout requests', href: '/admin/payouts', icon: Banknote },
-    { title: 'Finance', href: '/admin/finance', icon: CircleDollarSign },
-    { title: 'Contact messages', href: '/admin/contact', icon: Inbox },
-    { title: 'Archive', href: '/admin/archive', icon: Archive },
-    { title: 'Settings', href: '/admin/settings', icon: Settings2 },
+// Admin groups — each item tagged with its permission section so staff accounts
+// only see what a superadmin has granted them.
+type AdminNavItem = NavItem & { section: string };
+const platformNav: AdminNavItem[] = [
+    { title: 'Overview', href: '/admin/overview', icon: Gauge, section: 'overview' },
+    { title: 'Analytics', href: '/admin/analytics', icon: ChartColumn, section: 'analytics' },
+    { title: 'All events', href: '/admin/all-events', icon: CalendarDays, section: 'events' },
+    { title: 'Categories', href: '/admin/categories', icon: Shapes, section: 'categories' },
+    { title: 'Organizers', href: '/admin/organizers', icon: BadgeCheck, section: 'organizers' },
+    { title: 'Users', href: '/admin/users', icon: Users, section: 'users' },
+    { title: 'Payout requests', href: '/admin/payouts', icon: Banknote, section: 'payouts' },
+    { title: 'Finance', href: '/admin/finance', icon: CircleDollarSign, section: 'finance' },
+    { title: 'Contact messages', href: '/admin/contact', icon: Inbox, section: 'contact' },
+    { title: 'Archive', href: '/admin/archive', icon: Archive, section: 'archive' },
+    { title: 'Settings', href: '/admin/settings', icon: Settings2, section: 'settings' },
 ];
 
 const cmsNav: NavItem[] = [
@@ -65,10 +67,14 @@ const siteNav: NavItem[] = [
 
 export function AppSidebar() {
     const { auth } = usePage().props;
-    const isAdmin = auth?.is_superadmin;
+    const isAdmin = auth?.is_admin;
+    const sections = auth?.admin_sections ?? [];
     // Organizing tools (create events, payouts) are for vendors — public/free
     // attendee accounts don't see them. Superadmins always do.
     const isOrganizer = auth?.is_organizer;
+
+    // Staff only see sections they've been granted; superadmin gets everything.
+    const platformItems = platformNav.filter((i) => sections.includes(i.section));
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -87,11 +93,11 @@ export function AppSidebar() {
             <SidebarContent>
                 {/* Quick access stays flat; the heavy admin areas collapse into
                     one main category each so the sidebar stays manageable. */}
-                <NavMain items={isAdmin ? youNav : [...youNav, premiumNav]} label="You" />
+                <NavMain items={auth?.is_superadmin ? youNav : [...youNav, premiumNav]} label="You" />
                 {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
-                {isAdmin && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformNav} />}
-                {isAdmin && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}
-                {isAdmin && <NavGroup label="Appearance" icon={Palette} items={siteNav} />}
+                {isAdmin && platformItems.length > 0 && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformItems} />}
+                {isAdmin && sections.includes('content') && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}
+                {isAdmin && sections.includes('appearance') && <NavGroup label="Appearance" icon={Palette} items={siteNav} />}
             </SidebarContent>
 
             <SidebarFooter>

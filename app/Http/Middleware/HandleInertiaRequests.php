@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
                 'is_superadmin' => (bool) $request->user()?->hasRole('superadmin'),
                 'is_organizer' => (bool) $request->user()?->hasAnyRole(['organizer', 'superadmin']),
                 'is_premium' => (bool) $request->user()?->isPremium(),
+                // Admin nav visibility: staff see only their granted sections; superadmin all.
+                'is_admin' => \App\Support\RolePermissions::isAdmin($request->user()),
+                'admin_sections' => \App\Support\RolePermissions::allowedSections($request->user()),
+                'must_set_password' => (bool) $request->user()?->must_set_password,
                 'unread_notifications' => $request->user()
                     ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
                     : 0,

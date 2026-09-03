@@ -250,8 +250,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('payouts/bank', [PayoutController::class, 'bank'])->name('payouts.bank');
     });
 
-    // Headless CMS — superadmin only.
-    Route::middleware('role:superadmin')->prefix('admin/cms')->name('admin.cms.')->group(function () {
+    // Headless CMS — superadmin or staff granted the Content section.
+    Route::middleware(['role:superadmin|staff', \App\Http\Middleware\EnsureSectionAccess::class])->prefix('admin/cms')->name('admin.cms.')->group(function () {
         Route::get('pages', [CmsPageController::class, 'index'])->name('pages.index');
         Route::get('pages/create', [CmsPageController::class, 'create'])->name('pages.create');
         Route::post('pages', [CmsPageController::class, 'store'])->name('pages.store');
@@ -285,8 +285,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::delete('posts/{post:id}', [CmsPostController::class, 'destroy'])->name('posts.destroy');
     });
 
-    // Superadmin — cross-org platform administration.
-    Route::middleware('role:superadmin')->prefix('admin')->name('admin.')->group(function () {
+    // Platform administration — superadmin (full) or staff, gated per section.
+    Route::middleware(['role:superadmin|staff', \App\Http\Middleware\EnsureSectionAccess::class])->prefix('admin')->name('admin.')->group(function () {
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
         Route::get('analytics/export', [AdminAnalyticsController::class, 'export'])->name('analytics.export');
@@ -294,6 +294,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
+        // The role → section permission matrix (superadmin-only; guarded in the controller).
+        Route::post('settings/permissions', [AdminSettingsController::class, 'savePermissions'])->name('settings.permissions');
         // Broadcast an in-app notification to an audience.
         Route::post('broadcast', [\App\Http\Controllers\Admin\BroadcastController::class, 'store'])->name('broadcast');
 
@@ -327,7 +329,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('users/export', [AdminUserController::class, 'export'])->name('users.export');
+        Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+        Route::post('users/{user}/role', [AdminUserController::class, 'setRole'])->name('users.role');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
         Route::post('users/{user}/disabled', [AdminUserController::class, 'toggleDisabled'])->name('users.disabled');
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');

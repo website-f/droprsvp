@@ -37,16 +37,32 @@ class EventPhotoTest extends TestCase
         $this->actingAs($this->organizer())->post("/host/events/{$event->slug}/photos", ['paths' => ['/storage/x.jpg']])->assertForbidden();
     }
 
-    public function test_photos_show_on_the_public_organizer_page(): void
+    public function test_photos_show_on_the_organizer_page_for_signed_in_viewers(): void
     {
         $host = $this->organizer();
         $event = $this->ownedEvent($host);
         EventPhoto::create(['event_id' => $event->id, 'path' => '/storage/live.jpg']);
         $host->ensureSlug();
 
-        $this->get("/o/{$host->slug}")->assertOk()
+        // Photos are behind the auth wall — a signed-in viewer sees them.
+        $this->actingAs(User::factory()->create())->get("/o/{$host->slug}")->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
                 ->has('photos', 1)
-                ->where('photos.0.path', '/storage/live.jpg'));
+                ->where('photos.0.path', '/storage/live.jpg')
+                ->where('organizer.photos_count', 1));
+    }
+
+    public function test_photos_are_hidden_from_logged_out_visitors(): void
+    {
+        $host = $this->organizer();
+        $event = $this->ownedEvent($host);
+        EventPhoto::create(['event_id' => $event->id, 'path' => '/storage/live.jpg']);
+        $host->ensureSlug();
+
+        // Guests get no photo data (auth wall) but the count is still exposed.
+        $this->get("/o/{$host->slug}")->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
+                ->has('photos', 0)
+                ->where('organizer.photos_count', 1));
     }
 }

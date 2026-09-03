@@ -7,7 +7,9 @@ use App\Mail\AccountStatusMail;
 use App\Models\User;
 use App\Support\Profile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
@@ -90,6 +92,72 @@ class UserController extends Controller
         }, 'users-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);
     }
 
+    /**
+     * Add a user manually. Sets a random temporary password and flags the account
+     * so the user is forced to set their own on first login (via EnsurePasswordSet).
+     * Only a superadmin may mint staff / superadmin accounts.
+     */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:180', 'unique:users,email'],
+            'role' => ['required', 'in:normal,organizer,staff,superadmin'],
+        ]);
+
+        if (in_array($data['role'], ['staff', 'superadmin'], true)) {
+            abort_unless($request->user()->hasRole('superadmin'), 403);
+        }
+
+        $temp = Str::password(12, letters: true, numbers: true, symbols: false);
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($temp),
+        ]);
+        // email_verified_at + must_set_password aren't mass-assignable — set directly.
+        $user->email_verified_at = now(); // admin-created accounts are trusted
+        $user->must_set_password = true;  // forced to set their own on first login
+        $user->save();
+
+        if ($data['role'] !== 'normal') {
+            \Spatie\Permission\Models\Role::findOrCreate($data['role'], 'web');
+            $user->assignRole($data['role']);
+        }
+
+        // Surface the temp password once so the admin can hand it over securely.
+        return back()->with('flash_success', "{$user->name} added.")
+            ->with('temp_credentials', ['email' => $user->email, 'password' => $temp]);
+    }
+
+    /**
+     * Set a user's role (normal / organizer / staff / superadmin). Only a
+     * superadmin may grant or revoke the privileged roles, and no one can change
+     * their own role (a superadmin can't revoke themselves — view-only on self).
+     */
+    public function setRole(Request $request, User $user)
+    {
+        $data = $request->validate(['role' => ['required', 'in:normal,organizer,staff,superadmin']]);
+
+        if ($user->id === $request->user()->id) {
+            return back()->with('flash_error', 'You can’t change your own role.');
+        }
+
+        $privileged = in_array($data['role'], ['staff', 'superadmin'], true)
+            || $user->hasRole('superadmin') || $user->hasRole('staff');
+        if ($privileged && ! $request->user()->hasRole('superadmin')) {
+            abort(403);
+        }
+
+        if ($data['role'] !== 'normal') {
+            \Spatie\Permission\Models\Role::findOrCreate($data['role'], 'web');
+        }
+        $user->syncRoles($data['role'] === 'normal' ? [] : [$data['role']]);
+
+        return back()->with('flash_success', "Updated {$user->name}’s role.");
+    }
+
     /** Grant or revoke the superadmin role (can't change your own). */
     public function toggleSuperadmin(Request $request, User $user)
     {
@@ -156,7 +224,7 @@ class UserController extends Controller
     {
         return [
             'q' => trim((string) $request->query('q', '')),
-            'role' => in_array($request->query('role'), ['normal', 'organizer'], true) ? $request->query('role') : 'all',
+            'role' => in_array($request->query('role'), ['normal', 'organizer', 'staff', 'superadmin'], true) ? $request->query('role') : 'all',
             'country' => trim((string) $request->query('country', '')),
             'age' => in_array($request->query('age'), Profile::AGE_BANDS, true) ? $request->query('age') : '',
         ];
@@ -167,7 +235,9 @@ class UserController extends Controller
         return User::query()
             ->when($f['q'] !== '', fn ($x) => $x->where(fn ($w) => $w->where('name', 'like', "%{$f['q']}%")->orWhere('email', 'like', "%{$f['q']}%")->orWhere('phone', 'like', "%{$f['q']}%")))
             ->when($f['role'] === 'organizer', fn ($x) => $x->whereHas('roles', fn ($r) => $r->where('name', 'organizer')))
-            ->when($f['role'] === 'normal', fn ($x) => $x->whereDoesntHave('roles', fn ($r) => $r->whereIn('name', ['organizer', 'superadmin'])))
+            ->when($f['role'] === 'staff', fn ($x) => $x->whereHas('roles', fn ($r) => $r->where('name', 'staff')))
+            ->when($f['role'] === 'superadmin', fn ($x) => $x->whereHas('roles', fn ($r) => $r->where('name', 'superadmin')))
+            ->when($f['role'] === 'normal', fn ($x) => $x->whereDoesntHave('roles', fn ($r) => $r->whereIn('name', ['organizer', 'superadmin', 'staff'])))
             ->when($f['country'] !== '', fn ($x) => $x->where('country', $f['country']))
             ->when($f['age'] !== '', fn ($x) => $x->where('age_band', $f['age']));
     }

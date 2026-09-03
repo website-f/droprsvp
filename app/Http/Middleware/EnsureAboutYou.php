@@ -18,7 +18,7 @@ class EnsureAboutYou
 
         if ($user
             && $user->profile_completed_at === null
-            && ! $user->hasAnyRole(['organizer', 'superadmin'])
+            && ! $user->hasAnyRole(['organizer', 'superadmin', 'staff'])
             && $request->isMethod('GET')
             && ! $request->expectsJson()
             && ! $request->routeIs('profile.about-you')) {

@@ -33,7 +33,26 @@ class SettingsController extends Controller
                 'announcement' => SiteContent::announcement(),
                 'trending_keywords' => (string) Setting::get('trending_keywords', ''),
             ],
+            // Role → admin-section permission matrix (superadmin edits this).
+            'rolePermissions' => \App\Support\RolePermissions::matrix(),
+            'permissionSections' => \App\Support\RolePermissions::sectionList(),
         ]);
+    }
+
+    /** Save the role → section permission matrix. Superadmin only. */
+    public function savePermissions(Request $request)
+    {
+        abort_unless($request->user()->hasRole('superadmin'), 403);
+
+        $data = $request->validate([
+            'permissions' => ['array'],
+            'permissions.staff' => ['array'],
+            'permissions.staff.*' => ['string'],
+        ]);
+
+        \App\Support\RolePermissions::save($data['permissions'] ?? []);
+
+        return back()->with('flash_success', 'User permissions updated.');
     }
 
     /**
