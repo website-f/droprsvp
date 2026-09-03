@@ -92,6 +92,11 @@ class Event extends Model
         return $this->hasMany(TicketType::class);
     }
 
+    public function discountCodes(): HasMany
+    {
+        return $this->hasMany(DiscountCode::class);
+    }
+
     public function sessions(): HasMany
     {
         return $this->hasMany(EventSession::class)->orderBy('starts_at');

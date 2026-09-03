@@ -11,7 +11,7 @@ class Order extends Model
     protected $fillable = [
         'reference', 'user_id', 'event_id', 'status', 'buyer_name', 'buyer_email', 'buyer_phone',
         'buyer_gender', 'buyer_age_band', 'buyer_city', 'buyer_source', 'notes',
-        'subtotal', 'discount', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
+        'subtotal', 'discount', 'discount_code_id', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
     ];
 
     protected function casts(): array
@@ -57,6 +57,11 @@ class Order extends Model
     public function refundRequests(): HasMany
     {
         return $this->hasMany(RefundRequest::class);
+    }
+
+    public function discountCode(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCode::class);
     }
 
     public function isPaid(): bool

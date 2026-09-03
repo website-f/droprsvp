@@ -133,6 +133,52 @@ class CheckoutService
         });
     }
 
+    /**
+     * Apply a discount code to a pending order, recomputing tax + total. Throws a
+     * ValidationException (field: code) if the code is unknown or not redeemable.
+     */
+    public function applyDiscount(Order $order, string $code): void
+    {
+        abort_unless($order->status === 'pending', 410);
+
+        $discount = \App\Models\DiscountCode::where('event_id', $order->event_id)
+            ->whereRaw('LOWER(code) = ?', [mb_strtolower(trim($code))])
+            ->first();
+
+        $subtotal = (float) $order->subtotal;
+
+        if (! $discount || ($reason = $discount->rejectionReason($subtotal)) !== null) {
+            throw ValidationException::withMessages(['code' => $discount ? $reason : 'That code isn’t valid for this event.']);
+        }
+
+        $this->reprice($order, $discount->discountFor($subtotal), $discount->id);
+    }
+
+    /** Remove any applied discount from a pending order and restore full pricing. */
+    public function clearDiscount(Order $order): void
+    {
+        abort_unless($order->status === 'pending', 410);
+        $this->reprice($order, 0.0, null);
+    }
+
+    /** Recompute an order's tax + total from its subtotal minus a discount. */
+    private function reprice(Order $order, float $discount, ?int $discountCodeId): void
+    {
+        $subtotal = (float) $order->subtotal;
+        $discount = round(min($discount, $subtotal), 2);
+        $taxable = max(0.0, $subtotal - $discount);
+
+        $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
+        $tax = round($taxable * $taxPercent / 100, 2);
+
+        $order->update([
+            'discount' => $discount,
+            'discount_code_id' => $discountCodeId,
+            'tax' => $tax,
+            'total' => round($taxable + $tax, 2),
+        ]);
+    }
+
     /** Mark an order paid, issue its tickets, and email the buyer. Idempotent + race-safe. */
     public function markPaid(Order $order, ?string $paymentRef = null): void
     {
@@ -148,6 +194,11 @@ class CheckoutService
                 'paid_at' => now(),
                 'payment_ref' => $paymentRef ?: $locked->payment_ref,
             ]);
+
+            // Count the redemption once the order actually settles.
+            if ($locked->discount_code_id) {
+                \App\Models\DiscountCode::whereKey($locked->discount_code_id)->lockForUpdate()->increment('redemptions');
+            }
 
             foreach ($locked->items as $item) {
                 for ($i = 0; $i < $item->quantity; $i++) {

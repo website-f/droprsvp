@@ -104,6 +104,8 @@ Route::get('robots.txt', function () {
 Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->middleware('throttle:checkout')->name('checkout.start');
 Route::get('checkout/return', [CheckoutController::class, 'return'])->name('checkout.return');
 Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::post('checkout/{order}/code', [CheckoutController::class, 'applyCode'])->middleware('throttle:checkout')->name('checkout.code');
+Route::delete('checkout/{order}/code', [CheckoutController::class, 'removeCode'])->middleware('throttle:checkout')->name('checkout.code.remove');
 Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->middleware('throttle:checkout')->name('checkout.pay');
 Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
 Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
@@ -238,6 +240,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'index'])->name('events.photos');
         Route::post('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'store'])->name('events.photos.store');
         Route::delete('events/{event}/photos/{photo}', [\App\Http\Controllers\Host\EventPhotoController::class, 'destroy'])->name('events.photos.destroy');
+
+        // Promo / discount codes + their redemption analytics.
+        Route::get('events/{event}/discounts', [\App\Http\Controllers\Host\DiscountController::class, 'index'])->name('events.discounts');
+        Route::post('events/{event}/discounts', [\App\Http\Controllers\Host\DiscountController::class, 'store'])->name('events.discounts.store');
+        Route::put('events/{event}/discounts/{discount}', [\App\Http\Controllers\Host\DiscountController::class, 'update'])->whereNumber('discount')->name('events.discounts.update');
+        Route::delete('events/{event}/discounts/{discount}', [\App\Http\Controllers\Host\DiscountController::class, 'destroy'])->whereNumber('discount')->name('events.discounts.destroy');
 
         // Orders + refunds.
         Route::get('events/{event}/orders', [OrderController::class, 'index'])->name('events.orders');

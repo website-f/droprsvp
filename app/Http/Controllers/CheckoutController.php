@@ -50,7 +50,7 @@ class CheckoutController extends Controller
         }
         abort_unless($order->status === 'pending', 410); // released / cancelled
 
-        $order->load(['items', 'event']);
+        $order->load(['items', 'event', 'discountCode']);
 
         // Prefill from the signed-in account so they don't retype what we already
         // know — they can still edit any field before paying.
@@ -68,6 +68,26 @@ class CheckoutController extends Controller
                 'city' => $user->city,
             ] : null,
         ]);
+    }
+
+    /** Apply a promo code to the pending order and recompute the total. */
+    public function applyCode(Request $request, Order $order)
+    {
+        $this->authorizeOrderAccess($order, $request);
+        $data = $request->validate(['code' => ['required', 'string', 'max:60']]);
+
+        $this->checkout->applyDiscount($order, $data['code']);
+
+        return back()->with('flash_success', 'Promo code applied.');
+    }
+
+    /** Remove the applied promo code from the pending order. */
+    public function removeCode(Request $request, Order $order)
+    {
+        $this->authorizeOrderAccess($order, $request);
+        $this->checkout->clearDiscount($order);
+
+        return back();
     }
 
     /** Capture buyer details and hand off to the payment gateway (or settle free orders). */
@@ -187,6 +207,10 @@ class CheckoutController extends Controller
             'reference' => $order->reference,
             'status' => $order->status,
             'currency' => $order->currency,
+            'subtotal' => (float) $order->subtotal,
+            'discount' => (float) $order->discount,
+            'discount_code' => $order->discount_code_id ? $order->discountCode?->code : null,
+            'tax' => (float) $order->tax,
             'total' => (float) $order->total,
             'buyer_name' => $order->buyer_name,
             'buyer_email' => $order->buyer_email,

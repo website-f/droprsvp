@@ -1,5 +1,6 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Loader2, Lock } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Loader2, Lock, Tag, X } from 'lucide-react';
+import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 
 interface OrderView {
     reference: string; currency: string; total: number;
+    subtotal: number; discount: number; discount_code?: string | null; tax: number;
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
     items: Array<{ name: string; quantity: number; unit_price: number; line_total: number }>;
 }
@@ -36,6 +38,16 @@ export default function CheckoutShow({ order, required, buyer }: { order: OrderV
         consent: true,
     });
     const isFree = order.total <= 0;
+
+    const codeForm = useForm({ code: '' });
+    const [showCode, setShowCode] = useState(false);
+    const applyCode = (e: React.FormEvent) => {
+        e.preventDefault();
+        codeForm.post(`/checkout/${order.reference}/code`, { preserveScroll: true, onSuccess: () => {
+ codeForm.reset(); setShowCode(false); 
+} });
+    };
+    const removeCode = () => router.delete(`/checkout/${order.reference}/code`, { preserveScroll: true });
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -153,7 +165,36 @@ export default function CheckoutShow({ order, required, buyer }: { order: OrderV
                                 ))}
                             </div>
                             <div className="my-4 h-px bg-border" />
-                            <div className="flex justify-between font-semibold">
+
+                            {/* Promo code — only meaningful on paid orders */}
+                            {!isFree && (
+                                <div className="mb-3">
+                                    {order.discount_code ? (
+                                        <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
+                                            <span className="flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400"><Tag className="size-3.5" /> {order.discount_code}</span>
+                                            <button type="button" onClick={removeCode} className="text-muted-foreground hover:text-foreground" aria-label="Remove code"><X className="size-3.5" /></button>
+                                        </div>
+                                    ) : showCode ? (
+                                        <form onSubmit={applyCode} className="flex gap-2">
+                                            <input autoFocus value={codeForm.data.code} onChange={(e) => codeForm.setData('code', e.target.value)} placeholder="Promo code"
+                                                className="h-9 flex-1 rounded-lg border border-input bg-card px-3 text-sm uppercase outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                                            <Button type="submit" size="sm" variant="outline" disabled={codeForm.processing || !codeForm.data.code}>Apply</Button>
+                                        </form>
+                                    ) : (
+                                        <button type="button" onClick={() => setShowCode(true)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><Tag className="size-3.5" /> Have a promo code?</button>
+                                    )}
+                                    {codeForm.errors.code && <p className="mt-1 text-xs text-destructive">{codeForm.errors.code}</p>}
+                                </div>
+                            )}
+
+                            {!isFree && (
+                                <div className="grid gap-1.5 text-sm">
+                                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>RM {order.subtotal.toFixed(2)}</span></div>
+                                    {order.discount > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span>− RM {order.discount.toFixed(2)}</span></div>}
+                                    {order.tax > 0 && <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>RM {order.tax.toFixed(2)}</span></div>}
+                                </div>
+                            )}
+                            <div className="mt-2 flex justify-between font-semibold">
                                 <span>Total</span><span>RM {order.total.toFixed(2)}</span>
                             </div>
                         </div>
