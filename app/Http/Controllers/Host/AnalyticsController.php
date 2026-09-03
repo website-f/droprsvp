@@ -17,8 +17,7 @@ class AnalyticsController extends Controller
     public function index(Request $request)
     {
         $w = AnalyticsWindow::fromRequest($request);
-        $userId = $request->user()->id;
-        $eventIds = Event::where('user_id', $userId)->pluck('id');
+        $eventIds = Event::whereIn('user_id', $request->user()->manageableOwnerIds())->pluck('id');
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid');
 
         // Audience filters (city + source) narrow the buyer-derived views.
@@ -36,7 +35,7 @@ class AnalyticsController extends Controller
             ],
             'reach' => Analytics::reach(EventDailyStat::whereIn('event_id', $eventIds), $w),
             'revenue' => Analytics::revenue(Analytics::applyAudience(Order::whereIn('event_id', $eventIds), $city ?: null, $source ?: null), $w),
-            'events' => Event::where('user_id', $userId)->latest()->get()->map(fn (Event $e) => [
+            'events' => Event::whereIn('id', $eventIds)->latest()->get()->map(fn (Event $e) => [
                 'slug' => $e->slug,
                 'title' => $e->title,
                 'status' => $e->status,

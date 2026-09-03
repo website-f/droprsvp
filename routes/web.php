@@ -273,6 +273,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('events/{event}/seating/assign', [SeatingController::class, 'assign'])->name('events.seating.assign');
         Route::post('events/{event}/seating/auto-assign', [SeatingController::class, 'autoAssign'])->name('events.seating.auto-assign');
 
+        // Team — collaborators who can help manage this account's events.
+        Route::get('team', [\App\Http\Controllers\Host\TeamController::class, 'index'])->name('team.index');
+        Route::post('team', [\App\Http\Controllers\Host\TeamController::class, 'store'])->middleware('throttle:posting')->name('team.store');
+        Route::delete('team/{member}', [\App\Http\Controllers\Host\TeamController::class, 'destroy'])->whereNumber('member')->name('team.destroy');
+
         // Payouts (the organizer's own balance + requests).
         Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts', [PayoutController::class, 'store'])->name('payouts.request');

@@ -25,6 +25,8 @@ interface HostEvent {
     ticket_types_count: number;
     sessions_count: number;
     orders_count: number;
+    mine?: boolean;
+    owner_name?: string | null;
 }
 
 /** Appeal an admin cancellation — reason + proof attachments, both required. */
@@ -159,6 +161,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Link href={`/host/events/${e.slug}/edit`} className="truncate text-base font-semibold hover:underline">{e.title}</Link>
                                             <Badge variant={statusTone(e.status)} className="shrink-0 capitalize">{e.status}</Badge>
+                                            {e.mine === false && <Badge variant="outline" className="shrink-0">Shared{e.owner_name ? ` · ${e.owner_name}` : ''}</Badge>}
                                         </div>
                                         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1"><CalendarDays className="size-3.5" /> {formatDate(e.starts_at)}</span>

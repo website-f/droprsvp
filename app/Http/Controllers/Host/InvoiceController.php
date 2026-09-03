@@ -29,7 +29,7 @@ class InvoiceController extends Controller
             'paid_at' => optional($p->paid_at)->format('j M Y'),
         ]);
 
-        $events = Event::where('user_id', $userId)
+        $events = Event::whereIn('user_id', $request->user()->manageableOwnerIds())
             ->withCount(['orders as invoices_count' => fn ($q) => $q->whereIn('status', ['paid', 'refunded'])])
             ->withSum(['orders as revenue' => fn ($q) => $q->where('status', 'paid')], 'total')
             ->orderByRaw('starts_at is null, starts_at desc')

@@ -18,7 +18,7 @@ class RefundController extends Controller
 {
     public function index(Request $request)
     {
-        $eventIds = Event::where('user_id', $request->user()->id)->pluck('id');
+        $eventIds = Event::whereIn('user_id', $request->user()->manageableOwnerIds())->pluck('id');
 
         $requests = RefundRequest::whereHas('order', fn ($q) => $q->whereIn('event_id', $eventIds))
             ->with(['order.event:id,title,slug', 'requester:id,name'])
@@ -89,7 +89,7 @@ class RefundController extends Controller
     {
         $order = $refundRequest->order()->with('event')->first();
         abort_unless($order && $order->event, 404);
-        abort_unless($order->event->user_id === $request->user()->id || $request->user()->hasRole('superadmin'), 403);
+        abort_unless($order->event->isManageableBy($request->user()), 403);
 
         return $order;
     }

@@ -11,13 +11,24 @@ use Illuminate\Support\Str;
 
 class EventController extends Controller
 {
-    /** The host's own events. */
+    /** The host's own events, plus any they collaborate on as a team member. */
     public function index(Request $request)
     {
-        $events = $request->user()->events()
+        $user = $request->user();
+
+        $events = Event::whereIn('user_id', $user->manageableOwnerIds())
+            ->with('user:id,name')
             ->withCount(['ticketTypes', 'sessions', 'orders'])
             ->latest()
-            ->get();
+            ->get()
+            ->map(function (Event $e) use ($user) {
+                // Flag events shared with this user so the UI can label them.
+                $e->setAttribute('mine', $e->user_id === $user->id);
+                $e->setAttribute('owner_name', $e->user_id === $user->id ? null : $e->user?->name);
+                unset($e->user);
+
+                return $e;
+            });
 
         return inertia('host/events/index', ['events' => $events]);
     }

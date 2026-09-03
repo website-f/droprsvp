@@ -77,6 +77,16 @@ class Event extends Model
         return 'slug';
     }
 
+    /** Can this user manage the event — as its owner, a superadmin, or a team collaborator? */
+    public function isManageableBy(User $user): bool
+    {
+        if ($user->id === $this->user_id || $user->hasRole('superadmin')) {
+            return true;
+        }
+
+        return TeamMember::where('owner_id', $this->user_id)->where('member_id', $user->id)->exists();
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

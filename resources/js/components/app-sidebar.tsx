@@ -38,6 +38,7 @@ const organizingNav: NavItem[] = [
     { title: 'Finance', href: '/host/finance', icon: CircleDollarSign },
     { title: 'Invoices', href: '/host/invoices', icon: Receipt },
     { title: 'Refunds', href: '/host/refunds', icon: Undo2 },
+    { title: 'Team', href: '/host/team', icon: Users },
     { title: 'Payouts', href: '/host/payouts', icon: Wallet },
 ];
 

@@ -176,4 +176,27 @@ class User extends Authenticatable implements PasskeyUser
     {
         return $this->following()->whereKey($organizer->id)->exists();
     }
+
+    /** Collaborators this account owner has granted access to their events. */
+    public function teamMembers(): HasMany
+    {
+        return $this->hasMany(TeamMember::class, 'owner_id');
+    }
+
+    /** Teams this user has been added to (as a collaborator). */
+    public function teamMemberships(): HasMany
+    {
+        return $this->hasMany(TeamMember::class, 'member_id');
+    }
+
+    /**
+     * Owner user-ids whose events this user may manage: their own, plus any owner
+     * whose team they've been added to. Drives the host-panel event queries.
+     *
+     * @return array<int, int>
+     */
+    public function manageableOwnerIds(): array
+    {
+        return $this->teamMemberships()->pluck('owner_id')->push($this->id)->unique()->values()->all();
+    }
 }
