@@ -33,6 +33,8 @@ class TicketController extends Controller
                     'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
                     'venue_name' => $event->venue_name,
                     'is_online' => $event->is_online,
+                    'google_url' => $event->status === 'published' ? \App\Support\Ics::googleUrl($event) : null,
+                    'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
                 ],
             ],
             'qr' => Qr::svg($ticket->qr_token),

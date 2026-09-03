@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
+import { AddToCalendar } from '@/components/add-to-calendar';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { SeatMap   } from '@/components/seat-map';
 import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
@@ -18,7 +19,7 @@ interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
     cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
-    when: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
+    when: string | null; google_url: string | null; ics_url: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
     seating_enabled: boolean; seating: SeatMapSection[];
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
@@ -205,7 +206,14 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                         {event.subtitle && <p className="mt-2 text-lg text-muted-foreground">{event.subtitle}</p>}
 
                         <div className="mt-6 grid gap-3 text-sm">
-                            {event.when && <div className="flex items-center gap-3"><CalendarDays className="size-5 text-muted-foreground" /><span>{event.when}</span></div>}
+                            {event.when && (
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <CalendarDays className="size-5 text-muted-foreground" /><span>{event.when}</span>
+                                    {event.status === 'published' && event.google_url && event.ics_url && (
+                                        <AddToCalendar googleUrl={event.google_url} icsUrl={event.ics_url} label="Add to calendar" />
+                                    )}
+                                </div>
+                            )}
                             {event.is_online ? (
                                 <div className="flex items-center gap-3"><Video className="size-5 text-muted-foreground" /><span>Online event</span></div>
                             ) : (event.venue_name || event.venue_address) && (

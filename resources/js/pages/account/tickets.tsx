@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeftRight, CalendarDays, MapPin, Send, Ticket as TicketIcon, Video, X } from 'lucide-react';
 import { useState } from 'react';
+import { AddToCalendar } from '@/components/add-to-calendar';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface TicketRow { qr_token: string; attendee_name: string | null; type: string | null; status: string }
-interface EventRow { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; cover_image: string | null }
+interface EventRow { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; cover_image: string | null; google_url: string | null; ics_url: string | null }
 interface OrderRow {
     reference: string; status: string; total: number; currency: string; placed_on: string | null;
     can_cancel: boolean; upcoming: boolean; event: EventRow | null; tickets: TicketRow[];
@@ -134,11 +135,14 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
 
                                     {/* Actions */}
                                     {!inactive && (
-                                        <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/30 px-4 py-2.5">
+                                        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/30 px-4 py-2.5">
                                             {o.can_cancel && (
                                                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => cancel(o)}>
                                                     <X className="size-4" /> Cancel registration
                                                 </Button>
+                                            )}
+                                            {o.upcoming && o.event?.google_url && o.event?.ics_url && (
+                                                <AddToCalendar googleUrl={o.event.google_url} icsUrl={o.event.ics_url} variant="ghost" />
                                             )}
                                             <Button variant="ghost" size="sm" onClick={() => resend(o.reference)}><Send className="size-4" /> Re-send to email</Button>
                                         </div>

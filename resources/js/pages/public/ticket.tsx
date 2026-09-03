@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { CalendarDays, Download, MapPin, Video } from 'lucide-react';
+import { AddToCalendar } from '@/components/add-to-calendar';
 import { LogoMark } from '@/components/brand';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ interface TicketView {
     table: string | null;
     seat: string | null;
     organizer: string | null;
-    event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
+    event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; google_url: string | null; ics_url: string | null };
 }
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -87,11 +88,14 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                     </div>
                 </div>
 
-                <div className="mt-6 flex items-center gap-3 print:hidden">
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3 print:hidden">
                     {!voided && (
                         <Button variant="outline" size="sm" onClick={() => window.print()}>
                             <Download className="size-4" /> Save / print
                         </Button>
+                    )}
+                    {!voided && ticket.event.google_url && ticket.event.ics_url && (
+                        <AddToCalendar googleUrl={ticket.event.google_url} icsUrl={ticket.event.ics_url} />
                     )}
                     <Link href={`/en-my/e/${ticket.event.slug}`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
                 </div>

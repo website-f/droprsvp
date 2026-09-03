@@ -21,7 +21,7 @@ class AccountController extends Controller
         $orders = $this->ownedBy($user)
             ->whereIn('status', ['paid', 'refunded', 'cancelled'])
             ->with([
-                'event:id,title,slug,timezone,starts_at,venue_name,is_online,cover_image',
+                'event:id,title,slug,timezone,starts_at,ends_at,venue_name,venue_address,city,online_url,status,subtitle,is_online,cover_image',
                 'tickets:id,order_id,ticket_type_id,qr_token,attendee_name,status',
                 'tickets.ticketType:id,name',
             ])
@@ -226,6 +226,8 @@ class AccountController extends Controller
                 'venue_name' => $event->venue_name,
                 'is_online' => (bool) $event->is_online,
                 'cover_image' => $event->cover_image,
+                'google_url' => $event->status === 'published' ? \App\Support\Ics::googleUrl($event) : null,
+                'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
             ] : null,
             'tickets' => $order->tickets->map(fn ($t) => [
                 'qr_token' => $t->qr_token,

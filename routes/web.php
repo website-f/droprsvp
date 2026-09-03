@@ -60,6 +60,7 @@ Route::get('/', fn () => redirect('/en-my'))->name('home');
 // the old /e/{slug} keeps working as an alias so existing links don't break.
 // Declared before the {locale}/{city}/{category} discovery routes so it wins.
 Route::get('en-my/e/{event}', [PublicEventController::class, 'show'])->name('events.show');
+Route::get('en-my/e/{event}/calendar.ics', [\App\Http\Controllers\CalendarController::class, 'event'])->name('events.ics');
 Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show.legacy');
 
 // Legacy /events?… → 301 to the canonical locale path (/en-my/all…).
