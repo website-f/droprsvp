@@ -31,7 +31,7 @@ class InvoiceController extends Controller
 
         $events = Event::whereIn('user_id', $request->user()->manageableOwnerIds())
             ->withCount(['orders as invoices_count' => fn ($q) => $q->whereIn('status', ['paid', 'refunded'])])
-            ->withSum(['orders as revenue' => fn ($q) => $q->where('status', 'paid')], 'total')
+            ->withSum(['orders as revenue' => fn ($q) => $q->where('status', 'paid')], \DB::raw('total - refunded_amount'))
             ->orderByRaw('starts_at is null, starts_at desc')
             ->paginate(12)
             ->withQueryString()
@@ -72,7 +72,7 @@ class InvoiceController extends Controller
                 'date' => $o->paid_at?->setTimezone($event->timezone)->format('j M Y, g:i A'),
             ]);
 
-        $gross = (float) $event->orders()->where('status', 'paid')->sum('total');
+        $gross = (float) $event->orders()->where('status', 'paid')->sum(\DB::raw('total - refunded_amount'));
 
         return inertia('host/invoices/event', [
             'event' => ['slug' => $event->slug, 'title' => $event->title, 'gross' => round($gross, 2)],

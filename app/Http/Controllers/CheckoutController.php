@@ -117,6 +117,17 @@ class CheckoutController extends Controller
         unset($data['consent']);
         $order->update($data);
 
+        // Re-validate any applied promo code at pay time — it may have expired, been
+        // deactivated, or hit its redemption limit since it was applied (stale cart).
+        if ($order->discount_code_id) {
+            $code = \App\Models\DiscountCode::find($order->discount_code_id);
+            if (! $code || $code->rejectionReason((float) $order->subtotal) !== null) {
+                $this->checkout->clearDiscount($order);
+
+                return back()->with('flash_error', 'Your promo code is no longer valid — your total has been updated.');
+            }
+        }
+
         // Free order → settle immediately, no gateway.
         if ((float) $order->total <= 0) {
             $this->checkout->markPaid($order);
@@ -203,6 +214,8 @@ class CheckoutController extends Controller
 
     private function orderPayload(Order $order, bool $withTickets = false): array
     {
+        $event = $order->event; // null if the event was since deleted/archived
+
         return array_filter([
             'reference' => $order->reference,
             'status' => $order->status,
@@ -215,11 +228,11 @@ class CheckoutController extends Controller
             'buyer_name' => $order->buyer_name,
             'buyer_email' => $order->buyer_email,
             'event' => [
-                'title' => $order->event->title,
-                'slug' => $order->event->slug,
-                'when' => $order->event->starts_at?->setTimezone($order->event->timezone)->format('D, j M Y · g:i A'),
-                'venue_name' => $order->event->venue_name,
-                'is_online' => $order->event->is_online,
+                'title' => $event?->title ?? 'Event no longer available',
+                'slug' => $event?->slug,
+                'when' => $event?->starts_at?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
+                'venue_name' => $event?->venue_name,
+                'is_online' => (bool) $event?->is_online,
             ],
             'items' => $order->items->map(fn ($i) => [
                 'name' => $i->name,

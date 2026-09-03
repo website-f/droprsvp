@@ -199,7 +199,7 @@ class AccountController extends Controller
     private function belongsToUser(Order $order, $user): bool
     {
         return $order->user_id === $user->id
-            || ($order->buyer_email && $order->buyer_email === $user->email);
+            || ($order->buyer_email && strcasecmp((string) $order->buyer_email, (string) $user->email) === 0);
     }
 
     private function payload(Order $order): array

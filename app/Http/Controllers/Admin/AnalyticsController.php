@@ -47,7 +47,7 @@ class AnalyticsController extends Controller
                 'published' => Event::where('status', 'published')->count(),
                 'users' => User::count(),
                 'tickets' => Ticket::whereIn('status', ['valid', 'checked_in'])->count(),
-                'revenue' => (float) (clone $paid)->sum('total'),
+                'revenue' => (float) (clone $paid)->sum(\DB::raw('total - refunded_amount')),
                 'impressions' => (int) EventDailyStat::sum('impressions'),
             ],
             'reach' => Analytics::reach(EventDailyStat::query(), $w),
@@ -143,7 +143,7 @@ class AnalyticsController extends Controller
             ->withCount(['tickets as sold' => fn ($t) => $t->whereIn('status', ['valid', 'checked_in'])->whereBetween('created_at', [$from, $to])])
             ->withSum(['dailyStats as impressions' => fn ($s) => $s->whereBetween('stat_date', [$w['from_date'], $w['to_date']])], 'impressions')
             ->withSum(['dailyStats as clicks' => fn ($s) => $s->whereBetween('stat_date', [$w['from_date'], $w['to_date']])], 'clicks')
-            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')->whereBetween('paid_at', [$from, $to])], 'total')
+            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')->whereBetween('paid_at', [$from, $to])], \DB::raw('total - refunded_amount'))
             ->orderBy($column, $dir);
     }
 
@@ -224,7 +224,7 @@ class AnalyticsController extends Controller
                 'clicks' => $clicks,
                 'ctr' => $impressions > 0 ? round($clicks / $impressions * 100, 1) : 0.0,
                 'sold' => $sold,
-                'revenue' => (float) (clone $paid)->sum('total'),
+                'revenue' => (float) (clone $paid)->sum(\DB::raw('total - refunded_amount')),
                 'conversion' => $clicks > 0 ? round($sold / $clicks * 100, 1) : 0.0,
             ],
             'trend' => Analytics::reach($event->dailyStats(), $w),

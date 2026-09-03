@@ -67,10 +67,10 @@ class FinanceController extends Controller
     private function kpis(): array
     {
         return [
-            'ticket_sales' => (float) Order::where('status', 'paid')->sum('total'),
+            'ticket_sales' => (float) Order::whereIn('status', ['paid', 'refunded'])->sum('total'),
             'boosts' => (float) Promotion::where('status', 'paid')->sum('amount'),
             'subscriptions' => (float) Subscription::where('status', 'paid')->sum('amount'),
-            'refunds' => (float) Order::where('status', 'refunded')->sum('total'),
+            'refunds' => (float) Order::sum('refunded_amount'),
             'payouts' => (float) Payout::where('status', 'paid')->sum('amount'),
         ];
     }

@@ -60,7 +60,7 @@ class ReceiptController extends Controller
     private function ownsOrder(Order $order, $user): bool
     {
         return $order->user_id === $user->id
-            || ($order->buyer_email && $order->buyer_email === $user->email);
+            || ($order->buyer_email && strcasecmp((string) $order->buyer_email, (string) $user->email) === 0);
     }
 
     /** The buyer, the event's organizer, or a superadmin may view an order's invoice. */

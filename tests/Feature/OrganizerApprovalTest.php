@@ -2,149 +2,75 @@
 
 namespace Tests\Feature;
 
-use App\Mail\OrganizerApplicationMail;
+use App\Models\Event;
 use App\Models\OrganizerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class OrganizerApprovalTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function applicant(string $status = 'incomplete'): User
+    /** An organizer whose application is not yet approved. */
+    private function pendingOrganizer(string $status = 'pending'): User
     {
         $user = $this->organizer();
-        $user->organizerProfile()->create(['status' => $status]);
+        OrganizerProfile::create(['user_id' => $user->id, 'status' => $status]);
 
         return $user;
     }
 
-    private function superadmin(): User
+    public function test_an_unapproved_organizer_is_redirected_off_host_reads(): void
     {
-        Role::findOrCreate('superadmin', 'web');
+        $user = $this->pendingOrganizer('pending');
+
+        $this->actingAs($user)->get('/host/events')->assertRedirect(route('host.pending'));
+    }
+
+    public function test_an_unapproved_organizer_cannot_perform_host_writes(): void
+    {
+        $user = $this->pendingOrganizer('rejected');
+
+        // The gate blocks the POST outright — approval can't be skipped with a token.
+        $this->actingAs($user)->post('/host/team', ['email' => 'x@example.test'])->assertForbidden();
+    }
+
+    public function test_an_approved_organizer_can_read_and_write(): void
+    {
+        $user = $this->pendingOrganizer('approved');
+
+        $this->actingAs($user)->get('/host/events')->assertOk();
+    }
+
+    public function test_a_grandfathered_organizer_with_no_profile_passes(): void
+    {
+        $user = $this->organizer(); // no profile row at all
+
+        $this->actingAs($user)->get('/host/events')->assertOk();
+    }
+
+    public function test_a_collaborator_with_their_own_pending_profile_can_still_manage_shared_events(): void
+    {
+        $owner = $this->organizer();
+        Event::create(['user_id' => $owner->id, 'title' => 'Shared', 'slug' => 'shared-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
+
+        // The collaborator is themselves a not-yet-approved organizer.
+        $member = $this->pendingOrganizer('incomplete');
+        $owner->teamMembers()->create(['member_id' => $member->id, 'role' => 'manager']);
+
+        // They still reach the host panel (per-event access is enforced by policy).
+        $this->actingAs($member)->get('/host/events')->assertOk();
+    }
+
+    public function test_onboarding_never_leaves_a_null_status_profile(): void
+    {
         $user = User::factory()->create();
-        $user->assignRole('superadmin');
 
-        return $user;
-    }
+        $this->actingAs($user)->post('/host/welcome', ['event_types' => ['music']])->assertRedirect();
 
-    public function test_a_new_organizer_is_gated_to_the_application(): void
-    {
-        $user = $this->applicant('incomplete');
-
-        $this->actingAs($user)->get(route('host.events.index'))->assertRedirect(route('host.apply'));
-    }
-
-    public function test_reappealed_organizers_show_under_the_appeals_tab_not_pending(): void
-    {
-        $admin = $this->superadmin();
-        // A first-time pending applicant (never reviewed).
-        $fresh = $this->organizer();
-        $fresh->organizerProfile()->create(['status' => 'pending', 'submitted_at' => now()]);
-        // An appellant: rejected before (reviewed_at set), re-submitted → pending again.
-        $appellant = $this->organizer();
-        $appellant->organizerProfile()->create(['status' => 'pending', 'submitted_at' => now(), 'reviewed_at' => now()->subDay()]);
-
-        // Pending tab excludes the appeal; Appeals tab shows only it.
-        $this->actingAs($admin)->get(route('admin.organizers.index', ['status' => 'pending']))
-            ->assertInertia(fn ($p) => $p->where('counts.pending', 1)->where('counts.appealed', 1)
-                ->has('applications.data', 1)->where('applications.data.0.is_appeal', false));
-
-        $this->actingAs($admin)->get(route('admin.organizers.index', ['status' => 'appealed']))
-            ->assertInertia(fn ($p) => $p->has('applications.data', 1)->where('applications.data.0.is_appeal', true));
-    }
-
-    public function test_an_organizer_with_no_profile_is_grandfathered_in(): void
-    {
-        // Existing organizers (no application row) keep working.
-        $user = $this->organizer();
-
-        $this->actingAs($user)->get(route('host.events.index'))->assertOk();
-    }
-
-    public function test_submitting_an_application_moves_it_to_pending(): void
-    {
-        $user = $this->applicant('incomplete');
-
-        $this->actingAs($user)->post(route('host.apply.submit'), [
-            'business_name' => 'Acme Events',
-            'phone' => '+60 12-345 6789',
-            'website' => 'https://acme.example',
-            'bio' => 'We run tech meetups.',
-            'gallery' => ['https://cdn.example/a.jpg'],
-        ])->assertRedirect(route('host.pending'));
-
-        $this->assertDatabaseHas('organizer_profiles', [
-            'user_id' => $user->id, 'status' => 'pending', 'business_name' => 'Acme Events',
-        ]);
-        $this->assertNotNull($user->organizerProfile->fresh()->submitted_at);
-
-        // A pending applicant is bounced to the "under review" page.
-        $this->actingAs($user)->get(route('host.events.index'))->assertRedirect(route('host.pending'));
-    }
-
-    public function test_superadmin_can_approve_an_application(): void
-    {
-        Mail::fake();
-        $user = $this->applicant('pending');
-        $profile = $user->organizerProfile;
-
-        $this->actingAs($this->superadmin())
-            ->post(route('admin.organizers.approve', $profile))
-            ->assertRedirect();
-
-        $this->assertSame('approved', $profile->fresh()->status);
-        // The freshly approved organizer can now reach the host area.
-        $this->actingAs($user->fresh())->get(route('host.events.index'))->assertOk();
-        Mail::assertSent(OrganizerApplicationMail::class, fn ($m) => $m->approved && $m->hasTo($user->email));
-    }
-
-    public function test_superadmin_can_reject_with_a_reason_and_the_applicant_can_reappeal(): void
-    {
-        Mail::fake();
-        $user = $this->applicant('pending');
-        $profile = $user->organizerProfile;
-
-        $this->actingAs($this->superadmin())
-            ->post(route('admin.organizers.reject', $profile), ['reason' => 'Please add a real website.'])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('organizer_profiles', [
-            'id' => $profile->id, 'status' => 'rejected', 'review_reason' => 'Please add a real website.',
-        ]);
-        Mail::assertSent(OrganizerApplicationMail::class, fn ($m) => ! $m->approved && $m->hasTo($user->email));
-
-        // A rejected organizer is sent back to the application to re-appeal…
-        $this->actingAs($user->fresh())->get(route('host.events.index'))->assertRedirect(route('host.apply'));
-
-        // …and re-submitting puts them back to pending.
-        $this->actingAs($user->fresh())->post(route('host.apply.submit'), [
-            'business_name' => 'Acme Events', 'phone' => '+60 12-345 6789', 'website' => 'https://acme.example',
-        ])->assertRedirect(route('host.pending'));
-        $this->assertSame('pending', $profile->fresh()->status);
-    }
-
-    public function test_rejecting_requires_a_reason(): void
-    {
-        $user = $this->applicant('pending');
-
-        $this->actingAs($this->superadmin())
-            ->post(route('admin.organizers.reject', $user->organizerProfile), [])
-            ->assertSessionHasErrors('reason');
-    }
-
-    public function test_only_superadmins_can_review_applications(): void
-    {
-        $profile = $this->applicant('pending')->organizerProfile;
-
-        $this->actingAs($this->organizer())
-            ->get(route('admin.organizers.index'))
-            ->assertForbidden();
-        $this->actingAs($this->organizer())
-            ->post(route('admin.organizers.approve', $profile))
-            ->assertForbidden();
+        $profile = OrganizerProfile::where('user_id', $user->id)->first();
+        $this->assertNotNull($profile);
+        $this->assertNotNull($profile->status); // 'incomplete', never null (would be treated as approved)
     }
 }

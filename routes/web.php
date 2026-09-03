@@ -188,7 +188,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     // Buyer account — purchase history + re-download/re-send tickets + invoices.
     Route::get('my/tickets', [AccountController::class, 'tickets'])->name('account.tickets');
     Route::get('my/invoices', [AccountController::class, 'invoices'])->name('account.invoices');
-    Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->name('account.orders.resend');
+    Route::post('my/orders/{order}/resend', [AccountController::class, 'resend'])->middleware('throttle:posting')->name('account.orders.resend');
     Route::post('my/orders/{order}/cancel', [AccountController::class, 'cancel'])->middleware('throttle:posting')->name('account.orders.cancel');
     Route::post('my/tickets/{ticket}/transfer', [AccountController::class, 'transferTicket'])->middleware('throttle:posting')->name('account.tickets.transfer');
     Route::post('my/orders/{order}/refund-request', [AccountController::class, 'requestRefund'])->middleware('throttle:posting')->name('account.orders.refund-request');

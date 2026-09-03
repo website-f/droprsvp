@@ -26,7 +26,7 @@ class FinanceController extends Controller
         $events = Event::where('user_id', $user->id)
             ->withCount(['tickets as sold' => fn ($q) => $q->whereIn('status', ['valid', 'checked_in'])])
             ->withCount(['orders as paid_orders' => fn ($q) => $q->where('status', 'paid')])
-            ->withSum(['orders as gross' => fn ($q) => $q->where('status', 'paid')], 'total')
+            ->withSum(['orders as gross' => fn ($q) => $q->where('status', 'paid')], \DB::raw('total - refunded_amount'))
             ->get()
             ->map(function (Event $e) {
                 $gross = round((float) ($e->gross ?? 0), 2);

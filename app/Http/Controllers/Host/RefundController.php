@@ -44,21 +44,35 @@ class RefundController extends Controller
         ]);
         $amount = round((float) $data['amount'], 2);
 
-        if (! $gateway->refund($order, $amount)) {
-            return back()->with('flash_error', 'The payment gateway rejected the refund.');
-        }
+        // Claim the request under a row lock so two concurrent approvals of the SAME
+        // request can't both fire a gateway refund. The gateway itself runs inside
+        // the order lock in CheckoutService::refund.
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($refundRequest, $order, $amount, $gateway, $checkout, $request) {
+            $claimed = RefundRequest::whereKey($refundRequest->id)->lockForUpdate()->first();
+            if (! $claimed || $claimed->status !== 'pending') {
+                return ['ok' => false, 'reason' => 'claimed'];
+            }
 
-        $result = $checkout->refund($order, $amount);
-        if (! $result['ok']) {
-            return back()->with('flash_error', 'This order can no longer be refunded.');
-        }
+            $refund = $checkout->refund($order, $amount, $gateway);
+            if (! $refund['ok']) {
+                return $refund;
+            }
 
-        $refundRequest->update([
-            'status' => 'approved',
-            'approved_amount' => $result['amount'],
-            'decided_by' => $request->user()->id,
-            'decided_at' => now(),
-        ]);
+            $claimed->update([
+                'status' => 'approved',
+                'approved_amount' => $refund['amount'],
+                'decided_by' => $request->user()->id,
+                'decided_at' => now(),
+            ]);
+
+            return $refund;
+        });
+
+        if (! ($result['ok'] ?? false)) {
+            return back()->with('flash_error', ($result['reason'] ?? '') === 'gateway'
+                ? 'The payment gateway rejected the refund.'
+                : 'This refund could no longer be processed.');
+        }
 
         $this->notifyBuyer($refundRequest, 'Refund approved', 'Your refund of RM'.number_format($result['amount'], 2)." for “{$order->event->title}” was approved.", 'success');
 

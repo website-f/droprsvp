@@ -16,7 +16,7 @@ class OverviewController extends Controller
     public function index()
     {
         $paid = Order::where('status', 'paid');
-        $gross = (float) (clone $paid)->sum('total');
+        $gross = (float) (clone $paid)->sum(\DB::raw('total - refunded_amount'));
         $paidOrders = (clone $paid)->count();
 
         return inertia('admin/overview', [

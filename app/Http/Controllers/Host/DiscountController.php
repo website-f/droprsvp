@@ -86,7 +86,7 @@ class DiscountController extends Controller
             'ends_at' => optional($c->ends_at)->toDateString(),
             'stats' => [
                 'redemptions' => (clone $settled)->count(),
-                'revenue' => (float) (clone $settled)->sum('total'),
+                'revenue' => (float) (clone $settled)->sum(\DB::raw('total - refunded_amount')),
                 'discount_given' => (float) (clone $settled)->sum('discount'),
             ],
         ];

@@ -36,21 +36,21 @@ class OrderController extends Controller
         ]);
     }
 
-    /** Refund a paid order (gateway first, then release locally). */
+    /** Refund a paid order — the remaining refundable balance, via the gateway. */
     public function refund(Request $request, Event $event, Order $order, PaymentGateway $gateway, CheckoutService $checkout)
     {
         $this->authorize('update', $event);
         abort_unless($order->event_id === $event->id, 404);
 
-        if ($order->status !== 'paid') {
-            return back()->with('flash_error', 'Only paid orders can be refunded.');
-        }
+        // null amount = the full remaining balance (never the gross total, so a prior
+        // partial refund isn't double-charged). Gateway + release run atomically.
+        $result = $checkout->refund($order, null, $gateway);
 
-        if (! $gateway->refund($order)) {
-            return back()->with('flash_error', 'The payment gateway rejected the refund.');
+        if (! $result['ok']) {
+            return back()->with('flash_error', $result['reason'] === 'gateway'
+                ? 'The payment gateway rejected the refund.'
+                : 'This order can no longer be refunded.');
         }
-
-        $checkout->refund($order);
 
         return back()->with('flash_success', "Refunded {$order->reference}.");
     }

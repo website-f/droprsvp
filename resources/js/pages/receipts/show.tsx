@@ -16,6 +16,7 @@ interface Receipt {
     context: string | null;
     items: Item[];
     subtotal: number;
+    discount: number;
     tax: number;
     total: number;
     currency: string;
@@ -103,6 +104,7 @@ export default function ReceiptShow({ receipt, pdfUrl }: { receipt: Receipt; pdf
                     <div className="mt-5 flex justify-end">
                         <div className="w-full max-w-xs space-y-1.5 text-sm">
                             <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="tabular-nums">{money(receipt.subtotal)}</span></div>
+                            {receipt.discount > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span className="tabular-nums">− {money(receipt.discount)}</span></div>}
                             {receipt.tax > 0 && <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="tabular-nums">{money(receipt.tax)}</span></div>}
                             <div className="flex justify-between border-t border-border pt-2 text-base font-bold"><span>Total</span><span className="tabular-nums">{money(receipt.total)}</span></div>
                         </div>

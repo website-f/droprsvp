@@ -14,7 +14,7 @@ class DashboardController extends Controller
         $user = $request->user();
         $eventIds = $user->events()->pluck('id');
 
-        $revenue = (float) Order::whereIn('event_id', $eventIds)->where('status', 'paid')->sum('total');
+        $revenue = (float) Order::whereIn('event_id', $eventIds)->where('status', 'paid')->sum(\DB::raw('total - refunded_amount'));
         $ticketsSold = Ticket::whereIn('event_id', $eventIds)->whereIn('status', ['valid', 'checked_in'])->count();
         $checkedIn = Ticket::whereIn('event_id', $eventIds)->where('status', 'checked_in')->count();
 

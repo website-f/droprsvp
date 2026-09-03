@@ -79,6 +79,51 @@ class PayoutTest extends TestCase
         $this->assertSame(100.0, $balance['pending_clearance']);
     }
 
+    public function test_partial_refunds_are_removed_from_the_withdrawable_balance(): void
+    {
+        Config::set('droprsvp.platform_fee_percent', 5);
+        $host = $this->organizer();
+        // Matured event so the takings are available.
+        $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->subDays(2)]);
+        // Paid order of RM100 with RM40 already refunded to the buyer (still 'paid').
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => 100, 'refunded_amount' => 40, 'paid_at' => now()]);
+
+        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+
+        // Only the retained RM60 counts — fee 5% = 3, net + available = 57.
+        $this->assertSame(60.0, $balance['gross']);
+        $this->assertSame(3.0, $balance['fee']);
+        $this->assertSame(57.0, $balance['net']);
+        $this->assertSame(57.0, $balance['available']);
+    }
+
+    public function test_the_platform_fee_excludes_tax(): void
+    {
+        Config::set('droprsvp.platform_fee_percent', 5);
+        $host = $this->organizer();
+        $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
+        // RM100 ticket revenue + RM6 tax = RM106 total.
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'subtotal' => 100, 'tax' => 6, 'total' => 106, 'paid_at' => now()]);
+
+        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+
+        // Fee is 5% of the RM100 ticket revenue (RM5.00), NOT of the tax-inclusive 106.
+        $this->assertSame(106.0, $balance['gross']);
+        $this->assertSame(5.0, $balance['fee']);
+        $this->assertSame(101.0, $balance['net']); // organizer keeps the RM6 tax to remit
+    }
+
+    public function test_a_misconfigured_over_100_percent_fee_cannot_go_negative(): void
+    {
+        Config::set('droprsvp.platform_fee_percent', 150);
+        $host = $this->hostWithRevenue(100);
+
+        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+
+        $this->assertSame(100.0, $balance['fee']); // capped at gross
+        $this->assertSame(0.0, $balance['net']);
+    }
+
     public function test_requesting_a_payout_reduces_available_to_zero(): void
     {
         Config::set('droprsvp.platform_fee_percent', 10);

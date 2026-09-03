@@ -13,7 +13,7 @@ class TicketController extends Controller
     public function show(Ticket $ticket)
     {
         $ticket->load(['event.user', 'ticketType', 'seatingTable']);
-        $event = $ticket->event;
+        $event = $ticket->event; // null if the event was since deleted/archived
 
         // The token is a credential — never index a ticket pass.
         app(SeoManager::class)->title('Your ticket')->noindex();
@@ -26,8 +26,8 @@ class TicketController extends Controller
                 'type' => $ticket->ticketType?->name,
                 'table' => $ticket->seatingTable?->name,
                 'seat' => $ticket->seat_label,
-                'organizer' => $event->user?->name,
-                'event' => [
+                'organizer' => $event?->user?->name,
+                'event' => $event ? [
                     'title' => $event->title,
                     'slug' => $event->slug,
                     'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
@@ -35,6 +35,14 @@ class TicketController extends Controller
                     'is_online' => $event->is_online,
                     'google_url' => $event->status === 'published' ? \App\Support\Ics::googleUrl($event) : null,
                     'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
+                ] : [
+                    'title' => 'Event no longer available',
+                    'slug' => null,
+                    'when' => null,
+                    'venue_name' => null,
+                    'is_online' => false,
+                    'google_url' => null,
+                    'ics_url' => null,
                 ],
             ],
             'qr' => Qr::svg($ticket->qr_token),

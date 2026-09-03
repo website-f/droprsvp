@@ -36,7 +36,9 @@ class OrganizerSignupController extends Controller
         $data = $request->validate(['email' => ['required', 'email', 'max:180']]);
         $email = mb_strtolower(trim($data['email']));
 
-        if (User::where('email', $email)->exists()) {
+        // withTrashed so a soft-deleted (archived) email is caught here instead of
+        // 500-ing on the unique constraint at User::create.
+        if (User::withTrashed()->where('email', $email)->exists()) {
             throw ValidationException::withMessages(['email' => 'An account with this email already exists — please log in instead.']);
         }
 
@@ -98,7 +100,7 @@ class OrganizerSignupController extends Controller
             'consent' => ['accepted'],
         ], ['consent.accepted' => 'Please agree to the terms to continue.']);
 
-        if (User::where('email', $verified)->exists()) {
+        if (User::withTrashed()->where('email', $verified)->exists()) {
             throw ValidationException::withMessages(['email' => 'An account with this email already exists.']);
         }
 
@@ -146,10 +148,13 @@ class OrganizerSignupController extends Controller
             'age_range' => ['nullable', 'string', 'max:40'],
         ]);
 
-        $request->user()->organizerProfile()->updateOrCreate(
+        // Ensure the profile always carries a real application status — never null,
+        // which the approval gate would otherwise treat as grandfathered/approved.
+        $profile = $request->user()->organizerProfile()->firstOrCreate(
             ['user_id' => $request->user()->id],
-            [...$data, 'completed_at' => now()],
+            ['status' => 'incomplete'],
         );
+        $profile->update([...$data, 'completed_at' => now()]);
 
         return redirect()->route('dashboard')->with('success', 'You’re all set — welcome to DropRSVP!');
     }

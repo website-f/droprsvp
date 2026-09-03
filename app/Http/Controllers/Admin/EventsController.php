@@ -15,7 +15,7 @@ class EventsController extends Controller
 
         $events = Event::with('user:id,name')
             ->withCount(['tickets as sold' => fn ($t) => $t->whereIn('status', ['valid', 'checked_in'])])
-            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')], 'total')
+            ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')], \DB::raw('total - refunded_amount'))
             ->when($q !== '', fn ($query) => $query->where('title', 'like', "%{$q}%"))
             ->latest()
             ->paginate(15)
@@ -37,7 +37,7 @@ class EventsController extends Controller
     {
         $event->load(['user:id,name,email', 'category:id,name', 'sessions', 'ticketTypes']);
         $sold = $event->tickets()->whereIn('status', ['valid', 'checked_in'])->count();
-        $revenue = (float) $event->orders()->where('status', 'paid')->sum('total');
+        $revenue = (float) $event->orders()->where('status', 'paid')->sum(\DB::raw('total - refunded_amount'));
 
         return inertia('admin/events/show', [
             'event' => [

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Seat;
 use App\Models\SeatSection;
 use App\Models\TicketType;
+use App\Services\Payments\PaymentGateway;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -287,24 +288,35 @@ class CheckoutService
     /**
      * Record a refund on a paid order. $amount refunds a partial sum (order stays
      * paid, tickets remain valid); null — or an amount covering the remaining
-     * balance — is a FULL refund (status → refunded, tickets released). The gateway
-     * refund is triggered by the caller; this only settles the local records.
+     * balance — is a FULL refund (status → refunded, tickets released).
      *
-     * @return array{ok: bool, full: bool, amount: float}
+     * When a $gateway is passed, its refund is triggered INSIDE the row lock so
+     * concurrent refunds (double-click / two approvers) serialize and can never
+     * double-charge — the second waiter sees the reduced remaining. The amount is
+     * always capped at what's still refundable, so it can't over-refund a partial.
+     * Passing no gateway settles the local records only (used by tests / free flows).
+     *
+     * @return array{ok: bool, full: bool, amount: float, reason: string}
      */
-    public function refund(Order $order, ?float $amount = null): array
+    public function refund(Order $order, ?float $amount = null, ?PaymentGateway $gateway = null): array
     {
-        $result = DB::transaction(function () use ($order, $amount): array {
+        $result = DB::transaction(function () use ($order, $amount, $gateway): array {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->first();
             if ($locked->status !== 'paid') {
-                return ['ok' => false, 'full' => false, 'amount' => 0.0]; // only settled orders
+                return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'not_paid'];
             }
 
             $remaining = max(0.0, round((float) $locked->total - (float) $locked->refunded_amount, 2));
             $amt = $amount === null ? $remaining : round(min((float) $amount, $remaining), 2);
             if ($amt <= 0) {
-                return ['ok' => false, 'full' => false, 'amount' => 0.0];
+                return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'nothing'];
+            }
+
+            // Move the money at the gateway before touching local records; a failure
+            // rolls the whole transaction back (nothing recorded, nothing released).
+            if ($gateway && ! $gateway->refund($locked, $amt)) {
+                return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'gateway'];
             }
 
             $newRefunded = round((float) $locked->refunded_amount + $amt, 2);
@@ -318,7 +330,7 @@ class CheckoutService
                 $locked->update(['refunded_amount' => $newRefunded]);
             }
 
-            return ['ok' => true, 'full' => $full, 'amount' => $amt];
+            return ['ok' => true, 'full' => $full, 'amount' => $amt, 'reason' => 'ok'];
         });
 
         // Only a full refund flips the order + emails the "order refunded" notice

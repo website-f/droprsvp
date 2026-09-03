@@ -39,6 +39,21 @@ class ReceiptTest extends TestCase
         $this->actingAs(User::factory()->create())->get("/my/orders/{$order->reference}/receipt")->assertForbidden();
     }
 
+    public function test_the_receipt_shows_a_discount_line_so_the_totals_add_up(): void
+    {
+        $host = User::factory()->create();
+        $buyer = User::factory()->create(['email' => 'd@example.com']);
+        $event = \App\Models\Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
+        // subtotal 100, RM40 discount → total 60. Receipt must expose the discount.
+        $order = Order::create(['reference' => 'DRSVP-D'.rand(1000, 9999), 'event_id' => $event->id, 'status' => 'paid', 'subtotal' => 100, 'discount' => 40, 'total' => 60, 'currency' => 'MYR', 'buyer_name' => 'D', 'buyer_email' => 'd@example.com', 'paid_at' => now()]);
+
+        $this->actingAs($buyer)->get("/my/orders/{$order->reference}/receipt")->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('receipts/show')
+                ->where('receipt.subtotal', 100)
+                ->where('receipt.discount', 40)
+                ->where('receipt.total', 60));
+    }
+
     public function test_order_receipt_downloads_as_a_pdf(): void
     {
         $host = User::factory()->create();

@@ -109,6 +109,9 @@
             <td style="width: 38%;">
                 <table class="totals">
                     <tr><td class="muted">Subtotal</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['subtotal'], 2) }}</td></tr>
+                    @if (!empty($receipt['discount']) && $receipt['discount'] > 0)
+                        <tr><td class="muted">Discount</td><td class="right">− {{ $receipt['currency'] }} {{ number_format($receipt['discount'], 2) }}</td></tr>
+                    @endif
                     @if ($style['show_tax'] && $receipt['tax'] > 0)
                         <tr><td class="muted">Tax</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['tax'], 2) }}</td></tr>
                     @endif

@@ -39,7 +39,8 @@ class PlatformFee
             return round(min($gross, self::fixed() * max(0, $orders)), 2);
         }
 
-        return round($gross * self::percent() / 100, 2);
+        // Capped at gross so a misconfigured >100% rate can never push net negative.
+        return round(min($gross, $gross * self::percent() / 100), 2);
     }
 
     /** Short, human label — "5%" or "RM2.00 per order". */

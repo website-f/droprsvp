@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Payout;
 use App\Models\User;
 use App\Support\PlatformFee;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +25,9 @@ class PayoutService
     {
         $eventIds = $organizer->events()->pluck('id');
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid');
-        $gross = (float) (clone $paid)->sum('total');
+        // Net out any money already refunded to buyers (partial refunds keep the
+        // order 'paid' but must NOT stay in the organizer's withdrawable balance).
+        $gross = (float) (clone $paid)->sum(DB::raw('total - refunded_amount'));
         $grossOrders = (clone $paid)->count();
 
         // An event's takings mature once it has happened: ends_at (or starts_at when
@@ -35,13 +38,18 @@ class PayoutService
                 ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNull('starts_at'));
         })->pluck('id');
         $maturedPaid = Order::whereIn('event_id', $maturedIds)->where('status', 'paid');
-        $maturedGross = (float) (clone $maturedPaid)->sum('total');
+        $maturedGross = (float) (clone $maturedPaid)->sum(DB::raw('total - refunded_amount'));
         $maturedOrders = (clone $maturedPaid)->count();
 
-        // Fee may be a % of gross or a flat amount per paid order.
-        $fee = PlatformFee::on($gross, $grossOrders);
+        // The platform fee is charged on TICKET revenue, not on the tax the organizer
+        // collects to remit under their own SST number — so exclude tax from the base.
+        // (No-op while tax is 0%.) The organizer keeps the tax; net still adds it back.
+        $feeBase = max(0.0, round($gross - (float) (clone $paid)->sum('tax'), 2));
+        $maturedFeeBase = max(0.0, round($maturedGross - (float) (clone $maturedPaid)->sum('tax'), 2));
+
+        $fee = PlatformFee::on($feeBase, $grossOrders);
         $net = round($gross - $fee, 2);
-        $maturedNet = round($maturedGross - PlatformFee::on($maturedGross, $maturedOrders), 2);
+        $maturedNet = round($maturedGross - PlatformFee::on($maturedFeeBase, $maturedOrders), 2);
 
         // Everything already requested or paid out is no longer available.
         $withdrawn = (float) Payout::where('user_id', $organizer->id)
