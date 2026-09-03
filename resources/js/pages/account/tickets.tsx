@@ -1,14 +1,18 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, MapPin, Send, Ticket as TicketIcon, Video, X } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeftRight, CalendarDays, MapPin, Send, Ticket as TicketIcon, Video, X } from 'lucide-react';
+import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface TicketRow { qr_token: string; attendee_name: string | null; type: string | null; status: string }
 interface EventRow { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; cover_image: string | null }
 interface OrderRow {
     reference: string; status: string; total: number; currency: string; placed_on: string | null;
-    can_cancel: boolean; event: EventRow | null; tickets: TicketRow[];
+    can_cancel: boolean; upcoming: boolean; event: EventRow | null; tickets: TicketRow[];
 }
 interface Paginated { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null }
 
@@ -16,6 +20,8 @@ const money = (n: number, ccy: string) => new Intl.NumberFormat('en-MY', { style
 
 export default function MyTickets({ orders }: { orders: Paginated }) {
     const confirm = useConfirm();
+    const [transferFor, setTransferFor] = useState<{ token: string; who: string | null; event: string | null } | null>(null);
+    const transferForm = useForm({ to_name: '', to_email: '' });
     const resend = (ref: string) => router.post(`/my/orders/${ref}/resend`, {}, { preserveScroll: true });
 
     const cancel = async (o: OrderRow) => {
@@ -27,6 +33,22 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
         })) {
             router.post(`/my/orders/${o.reference}/cancel`, {}, { preserveScroll: true });
         }
+    };
+
+    const submitTransfer = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!transferFor) {
+            return;
+        }
+
+        transferForm.post(`/my/tickets/${transferFor.token}/transfer`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                transferForm.reset();
+                setTransferFor(null);
+            },
+        });
     };
 
     return (
@@ -91,9 +113,20 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                                                         <p className="truncate text-sm font-medium">{t.attendee_name ?? 'Guest'}</p>
                                                         <p className="text-xs text-muted-foreground">{t.type ?? 'Ticket'}{t.status === 'checked_in' && ' · Checked in'}{(t.status === 'void' || t.status === 'refunded' || t.status === 'cancelled') && ' · Not valid'}</p>
                                                     </div>
-                                                    {usable
-                                                        ? <Button asChild variant="outline" size="sm"><a href={`/tickets/${t.qr_token}`} target="_blank" rel="noopener">View ticket</a></Button>
-                                                        : <span className="text-xs text-muted-foreground">—</span>}
+                                                    {usable ? (
+                                                        <div className="flex shrink-0 items-center gap-2">
+                                                            {t.status === 'valid' && o.upcoming && (
+                                                                <Button variant="ghost" size="sm" onClick={() => {
+                                                                    transferForm.reset();
+                                                                    transferForm.clearErrors();
+                                                                    setTransferFor({ token: t.qr_token, who: t.attendee_name, event: o.event?.title ?? null });
+                                                                }}>
+                                                                    <ArrowLeftRight className="size-3.5" /> Transfer
+                                                                </Button>
+                                                            )}
+                                                            <Button asChild variant="outline" size="sm"><a href={`/tickets/${t.qr_token}`} target="_blank" rel="noopener">View ticket</a></Button>
+                                                        </div>
+                                                    ) : <span className="text-xs text-muted-foreground">—</span>}
                                                 </li>
                                             );
                                         })}
@@ -127,6 +160,33 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                     </div>
                 )}
             </div>
+
+            <Dialog open={!!transferFor} onOpenChange={(v) => !v && setTransferFor(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Transfer ticket</DialogTitle>
+                        <DialogDescription>
+                            Send {transferFor?.who ? `${transferFor.who}’s` : 'this'} ticket for “{transferFor?.event}” to someone else. They’ll get an email with the pass, and your copy stops working.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={submitTransfer} className="grid gap-3">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="to_name">Recipient name</Label>
+                            <Input id="to_name" value={transferForm.data.to_name} onChange={(e) => transferForm.setData('to_name', e.target.value)} placeholder="Their full name" />
+                            {transferForm.errors.to_name && <p className="text-xs text-destructive">{transferForm.errors.to_name}</p>}
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="to_email">Recipient email</Label>
+                            <Input id="to_email" type="email" value={transferForm.data.to_email} onChange={(e) => transferForm.setData('to_email', e.target.value)} placeholder="their@email.com" />
+                            {transferForm.errors.to_email && <p className="text-xs text-destructive">{transferForm.errors.to_email}</p>}
+                        </div>
+                        <DialogFooter className="mt-1 gap-2">
+                            <Button type="button" variant="ghost" onClick={() => setTransferFor(null)}>Cancel</Button>
+                            <Button type="submit" disabled={transferForm.processing}>{transferForm.processing ? 'Transferring…' : 'Transfer ticket'}</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

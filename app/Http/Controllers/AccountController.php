@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Mail\TicketsIssued;
+use App\Mail\TicketTransferred;
 use App\Models\Order;
+use App\Models\Ticket;
+use App\Models\TicketTransfer;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class AccountController extends Controller
@@ -139,6 +142,49 @@ class AccountController extends Controller
         return back()->with('flash_success', 'Your refund request has been sent to the organizer.');
     }
 
+    /**
+     * Transfer one ticket to another person: reassign the attendee, issue a fresh
+     * QR (which voids the previous holder's copy) and email the new attendee a link
+     * to their pass. The order itself stays with the original buyer.
+     */
+    public function transferTicket(Request $request, Ticket $ticket)
+    {
+        $ticket->loadMissing('order', 'event');
+
+        abort_unless($ticket->order && $this->belongsToUser($ticket->order, $request->user()), 403);
+        abort_unless($ticket->status === 'valid', 422); // checked-in / voided tickets can't move
+
+        // Only while the event is still ahead of us.
+        abort_if($ticket->event && $ticket->event->starts_at && $ticket->event->starts_at->isPast(), 422);
+
+        $data = $request->validate([
+            'to_name' => ['required', 'string', 'max:120'],
+            'to_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $from = ['name' => $ticket->attendee_name, 'email' => $ticket->attendee_email];
+
+        $ticket->update([
+            'attendee_name' => $data['to_name'],
+            'attendee_email' => $data['to_email'],
+            'qr_token' => (string) Str::ulid(), // invalidate the old pass
+        ]);
+
+        TicketTransfer::create([
+            'ticket_id' => $ticket->id,
+            'order_id' => $ticket->order_id,
+            'transferred_by' => $request->user()->id,
+            'from_name' => $from['name'],
+            'from_email' => $from['email'],
+            'to_name' => $data['to_name'],
+            'to_email' => $data['to_email'],
+        ]);
+
+        \App\Support\Mailer::defer($data['to_email'], new TicketTransferred($ticket->fresh()->load('event', 'ticketType'), $request->user()->name));
+
+        return back()->with('flash_success', "Ticket transferred to {$data['to_name']}. We’ve emailed them their pass.");
+    }
+
     /** Orders tied to the account by id, or placed as a guest with the account's email. */
     private function ownedBy($user)
     {
@@ -169,6 +215,8 @@ class AccountController extends Controller
             // Free registrations can be self-cancelled up until the event starts.
             'can_cancel' => $order->status === 'paid' && (float) $order->total <= 0
                 && (! $event || ! $event->starts_at || $event->starts_at->isFuture()),
+            // Tickets can be transferred while the event is still ahead.
+            'upcoming' => ! $event || ! $event->starts_at || $event->starts_at->isFuture(),
             'event' => $event ? [
                 'title' => $event->title,
                 'slug' => $event->slug,
