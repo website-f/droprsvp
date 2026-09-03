@@ -207,6 +207,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('events/{event}/edit', [EventController::class, 'edit'])->name('events.edit');
         Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
+        Route::post('events/{event}/duplicate', [EventController::class, 'duplicate'])->middleware('throttle:posting')->name('events.duplicate');
         // Appeal an admin cancellation (reason + proof attachments).
         Route::post('events/{event}/reappeal', [EventController::class, 'reappeal'])->name('events.reappeal');
 

@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArmchairIcon, CalendarDays, ChartColumn, Gavel, ImagePlus, MoreHorizontal, Paperclip, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2, Users, X } from 'lucide-react';
+import { ArmchairIcon, CalendarDays, ChartColumn, Copy, Gavel, ImagePlus, MoreHorizontal, Paperclip, Pencil, Plus, Receipt, Rocket, ScanLine, Ticket, Trash2, Users, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -123,6 +123,7 @@ function formatDate(value: string | null): string {
 export default function EventsIndex({ events }: { events: HostEvent[] }) {
     const confirm = useConfirm();
     const [appealEvent, setAppealEvent] = useState<HostEvent | null>(null);
+    const duplicate = (e: HostEvent) => router.post(`/host/events/${e.slug}/duplicate`, {}, { preserveScroll: true });
     const remove = async (e: HostEvent) => {
         if (await confirm({ title: `Delete “${e.title}”?`, description: 'This cannot be undone.', confirmText: 'Delete', destructive: true })) {
             router.delete(`/host/events/${e.slug}`, { preserveScroll: true });
@@ -188,6 +189,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/photos`}><ImagePlus className="size-4" /> Photos</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/promote`}><Rocket className="size-4" /> Promote</Link></DropdownMenuItem>
                                                 <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => window.setTimeout(() => duplicate(e), 10)}><Copy className="size-4" /> Duplicate</DropdownMenuItem>
                                                 <DropdownMenuItem variant="destructive" onSelect={() => window.setTimeout(() => remove(e), 10)}><Trash2 className="size-4" /> Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>

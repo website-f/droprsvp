@@ -98,6 +98,16 @@ class EventController extends Controller
         return redirect()->route('host.events.index')->with('success', 'Event deleted.');
     }
 
+    /** Clone an event (ticket types, sessions, seating) into a fresh draft. */
+    public function duplicate(Request $request, Event $event, \App\Services\EventDuplicator $duplicator)
+    {
+        $this->authorize('update', $event);
+
+        $copy = $duplicator->duplicate($event);
+
+        return redirect()->route('host.events.edit', $copy)->with('success', 'Event duplicated — edit the copy and publish when ready.');
+    }
+
     /** Appeal an admin cancellation with a reason + proof attachments (organizer). */
     public function reappeal(Request $request, Event $event)
     {
