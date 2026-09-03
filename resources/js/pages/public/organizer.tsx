@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CalendarDays, CornerDownRight, Globe, Images, Info, MapPin, MessageCircle, Send, Shield, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
+import { CalendarDays, CornerDownRight, Globe, Images, Info, Lock, MapPin, MessageCircle, Send, Shield, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ interface EventCard {
 }
 interface Organizer {
     id: number; slug: string; name: string; avatar: string | null; bio: string | null; website: string | null;
-    location: string | null; event_types: string[]; followers: number; members: number; events_count: number; joined: string | null;
+    location: string | null; event_types: string[]; followers: number; members: number; photos_count: number; events_count: number; joined: string | null;
 }
 interface Members { attendees: { name: string }[]; followers: { name: string }[] }
 interface Photo { path: string; caption: string | null }
@@ -75,6 +75,21 @@ function EventGrid({ events }: { events: EventCard[] }) {
                     </div>
                 </Link>
             ))}
+        </div>
+    );
+}
+
+/** Auth wall shown to logged-out visitors on the members / photos / discussion tabs. */
+function LoginWall({ feature }: { feature: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"><Lock className="size-6" /></span>
+            <h3 className="mt-4 text-base font-semibold">Log in to see {feature}</h3>
+            <p className="mt-1 max-w-xs text-sm text-muted-foreground">Create a free account or log in to view {feature} for this organizer. About and events stay open to everyone.</p>
+            <div className="mt-5 flex gap-2">
+                <Button asChild><Link href="/login">Log in</Link></Button>
+                <Button asChild variant="outline"><Link href="/signup">Sign up</Link></Button>
+            </div>
         </div>
     );
 }
@@ -227,7 +242,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
         { key: 'about', label: 'About', icon: Info },
         { key: 'events', label: 'Events', icon: CalendarDays, count: organizer.events_count },
         { key: 'members', label: 'Members', icon: Users, count: organizer.members + organizer.followers },
-        { key: 'photos', label: 'Photos', icon: Images, count: photos.length },
+        { key: 'photos', label: 'Photos', icon: Images, count: organizer.photos_count },
         { key: 'discussion', label: 'Discussion', icon: MessageCircle, count: discussion.pagination.total },
     ];
 
@@ -333,6 +348,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                     )}
 
                     {tab === 'members' && (
+                        !viewer.authed ? <LoginWall feature="members" /> : (
                         <div className="grid gap-10">
                             <section>
                                 <h2 className="mb-1 text-lg font-bold tracking-tight">Attendees</h2>
@@ -345,9 +361,11 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                 <MemberGrid people={members.followers} empty="No followers yet." />
                             </section>
                         </div>
+                        )
                     )}
 
                     {tab === 'photos' && (
+                        !viewer.authed ? <LoginWall feature="photos" /> :
                         photos.length === 0 ? (
                             <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No photos yet — {organizer.name} hasn’t shared any event photos.</p>
                         ) : (
@@ -360,6 +378,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                     )}
 
                     {tab === 'discussion' && (
+                        !viewer.authed ? <LoginWall feature="the discussion" /> : (
                         <div className="mx-auto max-w-2xl">
                             {/* Top composer — a new top-level post */}
                             {viewer.authed ? (
@@ -413,6 +432,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                 </>
                             )}
                         </div>
+                        )
                     )}
 
                     {/* Similar events */}

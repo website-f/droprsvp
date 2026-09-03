@@ -35,14 +35,24 @@ class OrganizerController extends Controller
 
         $eventIds = $organizer->events()->pluck('id');
         $user = $request->user();
+        // Members, photos and discussion are behind an auth wall (About + Events stay
+        // public). Counts are always exposed so the tabs still show their totals.
+        $authed = (bool) $user;
 
         // Members split: people who've attended (paid) vs people who follow.
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid')->whereNotNull('buyer_email');
         $membersCount = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
-        $attendees = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
-            ->unique('buyer_email')->take(60)->map(fn ($o) => ['name' => $o->buyer_name ?: 'Guest'])->values();
-        $followers = $organizer->followers()->orderByPivot('created_at', 'desc')->limit(60)->get(['users.id', 'name'])
-            ->map(fn ($u) => ['name' => $u->name])->values();
+        $followersCount = (int) $organizer->followers()->count();
+        $photosCount = (int) \App\Models\EventPhoto::whereIn('event_id', $eventIds)->count();
+
+        $attendees = $authed
+            ? (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
+                ->unique('buyer_email')->take(60)->map(fn ($o) => ['name' => $o->buyer_name ?: 'Guest'])->values()
+            : collect();
+        $followers = $authed
+            ? $organizer->followers()->orderByPivot('created_at', 'desc')->limit(60)->get(['users.id', 'name'])
+                ->map(fn ($u) => ['name' => $u->name])->values()
+            : collect();
 
         app(SeoManager::class)
             ->title("{$organizer->name} — events on ".config('seo.site_name', 'DropRSVP'))
@@ -60,18 +70,21 @@ class OrganizerController extends Controller
                 'website' => $profile?->website,
                 'location' => $organizer->city,
                 'event_types' => $profile?->event_types ?? [],
-                'followers' => (int) $organizer->followers()->count(),
+                'followers' => $followersCount,
                 'members' => $membersCount,
+                'photos_count' => $photosCount,
                 'events_count' => $events->count(),
                 'joined' => optional($organizer->created_at)->format('M Y'),
             ],
             'upcoming' => $upcoming->values(),
             'past' => $past->values(),
             'members' => ['attendees' => $attendees, 'followers' => $followers],
-            'photos' => \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
-                ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
+            'photos' => $authed
+                ? \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
+                    ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values()
+                : collect(),
             'similar' => $this->similarEvents($organizer, $eventIds),
-            'discussion' => $this->discussion($organizer, $request),
+            'discussion' => $this->discussion($organizer, $request, $authed),
             'viewer' => [
                 'authed' => (bool) $user,
                 'is_self' => $user?->id === $organizer->id,
@@ -83,8 +96,12 @@ class OrganizerController extends Controller
         ]);
     }
 
-    /** One page of the threaded discussion wall (top-level posts + full nested reply tree). */
-    private function discussion(User $organizer, Request $request): array
+    /**
+     * One page of the threaded discussion wall (top-level posts + full nested reply
+     * tree). The total is always returned (for the tab badge), but the posts
+     * themselves are only exposed to signed-in viewers (auth wall).
+     */
+    private function discussion(User $organizer, Request $request, bool $authed): array
     {
         $perPage = 10;
         $page = max(1, (int) $request->query('discuss_page', 1));
@@ -92,9 +109,11 @@ class OrganizerController extends Controller
         $base = \App\Models\OrganizerPost::where('organizer_id', $organizer->id)->whereNull('parent_id');
         $total = (clone $base)->count();
 
-        $posts = $base->with(['author:id,name', 'repliesRecursive'])
-            ->latest()->forPage($page, $perPage)->get()
-            ->map(fn ($post) => $this->mapPost($post, $organizer))->all();
+        $posts = $authed
+            ? $base->with(['author:id,name', 'repliesRecursive'])
+                ->latest()->forPage($page, $perPage)->get()
+                ->map(fn ($post) => $this->mapPost($post, $organizer))->all()
+            : [];
 
         return [
             'posts' => $posts,
@@ -102,7 +121,7 @@ class OrganizerController extends Controller
                 'page' => $page,
                 'per_page' => $perPage,
                 'total' => $total,
-                'has_more' => $page * $perPage < $total,
+                'has_more' => $authed && $page * $perPage < $total,
             ],
         ];
     }
@@ -120,10 +139,10 @@ class OrganizerController extends Controller
         ];
     }
 
-    /** JSON feed for "load more" pagination of the discussion wall. */
+    /** JSON feed for "load more" pagination of the discussion wall (signed-in only). */
     public function discussionFeed(Request $request, User $organizer)
     {
-        return response()->json($this->discussion($organizer, $request));
+        return response()->json($this->discussion($organizer, $request, (bool) $request->user()));
     }
 
     /** Post to the organizer's discussion wall (signed-in users). */
