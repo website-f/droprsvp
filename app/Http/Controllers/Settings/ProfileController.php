@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Services\AccountPrivacyService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileController extends Controller
 {
@@ -44,19 +46,36 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete the user's profile.
+     * Delete the user's profile — a PDPA erasure: block if they still have
+     * obligations, otherwise anonymise their retained records and soft-delete.
      */
-    public function destroy(ProfileDeleteRequest $request): RedirectResponse
+    public function destroy(ProfileDeleteRequest $request, AccountPrivacyService $privacy): RedirectResponse
     {
         $user = $request->user();
 
+        $blockers = $privacy->deletionBlockers($user);
+        if (! empty($blockers)) {
+            return back()->withErrors(['password' => $blockers[0]]);
+        }
+
         Auth::logout();
 
-        $user->delete();
+        $privacy->erase($user);
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /** Download a JSON export of everything we hold about the user (PDPA access). */
+    public function export(Request $request, AccountPrivacyService $privacy): StreamedResponse
+    {
+        $data = $privacy->export($request->user());
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return response()->streamDownload(function () use ($json) {
+            echo $json;
+        }, 'droprsvp-data-'.$request->user()->id.'.json', ['Content-Type' => 'application/json']);
     }
 }

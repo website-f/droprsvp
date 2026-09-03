@@ -1,5 +1,6 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
@@ -121,6 +122,24 @@ export default function Profile({
                         </>
                     )}
                 </Form>
+            </div>
+
+            <div className="space-y-6">
+                <Heading
+                    variant="small"
+                    title="Your data"
+                    description="Download a copy of everything we hold about you (PDPA)"
+                />
+                <div className="space-y-4 rounded-lg border border-border p-4">
+                    <p className="text-sm text-muted-foreground">
+                        Get a JSON file with your profile, orders, tickets, reviews and more — useful for your records or to move elsewhere.
+                    </p>
+                    <Button asChild variant="outline">
+                        <a href="/settings/data-export" download>
+                            <Download className="size-4" /> Export my data
+                        </a>
+                    </Button>
+                </div>
             </div>
 
             <DeleteUser />

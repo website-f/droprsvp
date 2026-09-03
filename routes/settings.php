@@ -19,6 +19,9 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // PDPA: download everything we hold about you (throttled — it's a heavy read).
+    Route::get('settings/data-export', [ProfileController::class, 'export'])->middleware('throttle:6,1')->name('profile.export');
+
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)
         ->name('security.edit');
