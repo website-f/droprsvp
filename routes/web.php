@@ -102,6 +102,7 @@ Route::get('robots.txt', function () {
 // Checkout (guest-friendly). `checkout/return` is declared before `checkout/{order}`
 // so the literal path wins over the {order} binding.
 Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->middleware('throttle:checkout')->name('checkout.start');
+Route::post('e/{event}/waitlist', [\App\Http\Controllers\Public\WaitlistController::class, 'join'])->middleware('throttle:posting')->name('events.waitlist.join');
 Route::get('checkout/return', [CheckoutController::class, 'return'])->name('checkout.return');
 Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('checkout.show');
 Route::post('checkout/{order}/code', [CheckoutController::class, 'applyCode'])->middleware('throttle:checkout')->name('checkout.code');
@@ -246,6 +247,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('events/{event}/discounts', [\App\Http\Controllers\Host\DiscountController::class, 'store'])->name('events.discounts.store');
         Route::put('events/{event}/discounts/{discount}', [\App\Http\Controllers\Host\DiscountController::class, 'update'])->whereNumber('discount')->name('events.discounts.update');
         Route::delete('events/{event}/discounts/{discount}', [\App\Http\Controllers\Host\DiscountController::class, 'destroy'])->whereNumber('discount')->name('events.discounts.destroy');
+
+        // Waitlist — who's waiting for a sold-out event + invite them back.
+        Route::get('events/{event}/waitlist', [\App\Http\Controllers\Host\WaitlistController::class, 'index'])->name('events.waitlist');
+        Route::post('events/{event}/waitlist/notify-all', [\App\Http\Controllers\Host\WaitlistController::class, 'notifyAll'])->name('events.waitlist.notify-all');
+        Route::post('events/{event}/waitlist/{entry}/notify', [\App\Http\Controllers\Host\WaitlistController::class, 'notify'])->whereNumber('entry')->name('events.waitlist.notify');
 
         // Orders + refunds.
         Route::get('events/{event}/orders', [OrderController::class, 'index'])->name('events.orders');

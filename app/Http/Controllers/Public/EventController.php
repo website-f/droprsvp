@@ -99,6 +99,7 @@ class EventController extends Controller
                 'starts_at' => optional($event->starts_at)->toIso8601String(),
                 'ends_at' => optional($event->ends_at)->toIso8601String(),
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
+                'sold_out' => $event->ticketTypes->isNotEmpty() && $event->ticketTypes->every(fn ($t) => $t->remaining() === 0),
                 'google_url' => $event->status === 'published' ? \App\Support\Ics::googleUrl($event) : null,
                 'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
                 'organizer' => $organizer,

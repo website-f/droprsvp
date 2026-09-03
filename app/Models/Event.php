@@ -97,6 +97,11 @@ class Event extends Model
         return $this->hasMany(DiscountCode::class);
     }
 
+    public function waitlistEntries(): HasMany
+    {
+        return $this->hasMany(WaitlistEntry::class);
+    }
+
     public function sessions(): HasMany
     {
         return $this->hasMany(EventSession::class)->orderBy('starts_at');

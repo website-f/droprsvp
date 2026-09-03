@@ -185,6 +185,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/attendees?scan=1`}><ScanLine className="size-4" /> Check-in (scan)</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/orders`}><Receipt className="size-4" /> Orders</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/discounts`}><Tag className="size-4" /> Promo codes</Link></DropdownMenuItem>
+                                                <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/waitlist`}><Users className="size-4" /> Waitlist</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/analytics`}><ChartColumn className="size-4" /> Analytics</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/seating`}><ArmchairIcon className="size-4" /> Tables &amp; seating</Link></DropdownMenuItem>
                                                 <DropdownMenuItem asChild><Link href={`/host/events/${e.slug}/photos`}><ImagePlus className="size-4" /> Photos</Link></DropdownMenuItem>

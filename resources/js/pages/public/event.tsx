@@ -19,7 +19,7 @@ interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
     cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
-    when: string | null; google_url: string | null; ics_url: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
+    when: string | null; sold_out: boolean; google_url: string | null; ics_url: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
     seating_enabled: boolean; seating: SeatMapSection[];
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
@@ -83,6 +83,11 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
     const ask = useForm({ body: '', parent_id: null as number | null });
     const review = useForm({ rating: reviews.mine?.rating ?? 0, body: reviews.mine?.body ?? '' });
+    const waitlist = useForm({ name: '', email: '' });
+    const joinWaitlist = (e: React.FormEvent) => {
+        e.preventDefault();
+        waitlist.post(`/e/${event.slug}/waitlist`, { preserveScroll: true, onSuccess: () => waitlist.reset() });
+    };
 
     const capOf = (t: TicketTypeView) => Math.max(1, Math.min(t.max_per_order, t.remaining ?? t.max_per_order));
     const inc = (t: TicketTypeView) => setQty((q) => ({ ...q, [t.id]: Math.min(capOf(t), (q[t.id] || 0) === 0 ? t.min_per_order : (q[t.id] || 0) + 1) }));
@@ -549,6 +554,25 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                             </Button>
                             <p className="mt-2 text-center text-xs text-muted-foreground">Secure checkout · powered by DropRSVP</p>
                         </div>
+
+                        {/* Waitlist — offered when the event is sold out */}
+                        {event.sold_out && (
+                            <div className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                                <h2 className="font-semibold">Sold out — join the waitlist</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">We’ll email you if a spot opens up.</p>
+                                <form onSubmit={joinWaitlist} className="mt-4 grid gap-2.5">
+                                    <input value={waitlist.data.name} onChange={(e) => waitlist.setData('name', e.target.value)} placeholder="Your name"
+                                        className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                                    {waitlist.errors.name && <p className="text-xs text-destructive">{waitlist.errors.name}</p>}
+                                    <input type="email" value={waitlist.data.email} onChange={(e) => waitlist.setData('email', e.target.value)} placeholder="you@email.com"
+                                        className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" />
+                                    {waitlist.errors.email && <p className="text-xs text-destructive">{waitlist.errors.email}</p>}
+                                    <Button type="submit" variant="outline" disabled={waitlist.processing || !waitlist.data.name || !waitlist.data.email}>
+                                        {waitlist.processing ? 'Joining…' : 'Join the waitlist'}
+                                    </Button>
+                                </form>
+                            </div>
+                        )}
                     </aside>
                 </main>
 
