@@ -92,6 +92,25 @@ class DiscountCodeTest extends TestCase
         $this->actingAs($buyer)->post("/checkout/{$order->reference}/code", ['code' => 'OFF'])->assertSessionHasErrors('code');
     }
 
+    public function test_the_total_cannot_be_changed_once_a_gateway_checkout_exists(): void
+    {
+        $event = $this->event();
+        DiscountCode::create(['event_id' => $event->id, 'code' => 'SAVE10', 'kind' => 'percent', 'value' => 10, 'is_active' => true]);
+        $buyer = User::factory()->create();
+        $order = $this->pendingOrder($event, $buyer, 100);
+        // A gateway checkout has been created for RM100 (payment_ref set).
+        $order->update(['payment_ref' => 'chip_abc123']);
+
+        $this->actingAs($buyer)->post("/checkout/{$order->reference}/code", ['code' => 'SAVE10'])
+            ->assertSessionHas('flash_error');
+        $this->actingAs($buyer)->delete("/checkout/{$order->reference}/code")
+            ->assertSessionHas('flash_error');
+
+        // Total stays locked at what the buyer is actually being charged.
+        $this->assertEquals(100, (float) $order->fresh()->total);
+        $this->assertEquals(0, (float) $order->fresh()->discount);
+    }
+
     public function test_removing_a_code_restores_the_full_total(): void
     {
         $event = $this->event();

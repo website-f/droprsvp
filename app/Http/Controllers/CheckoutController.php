@@ -74,6 +74,9 @@ class CheckoutController extends Controller
     public function applyCode(Request $request, Order $order)
     {
         $this->authorizeOrderAccess($order, $request);
+        if ($this->paymentLocked($order)) {
+            return back()->with('flash_error', 'This order is already checking out — start a new order to change it.');
+        }
         $data = $request->validate(['code' => ['required', 'string', 'max:60']]);
 
         $this->checkout->applyDiscount($order, $data['code']);
@@ -85,9 +88,22 @@ class CheckoutController extends Controller
     public function removeCode(Request $request, Order $order)
     {
         $this->authorizeOrderAccess($order, $request);
+        if ($this->paymentLocked($order)) {
+            return back()->with('flash_error', 'This order is already checking out — start a new order to change it.');
+        }
         $this->checkout->clearDiscount($order);
 
         return back();
+    }
+
+    /**
+     * Once a gateway checkout has been created (payment_ref set), the amount the
+     * buyer is being charged is fixed — the order total must not change underneath
+     * it, or the order could settle at a different price than was actually paid.
+     */
+    private function paymentLocked(Order $order): bool
+    {
+        return $order->payment_ref !== null;
     }
 
     /** Capture buyer details and hand off to the payment gateway (or settle free orders). */
