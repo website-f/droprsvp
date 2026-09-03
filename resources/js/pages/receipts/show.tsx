@@ -10,7 +10,7 @@ interface Receipt {
     number: string;
     date: string | null;
     status: string;
-    seller: { name: string; detail: string | null; logo: string | null };
+    seller: { name: string; detail: string | null; logo: string | null; address?: string | null; tax_number?: string | null };
     party_label: string;
     party: { name: string | null; detail: string | null };
     context: string | null;
@@ -48,6 +48,8 @@ export default function ReceiptShow({ receipt, pdfUrl }: { receipt: Receipt; pdf
                             <div>
                                 <div className="text-lg font-bold tracking-tight">{receipt.seller.name}</div>
                                 {receipt.seller.detail && <div className="text-sm text-muted-foreground">{receipt.seller.detail}</div>}
+                                {receipt.seller.address && <div className="text-sm whitespace-pre-line text-muted-foreground">{receipt.seller.address}</div>}
+                                {receipt.seller.tax_number && <div className="text-sm text-muted-foreground">SST/Tax No: {receipt.seller.tax_number}</div>}
                             </div>
                         </div>
                         <div className="sm:text-right">

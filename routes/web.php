@@ -262,6 +262,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
         Route::post('payouts', [PayoutController::class, 'store'])->name('payouts.request');
         Route::post('payouts/bank', [PayoutController::class, 'bank'])->name('payouts.bank');
+        Route::post('payouts/business', [PayoutController::class, 'business'])->name('payouts.business');
     });
 
     // Headless CMS — superadmin or staff granted the Content section.

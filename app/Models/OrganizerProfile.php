@@ -10,7 +10,7 @@ class OrganizerProfile extends Model
     protected $fillable = [
         'user_id', 'event_types', 'revenue_band', 'events_per_year',
         'audience_size', 'age_range', 'completed_at',
-        'status', 'business_name', 'website', 'phone', 'bio', 'poster', 'gallery',
+        'status', 'business_name', 'tax_number', 'business_address', 'website', 'phone', 'bio', 'poster', 'gallery',
         'review_reason', 'submitted_at', 'reviewed_at',
     ];
 

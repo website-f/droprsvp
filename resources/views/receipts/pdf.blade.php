@@ -36,6 +36,12 @@
                 @if ($style['show_seller_detail'] && $receipt['seller']['detail'])
                     <div class="muted" style="margin-top: 3px;">{{ $receipt['seller']['detail'] }}</div>
                 @endif
+                @if (!empty($receipt['seller']['address']))
+                    <div class="muted" style="margin-top: 3px; white-space: pre-line;">{{ $receipt['seller']['address'] }}</div>
+                @endif
+                @if (!empty($receipt['seller']['tax_number']))
+                    <div class="muted" style="margin-top: 3px;">SST/Tax No: {{ $receipt['seller']['tax_number'] }}</div>
+                @endif
             </td>
             <td style="width: 40%; vertical-align: top;" class="right">
                 @if ($style['logo_align'] === 'right'){!! $logo !!}@endif

@@ -24,6 +24,11 @@ class PayoutController extends Controller
                 'account_number' => $user->payout_bank_account_number,
                 'account_name' => $user->payout_bank_account_name,
             ],
+            'business' => [
+                'business_name' => $user->organizerProfile?->business_name,
+                'tax_number' => $user->organizerProfile?->tax_number,
+                'business_address' => $user->organizerProfile?->business_address,
+            ],
             'banks' => Banks::options(),
             'payouts' => Payout::where('user_id', $user->id)->latest()->get()->map(fn (Payout $p) => [
                 'reference' => $p->reference,
@@ -64,5 +69,23 @@ class PayoutController extends Controller
         ])->save();
 
         return back()->with('flash_success', 'Bank details saved.');
+    }
+
+    /** Save the organizer's business + SST/tax details, printed on their receipts. */
+    public function business(Request $request)
+    {
+        $data = $request->validate([
+            'business_name' => ['nullable', 'string', 'max:150'],
+            'tax_number' => ['nullable', 'string', 'max:60'],
+            'business_address' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $request->user()->organizerProfile()->updateOrCreate([], [
+            'business_name' => $data['business_name'] ?: null,
+            'tax_number' => $data['tax_number'] ?: null,
+            'business_address' => $data['business_address'] ?: null,
+        ]);
+
+        return back()->with('flash_success', 'Invoice details saved.');
     }
 }

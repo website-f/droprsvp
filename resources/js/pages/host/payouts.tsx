@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Download, Landmark, Pencil, Plus } from 'lucide-react';
+import { CheckCircle2, Download, FileText, Landmark, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 interface Balance { gross: number; fee_percent: number; fee_type: string; fee_label: string; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
 interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
 interface Bank { bank_code: string | null; account_number: string | null; account_name: string | null }
+interface Business { business_name: string | null; tax_number: string | null; business_address: string | null }
 interface BankOption { value: string; label: string }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -22,12 +23,28 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
     );
 }
 
-export default function Payouts({ balance, payouts, bank, banks }: { balance: Balance; payouts: PayoutRow[]; bank: Bank; banks: BankOption[] }) {
+export default function Payouts({ balance, payouts, bank, business, banks }: { balance: Balance; payouts: PayoutRow[]; bank: Bank; business: Business; banks: BankOption[] }) {
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
     const errors = usePage().props.errors as Record<string, string>;
     const rm = (n: number) => `RM ${n.toFixed(2)}`;
 
     const [bankOpen, setBankOpen] = useState(false);
+    const [bizOpen, setBizOpen] = useState(false);
+    const hasBiz = !!(business.business_name || business.tax_number || business.business_address);
+    const bizForm = useForm({
+        business_name: business.business_name ?? '',
+        tax_number: business.tax_number ?? '',
+        business_address: business.business_address ?? '',
+    });
+    const openBiz = () => {
+        bizForm.setData({ business_name: business.business_name ?? '', tax_number: business.tax_number ?? '', business_address: business.business_address ?? '' });
+        bizForm.clearErrors();
+        setBizOpen(true);
+    };
+    const saveBiz = (e: React.FormEvent) => {
+        e.preventDefault();
+        bizForm.post('/host/payouts/business', { preserveScroll: true, onSuccess: () => setBizOpen(false) });
+    };
     const hasBank = !!(bank.bank_code && bank.account_number && bank.account_name);
     const bankName = banks.find((b) => b.value === bank.bank_code)?.label ?? bank.bank_code ?? '';
     const maskedAccount = bank.account_number ? `•••• ${bank.account_number.slice(-4)}` : '';
@@ -138,6 +155,68 @@ export default function Payouts({ balance, payouts, bank, banks }: { balance: Ba
                             <DialogFooter className="mt-2 gap-2">
                                 <Button type="button" variant="ghost" onClick={() => setBankOpen(false)}>Cancel</Button>
                                 <Button type="submit" disabled={bankForm.processing}>{bankForm.processing ? 'Saving…' : 'Save bank details'}</Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Invoice & tax details — printed on the receipts you issue to attendees */}
+                <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">Invoice &amp; tax details</h2>
+                            <p className="mt-0.5 text-xs text-muted-foreground">Your business name, address and SST/tax number — shown on the receipts your attendees download.</p>
+                        </div>
+                        {hasBiz && <Button type="button" variant="outline" size="sm" onClick={openBiz}><Pencil className="size-3.5" /> Edit</Button>}
+                    </div>
+
+                    <div className="mt-4">
+                        {hasBiz ? (
+                            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-foreground/5 text-foreground"><FileText className="size-5" /></div>
+                                <div className="min-w-0 flex-1 text-sm">
+                                    {business.business_name && <div className="font-semibold">{business.business_name}</div>}
+                                    {business.business_address && <div className="whitespace-pre-line text-muted-foreground">{business.business_address}</div>}
+                                    {business.tax_number && <div className="text-muted-foreground">SST/Tax No: {business.tax_number}</div>}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-8 text-center">
+                                <div className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"><FileText className="size-5" /></div>
+                                <p className="mt-3 text-sm font-medium">No invoice details yet</p>
+                                <p className="mt-1 max-w-xs text-xs text-muted-foreground">Add your business name and SST/tax number so they appear on the receipts you issue.</p>
+                                <Button type="button" className="mt-4" onClick={openBiz}><Plus className="size-4" /> Add details</Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Invoice details modal */}
+                <Dialog open={bizOpen} onOpenChange={setBizOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{hasBiz ? 'Edit invoice details' : 'Add invoice details'}</DialogTitle>
+                            <DialogDescription>These appear on the receipts your attendees download. Leave the tax number blank if you’re not SST-registered.</DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={saveBiz} className="grid gap-3">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="business_name">Business name</Label>
+                                <input id="business_name" className={field} value={bizForm.data.business_name} onChange={(e) => bizForm.setData('business_name', e.target.value)} placeholder="e.g. Acme Events Sdn Bhd" />
+                                {bizForm.errors.business_name && <p className="text-xs text-destructive">{bizForm.errors.business_name}</p>}
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="tax_number">SST / tax number</Label>
+                                <input id="tax_number" className={field} value={bizForm.data.tax_number} onChange={(e) => bizForm.setData('tax_number', e.target.value)} placeholder="e.g. W10-1808-31000123" />
+                                {bizForm.errors.tax_number && <p className="text-xs text-destructive">{bizForm.errors.tax_number}</p>}
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="business_address">Business address</Label>
+                                <textarea id="business_address" rows={3} className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20" value={bizForm.data.business_address} onChange={(e) => bizForm.setData('business_address', e.target.value)} placeholder="Street, city, postcode" />
+                                {bizForm.errors.business_address && <p className="text-xs text-destructive">{bizForm.errors.business_address}</p>}
+                            </div>
+                            <DialogFooter className="mt-2 gap-2">
+                                <Button type="button" variant="ghost" onClick={() => setBizOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={bizForm.processing}>{bizForm.processing ? 'Saving…' : 'Save invoice details'}</Button>
                             </DialogFooter>
                         </form>
                     </DialogContent>

@@ -30,6 +30,8 @@ class Receipt
                 'name' => $profile?->business_name ?: ($organizer?->name ?? config('app.name')),
                 'detail' => $organizer?->email,
                 'logo' => $organizer?->avatar ?: $profile?->poster,
+                'address' => $profile?->business_address,
+                'tax_number' => $profile?->tax_number,
             ],
             'party_label' => 'Billed to',
             'party' => [
