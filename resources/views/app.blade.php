@@ -35,9 +35,8 @@
         <link rel="icon" href="{{ $brandMark }}" type="image/png">
         <link rel="apple-touch-icon" href="{{ $brandMark }}">
 
-        {{-- Inter — DESIGN.md primary typeface (NeuSans is Meetup-proprietary). --}}
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet">
+        {{-- Inter is now self-hosted (bundled via @fontsource in resources/css/app.css),
+             so there's no render-blocking external font request. --}}
 
         {{-- Server-rendered SEO: title, meta, Open Graph, Twitter, canonical,
              robots and JSON-LD — emitted by Laravel so crawlers get everything

@@ -2,6 +2,14 @@
 
 @import 'tw-animate-css';
 
+/* Self-hosted Inter (latin, weights used by the UI) — bundled + fingerprinted by
+   Vite and served from our own domain, so no page (and no Puck editor iframe)
+   ever blocks on an external font CDN. */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 

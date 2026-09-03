@@ -99,6 +99,10 @@ export default function BuilderCanvas({ page }: { page: BuilderPage }) {
                 metadata={{ posts: page.posts ?? [] }}
                 headerTitle={page.title}
                 headerPath={`/${page.slug}`}
+                // Render the canvas immediately instead of blocking on every parent
+                // stylesheet/font copying into the iframe — that style-wait is what
+                // made the canvas spin forever on slower / restricted networks.
+                iframe={{ waitForStyles: false }}
                 onPublish={() => {}}
                 onChange={(data) => setDirty(JSON.stringify(data) !== savedSnapshot.current)}
                 overrides={{

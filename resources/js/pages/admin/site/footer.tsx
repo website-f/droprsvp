@@ -60,6 +60,7 @@ export default function FooterEditor({ data }: { data: Data | null }) {
                     data={data ?? emptyFooterData}
                     headerTitle="Footer"
                     headerPath="site-wide"
+                    iframe={{ waitForStyles: false }}
                     onPublish={() => {}}
                     overrides={{ headerActions: () => <HeaderActions /> }}
                 />
