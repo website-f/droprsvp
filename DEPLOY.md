@@ -212,6 +212,27 @@ cPanel → *Cron Jobs* (every minute; Laravel decides what actually runs):
 That fires `orders:release-stale` every 10 minutes. Nothing else depends on the
 scheduler today, but any future recurring job will run from the same single cron.
 
+## Go-live checklist (confirm before real traffic)
+
+These are **server-side settings**, not code — the app is otherwise clean
+(ship-gate: 0 critical, 0 open high). Tick each on the production box:
+
+- [ ] **`.env` is production-safe** — `APP_ENV=production`, `APP_DEBUG=false`
+      (with debug on, an error leaks a full stack trace to visitors), `APP_URL`
+      = your live `https://` domain.
+- [ ] **Payments are live** — `CHIP_DRIVER=chip` + a live `CHIP_SECRET_KEY`
+      (+ `CHIP_BRAND_ID`; `CHIP_PUBLIC_KEY` optional, auto-fetched). With the key
+      blank the app falls back to the fake gateway — never ship that.
+- [ ] **SSL valid** on the domain (cPanel → SSL/TLS Status / AutoSSL) and the
+      site is reachable over `https://` (the app force-redirects to HTTPS in prod).
+- [ ] **Scheduler cron added** — the `* * * * * … schedule:run` line above
+      (runs the abandoned-cart reaper; without it, reserved stock never frees).
+- [ ] **Mail is real** — `MAIL_MAILER=smtp` + SMTP creds (tickets, refund and
+      verification emails go out over this; `log` only writes to a file).
+- [ ] **(Recommended) Error monitoring on** — create a free Laravel project at
+      sentry.io and set `SENTRY_LARAVEL_DSN=` in `.env`. It's wired and inert
+      until you paste a DSN. Confirm it works: `php artisan sentry:test`.
+
 ## Verify (no browser needed)
 
 ```bash
@@ -219,4 +240,5 @@ curl -s https://yourdomain.com/ | grep -o '<title>[^<]*'         # server-render
 curl -s https://yourdomain.com/ | grep -o '"@type":"WebSite"'    # JSON-LD present
 curl -s https://yourdomain.com/sitemap.xml | head                # sitemap
 curl -sI https://yourdomain.com/build/manifest.json              # assets 200, not 404
+curl -sI https://yourdomain.com/up                               # health check → 200
 ```
