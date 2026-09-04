@@ -239,6 +239,7 @@ class CheckoutController extends Controller
             'subtotal' => (float) $order->subtotal,
             'discount' => (float) $order->discount,
             'discount_code' => $order->discount_code_id ? $order->discountCode?->code : null,
+            'fees' => (float) $order->fees,
             'tax' => (float) $order->tax,
             'total' => (float) $order->total,
             'buyer_name' => $order->buyer_name,

@@ -25,41 +25,24 @@ class PayoutTest extends TestCase
         return $host;
     }
 
-    public function test_balance_applies_the_platform_fee(): void
+    public function test_organizer_receives_the_full_ticket_revenue_the_buyer_paid_the_fee(): void
     {
-        Config::set('droprsvp.platform_fee_percent', 10);
-        $host = $this->hostWithRevenue(100);
+        $host = $this->organizer();
+        $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
+        // Buyer paid RM105 (RM100 ticket + RM5 booking fee). The fee is the platform's;
+        // the organizer keeps the RM100 ticket revenue.
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'subtotal' => 100, 'fees' => 5, 'total' => 105, 'paid_at' => now()]);
 
         $this->actingAs($host)->get(route('host.payouts.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p
                 ->component('host/payouts')
-                ->where('balance.gross', 100)
-                ->where('balance.fee', 10)
-                ->where('balance.net', 90)
-                ->where('balance.available', 90));
-    }
-
-    public function test_balance_applies_a_fixed_per_order_fee(): void
-    {
-        \App\Models\Setting::put('platform_fee_type', 'fixed');
-        \App\Models\Setting::put('platform_fee_fixed', 2);
-        $host = $this->organizer();
-        $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
-        // Two paid orders → RM2 each → RM4 fee, regardless of order value.
-        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => 100, 'paid_at' => now()]);
-        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => 50, 'paid_at' => now()]);
-
-        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
-        $this->assertSame(150.0, $balance['gross']);
-        $this->assertSame(4.0, $balance['fee']);
-        $this->assertSame(146.0, $balance['net']);
-        $this->assertSame('fixed', $balance['fee_type']);
+                ->where('balance.net', 100)
+                ->where('balance.available', 100));
     }
 
     public function test_upcoming_event_revenue_is_held_until_the_event_ends(): void
     {
-        Config::set('droprsvp.platform_fee_percent', 0);
         $host = $this->organizer();
 
         // Future event — funds not yet matured.
@@ -79,60 +62,29 @@ class PayoutTest extends TestCase
         $this->assertSame(100.0, $balance['pending_clearance']);
     }
 
-    public function test_partial_refunds_are_removed_from_the_withdrawable_balance(): void
+    public function test_partial_refunds_and_the_fee_are_excluded_from_the_withdrawable_balance(): void
     {
-        Config::set('droprsvp.platform_fee_percent', 5);
         $host = $this->organizer();
         // Matured event so the takings are available.
         $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->subDays(2)]);
-        // Paid order of RM100 with RM40 already refunded to the buyer (still 'paid').
-        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'total' => 100, 'refunded_amount' => 40, 'paid_at' => now()]);
+        // Buyer paid RM105 (RM100 ticket + RM5 fee); RM40 later refunded to them.
+        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'subtotal' => 100, 'fees' => 5, 'total' => 105, 'refunded_amount' => 40, 'paid_at' => now()]);
 
         $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
 
-        // Only the retained RM60 counts — fee 5% = 3, net + available = 57.
-        $this->assertSame(60.0, $balance['gross']);
-        $this->assertSame(3.0, $balance['fee']);
-        $this->assertSame(57.0, $balance['net']);
-        $this->assertSame(57.0, $balance['available']);
-    }
-
-    public function test_the_platform_fee_excludes_tax(): void
-    {
-        Config::set('droprsvp.platform_fee_percent', 5);
-        $host = $this->organizer();
-        $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
-        // RM100 ticket revenue + RM6 tax = RM106 total.
-        Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'subtotal' => 100, 'tax' => 6, 'total' => 106, 'paid_at' => now()]);
-
-        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
-
-        // Fee is 5% of the RM100 ticket revenue (RM5.00), NOT of the tax-inclusive 106.
-        $this->assertSame(106.0, $balance['gross']);
-        $this->assertSame(5.0, $balance['fee']);
-        $this->assertSame(101.0, $balance['net']); // organizer keeps the RM6 tax to remit
-    }
-
-    public function test_a_misconfigured_over_100_percent_fee_cannot_go_negative(): void
-    {
-        Config::set('droprsvp.platform_fee_percent', 150);
-        $host = $this->hostWithRevenue(100);
-
-        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
-
-        $this->assertSame(100.0, $balance['fee']); // capped at gross
-        $this->assertSame(0.0, $balance['net']);
+        // Organizer keeps total − fees − refunded = 105 − 5 − 40 = 60.
+        $this->assertSame(60.0, $balance['net']);
+        $this->assertSame(60.0, $balance['available']);
     }
 
     public function test_requesting_a_payout_reduces_available_to_zero(): void
     {
-        Config::set('droprsvp.platform_fee_percent', 10);
         $host = $this->hostWithRevenue(100);
 
         $this->actingAs($host)->post(route('host.payouts.request'))->assertRedirect();
 
         $payout = Payout::first();
-        $this->assertEquals(90, $payout->amount);
+        $this->assertEquals(100, $payout->amount);
         $this->assertSame('pending', $payout->status);
         $this->assertSame($host->id, $payout->user_id);
 

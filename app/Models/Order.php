@@ -69,10 +69,14 @@ class Order extends Model
         return $this->status === 'paid';
     }
 
-    /** Amount still refundable on a paid order (total minus what's already refunded). */
+    /**
+     * Amount still refundable on a paid order. The buyer-paid platform booking fee
+     * is non-refundable (industry standard), so only the ticket + tax portion
+     * (total − fees) can be returned, minus anything already refunded.
+     */
     public function remainingRefundable(): float
     {
-        return max(0.0, round((float) $this->total - (float) $this->refunded_amount, 2));
+        return max(0.0, round((float) $this->total - (float) $this->fees - (float) $this->refunded_amount, 2));
     }
 
     /** Is there a refund request awaiting an organizer decision? */

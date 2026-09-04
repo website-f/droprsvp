@@ -68,6 +68,8 @@ class FinanceController extends Controller
     {
         return [
             'ticket_sales' => (float) Order::whereIn('status', ['paid', 'refunded'])->sum('total'),
+            // Buyer-paid booking fees the platform kept (its ticket revenue).
+            'platform_fees' => (float) Order::whereIn('status', ['paid', 'refunded'])->sum('fees'),
             'boosts' => (float) Promotion::where('status', 'paid')->sum('amount'),
             'subscriptions' => (float) Subscription::where('status', 'paid')->sum('amount'),
             'refunds' => (float) Order::sum('refunded_amount'),
@@ -96,7 +98,8 @@ class FinanceController extends Controller
         $k = $this->kpis();
 
         return [
-            ['label' => 'Ticket sales', 'value' => round($k['ticket_sales'], 2)],
+            ['label' => 'Ticket sales (GMV)', 'value' => round($k['ticket_sales'], 2)],
+            ['label' => 'Platform fees', 'value' => round($k['platform_fees'], 2)],
             ['label' => 'Boosts', 'value' => round($k['boosts'], 2)],
             ['label' => 'Subscriptions', 'value' => round($k['subscriptions'], 2)],
         ];

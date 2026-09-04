@@ -69,7 +69,9 @@ go(i + (dx < 0 ? 1 : -1));
                                 {b.image && <img src={b.image} alt={b.heading || ''} className="absolute inset-0 size-full object-cover" loading={idx === 0 ? 'eager' : 'lazy'} />}
                                 <div className={`absolute inset-0 bg-gradient-to-r ${ALIGN_GRADIENT[align]}`} />
                                 {(b.heading || b.subheading || b.cta_label) && (
-                                    <div className={`relative flex h-full flex-col justify-center gap-3 p-6 text-white sm:p-10 ${ALIGN_ITEMS[align]}`}>
+                                    // Extra horizontal room when the prev/next arrows are shown so
+                                    // left/right-aligned copy never sits under them.
+                                    <div className={`relative flex h-full flex-col justify-center gap-3 py-6 text-white sm:py-10 ${n > 1 ? 'px-14 sm:px-16' : 'px-6 sm:px-10'} ${ALIGN_ITEMS[align]}`}>
                                         {b.heading && <h2 className="max-w-2xl text-2xl font-extrabold uppercase leading-tight tracking-tight sm:text-4xl">{b.heading}</h2>}
                                         {b.subheading && <p className="max-w-xl text-sm text-white/85 sm:text-base">{b.subheading}</p>}
                                         {b.cta_label && b.cta_url && (

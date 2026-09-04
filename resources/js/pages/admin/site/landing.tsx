@@ -18,6 +18,8 @@ interface Sections {
     nearby_cities: { enabled: boolean; heading: string; cities: string[] };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
     contact: { enabled: boolean; heading: string; subheading: string };
+    showcase: { enabled: boolean };
+    seo_text: { enabled: boolean; heading: string; body: string };
 }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -273,6 +275,26 @@ patchHero({ style: 'banners', banners: [emptyBanner()] });
                         <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.contact.heading} onChange={(e) => patch('contact', { heading: e.target.value })} /></div>
                         <div className="grid gap-1.5"><Label>Subheading</Label><textarea className={area} rows={2} value={data.contact.subheading} onChange={(e) => patch('contact', { subheading: e.target.value })} /></div>
                         <p className="text-xs text-muted-foreground">A contact form on the home page; submissions appear under Contact messages.</p>
+                    </Card>
+
+                    {/* Illustration showcase */}
+                    <Card>
+                        <div className="flex items-center justify-between">
+                            <h2 className="font-semibold">Illustration sections</h2>
+                            <Toggle on={data.showcase.enabled} onChange={(v) => patch('showcase', { enabled: v })} label={data.showcase.enabled ? 'Shown' : 'Hidden'} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">The two illustrated bands — “For every kind of gathering” and “Everything you need to run the night”. Turn off to hide both (e.g. in favour of the SEO text block below).</p>
+                    </Card>
+
+                    {/* SEO text block */}
+                    <Card>
+                        <div className="flex items-center justify-between">
+                            <h2 className="font-semibold">SEO text block</h2>
+                            <Toggle on={data.seo_text.enabled} onChange={(v) => patch('seo_text', { enabled: v })} label={data.seo_text.enabled ? 'Shown' : 'Hidden'} />
+                        </div>
+                        <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.seo_text.heading} onChange={(e) => patch('seo_text', { heading: e.target.value })} placeholder="e.g. Discover & host events across Malaysia" /></div>
+                        <div className="grid gap-1.5"><Label>Body</Label><textarea className={area} rows={6} value={data.seo_text.body} onChange={(e) => patch('seo_text', { body: e.target.value })} placeholder="Keyword-rich copy shown near the foot of the home page…" /></div>
+                        <p className="text-xs text-muted-foreground">A keyword-friendly paragraph near the foot of the home page, collapsed to a teaser with a “Read more” link.</p>
                     </Card>
                 </div>
 

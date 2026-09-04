@@ -37,7 +37,7 @@ class SettingsTest extends TestCase
     public function test_saving_settings_persists_fees_and_tax(): void
     {
         $this->actingAs($this->superadmin())->post(route('admin.settings.save'), [
-            'fee_type' => 'percent', 'fee_percent' => 7, 'fee_fixed' => 0, 'boost_price' => 60, 'boost_days' => 10, 'premium_price' => 29, 'premium_days' => 30,
+            'fee_percent' => 7, 'fee_flat' => 0, 'boost_price' => 60, 'boost_days' => 10, 'premium_price' => 29, 'premium_days' => 30,
             'tax_percent' => 8, 'tax_label' => 'SST', 'tax_inclusive' => true, 'support_email' => 'help@droprsvp.test',
         ])->assertRedirect();
 

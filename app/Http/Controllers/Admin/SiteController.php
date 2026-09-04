@@ -60,6 +60,12 @@ class SiteController extends Controller
             'contact.enabled' => ['boolean'],
             'contact.heading' => ['nullable', 'string', 'max:120'],
             'contact.subheading' => ['nullable', 'string', 'max:300'],
+            'showcase' => ['array'],
+            'showcase.enabled' => ['boolean'],
+            'seo_text' => ['array'],
+            'seo_text.enabled' => ['boolean'],
+            'seo_text.heading' => ['nullable', 'string', 'max:150'],
+            'seo_text.body' => ['nullable', 'string', 'max:5000'],
         ]);
 
         Setting::putArray('landing_sections', $data);

@@ -53,6 +53,8 @@ interface LandingSections {
     nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; lat: number | null; lng: number | null }> };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
     contact: { enabled: boolean; heading: string; subheading: string };
+    showcase?: { enabled: boolean };
+    seo_text?: { enabled: boolean; heading: string; body: string };
 }
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -144,6 +146,8 @@ export default function Welcome() {
     const nearby = sections?.nearby_cities;
     const featuredOrgs = sections?.featured_organizers;
     const contact = sections?.contact;
+    const seoText = sections?.seo_text;
+    const [seoExpanded, setSeoExpanded] = useState(false);
 
     // Resolve the visitor's location for the nearby-cities distances. We do this at
     // most ONCE per browser: a fresh cached fix is reused silently (loaded straight
@@ -422,6 +426,8 @@ export default function Welcome() {
                     </section>
                 )}
 
+                {/* ---------------------------- Illustration showcase (toggle) */}
+                {(sections?.showcase?.enabled ?? true) && (<>
                 {/* ------------------------------------------- Gatherings band */}
                 <section className="relative overflow-hidden">
                     <div aria-hidden className="pointer-events-none absolute -left-24 top-0 size-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
@@ -490,6 +496,7 @@ export default function Welcome() {
                         </div>
                     </div>
                 </section>
+                </>)}
 
                 {/* -------------------------------------------- Organizer band */}
                 {(org?.enabled ?? true) && (
@@ -517,6 +524,22 @@ export default function Welcome() {
                                 )}
                             </div>
                         </Reveal>
+                    </section>
+                )}
+
+                {/* --------------------------------------------- SEO text block */}
+                {seoText?.enabled && seoText.body && (
+                    <section className="border-t border-border bg-muted/20">
+                        <div className="mx-auto w-full max-w-4xl px-6 py-12">
+                            {seoText.heading && <h2 className="text-lg font-bold tracking-tight">{seoText.heading}</h2>}
+                            <div className={`relative mt-3 text-sm leading-relaxed whitespace-pre-line text-muted-foreground ${seoExpanded ? '' : 'max-h-24 overflow-hidden'}`}>
+                                {seoText.body}
+                                {!seoExpanded && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-muted/20 to-transparent" />}
+                            </div>
+                            <button type="button" onClick={() => setSeoExpanded((v) => !v)} className="mt-2 text-sm font-semibold text-primary hover:underline">
+                                {seoExpanded ? 'Show less' : 'Read more'}
+                            </button>
+                        </div>
                     </section>
                 )}
 

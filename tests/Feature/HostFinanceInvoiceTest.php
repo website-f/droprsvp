@@ -31,19 +31,17 @@ class HostFinanceInvoiceTest extends TestCase
 
     public function test_organizer_finance_overview_shows_balance_and_per_event_breakdown(): void
     {
-        Config::set('droprsvp.platform_fee_percent', 10);
         $host = $this->organizer();
         $event = $this->eventFor($host);
-        $this->paidOrder($event);
+        // Buyer paid RM110 (RM100 ticket + RM10 fee) — organizer keeps RM100.
+        $this->paidOrder($event, ['subtotal' => 100, 'fees' => 10, 'total' => 110]);
 
         $this->actingAs($host)->get('/host/finance')->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('host/finance')
-                ->where('balance.gross', 100)
-                ->where('balance.fee', 10)
-                ->where('balance.net', 90)
+                ->where('balance.net', 100)
                 ->has('events', 1)
-                ->where('events.0.gross', 100)
-                ->where('events.0.net', 90));
+                ->where('events.0.net', 100)
+                ->where('events.0.fee', 10)); // buyer-paid, informational
     }
 
     public function test_organizer_invoices_hub_lists_events_and_payouts(): void

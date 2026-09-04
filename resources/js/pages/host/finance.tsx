@@ -3,7 +3,7 @@ import { Banknote, CircleDollarSign, Clock, Landmark, TrendingUp, Wallet } from 
 import { Button } from '@/components/ui/button';
 
 interface Balance {
-    gross: number; fee_percent: number; fee_type: string; fee_label: string; fee: number;
+    gross: number; fee_label: string;
     net: number; withdrawn: number; available: number; pending_clearance: number;
 }
 interface EventRow { slug: string; title: string; status: string; sold: number; gross: number; fee: number; net: number }
@@ -30,14 +30,14 @@ export default function HostFinance({ balance, feeLabel, events }: Props) {
                 <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Finance</h1>
-                        <p className="text-sm text-muted-foreground">Your revenue, the platform fee and what’s available to pay out — tallies with the admin side.</p>
+                        <p className="text-sm text-muted-foreground">Your ticket revenue and what’s available to pay out. Buyers pay the platform fee ({feeLabel}) at checkout — it isn’t deducted from you.</p>
                     </div>
                     <Button asChild variant="outline"><Link href="/host/payouts"><Landmark className="size-4" /> Payouts</Link></Button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-                    <Stat icon={TrendingUp} label="Gross ticket revenue" value={rm(balance.gross)} tint="#6c63ff" />
-                    <Stat icon={CircleDollarSign} label={`Platform fee · ${feeLabel}`} value={`− ${rm(balance.fee)}`} tint="#ff6584" />
+                    <Stat icon={TrendingUp} label="Ticket revenue (yours)" value={rm(balance.net)} tint="#6c63ff" />
+                    <Stat icon={CircleDollarSign} label="Buyer fees collected" value={rm(events.reduce((s, e) => s + e.fee, 0))} tint="#ff6584" hint="Paid by buyers to the platform" />
                     <Stat icon={Wallet} label="Net earnings" value={rm(balance.net)} tint="#22c55e" />
                     <Stat icon={Banknote} label="Available to withdraw" value={rm(balance.available)} tint="#2ec4b6" />
                     <Stat icon={Clock} label="Held until events end" value={rm(balance.pending_clearance)} tint="#f5a524" hint="Clears once those events have taken place" />

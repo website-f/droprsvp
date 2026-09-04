@@ -17,7 +17,6 @@ class OverviewController extends Controller
     {
         $paid = Order::where('status', 'paid');
         $gross = (float) (clone $paid)->sum(\DB::raw('total - refunded_amount'));
-        $paidOrders = (clone $paid)->count();
 
         return inertia('admin/overview', [
             'fee_percent' => PlatformFee::percent(),
@@ -29,7 +28,8 @@ class OverviewController extends Controller
                 'published' => Event::where('status', 'published')->count(),
                 'tickets_sold' => Ticket::whereIn('status', ['valid', 'checked_in'])->count(),
                 'gross' => $gross,
-                'platform_fees' => PlatformFee::on($gross, $paidOrders),
+                // Buyer-paid booking fees the platform kept (non-refundable).
+                'platform_fees' => (float) Order::whereIn('status', ['paid', 'refunded'])->sum('fees'),
                 'pending_payouts' => (float) Payout::where('status', 'pending')->sum('amount'),
                 'paid_out' => (float) Payout::where('status', 'paid')->sum('amount'),
             ],

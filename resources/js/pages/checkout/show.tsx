@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 
 interface OrderView {
     reference: string; currency: string; total: number;
-    subtotal: number; discount: number; discount_code?: string | null; tax: number;
+    subtotal: number; discount: number; discount_code?: string | null; fees: number; tax: number;
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
     items: Array<{ name: string; quantity: number; unit_price: number; line_total: number }>;
 }
@@ -191,6 +191,7 @@ export default function CheckoutShow({ order, required, buyer }: { order: OrderV
                                 <div className="grid gap-1.5 text-sm">
                                     <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>RM {order.subtotal.toFixed(2)}</span></div>
                                     {order.discount > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span>− RM {order.discount.toFixed(2)}</span></div>}
+                                    {order.fees > 0 && <div className="flex justify-between text-muted-foreground"><span>Platform fee</span><span>RM {order.fees.toFixed(2)}</span></div>}
                                     {order.tax > 0 && <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>RM {order.tax.toFixed(2)}</span></div>}
                                 </div>
                             )}

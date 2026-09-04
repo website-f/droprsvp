@@ -196,6 +196,18 @@ class SiteContent
                 'heading' => 'Get in touch',
                 'subheading' => 'Questions about tickets, your events, or working with us? Send a message and the right team will get back to you.',
             ],
+            // Illustration showcase (the "gatherings" + "how it works" bands). Toggle
+            // off to hide both — e.g. in favour of the SEO text block below.
+            'showcase' => [
+                'enabled' => true,
+            ],
+            // An SEO-friendly text block near the foot of the page (collapsed to a
+            // teaser with "Read more"). Admin-editable copy for keywords/context.
+            'seo_text' => [
+                'enabled' => false,
+                'heading' => '',
+                'body' => '',
+            ],
         ];
     }
 

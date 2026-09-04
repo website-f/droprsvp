@@ -109,7 +109,9 @@ class CheckoutService
                 }
             }
 
-            // Tax is superadmin-configurable (0 by default → no change to totals).
+            // Buyer-paid booking fee (higher of % or flat) + optional tax, both on
+            // the ticket spend. A discount applied later re-prices via reprice().
+            $fees = \App\Support\PlatformFee::on($subtotal);
             $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
             $tax = round($subtotal * $taxPercent / 100, 2);
 
@@ -119,8 +121,9 @@ class CheckoutService
                 'event_id' => $event->id,
                 'status' => 'pending',
                 'subtotal' => $subtotal,
+                'fees' => $fees,
                 'tax' => $tax,
-                'total' => $subtotal + $tax,
+                'total' => round($subtotal + $fees + $tax, 2),
                 'currency' => $currency,
             ]);
             $order->items()->createMany($lines);
@@ -169,14 +172,17 @@ class CheckoutService
         $discount = round(min($discount, $subtotal), 2);
         $taxable = max(0.0, $subtotal - $discount);
 
+        // Fee + tax follow the discounted ticket spend.
+        $fees = \App\Support\PlatformFee::on($taxable);
         $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
         $tax = round($taxable * $taxPercent / 100, 2);
 
         $order->update([
             'discount' => $discount,
             'discount_code_id' => $discountCodeId,
+            'fees' => $fees,
             'tax' => $tax,
-            'total' => round($taxable + $tax, 2),
+            'total' => round($taxable + $fees + $tax, 2),
         ]);
     }
 
@@ -307,7 +313,9 @@ class CheckoutService
                 return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'not_paid'];
             }
 
-            $remaining = max(0.0, round((float) $locked->total - (float) $locked->refunded_amount, 2));
+            // The booking fee is non-refundable — only the ticket+tax portion is.
+            $refundable = round((float) $locked->total - (float) $locked->fees, 2);
+            $remaining = max(0.0, round($refundable - (float) $locked->refunded_amount, 2));
             $amt = $amount === null ? $remaining : round(min((float) $amount, $remaining), 2);
             if ($amt <= 0) {
                 return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'nothing'];
@@ -320,10 +328,10 @@ class CheckoutService
             }
 
             $newRefunded = round((float) $locked->refunded_amount + $amt, 2);
-            $full = $newRefunded >= (float) $locked->total - 0.001;
+            $full = $newRefunded >= $refundable - 0.001;
 
             if ($full) {
-                $locked->update(['status' => 'refunded', 'refunded_at' => now(), 'refunded_amount' => $locked->total]);
+                $locked->update(['status' => 'refunded', 'refunded_at' => now(), 'refunded_amount' => $refundable]);
                 $locked->tickets()->whereIn('status', ['valid', 'checked_in'])->update(['status' => 'refunded']);
                 $this->releaseStock($locked);
             } else {

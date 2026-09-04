@@ -16,6 +16,10 @@ abstract class TestCase extends BaseTestCase
         // Run defer()'d work (e.g. transactional emails sent after the response)
         // inline, so tests can assert on it without a request-terminate phase.
         $this->withoutDefer();
+
+        // No platform booking fee by default — tests that exercise the fee set it
+        // explicitly, so unrelated total/revenue assertions aren't coupled to it.
+        config(['droprsvp.platform_fee_percent' => 0, 'droprsvp.platform_fee_flat' => 0]);
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

@@ -5,66 +5,57 @@ namespace App\Support;
 use App\Models\Setting;
 
 /**
- * The platform's take-rate on an organizer's gross ticket revenue. Configurable
- * (superadmin, under Settings → Payments) as EITHER a percentage of gross, OR a
- * flat currency amount charged per paid order. One place computes it so the
- * organizer balance, admin overview and "heads-up" copy never drift apart.
+ * The platform fee charged to the BUYER on each ticket order (a booking fee added
+ * at checkout, shown as its own line on the receipt). It's the HIGHER of a
+ * percentage of the ticket spend OR a flat amount — so a cheap ticket still earns
+ * a sensible minimum, and a pricey one scales up. Configurable by the superadmin
+ * under Settings → Payments. One place computes it so checkout, receipts and the
+ * admin books never drift.
  */
 class PlatformFee
 {
-    /** @return 'percent'|'fixed' */
-    public static function type(): string
-    {
-        return Setting::get('platform_fee_type', config('droprsvp.platform_fee_type')) === 'fixed' ? 'fixed' : 'percent';
-    }
-
     public static function percent(): float
     {
         return (float) Setting::get('platform_fee_percent', config('droprsvp.platform_fee_percent'));
     }
 
-    /** Flat amount (in the platform currency) charged per paid order. */
-    public static function fixed(): float
+    /** Flat minimum fee (in the platform currency). */
+    public static function flat(): float
     {
-        return (float) Setting::get('platform_fee_fixed', config('droprsvp.platform_fee_fixed'));
+        return (float) Setting::get('platform_fee_flat', config('droprsvp.platform_fee_flat'));
     }
 
     /**
-     * The fee charged on `gross` revenue that came from `orders` paid orders.
-     * A fixed fee is capped at gross so an organizer's net can never go negative.
+     * The fee on a ticket-spend base — the greater of the % or the flat amount.
+     * Free orders (base ≤ 0) are never charged a fee.
      */
-    public static function on(float $gross, int $orders): float
+    public static function on(float $base): float
     {
-        if (self::type() === 'fixed') {
-            return round(min($gross, self::fixed() * max(0, $orders)), 2);
+        if ($base <= 0) {
+            return 0.0;
         }
 
-        // Capped at gross so a misconfigured >100% rate can never push net negative.
-        return round(min($gross, $gross * self::percent() / 100), 2);
+        return round(max($base * self::percent() / 100, self::flat()), 2);
     }
 
-    /** Short, human label — "5%" or "RM2.00 per order". */
+    /** Short, human label — "the higher of 5% or RM2.00". */
     public static function label(): string
     {
-        if (self::type() === 'fixed') {
-            return 'RM'.number_format(self::fixed(), 2).' per order';
-        }
+        $pct = rtrim(rtrim(number_format(self::percent(), 2), '0'), '.');
 
-        // Trim trailing zeros so 5.00 reads as "5%" but 8.50 stays "8.5%".
-        return rtrim(rtrim(number_format(self::percent(), 2), '0'), '.').'%';
+        return 'the higher of '.$pct.'% or RM'.number_format(self::flat(), 2);
     }
 
     /**
      * Structured descriptor for the frontend.
      *
-     * @return array{type:string,percent:float,fixed:float,label:string}
+     * @return array{percent:float,flat:float,label:string}
      */
     public static function toArray(): array
     {
         return [
-            'type' => self::type(),
             'percent' => self::percent(),
-            'fixed' => self::fixed(),
+            'flat' => self::flat(),
             'label' => self::label(),
         ];
     }

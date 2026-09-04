@@ -22,27 +22,27 @@ class FinanceController extends Controller
         $user = $request->user();
         $balance = $this->payouts->balanceFor($user);
 
-        // Per-event: gross paid revenue, the fee on it, and the resulting net.
+        // Per-event: the organizer's ticket revenue (total − fees), net of refunds.
+        // Buyers pay the platform fee separately, so it isn't deducted here.
         $events = Event::where('user_id', $user->id)
             ->withCount(['tickets as sold' => fn ($q) => $q->whereIn('status', ['valid', 'checked_in'])])
-            ->withCount(['orders as paid_orders' => fn ($q) => $q->where('status', 'paid')])
-            ->withSum(['orders as gross' => fn ($q) => $q->where('status', 'paid')], \DB::raw('total - refunded_amount'))
+            ->withSum(['orders as net' => fn ($q) => $q->where('status', 'paid')], \DB::raw('total - fees - refunded_amount'))
+            ->withSum(['orders as buyer_fees' => fn ($q) => $q->whereIn('status', ['paid', 'refunded'])], 'fees')
             ->get()
             ->map(function (Event $e) {
-                $gross = round((float) ($e->gross ?? 0), 2);
-                $fee = PlatformFee::on($gross, (int) $e->paid_orders);
+                $net = round((float) ($e->net ?? 0), 2);
 
                 return [
                     'slug' => $e->slug,
                     'title' => $e->title,
                     'status' => $e->status,
                     'sold' => (int) $e->sold,
-                    'gross' => $gross,
-                    'fee' => $fee,
-                    'net' => round($gross - $fee, 2),
+                    'gross' => $net,
+                    'fee' => round((float) ($e->buyer_fees ?? 0), 2), // buyer-paid, informational
+                    'net' => $net,
                 ];
             })
-            ->sortByDesc('gross')->values();
+            ->sortByDesc('net')->values();
 
         return inertia('host/finance', [
             'balance' => $balance,

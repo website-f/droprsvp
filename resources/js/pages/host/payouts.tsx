@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
-interface Balance { gross: number; fee_percent: number; fee_type: string; fee_label: string; fee: number; net: number; withdrawn: number; available: number; pending_clearance: number }
+interface Balance { gross: number; fee_label: string; net: number; withdrawn: number; available: number; pending_clearance: number }
 interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
 interface Bank { bank_code: string | null; account_number: string | null; account_name: string | null }
 interface Business { business_name: string | null; tax_number: string | null; business_address: string | null }
@@ -79,12 +79,11 @@ export default function Payouts({ balance, payouts, bank, business, banks }: { b
                     <div className="mt-1 text-4xl font-bold tabular-nums">{rm(balance.available)}</div>
 
                     <div className="mt-5 border-t border-border pt-3">
-                        <Line label="Gross ticket revenue" value={rm(balance.gross)} />
-                        <Line label={`Platform fee (${balance.fee_label})`} value={`− ${rm(balance.fee)}`} />
-                        <Line label="Net earnings" value={rm(balance.net)} strong />
+                        <Line label="Ticket revenue (yours to keep)" value={rm(balance.net)} strong />
                         {balance.pending_clearance > 0 && <Line label="Held until events end" value={`− ${rm(balance.pending_clearance)}`} />}
                         <Line label="Already paid out / requested" value={`− ${rm(balance.withdrawn)}`} />
                     </div>
+                    <p className="mt-2 text-xs text-muted-foreground">You keep the full ticket price — the platform fee ({balance.fee_label}) is paid by buyers at checkout, not deducted from you.</p>
 
                     {balance.pending_clearance > 0 && (
                         <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{rm(balance.pending_clearance)} becomes available for payout once those events have taken place.</p>

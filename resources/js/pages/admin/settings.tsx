@@ -11,7 +11,7 @@ interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean;
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
 interface Announcement { active: boolean; style: string; level: string; title: string; body: string; cta_label: string; cta_url: string; version: number }
 interface SettingsData {
-    fee_type: 'percent' | 'fixed'; fee_percent: number; fee_fixed: number;
+    fee_percent: number; fee_flat: number;
     boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
     checkout_required: CheckoutRequired; ticketing_modes: TicketingModes; announcement: Announcement; trending_keywords: string;
@@ -53,9 +53,8 @@ export default function Settings({ settings, rolePermissions, permissionSections
         perms.setData('permissions', { staff: cur.includes(section) ? cur.filter((s) => s !== section) : [...cur, section] });
     };
     const form = useForm({
-        fee_type: settings.fee_type,
         fee_percent: String(settings.fee_percent),
-        fee_fixed: String(settings.fee_fixed),
+        fee_flat: String(settings.fee_flat),
         boost_price: String(settings.boost_price),
         boost_days: String(settings.boost_days),
         premium_price: String(settings.premium_price),
@@ -117,29 +116,21 @@ export default function Settings({ settings, rolePermissions, permissionSections
                     {tab === 'payments' && (
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2 grid gap-1.5">
-                                <Label>Platform fee <span className="font-normal text-muted-foreground">— charged to organizers</span></Label>
+                                <Label>Platform fee <span className="font-normal text-muted-foreground">— the higher of % or flat RM, paid by buyers at checkout</span></Label>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <div className="inline-flex h-10 rounded-lg border border-border p-0.5">
-                                        <button type="button" onClick={() => setData('fee_type', 'percent')} className={`flex items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors ${data.fee_type === 'percent' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><Percent className="size-3.5" /> Percentage</button>
-                                        <button type="button" onClick={() => setData('fee_type', 'fixed')} className={`flex items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors ${data.fee_type === 'fixed' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><Banknote className="size-3.5" /> Fixed (RM)</button>
+                                    <div className="relative w-36">
+                                        <input type="number" min={0} max={100} step="0.1" className={`${input} pr-8`} value={data.fee_percent} onChange={(e) => setData('fee_percent', e.target.value)} />
+                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
                                     </div>
-                                    {data.fee_type === 'percent' ? (
-                                        <div className="relative w-36">
-                                            <input type="number" min={0} max={100} step="0.1" className={`${input} pr-8`} value={data.fee_percent} onChange={(e) => setData('fee_percent', e.target.value)} />
-                                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                                        </div>
-                                    ) : (
-                                        <div className="relative w-36">
-                                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">RM</span>
-                                            <input type="number" min={0} step="0.5" className={`${input} pl-10`} value={data.fee_fixed} onChange={(e) => setData('fee_fixed', e.target.value)} />
-                                        </div>
-                                    )}
+                                    <span className="text-sm font-medium text-muted-foreground">or</span>
+                                    <div className="relative w-36">
+                                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">RM</span>
+                                        <input type="number" min={0} step="0.5" className={`${input} pl-10`} value={data.fee_flat} onChange={(e) => setData('fee_flat', e.target.value)} />
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">whichever is higher</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    {data.fee_type === 'percent'
-                                        ? "Deducted from each organizer's ticket revenue at payout (e.g. 5% of a RM100 sale = RM5 kept, RM95 to the organizer)."
-                                        : 'A flat amount deducted from each paid order at payout — capped at the order total.'}
-                                    {' '}Buyers are never charged this — they only pay the ticket price (plus tax, if enabled).
+                                    Added to each paid order as a booking fee and shown as its own line on the receipt. The system charges whichever is greater — so a RM29 ticket earns the flat RM{data.fee_flat || '0'}, while a RM200 ticket earns {data.fee_percent || '0'}%. Organizers keep the full ticket price; free tickets are never charged.
                                 </p>
                             </div>
                             <Field label="Event boost price (RM)"><input type="number" min={0} step="1" className={input} value={data.boost_price} onChange={(e) => setData('boost_price', e.target.value)} /></Field>

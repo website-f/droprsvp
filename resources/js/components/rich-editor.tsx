@@ -1,4 +1,4 @@
-import { Bold, Code, Code2, Eye, Heading1, Heading2, Heading3, Image as ImageIcon, Italic, Link2, List, ListOrdered, Maximize2, Minimize2, Minus, Pilcrow, Quote, RemoveFormatting, Strikethrough, Underline, Youtube } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Code2, Eye, Image as ImageIcon, Italic, Link2, List, ListOrdered, Maximize2, Minimize2, Minus, Quote, RemoveFormatting, Strikethrough, Underline, Youtube } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { usePrompt } from '@/components/prompt-dialog';
 import { uploadImage } from '@/lib/upload';
@@ -210,20 +210,38 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
     const empty = isEmptyHtml(value || '');
 
     return (
-        <div className={`rte flex flex-col overflow-hidden rounded-xl border border-input bg-card shadow-sm ${full ? 'fixed inset-0 z-[100] rounded-none' : ''}`}>
+        <div className={`rte flex flex-col overflow-hidden rounded-xl border border-input bg-card shadow-sm ${full ? 'fixed inset-0 z-40 rounded-none' : ''}`}>
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-0.5 border-b border-input bg-muted/40 px-2 py-1.5">
                 {mode === 'visual' && (
                     <>
-                        <Btn onClick={() => block('P')} title="Paragraph"><Pilcrow className="size-4" /></Btn>
-                        <Btn onClick={() => block('H1')} title="Heading 1"><Heading1 className="size-4" /></Btn>
-                        <Btn onClick={() => block('H2')} title="Heading 2"><Heading2 className="size-4" /></Btn>
-                        <Btn onClick={() => block('H3')} title="Heading 3"><Heading3 className="size-4" /></Btn>
+                        {/* Paragraph / heading level (P + H1–H6) */}
+                        <select
+                            title="Text style"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+ block(e.target.value); e.target.selectedIndex = 0; 
+}}
+                            defaultValue=""
+                            className="h-8 rounded-md border border-input bg-card px-2 text-sm text-foreground outline-none hover:bg-accent">
+                            <option value="" disabled>Style</option>
+                            <option value="P">Paragraph</option>
+                            <option value="H1">Heading 1</option>
+                            <option value="H2">Heading 2</option>
+                            <option value="H3">Heading 3</option>
+                            <option value="H4">Heading 4</option>
+                            <option value="H5">Heading 5</option>
+                            <option value="H6">Heading 6</option>
+                        </select>
                         <Sep />
                         <Btn onClick={() => exec('bold')} title="Bold"><Bold className="size-4" /></Btn>
                         <Btn onClick={() => exec('italic')} title="Italic"><Italic className="size-4" /></Btn>
                         <Btn onClick={() => exec('underline')} title="Underline"><Underline className="size-4" /></Btn>
                         <Btn onClick={() => exec('strikeThrough')} title="Strikethrough"><Strikethrough className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={() => exec('justifyLeft')} title="Align left"><AlignLeft className="size-4" /></Btn>
+                        <Btn onClick={() => exec('justifyCenter')} title="Align center"><AlignCenter className="size-4" /></Btn>
+                        <Btn onClick={() => exec('justifyRight')} title="Align right"><AlignRight className="size-4" /></Btn>
                         <Sep />
                         <Btn onClick={() => exec('insertUnorderedList')} title="Bulleted list"><List className="size-4" /></Btn>
                         <Btn onClick={() => exec('insertOrderedList')} title="Numbered list"><ListOrdered className="size-4" /></Btn>

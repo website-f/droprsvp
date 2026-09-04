@@ -1,13 +1,11 @@
 <?php
 
 return [
-    // How the platform charges organizers on ticket revenue: 'percent' of gross,
-    // or 'fixed' — a flat amount per paid order. Superadmin-editable under Settings.
-    'platform_fee_type' => env('DROPRSVP_PLATFORM_FEE_TYPE', 'percent'),
-    // Percentage the platform keeps from an organizer's gross ticket revenue.
+    // Buyer-paid booking fee, added to each paid ticket order at checkout: the
+    // HIGHER of this percentage of the ticket spend, or the flat amount below.
+    // Superadmin-editable under Settings → Payments.
     'platform_fee_percent' => (float) env('DROPRSVP_PLATFORM_FEE_PERCENT', 5),
-    // Flat amount kept per paid order when the fee type is 'fixed'.
-    'platform_fee_fixed' => (float) env('DROPRSVP_PLATFORM_FEE_FIXED', 0),
+    'platform_fee_flat' => (float) env('DROPRSVP_PLATFORM_FEE_FLAT', 2),
 
     // Default price + duration for boosting (promoting) an event. Superadmin-editable.
     'boost_price' => (float) env('DROPRSVP_BOOST_PRICE', 49),

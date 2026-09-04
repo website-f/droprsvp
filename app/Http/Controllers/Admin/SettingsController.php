@@ -17,9 +17,8 @@ class SettingsController extends Controller
     {
         return inertia('admin/settings', [
             'settings' => [
-                'fee_type' => \App\Support\PlatformFee::type(),
                 'fee_percent' => \App\Support\PlatformFee::percent(),
-                'fee_fixed' => \App\Support\PlatformFee::fixed(),
+                'fee_flat' => \App\Support\PlatformFee::flat(),
                 'boost_price' => (float) Setting::get('boost_price', config('droprsvp.boost_price')),
                 'boost_days' => (int) Setting::get('boost_days', config('droprsvp.boost_days')),
                 'premium_price' => (float) Setting::get('premium_price', config('droprsvp.premium_price')),
@@ -91,9 +90,8 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'fee_type' => ['required', 'in:percent,fixed'],
             'fee_percent' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_fixed' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'fee_flat' => ['required', 'numeric', 'min:0', 'max:100000'],
             'boost_price' => ['required', 'numeric', 'min:0', 'max:100000'],
             'boost_days' => ['required', 'integer', 'min:1', 'max:365'],
             'premium_price' => ['required', 'numeric', 'min:0', 'max:100000'],
@@ -112,9 +110,8 @@ class SettingsController extends Controller
             'announcement.cta_url' => ['nullable', 'string', 'max:512'],
         ]);
 
-        Setting::put('platform_fee_type', $data['fee_type']);
         Setting::put('platform_fee_percent', $data['fee_percent']);
-        Setting::put('platform_fee_fixed', $data['fee_fixed']);
+        Setting::put('platform_fee_flat', $data['fee_flat']);
         Setting::put('boost_price', $data['boost_price']);
         Setting::put('boost_days', $data['boost_days']);
         Setting::put('premium_price', $data['premium_price']);

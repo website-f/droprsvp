@@ -112,6 +112,9 @@
                     @if (!empty($receipt['discount']) && $receipt['discount'] > 0)
                         <tr><td class="muted">Discount</td><td class="right">− {{ $receipt['currency'] }} {{ number_format($receipt['discount'], 2) }}</td></tr>
                     @endif
+                    @if (!empty($receipt['fees']) && $receipt['fees'] > 0)
+                        <tr><td class="muted">Platform fee</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['fees'], 2) }}</td></tr>
+                    @endif
                     @if ($style['show_tax'] && $receipt['tax'] > 0)
                         <tr><td class="muted">Tax</td><td class="right">{{ $receipt['currency'] }} {{ number_format($receipt['tax'], 2) }}</td></tr>
                     @endif

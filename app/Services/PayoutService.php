@@ -19,16 +19,16 @@ class PayoutService
      * event has taken place ("matured") — money from upcoming events is held as
      * pending clearance so refunds/cancellations can't leave the platform short.
      *
-     * @return array{gross:float,fee_percent:float,fee_type:string,fee_label:string,fee:float,net:float,withdrawn:float,available:float,pending_clearance:float}
+     * @return array{gross:float,fee_label:string,net:float,withdrawn:float,available:float,pending_clearance:float}
      */
     public function balanceFor(User $organizer): array
     {
         $eventIds = $organizer->events()->pluck('id');
+        // The organizer receives the ticket revenue + tax (total − fees): the buyer
+        // paid the platform booking fee separately, so it's NOT part of the payout.
+        // Refunds (partial keep the order 'paid') are netted out too.
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid');
-        // Net out any money already refunded to buyers (partial refunds keep the
-        // order 'paid' but must NOT stay in the organizer's withdrawable balance).
-        $gross = (float) (clone $paid)->sum(DB::raw('total - refunded_amount'));
-        $grossOrders = (clone $paid)->count();
+        $net = (float) (clone $paid)->sum(DB::raw('total - fees - refunded_amount'));
 
         // An event's takings mature once it has happened: ends_at (or starts_at when
         // there's no end) is in the past; date-less events mature immediately.
@@ -37,19 +37,7 @@ class PayoutService
                 ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNotNull('starts_at')->where('starts_at', '<=', now()))
                 ->orWhere(fn ($w) => $w->whereNull('ends_at')->whereNull('starts_at'));
         })->pluck('id');
-        $maturedPaid = Order::whereIn('event_id', $maturedIds)->where('status', 'paid');
-        $maturedGross = (float) (clone $maturedPaid)->sum(DB::raw('total - refunded_amount'));
-        $maturedOrders = (clone $maturedPaid)->count();
-
-        // The platform fee is charged on TICKET revenue, not on the tax the organizer
-        // collects to remit under their own SST number — so exclude tax from the base.
-        // (No-op while tax is 0%.) The organizer keeps the tax; net still adds it back.
-        $feeBase = max(0.0, round($gross - (float) (clone $paid)->sum('tax'), 2));
-        $maturedFeeBase = max(0.0, round($maturedGross - (float) (clone $maturedPaid)->sum('tax'), 2));
-
-        $fee = PlatformFee::on($feeBase, $grossOrders);
-        $net = round($gross - $fee, 2);
-        $maturedNet = round($maturedGross - PlatformFee::on($maturedFeeBase, $maturedOrders), 2);
+        $maturedNet = (float) Order::whereIn('event_id', $maturedIds)->where('status', 'paid')->sum(DB::raw('total - fees - refunded_amount'));
 
         // Everything already requested or paid out is no longer available.
         $withdrawn = (float) Payout::where('user_id', $organizer->id)
@@ -57,12 +45,9 @@ class PayoutService
             ->sum('amount');
 
         return [
-            'gross' => $gross,
-            'fee_percent' => PlatformFee::percent(),
-            'fee_type' => PlatformFee::type(),
+            'gross' => round($net, 2), // organizer's ticket revenue (no fee deducted)
             'fee_label' => PlatformFee::label(),
-            'fee' => $fee,
-            'net' => $net,
+            'net' => round($net, 2),
             'withdrawn' => round($withdrawn, 2),
             'available' => max(0.0, round($maturedNet - $withdrawn, 2)),
             'pending_clearance' => max(0.0, round($net - $maturedNet, 2)),

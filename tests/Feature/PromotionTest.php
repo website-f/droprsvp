@@ -77,7 +77,7 @@ class PromotionTest extends TestCase
         $admin->assignRole('superadmin');
 
         $this->actingAs($admin)->post(route('admin.settings.save'), [
-            'fee_type' => 'percent', 'fee_percent' => 8, 'fee_fixed' => 0, 'boost_price' => 99, 'boost_days' => 14, 'premium_price' => 25, 'premium_days' => 30, 'tax_percent' => 6, 'tax_label' => 'SST',
+            'fee_percent' => 8, 'fee_flat' => 0, 'boost_price' => 99, 'boost_days' => 14, 'premium_price' => 25, 'premium_days' => 30, 'tax_percent' => 6, 'tax_label' => 'SST',
         ])->assertRedirect();
 
         $this->assertSame('99', Setting::get('boost_price'));
