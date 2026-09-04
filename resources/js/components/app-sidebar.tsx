@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, BadgeCheck, Banknote, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, BadgeCheck, Banknote, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -73,6 +73,7 @@ const cmsNav: NavItem[] = [
 const siteNav: NavItem[] = [
     { title: 'Branding', href: '/admin/site/branding', icon: ImageIcon },
     { title: 'Landing', href: '/admin/site/landing', icon: LayoutTemplate },
+    { title: 'Events page', href: '/admin/site/events-page', icon: GalleryHorizontalEnd },
     { title: 'Footer', href: '/admin/site/footer', icon: PanelBottom },
 ];
 

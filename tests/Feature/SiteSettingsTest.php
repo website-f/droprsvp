@@ -101,4 +101,42 @@ class SiteSettingsTest extends TestCase
             ->has('events.data', 1)
             ->where('events.data.0.slug', 'today-ev'));
     }
+
+    public function test_events_page_hero_and_seo_save_and_render(): void
+    {
+        $this->actingAs($this->superadmin())->post(route('admin.site.events-page.save'), [
+            'hero' => ['enabled' => true, 'heading' => 'Best events in KL', 'subheading' => 'Sub', 'image' => '', 'cta_label' => 'Browse', 'cta_url' => '/en-my/all', 'align' => 'left'],
+            'seo_text' => ['enabled' => true, 'heading' => 'About events', 'body' => '<p>Great <strong>events</strong> in Malaysia.</p>'],
+        ])->assertRedirect();
+
+        $this->get('/en-my/all')->assertInertia(fn (Assert $p) => $p
+            ->component('public/events/index')
+            ->where('hero.enabled', true)
+            ->where('hero.heading', 'Best events in KL')
+            ->where('seoText.enabled', true)
+            ->where('seoText.body', '<p>Great <strong>events</strong> in Malaysia.</p>')
+            ->has('breadcrumbs'));
+    }
+
+    public function test_organizer_event_banner_becomes_a_featured_slide(): void
+    {
+        $host = User::factory()->create();
+        \App\Models\Event::create([
+            'user_id' => $host->id, 'title' => 'Banner Ev', 'slug' => 'banner-ev', 'status' => 'published',
+            'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(3),
+            'banner_image' => '/uploads/banner.jpg',
+        ]);
+        // An event without a banner must NOT appear in the featured hero.
+        \App\Models\Event::create([
+            'user_id' => $host->id, 'title' => 'No Banner', 'slug' => 'no-banner', 'status' => 'published',
+            'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(4),
+        ]);
+
+        $this->get('/en-my/all')->assertInertia(fn (Assert $p) => $p
+            ->component('public/events/index')
+            ->has('featured', 1)
+            ->where('featured.0.slug', 'banner-ev')
+            ->where('featured.0.banner_image', '/uploads/banner.jpg')
+            ->where('featured.0.url', '/en-my/e/banner-ev'));
+    }
 }

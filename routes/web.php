@@ -405,9 +405,15 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Branding — logo (wordmark + mark) upload/remove + per-surface sizing.
         Route::get('site/branding', [AdminSiteController::class, 'branding'])->name('site.branding');
         Route::post('site/branding', [AdminSiteController::class, 'saveBranding'])->name('site.branding.save');
+        // The /en-my/all events page — admin hero banner + foot-of-page SEO text block.
+        Route::get('site/events-page', [AdminSiteController::class, 'eventsPage'])->name('site.events-page');
+        Route::post('site/events-page', [AdminSiteController::class, 'saveEventsPage'])->name('site.events-page.save');
         // Homepage SEO — the landing page is premade, so only its SEO is editable.
         Route::get('site/home-seo', [AdminSiteController::class, 'homeSeo'])->name('site.home-seo');
         Route::post('site/home-seo', [AdminSiteController::class, 'saveHomeSeo'])->name('site.home-seo.save');
+        // Dedicated editor for the landing SEO text block.
+        Route::get('site/seo-text', [AdminSiteController::class, 'seoText'])->name('site.seo-text');
+        Route::post('site/seo-text', [AdminSiteController::class, 'saveSeoText'])->name('site.seo-text.save');
         // Legal pages — Privacy Policy + Terms (rich text; live at /privacy-policy, /terms).
         Route::get('site/legal', [AdminLegalController::class, 'edit'])->name('site.legal');
         Route::post('site/legal', [AdminLegalController::class, 'update'])->name('site.legal.save');

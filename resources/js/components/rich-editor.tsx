@@ -38,9 +38,9 @@ export const contentClass =
     '[&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 ' +
     '[&_.ql-align-center]:text-center [&_.ql-align-right]:text-right [&_.ql-align-justify]:text-justify';
 
-const Btn = ({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) => (
-    <button type="button" title={title} aria-label={title} onMouseDown={(e) => e.preventDefault()} onClick={onClick}
-        className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+const Btn = ({ onClick, title, active, children }: { onClick: () => void; title: string; active?: boolean; children: React.ReactNode }) => (
+    <button type="button" title={title} aria-label={title} aria-pressed={active} onMouseDown={(e) => e.preventDefault()} onClick={onClick}
+        className={`flex size-8 items-center justify-center rounded-md transition-colors ${active ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
         {children}
     </button>
 );
@@ -113,6 +113,51 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
 
     const [mode, setMode] = useState<'visual' | 'code'>('visual');
     const [full, setFull] = useState(false);
+    // Which inline/block commands are active for the current selection (toolbar state).
+    const [active, setActive] = useState<Record<string, boolean>>({});
+    const [blockTag, setBlockTag] = useState('');
+
+    // Reflect the caret's formatting back into the toolbar so buttons light up.
+    const syncState = () => {
+        const el = editorRef.current;
+
+        if (!el) {
+            return;
+        }
+
+        const sel = window.getSelection();
+
+        if (!sel || !sel.anchorNode || !el.contains(sel.anchorNode)) {
+            return; // caret isn't inside the editor
+        }
+
+        const state: Record<string, boolean> = {};
+
+        for (const cmd of ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList', 'justifyLeft', 'justifyCenter', 'justifyRight']) {
+            try {
+                state[cmd] = document.queryCommandState(cmd);
+            } catch {
+                state[cmd] = false;
+            }
+        }
+
+        setActive(state);
+
+        try {
+            setBlockTag((document.queryCommandValue('formatBlock') || '').toString().toUpperCase());
+        } catch {
+            setBlockTag('');
+        }
+    };
+
+    // Track selection changes while the editor is focused.
+    useEffect(() => {
+        const handler = () => syncState();
+        document.addEventListener('selectionchange', handler);
+
+        return () => document.removeEventListener('selectionchange', handler);
+         
+    }, []);
 
     // Load external value into the visual surface when it changes and we're not
     // actively typing in it (so loading a record doesn't fight the cursor).
@@ -152,6 +197,7 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
         editorRef.current?.focus();
         document.execCommand(cmd, false, arg);
         emit();
+        syncState();
     };
     const block = (tag: string) => exec('formatBlock', tag);
 
@@ -215,16 +261,13 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
             <div className="flex flex-wrap items-center gap-0.5 border-b border-input bg-muted/40 px-2 py-1.5">
                 {mode === 'visual' && (
                     <>
-                        {/* Paragraph / heading level (P + H1–H6) */}
+                        {/* Paragraph / heading level (P + H1–H6) — reflects the caret's block */}
                         <select
                             title="Text style"
+                            value={['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(blockTag) ? blockTag : 'P'}
                             onMouseDown={(e) => e.stopPropagation()}
-                            onChange={(e) => {
- block(e.target.value); e.target.selectedIndex = 0; 
-}}
-                            defaultValue=""
+                            onChange={(e) => block(e.target.value)}
                             className="h-8 rounded-md border border-input bg-card px-2 text-sm text-foreground outline-none hover:bg-accent">
-                            <option value="" disabled>Style</option>
                             <option value="P">Paragraph</option>
                             <option value="H1">Heading 1</option>
                             <option value="H2">Heading 2</option>
@@ -234,19 +277,19 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
                             <option value="H6">Heading 6</option>
                         </select>
                         <Sep />
-                        <Btn onClick={() => exec('bold')} title="Bold"><Bold className="size-4" /></Btn>
-                        <Btn onClick={() => exec('italic')} title="Italic"><Italic className="size-4" /></Btn>
-                        <Btn onClick={() => exec('underline')} title="Underline"><Underline className="size-4" /></Btn>
-                        <Btn onClick={() => exec('strikeThrough')} title="Strikethrough"><Strikethrough className="size-4" /></Btn>
+                        <Btn onClick={() => exec('bold')} title="Bold" active={active.bold}><Bold className="size-4" /></Btn>
+                        <Btn onClick={() => exec('italic')} title="Italic" active={active.italic}><Italic className="size-4" /></Btn>
+                        <Btn onClick={() => exec('underline')} title="Underline" active={active.underline}><Underline className="size-4" /></Btn>
+                        <Btn onClick={() => exec('strikeThrough')} title="Strikethrough" active={active.strikeThrough}><Strikethrough className="size-4" /></Btn>
                         <Sep />
-                        <Btn onClick={() => exec('justifyLeft')} title="Align left"><AlignLeft className="size-4" /></Btn>
-                        <Btn onClick={() => exec('justifyCenter')} title="Align center"><AlignCenter className="size-4" /></Btn>
-                        <Btn onClick={() => exec('justifyRight')} title="Align right"><AlignRight className="size-4" /></Btn>
+                        <Btn onClick={() => exec('justifyLeft')} title="Align left" active={active.justifyLeft}><AlignLeft className="size-4" /></Btn>
+                        <Btn onClick={() => exec('justifyCenter')} title="Align center" active={active.justifyCenter}><AlignCenter className="size-4" /></Btn>
+                        <Btn onClick={() => exec('justifyRight')} title="Align right" active={active.justifyRight}><AlignRight className="size-4" /></Btn>
                         <Sep />
-                        <Btn onClick={() => exec('insertUnorderedList')} title="Bulleted list"><List className="size-4" /></Btn>
-                        <Btn onClick={() => exec('insertOrderedList')} title="Numbered list"><ListOrdered className="size-4" /></Btn>
-                        <Btn onClick={() => block('BLOCKQUOTE')} title="Quote"><Quote className="size-4" /></Btn>
-                        <Btn onClick={() => block('PRE')} title="Code block"><Code className="size-4" /></Btn>
+                        <Btn onClick={() => exec('insertUnorderedList')} title="Bulleted list" active={active.insertUnorderedList}><List className="size-4" /></Btn>
+                        <Btn onClick={() => exec('insertOrderedList')} title="Numbered list" active={active.insertOrderedList}><ListOrdered className="size-4" /></Btn>
+                        <Btn onClick={() => block('BLOCKQUOTE')} title="Quote" active={blockTag === 'BLOCKQUOTE'}><Quote className="size-4" /></Btn>
+                        <Btn onClick={() => block('PRE')} title="Code block" active={blockTag === 'PRE'}><Code className="size-4" /></Btn>
                         <Sep />
                         <Btn onClick={link} title="Link"><Link2 className="size-4" /></Btn>
                         <Btn onClick={image} title="Image"><ImageIcon className="size-4" /></Btn>

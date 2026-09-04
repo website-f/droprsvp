@@ -56,6 +56,47 @@ class SiteContent
     }
 
     /**
+     * The /en-my/all events page — its admin-set hero banner (a fallback lead slide
+     * when there are no featured organizer banners) and a foot-of-page SEO text block.
+     */
+    public static function eventsPage(): array
+    {
+        $defaults = self::defaultEventsPage();
+        $saved = Setting::getArray('events_page', []);
+
+        foreach ($defaults as $key => $section) {
+            if (isset($saved[$key]) && is_array($saved[$key])) {
+                $defaults[$key] = array_replace($section, $saved[$key]);
+            }
+        }
+
+        return $defaults;
+    }
+
+    public static function defaultEventsPage(): array
+    {
+        return [
+            // A promotional banner shown at the very top of the events page. Featured
+            // organizer banners (events with a banner_image) slide in alongside it.
+            'hero' => [
+                'enabled' => true,
+                'heading' => 'Discover the best events near you',
+                'subheading' => 'Concerts, festivals, workshops and meetups happening across Malaysia.',
+                'image' => '',
+                'cta_label' => '',
+                'cta_url' => '',
+                'align' => 'left',
+            ],
+            // A keyword-friendly text block below the event grid (collapsed to a teaser).
+            'seo_text' => [
+                'enabled' => false,
+                'heading' => '',
+                'body' => '',
+            ],
+        ];
+    }
+
+    /**
      * Footer content as a Puck-shaped document (cached — shared on every page).
      * Rendered by a plain (no-Puck) renderer on the public side; authored via a
      * Puck editor in the admin.

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Models\Order;
 use App\Support\Cities;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -108,6 +110,33 @@ class DiscoverController extends Controller
             $manager->noindex();
         }
 
+        // Featured organizer banners — upcoming published events that uploaded a wide
+        // banner, respecting the current city/category filter. These become the hero
+        // carousel slides (alongside the admin's own default banner).
+        $featured = Event::published()
+            ->whereNotNull('banner_image')
+            ->with('category:id,name,slug')
+            ->when($cityName, fn ($query) => $query->where('city', $cityName))
+            ->when($categoryModel, fn ($query) => $query->where('category_id', $categoryModel->id))
+            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->orderByRaw('(boosted_until is not null and boosted_until > ?) desc', [now()])
+            ->orderByRaw('starts_at is null, starts_at asc')
+            ->limit(6)
+            ->get()
+            ->map(fn (Event $e) => [
+                'slug' => $e->slug,
+                'title' => $e->title,
+                'subtitle' => $e->subtitle,
+                'banner_image' => $e->banner_image,
+                'category' => $e->category?->name,
+                'city' => $e->city,
+                'when' => $e->starts_at?->setTimezone($e->timezone)->format('D, j M Y'),
+                'venue' => $e->is_online ? 'Online' : $e->venue_name,
+                'url' => "/en-my/e/{$e->slug}",
+            ])->all();
+
+        $eventsPage = SiteContent::eventsPage();
+
         return Inertia::render('public/events/index', [
             'events' => $events,
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug']),
@@ -120,6 +149,14 @@ class DiscoverController extends Controller
             ],
             'filters' => ['q' => $q, 'when' => $when],
             'seo' => ['title' => $title],
+            // Events-page hero (admin banner + featured organizer banners) and the
+            // foot-of-page SEO text block, both admin-editable.
+            'hero' => $eventsPage['hero'],
+            'featured' => $featured,
+            'seoText' => $eventsPage['seo_text'],
+            // Breadcrumb trail for the page header (Home / Events / City / Category),
+            // as relative paths for Inertia links.
+            'breadcrumbs' => $this->uiBreadcrumb($cityName, $citySlug, $categoryModel),
             // SEO copy shown (truncated, "see more") at the bottom of the page.
             'categoryContent' => $categoryModel
                 ? ($categoryModel->content ? [['name' => $categoryModel->name, 'content' => $categoryModel->content]] : [])
@@ -204,6 +241,24 @@ class DiscoverController extends Controller
         return $crumbs;
     }
 
+    /** Same crumbs as breadcrumb() but with relative paths, for the on-page UI. */
+    private function uiBreadcrumb(?string $cityName, string $citySlug, ?EventCategory $category): array
+    {
+        $rel = fn (?string $c, ?string $cat) => str_replace(url('/'), '', $this->pathUrl($c, $cat)) ?: '/';
+        $crumbs = [
+            ['name' => 'Home', 'url' => '/en-my'],
+            ['name' => 'Events', 'url' => $rel(null, null)],
+        ];
+        if ($cityName) {
+            $crumbs[] = ['name' => $cityName, 'url' => $rel($citySlug, null)];
+        }
+        if ($category) {
+            $crumbs[] = ['name' => $category->name, 'url' => $rel($cityName ? $citySlug : null, $category->slug)];
+        }
+
+        return $crumbs;
+    }
+
     /** Resolve a "when" chip into a [from, to] datetime range (or [null, null]). */
     private function whenRange(string $when): array
     {
@@ -211,8 +266,8 @@ class DiscoverController extends Controller
             case 'today':
                 return [now()->startOfDay(), now()->endOfDay()];
             case 'weekend':
-                $start = now()->isWeekend() ? now() : now()->next(\Carbon\Carbon::SATURDAY)->startOfDay();
-                $end = $start->copy()->next(\Carbon\Carbon::SUNDAY)->endOfDay();
+                $start = now()->isWeekend() ? now() : now()->next(Carbon::SATURDAY)->startOfDay();
+                $end = $start->copy()->next(Carbon::SUNDAY)->endOfDay();
                 if ($start->isSunday()) {
                     $end = $start->copy()->endOfDay();
                 }
@@ -244,7 +299,7 @@ class DiscoverController extends Controller
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
-            'faces' => \App\Models\Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_name')
+            'faces' => Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_name')
                 ->orderByDesc('paid_at')->limit(8)->pluck('buyer_name')->unique()->take(3)->values()->all(),
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
             'rating_count' => (int) ($event->reviews_count ?? 0),

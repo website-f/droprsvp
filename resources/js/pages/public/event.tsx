@@ -17,7 +17,7 @@ interface Reply { id: number; author: string; body: string; when: string; is_org
 interface Comment extends Reply { replies: Reply[] }
 interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
-    cover_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
+    cover_image: string | null; banner_image: string | null; gallery: string[]; category: string | null; is_online: boolean;
     venue_name: string | null; venue_address: string | null; online_url: string | null;
     when: string | null; sold_out: boolean; google_url: string | null; ics_url: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
@@ -195,6 +195,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                 {event.status !== 'published' && (
                     <div className="bg-foreground px-6 py-2 text-center text-xs font-medium text-background">
                         Draft preview — only you can see this. Publish it to make it public.
+                    </div>
+                )}
+
+                {event.banner_image && (
+                    <div className="relative w-full overflow-hidden">
+                        <img src={event.banner_image} alt={event.title} className="aspect-[3/1] w-full object-cover sm:aspect-[4/1]" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/70 via-background/10 to-transparent" />
                     </div>
                 )}
 

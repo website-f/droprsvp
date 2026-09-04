@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Support\Cities;
+use App\Support\HtmlSanitizer;
 use App\Support\ReceiptTemplate;
 use App\Support\SiteContent;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -65,8 +66,12 @@ class SiteController extends Controller
             'seo_text' => ['array'],
             'seo_text.enabled' => ['boolean'],
             'seo_text.heading' => ['nullable', 'string', 'max:150'],
-            'seo_text.body' => ['nullable', 'string', 'max:5000'],
+            'seo_text.body' => ['nullable', 'string', 'max:20000'],
         ]);
+
+        // The SEO text block is authored on its own page — keep the stored value as the
+        // source of truth so saving other landing sections never clobbers it.
+        $data['seo_text'] = SiteContent::landing()['seo_text'];
 
         Setting::putArray('landing_sections', $data);
 
@@ -89,6 +94,64 @@ class SiteController extends Controller
         Setting::putArray('home_seo', $data);
 
         return back()->with('success', 'Homepage SEO saved.');
+    }
+
+    /** Dedicated rich-text editor for the home-page SEO text block. */
+    public function seoText()
+    {
+        $seo = SiteContent::landing()['seo_text'] ?? ['enabled' => false, 'heading' => '', 'body' => ''];
+
+        return inertia('admin/site/seo-text', ['seo' => $seo]);
+    }
+
+    public function saveSeoText(Request $request)
+    {
+        $data = $request->validate([
+            'enabled' => ['boolean'],
+            'heading' => ['nullable', 'string', 'max:150'],
+            'body' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        // Merge into the existing landing sections (body is admin-authored HTML → sanitize).
+        $sections = SiteContent::landing();
+        $sections['seo_text'] = [
+            'enabled' => (bool) ($data['enabled'] ?? false),
+            'heading' => $data['heading'] ?? '',
+            'body' => HtmlSanitizer::clean($data['body'] ?? '') ?? '',
+        ];
+        Setting::putArray('landing_sections', $sections);
+
+        return back()->with('success', 'SEO text block saved.');
+    }
+
+    /** The /en-my/all events-page hero banner + foot-of-page SEO text block. */
+    public function eventsPage()
+    {
+        return inertia('admin/site/events-page', ['data' => SiteContent::eventsPage()]);
+    }
+
+    public function saveEventsPage(Request $request)
+    {
+        $data = $request->validate([
+            'hero' => ['array'],
+            'hero.enabled' => ['boolean'],
+            'hero.heading' => ['nullable', 'string', 'max:120'],
+            'hero.subheading' => ['nullable', 'string', 'max:200'],
+            'hero.image' => ['nullable', 'string', 'max:2048'],
+            'hero.cta_label' => ['nullable', 'string', 'max:60'],
+            'hero.cta_url' => ['nullable', 'string', 'max:2048'],
+            'hero.align' => ['nullable', 'in:left,center,right'],
+            'seo_text' => ['array'],
+            'seo_text.enabled' => ['boolean'],
+            'seo_text.heading' => ['nullable', 'string', 'max:150'],
+            'seo_text.body' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        // The SEO body is admin-authored HTML → sanitize before storing.
+        $data['seo_text']['body'] = HtmlSanitizer::clean($data['seo_text']['body'] ?? '') ?? '';
+        Setting::putArray('events_page', $data);
+
+        return back()->with('success', 'Events page saved.');
     }
 
     public function branding()

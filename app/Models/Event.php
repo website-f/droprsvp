@@ -14,7 +14,7 @@ class Event extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'gallery',
+        'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'banner_image', 'gallery',
         'show_participants', 'show_reviews', 'seating_enabled', 'ticketing_mode', 'auto_assign_tables',
         'status', 'cancelled_reason', 'appeal_status', 'appeal_reason', 'appeal_attachments', 'appealed_at',
         'refund_policy', 'refund_policy_note',

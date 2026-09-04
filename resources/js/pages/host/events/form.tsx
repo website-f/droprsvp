@@ -28,7 +28,7 @@ type SectionRow = LayoutSectionRow;
 interface SeatTemplate { id: number; name: string; data: Array<Partial<LayoutSectionRow> & { name: string; kind: 'seated' | 'ga' | 'stage' }> }
 interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
-    description: string | null; cover_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
+    description: string | null; cover_image: string | null; banner_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null; show_participants: boolean; show_reviews: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
@@ -45,6 +45,7 @@ const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm o
 const dt = (v: string | null | undefined) => (v ? v.slice(0, 16) : '');
 
 const RECOMMEND_COVER = 'Recommended: 1600×900px (16:9) · JPG or PNG · under 5 MB';
+const RECOMMEND_BANNER = 'Recommended: 2400×800px (wide 3:1) · shown across the top of your event page & featured in the events-page hero';
 const RECOMMEND_GALLERY = 'Recommended: 1200×800px or larger · JPG or PNG · under 5 MB each · up to 12 images';
 const MAX_GALLERY = 12;
 
@@ -89,6 +90,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         category_id: event?.category_id ? String(event.category_id) : '',
         description: event?.description ?? '',
         cover_image: event?.cover_image ?? '',
+        banner_image: event?.banner_image ?? '',
         gallery: (event?.gallery ?? []) as string[],
         visibility: event?.visibility ?? 'public',
         timezone: event?.timezone ?? 'Asia/Kuala_Lumpur',
@@ -120,10 +122,13 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     const [editorOpen, setEditorOpen] = useState(false);
     const tabCls = (active: boolean) => `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`;
     const coverRef = useRef<HTMLInputElement>(null);
+    const bannerRef = useRef<HTMLInputElement>(null);
     const galleryRef = useRef<HTMLInputElement>(null);
     const [uploadingCover, setUploadingCover] = useState(false);
+    const [uploadingBanner, setUploadingBanner] = useState(false);
     const [uploadingGallery, setUploadingGallery] = useState(false);
     const [coverMeta, setCoverMeta] = useState<{ w: number; h: number; size: number } | null>(null);
+    const [bannerMeta, setBannerMeta] = useState<{ w: number; h: number; size: number } | null>(null);
 
     const onPickCover = async (file: File | undefined) => {
         if (!file) {
@@ -140,6 +145,24 @@ return;
             /* keep the existing value on failure */
         } finally {
             setUploadingCover(false);
+        }
+    };
+
+    const onPickBanner = async (file: File | undefined) => {
+        if (!file) {
+return;
+}
+
+        setUploadingBanner(true);
+
+        try {
+            const [url, meta] = await Promise.all([uploadImage(file), readImageMeta(file)]);
+            setData('banner_image', url);
+            setBannerMeta(meta);
+        } catch {
+            /* keep the existing value on failure */
+        } finally {
+            setUploadingBanner(false);
         }
     };
 
@@ -244,6 +267,32 @@ form.post('/host/events');
                             <p className="text-xs text-muted-foreground">
                                 {RECOMMEND_COVER}
                                 {coverMeta && coverMeta.w > 0 ? ` · uploaded ${coverMeta.w}×${coverMeta.h}px, ${formatBytes(coverMeta.size)}` : ''}
+                            </p>
+                        </div>
+                        {/* Banner image — wide hero shown on the event page & the events-page hero carousel */}
+                        <div className="grid gap-1.5">
+                            <Label>Event banner <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                            {data.banner_image
+                                ? (
+                                    <div className="relative overflow-hidden rounded-lg border border-border">
+                                        <img src={data.banner_image} alt="" className="aspect-[3/1] w-full object-cover" />
+                                        <div className="absolute right-2 top-2 flex gap-2">
+                                            <Button type="button" size="sm" variant="secondary" disabled={uploadingBanner} onClick={() => bannerRef.current?.click()}>Replace</Button>
+                                            <Button type="button" size="sm" variant="secondary" onClick={() => setData('banner_image', '')}>Remove</Button>
+                                        </div>
+                                    </div>
+                                )
+                                : (
+                                    <button type="button" onClick={() => bannerRef.current?.click()} disabled={uploadingBanner}
+                                        className="flex aspect-[3/1] w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground">
+                                        <ImagePlus className="size-6" />
+                                        {uploadingBanner ? 'Uploading…' : 'Upload a wide banner (featured at the top of the events page)'}
+                                    </button>
+                                )}
+                            <input ref={bannerRef} type="file" accept="image/*" hidden onChange={(e) => onPickBanner(e.target.files?.[0])} />
+                            <p className="text-xs text-muted-foreground">
+                                {RECOMMEND_BANNER}
+                                {bannerMeta && bannerMeta.w > 0 ? ` · uploaded ${bannerMeta.w}×${bannerMeta.h}px, ${formatBytes(bannerMeta.size)}` : ''}
                             </p>
                         </div>
                         <div className="grid gap-1.5">

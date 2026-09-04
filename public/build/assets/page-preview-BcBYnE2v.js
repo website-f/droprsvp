@@ -1,0 +1,1 @@
+import{n as e,t}from"./jsx-runtime-BaXOTS2H.js";import{r as n}from"./dist-DC272dj-.js";import{n as r}from"./puck-render-CkFFYJpk.js";var i=e(),a=t();function o(e){let t=(0,i.c)(5),{data:o,posts:s}=e,c;t[0]===s?c=t[1]:(c={posts:s},t[0]=s,t[1]=c);let l;return t[2]!==o||t[3]!==c?(l=(0,a.jsx)(n,{config:r,data:o,metadata:c}),t[2]=o,t[3]=c,t[4]=l):l=t[4],l}export{o as default};

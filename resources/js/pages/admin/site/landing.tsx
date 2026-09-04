@@ -1,5 +1,5 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -286,15 +286,15 @@ patchHero({ style: 'banners', banners: [emptyBanner()] });
                         <p className="text-xs text-muted-foreground">The two illustrated bands — “For every kind of gathering” and “Everything you need to run the night”. Turn off to hide both (e.g. in favour of the SEO text block below).</p>
                     </Card>
 
-                    {/* SEO text block */}
+                    {/* SEO text block — edited on its own page (rich text) */}
                     <Card>
                         <div className="flex items-center justify-between">
-                            <h2 className="font-semibold">SEO text block</h2>
-                            <Toggle on={data.seo_text.enabled} onChange={(v) => patch('seo_text', { enabled: v })} label={data.seo_text.enabled ? 'Shown' : 'Hidden'} />
+                            <div>
+                                <h2 className="font-semibold">SEO text block</h2>
+                                <p className="mt-0.5 text-xs text-muted-foreground">A rich, keyword-friendly section near the foot of the home page (collapsed to a teaser with “Read more”). {data.seo_text.enabled ? 'Currently shown.' : 'Currently hidden.'}</p>
+                            </div>
+                            <Button asChild variant="outline"><Link href="/admin/site/seo-text"><Pencil className="size-4" /> Open editor</Link></Button>
                         </div>
-                        <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.seo_text.heading} onChange={(e) => patch('seo_text', { heading: e.target.value })} placeholder="e.g. Discover & host events across Malaysia" /></div>
-                        <div className="grid gap-1.5"><Label>Body</Label><textarea className={area} rows={6} value={data.seo_text.body} onChange={(e) => patch('seo_text', { body: e.target.value })} placeholder="Keyword-rich copy shown near the foot of the home page…" /></div>
-                        <p className="text-xs text-muted-foreground">A keyword-friendly paragraph near the foot of the home page, collapsed to a teaser with a “Read more” link.</p>
                     </Card>
                 </div>
 

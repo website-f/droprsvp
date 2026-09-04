@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowRight, CalendarDays, CheckCircle2, Headset, MapPin, MessageSquare, Send, Sparkles, Star, Tag, UserCheck, UserPlus } from 'lucide-react';
+import { ArrowDown, ArrowRight, CalendarDays, CalendarPlus, CheckCircle2, Compass, Headset, MapPin, MessageSquare, Send, Sparkles, Star, Tag, Ticket, UserCheck, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
@@ -7,6 +7,7 @@ import {  HeroBanners } from '@/components/landing/hero-banners';
 import type {Banner} from '@/components/landing/hero-banners';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
+import { contentClass } from '@/components/rich-editor';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -498,32 +499,42 @@ export default function Welcome() {
                 </section>
                 </>)}
 
-                {/* -------------------------------------------- Organizer band */}
+                {/* ------------------------------------------ How DropRSVP works */}
                 {(org?.enabled ?? true) && (
-                    <section className="px-6 pb-20">
-                        <Reveal>
-                            <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 overflow-hidden rounded-3xl bg-foreground px-8 py-14 text-background sm:px-12 sm:py-16 lg:grid-cols-2">
-                                <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full opacity-50 blur-2xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
-                                <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 size-80 rounded-full opacity-40 blur-2xl" style={{ background: 'radial-gradient(circle,#ff6584,transparent 70%)' }} />
-                                <div className="relative">
-                                    <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">{org?.heading ?? 'Hosting an event?'}</h2>
-                                    <p className="mt-3 max-w-xl text-sm text-background/70 sm:text-base">{org?.body}</p>
-                                    <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                                        <Button asChild size="lg" variant="secondary" className="h-12 px-8">
-                                            <Link href={signedIn ? dashboard() : (org?.cta_url || '/get-started')}>{org?.cta_label || 'Create an event'}</Link>
-                                        </Button>
-                                        <Button asChild size="lg" variant="ghost" className="h-12 px-8 text-background hover:bg-background/10 hover:text-background">
-                                            <Link href="/en-my/all">Browse events</Link>
-                                        </Button>
+                    <section className="px-6 pt-6 pb-20">
+                        <div className="mx-auto max-w-6xl">
+                            <Reveal className="mb-12 text-center">
+                                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{org?.heading || 'How DropRSVP works'}</h2>
+                                <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">From finding your next night out to hosting your own — three simple steps.</p>
+                            </Reveal>
+                            <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-stretch lg:justify-center">
+                                {[
+                                    { icon: Compass, tint: '#6c63ff', title: 'Discover events near you', body: 'Browse concerts, workshops, food fests and meetups happening around you.', cta: 'Explore events', url: '/en-my/all' },
+                                    { icon: Ticket, tint: '#2ec4b6', title: 'Get your ticket in seconds', body: 'Book with a secure QR pass that’s ready at the door — no queues, no printing.', cta: 'Find events', url: '/en-my/all' },
+                                    { icon: CalendarPlus, tint: '#f5a524', title: 'Host your own event', body: 'Create an event, sell tickets, manage seating and check guests in — all in one place.', cta: 'Create an event', url: signedIn ? dashboard() : '/get-started' },
+                                ].map((s, i) => (
+                                    <div key={s.title} className="flex w-full flex-col items-center lg:w-auto lg:flex-row lg:items-stretch">
+                                        <Reveal delay={i * 100} className="w-full max-w-sm lg:w-72">
+                                            <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${s.tint}1f`, color: s.tint }}><s.icon className="size-6" /></span>
+                                                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Step {i + 1}</span>
+                                                </div>
+                                                <h3 className="mt-4 text-lg font-semibold">{s.title}</h3>
+                                                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                                                <Link href={s.url} className="mt-4 inline-flex w-max items-center gap-1 text-sm font-semibold text-primary hover:underline">{s.cta} <ArrowRight className="size-3.5" /></Link>
+                                            </div>
+                                        </Reveal>
+                                        {i < 2 && (
+                                            <div className="flex items-center justify-center py-1 text-muted-foreground/40 lg:px-1" aria-hidden>
+                                                <ArrowRight className="hidden size-6 lg:block" />
+                                                <ArrowDown className="size-5 lg:hidden" />
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                                {org?.image && (
-                                    <div className="relative hidden lg:block">
-                                        <img src={org.image} alt="" className="ml-auto max-h-64 w-auto rounded-2xl object-cover" />
-                                    </div>
-                                )}
+                                ))}
                             </div>
-                        </Reveal>
+                        </div>
                     </section>
                 )}
 
@@ -531,10 +542,10 @@ export default function Welcome() {
                 {seoText?.enabled && seoText.body && (
                     <section className="border-t border-border bg-muted/20">
                         <div className="mx-auto w-full max-w-4xl px-6 py-12">
-                            {seoText.heading && <h2 className="text-lg font-bold tracking-tight">{seoText.heading}</h2>}
-                            <div className={`relative mt-3 text-sm leading-relaxed whitespace-pre-line text-muted-foreground ${seoExpanded ? '' : 'max-h-24 overflow-hidden'}`}>
-                                {seoText.body}
-                                {!seoExpanded && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-muted/20 to-transparent" />}
+                            {seoText.heading && <h2 className="text-xl font-bold tracking-tight">{seoText.heading}</h2>}
+                            <div className={`relative mt-3 ${seoExpanded ? '' : 'max-h-28 overflow-hidden'}`}>
+                                <div className={contentClass} dangerouslySetInnerHTML={{ __html: seoText.body }} />
+                                {!seoExpanded && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-muted/20 to-transparent" />}
                             </div>
                             <button type="button" onClick={() => setSeoExpanded((v) => !v)} className="mt-2 text-sm font-semibold text-primary hover:underline">
                                 {seoExpanded ? 'Show less' : 'Read more'}

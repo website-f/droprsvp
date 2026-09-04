@@ -2,9 +2,17 @@
 
 namespace App\Http\Controllers\Host;
 
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Controller;
+use App\Models\AppNotification;
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Models\EventProp;
+use App\Models\SeatSection;
+use App\Models\SeatTemplate;
+use App\Models\Setting;
+use App\Models\User;
+use App\Services\EventDuplicator;
 use App\Support\Cities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -39,9 +47,9 @@ class EventController extends Controller
             'event' => null,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
             'cities' => Cities::all(),
-            'seatTemplates' => \App\Models\SeatTemplate::where('user_id', $request->user()->id)
+            'seatTemplates' => SeatTemplate::where('user_id', $request->user()->id)
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
-            'ticketingModes' => \App\Http\Controllers\Admin\SettingsController::ticketingModes(),
+            'ticketingModes' => SettingsController::ticketingModes(),
             'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
         ]);
     }
@@ -76,9 +84,9 @@ class EventController extends Controller
             'event' => $event,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
             'cities' => Cities::all(),
-            'seatTemplates' => \App\Models\SeatTemplate::where('user_id', $request->user()->id)
+            'seatTemplates' => SeatTemplate::where('user_id', $request->user()->id)
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
-            'ticketingModes' => \App\Http\Controllers\Admin\SettingsController::ticketingModes(),
+            'ticketingModes' => SettingsController::ticketingModes(),
             'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
         ]);
     }
@@ -110,7 +118,7 @@ class EventController extends Controller
     }
 
     /** Clone an event (ticket types, sessions, seating) into a fresh draft. */
-    public function duplicate(Request $request, Event $event, \App\Services\EventDuplicator $duplicator)
+    public function duplicate(Request $request, Event $event, EventDuplicator $duplicator)
     {
         $this->authorize('update', $event);
 
@@ -138,7 +146,7 @@ class EventController extends Controller
             'appealed_at' => now(),
         ]);
 
-        \App\Models\AppNotification::notifyMany(\App\Models\User::role('superadmin')->pluck('id'), [
+        AppNotification::notifyMany(User::role('superadmin')->pluck('id'), [
             'type' => 'event',
             'title' => 'Event cancellation appeal',
             'body' => "{$request->user()->name} appealed the cancellation of “{$event->title}”.",
@@ -155,7 +163,7 @@ class EventController extends Controller
      */
     private function flagPolicy(Event $event): void
     {
-        $keywords = array_filter(array_map('trim', explode(',', (string) \App\Models\Setting::get(
+        $keywords = array_filter(array_map('trim', explode(',', (string) Setting::get(
             'policy_keywords', 'weapon,firearm,drugs,gambling,counterfeit,scam,escort,nude'
         ))));
         if (empty($keywords)) {
@@ -168,7 +176,7 @@ class EventController extends Controller
             return;
         }
 
-        \App\Models\AppNotification::notifyMany(\App\Models\User::role('superadmin')->pluck('id'), [
+        AppNotification::notifyMany(User::role('superadmin')->pluck('id'), [
             'type' => 'policy',
             'title' => 'Event may need review',
             'body' => "“{$event->title}” matched a policy keyword (“{$hit}”). Please review.",
@@ -191,7 +199,7 @@ class EventController extends Controller
             $mode = 'general';
         }
 
-        $allowed = \App\Http\Controllers\Admin\SettingsController::ticketingModes();
+        $allowed = SettingsController::ticketingModes();
         if (! $request->user()->hasRole('superadmin') && ! ($allowed[$mode] ?? false)) {
             $mode = 'general';
         }
@@ -226,7 +234,7 @@ class EventController extends Controller
     {
         $keep = [];
         foreach (array_values($rows) as $i => $row) {
-            $kind = array_key_exists($row['kind'] ?? 'custom', \App\Models\EventProp::KINDS) ? $row['kind'] : 'custom';
+            $kind = array_key_exists($row['kind'] ?? 'custom', EventProp::KINDS) ? $row['kind'] : 'custom';
             $attrs = [
                 'kind' => $kind,
                 'label' => $row['label'] ?? null,
@@ -253,6 +261,7 @@ class EventController extends Controller
             'category_id' => ['nullable', 'exists:event_categories,id'],
             'description' => ['nullable', 'string'],
             'cover_image' => ['nullable', 'string', 'max:2048'],
+            'banner_image' => ['nullable', 'string', 'max:2048'],
             'gallery' => ['array', 'max:12'],
             'gallery.*' => ['string', 'max:2048'],
             'show_participants' => ['boolean'],
@@ -338,6 +347,7 @@ class EventController extends Controller
             'category_id' => $data['category_id'] ?? null,
             'description' => $data['description'] ?? null,
             'cover_image' => $data['cover_image'] ?? null,
+            'banner_image' => $data['banner_image'] ?? null,
             'gallery' => $data['gallery'] ?? [],
             'show_participants' => $data['show_participants'] ?? true,
             'show_reviews' => $data['show_reviews'] ?? true,
@@ -464,6 +474,7 @@ class EventController extends Controller
                 $section->update(['ticket_type_id' => null]);
                 $section->seats()->where('status', 'available')->delete();
                 $keep[] = $section->id;
+
                 continue;
             }
 
@@ -496,7 +507,7 @@ class EventController extends Controller
     }
 
     /** Rebuild a seated section's grid, never touching seats that are held/sold. */
-    private function syncSeats(\App\Models\SeatSection $section, int $rows, int $cols, string $start = 'A'): void
+    private function syncSeats(SeatSection $section, int $rows, int $cols, string $start = 'A'): void
     {
         $offset = max(0, ord($start) - 65);
         $existing = $section->seats()->get()->keyBy('label');

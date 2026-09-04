@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\EventReview;
 use App\Models\Order;
+use App\Support\Ics;
 use App\Support\SeoManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -37,6 +38,7 @@ class EventController extends Controller
 
         $description = $this->metaDescription($event);
         $cover = $event->cover_image ? $this->absolute($event->cover_image) : null;
+        $banner = $event->banner_image ? $this->absolute($event->banner_image) : null;
         $canonical = url("/en-my/e/{$event->slug}");
         $organizer = $event->user?->name ?? 'DropRSVP';
         $seo = $event->seo;
@@ -90,6 +92,7 @@ class EventController extends Controller
                 'subtitle' => $event->subtitle,
                 'description' => $event->description,
                 'cover_image' => $cover,
+                'banner_image' => $banner,
                 'gallery' => collect($event->gallery ?? [])->map(fn ($g) => $this->absolute($g))->values()->all(),
                 'category' => $event->category?->name,
                 'is_online' => $event->is_online,
@@ -100,7 +103,7 @@ class EventController extends Controller
                 'ends_at' => optional($event->ends_at)->toIso8601String(),
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
                 'sold_out' => $event->ticketTypes->isNotEmpty() && $event->ticketTypes->every(fn ($t) => $t->remaining() === 0),
-                'google_url' => $event->status === 'published' ? \App\Support\Ics::googleUrl($event) : null,
+                'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
                 'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
                 'organizer' => $organizer,
                 'organizer_id' => $event->user_id,
