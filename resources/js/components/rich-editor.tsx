@@ -1,7 +1,5 @@
-import { Code2, Eye } from 'lucide-react';
-import Quill from 'quill';
+import { Bold, Code, Code2, Eye, Heading1, Heading2, Heading3, Image as ImageIcon, Italic, Link2, List, ListOrdered, Maximize2, Minimize2, Minus, Pilcrow, Quote, RemoveFormatting, Strikethrough, Underline, Youtube } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import 'quill/dist/quill.snow.css';
 import { usePrompt } from '@/components/prompt-dialog';
 import { uploadImage } from '@/lib/upload';
 
@@ -40,18 +38,72 @@ export const contentClass =
     '[&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 ' +
     '[&_.ql-align-center]:text-center [&_.ql-align-right]:text-right [&_.ql-align-justify]:text-justify';
 
+const Btn = ({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) => (
+    <button type="button" title={title} aria-label={title} onMouseDown={(e) => e.preventDefault()} onClick={onClick}
+        className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+        {children}
+    </button>
+);
+const Sep = () => <span className="mx-0.5 h-5 w-px shrink-0 bg-border" />;
+
+const isEmptyHtml = (html: string) => {
+    const t = html.replace(/<br\s*\/?>/gi, '').replace(/<p>\s*<\/p>/gi, '').replace(/&nbsp;/g, ' ').replace(/<[^>]+>/g, '').trim();
+
+    return t === '' && !/<(img|iframe|hr|table|video)/i.test(html);
+};
+
+/** A minimal code editor: line-number gutter + textarea, dark, tab-aware. */
+function CodeArea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const taRef = useRef<HTMLTextAreaElement>(null);
+    const gutterRef = useRef<HTMLDivElement>(null);
+    const lineCount = Math.max(1, value.split('\n').length);
+
+    return (
+        <div className="flex min-h-80 flex-1 overflow-hidden bg-[#0d1117] font-mono text-[13px] leading-6 text-slate-200">
+            <div ref={gutterRef} className="shrink-0 select-none overflow-hidden py-3 pr-2 pl-3 text-right text-slate-500 tabular-nums" aria-hidden>
+                {Array.from({ length: lineCount }, (_, i) => <div key={i}>{i + 1}</div>)}
+            </div>
+            <textarea
+                ref={taRef}
+                value={value}
+                spellCheck={false}
+                onScroll={() => {
+ if (gutterRef.current && taRef.current) {
+gutterRef.current.scrollTop = taRef.current.scrollTop;
+} 
+}}
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const t = e.currentTarget;
+                        const s = t.selectionStart;
+                        const en = t.selectionEnd;
+                        onChange(value.slice(0, s) + '  ' + value.slice(en));
+                        requestAnimationFrame(() => {
+ t.selectionStart = t.selectionEnd = s + 2; 
+});
+                    }
+                }}
+                className="flex-1 resize-none bg-transparent py-3 pr-3 pl-2 outline-none"
+                placeholder="<h2>Paste or write HTML…</h2>"
+            />
+        </div>
+    );
+}
+
 /**
- * Rich text editor powered by Quill (open-source). Quill creates and owns its
- * own editable DOM, so React never reconciles it — clicking always focuses and
- * typing always works. Output is HTML rendered by `contentClass`. A "HTML" toggle
- * lets authors drop into the raw source (paste/clean markup) and back.
+ * HTML-first rich text editor. The Visual view is a contenteditable surface, so
+ * the browser keeps the actual HTML/DOM — pasted markup (tables, inline styles,
+ * custom attributes) survives the save→reload round-trip instead of being flattened
+ * by an intermediate model. A line-numbered Code view edits the same raw HTML, and
+ * either view can go full-screen. Output HTML is styled by `contentClass`.
  */
 export function RichEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
     'use no memo';
 
     const prompt = usePrompt();
-    const hostRef = useRef<HTMLDivElement>(null);
-    const quillRef = useRef<Quill | null>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
     const onChangeRef = useRef(onChange);
     const promptRef = useRef(prompt);
     useEffect(() => {
@@ -59,136 +111,163 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
         promptRef.current = prompt;
     });
 
-    const [htmlMode, setHtmlMode] = useState(false);
-    const [htmlDraft, setHtmlDraft] = useState('');
+    const [mode, setMode] = useState<'visual' | 'code'>('visual');
+    const [full, setFull] = useState(false);
 
+    // Load external value into the visual surface when it changes and we're not
+    // actively typing in it (so loading a record doesn't fight the cursor).
     useEffect(() => {
-        if (!hostRef.current || quillRef.current) {
-return;
-}
+        const el = editorRef.current;
 
-        const quill = new Quill(hostRef.current, {
-            theme: 'snow',
-            placeholder: placeholder ?? 'Write your content…',
-            modules: {
-                toolbar: {
-                    container: [
-                        [{ header: [1, 2, 3, 4, 5, 6, false] }],
-                        ['bold', 'italic', 'underline', 'strike'],
-                        [{ list: 'ordered' }, { list: 'bullet' }],
-                        ['blockquote', 'code-block', 'link', 'image', 'video'],
-                        [{ align: [] }],
-                        ['clean'],
-                    ],
-                    handlers: {
-                        // Insert a YouTube link as a playable, responsive embed.
-                        video() {
-                            const range = quill.getSelection(true);
-                            promptRef.current({ title: 'Insert YouTube video', label: 'YouTube link', placeholder: 'https://www.youtube.com/watch?v=…', confirmText: 'Insert' }).then((url) => {
-                                if (!url) {
-                                    return;
-                                }
-
-                                const id = youtubeId(url.trim());
-                                const src = id ? `https://www.youtube.com/embed/${id}` : url.trim();
-                                quill.insertEmbed(range.index, 'video', src, 'user');
-                                quill.setSelection(range.index + 1, 0);
-                            });
-                        },
-                        image() {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = async () => {
-                                const file = input.files?.[0];
-
-                                if (!file) {
-return;
-}
-
-                                try {
-                                    const url = await uploadImage(file);
-                                    const range = quill.getSelection(true);
-                                    quill.insertEmbed(range.index, 'image', url, 'user');
-                                    quill.setSelection(range.index + 1, 0);
-                                } catch { /* ignore */ }
-                            };
-                            input.click();
-                        },
-                    },
-                },
-            },
-        });
-        quillRef.current = quill;
-
-        if (value) {
-quill.clipboard.dangerouslyPasteHTML(value);
-}
-
-        quill.on('text-change', () => {
-            const html = quill.getSemanticHTML();
-            onChangeRef.current(html === '<p></p>' ? '' : html);
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Sync external value changes (e.g. loading a record) without disturbing typing.
-    useEffect(() => {
-        const quill = quillRef.current;
-
-        if (htmlMode) {
-return;
-}
-
-        if (quill && !quill.hasFocus() && (value || '') !== quill.getSemanticHTML().replace('<p></p>', '')) {
-            quill.clipboard.dangerouslyPasteHTML(value || '');
+        if (mode !== 'visual' || !el) {
+            return;
         }
-    }, [value, htmlMode]);
 
-    // Enter HTML mode: snapshot the current markup into the textarea.
-    // Leave HTML mode: push the edited markup back into Quill (which re-emits onChange).
-    const toggleHtml = () => {
-        const quill = quillRef.current;
+        if (document.activeElement !== el && (value || '') !== el.innerHTML) {
+            el.innerHTML = value || '';
+        }
+    }, [value, mode]);
 
-        if (!htmlMode) {
-            setHtmlDraft(quill ? quill.getSemanticHTML() : value || '');
-            setHtmlMode(true);
-        } else {
-            if (quill) {
-quill.clipboard.dangerouslyPasteHTML(htmlDraft || '');
-}
-
-            onChangeRef.current(htmlDraft.trim() === '<p></p>' ? '' : htmlDraft);
-            setHtmlMode(false);
+    // Prefer <p> paragraphs over <div> when the surface gains focus.
+    const onFocus = () => {
+        try {
+            document.execCommand('defaultParagraphSeparator', false, 'p');
+        } catch {
+            /* not supported — harmless */
         }
     };
 
+    const emit = () => {
+        const el = editorRef.current;
+
+        if (el) {
+            const html = el.innerHTML;
+            onChangeRef.current(isEmptyHtml(html) ? '' : html);
+        }
+    };
+
+    // execCommand is deprecated but is the only cross-browser way to format a
+    // contenteditable in place; it's more than enough for a CMS editor.
+    const exec = (cmd: string, arg?: string) => {
+        editorRef.current?.focus();
+        document.execCommand(cmd, false, arg);
+        emit();
+    };
+    const block = (tag: string) => exec('formatBlock', tag);
+
+    const insertHtml = (html: string) => exec('insertHTML', html);
+
+    const link = () => {
+        promptRef.current({ title: 'Insert link', label: 'URL', placeholder: 'https://…', confirmText: 'Insert' }).then((url) => {
+            if (url) {
+                exec('createLink', url.trim());
+            }
+        });
+    };
+
+    const video = () => {
+        promptRef.current({ title: 'Insert YouTube video', label: 'YouTube link', placeholder: 'https://www.youtube.com/watch?v=…', confirmText: 'Insert' }).then((url) => {
+            if (!url) {
+                return;
+            }
+
+            const id = youtubeId(url.trim());
+            const src = id ? `https://www.youtube.com/embed/${id}` : url.trim();
+            insertHtml(`<iframe src="${src}" allowfullscreen frameborder="0"></iframe><p><br></p>`);
+        });
+    };
+
+    const image = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async () => {
+            const file = input.files?.[0];
+
+            if (!file) {
+                return;
+            }
+
+            try {
+                const url = await uploadImage(file);
+                insertHtml(`<img src="${url}" alt="">`);
+            } catch {
+                /* ignore */
+            }
+        };
+        input.click();
+    };
+
+    const toCode = () => setMode('code');
+    const toVisual = () => {
+        if (editorRef.current) {
+            editorRef.current.innerHTML = value || '';
+        }
+
+        setMode('visual');
+    };
+
+    const empty = isEmptyHtml(value || '');
+
     return (
-        <div className="rte overflow-hidden rounded-xl border border-input bg-card shadow-sm">
-            <style>{`.rte .ql-editor .ql-video{display:block;width:100%;aspect-ratio:16/9;height:auto;border-radius:12px;margin:1rem 0;}`}</style>
-            <div className="flex items-center justify-end border-b border-input bg-muted/40 px-2 py-1.5">
-                <button
-                    type="button"
-                    onClick={toggleHtml}
-                    className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                    {htmlMode ? <><Eye className="size-3.5" /> Visual</> : <><Code2 className="size-3.5" /> HTML</>}
-                </button>
+        <div className={`rte flex flex-col overflow-hidden rounded-xl border border-input bg-card shadow-sm ${full ? 'fixed inset-0 z-[100] rounded-none' : ''}`}>
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center gap-0.5 border-b border-input bg-muted/40 px-2 py-1.5">
+                {mode === 'visual' && (
+                    <>
+                        <Btn onClick={() => block('P')} title="Paragraph"><Pilcrow className="size-4" /></Btn>
+                        <Btn onClick={() => block('H1')} title="Heading 1"><Heading1 className="size-4" /></Btn>
+                        <Btn onClick={() => block('H2')} title="Heading 2"><Heading2 className="size-4" /></Btn>
+                        <Btn onClick={() => block('H3')} title="Heading 3"><Heading3 className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={() => exec('bold')} title="Bold"><Bold className="size-4" /></Btn>
+                        <Btn onClick={() => exec('italic')} title="Italic"><Italic className="size-4" /></Btn>
+                        <Btn onClick={() => exec('underline')} title="Underline"><Underline className="size-4" /></Btn>
+                        <Btn onClick={() => exec('strikeThrough')} title="Strikethrough"><Strikethrough className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={() => exec('insertUnorderedList')} title="Bulleted list"><List className="size-4" /></Btn>
+                        <Btn onClick={() => exec('insertOrderedList')} title="Numbered list"><ListOrdered className="size-4" /></Btn>
+                        <Btn onClick={() => block('BLOCKQUOTE')} title="Quote"><Quote className="size-4" /></Btn>
+                        <Btn onClick={() => block('PRE')} title="Code block"><Code className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={link} title="Link"><Link2 className="size-4" /></Btn>
+                        <Btn onClick={image} title="Image"><ImageIcon className="size-4" /></Btn>
+                        <Btn onClick={video} title="YouTube video"><Youtube className="size-4" /></Btn>
+                        <Btn onClick={() => exec('insertHorizontalRule')} title="Divider"><Minus className="size-4" /></Btn>
+                        <Btn onClick={() => exec('removeFormat')} title="Clear formatting"><RemoveFormatting className="size-4" /></Btn>
+                    </>
+                )}
+
+                <div className="ml-auto flex items-center gap-0.5">
+                    <button type="button" onClick={mode === 'visual' ? toCode : toVisual}
+                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                        {mode === 'visual' ? <><Code2 className="size-3.5" /> HTML</> : <><Eye className="size-3.5" /> Visual</>}
+                    </button>
+                    <Btn onClick={() => setFull((f) => !f)} title={full ? 'Exit full screen' : 'Full screen'}>
+                        {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                    </Btn>
+                </div>
             </div>
-            {/* Quill host stays mounted (it owns its DOM); hidden in HTML mode. */}
-            <div className={htmlMode ? 'hidden' : ''}>
-                <div ref={hostRef} />
-            </div>
-            {htmlMode && (
-                <textarea
-                    value={htmlDraft}
-                    onChange={(e) => {
- setHtmlDraft(e.target.value); onChangeRef.current(e.target.value.trim() === '<p></p>' ? '' : e.target.value); 
-}}
-                    spellCheck={false}
-                    className="block h-80 w-full resize-y bg-card p-4 font-mono text-xs leading-relaxed text-foreground outline-none"
-                    placeholder="<h2>Paste or write HTML…</h2>"
+
+            {/* Visual surface (kept mounted; hidden in code mode so its DOM isn't lost) */}
+            <div className={`relative flex-1 overflow-auto ${mode === 'code' ? 'hidden' : ''}`}>
+                {empty && mode === 'visual' && (
+                    <span className="pointer-events-none absolute top-4 left-4 text-[15px] text-muted-foreground/60">{placeholder ?? 'Write your content…'}</span>
+                )}
+                <div
+                    ref={editorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onFocus={onFocus}
+                    onInput={emit}
+                    onBlur={emit}
+                    className={`min-h-80 w-full px-4 py-3 outline-none ${contentClass} ${full ? 'min-h-[calc(100vh-3rem)]' : ''}`}
                 />
+            </div>
+
+            {/* Code surface */}
+            {mode === 'code' && (
+                <CodeArea value={value || ''} onChange={(v) => onChangeRef.current(isEmptyHtml(v) ? '' : v)} />
             )}
         </div>
     );

@@ -46,6 +46,9 @@ class HomeController extends Controller
         }
 
         return Inertia::render('welcome', [
+            // The saved SEO title so the client tab title matches the server <title>
+            // (otherwise a hardcoded client title overrides the admin's SEO title).
+            'seo' => ['title' => $home['title']],
             'featured' => $featured,
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug', 'icon', 'blurb', 'color']),
             'sections' => $sections,

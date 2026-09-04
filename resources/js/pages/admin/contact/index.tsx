@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Check, Mail, Phone, RotateCcw } from 'lucide-react';
+import { Check, Download, Mail, Phone, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -7,24 +7,36 @@ interface Message {
     id: number; name: string; email: string; phone: string | null;
     category: string; message: string; handled: boolean; at: string;
 }
-interface Paginated { data: Message[]; prev_page_url: string | null; next_page_url: string | null }
-interface Props { messages: Paginated; unhandled: number }
+interface Paginated { data: Message[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Props { messages: Paginated; unhandled: number; filters: { status: string } }
 
 const CATEGORY_TINT: Record<string, string> = { support: '#3b82f6', sales: '#2ec4b6', enquiry: '#a855f7' };
+const TABS: [string, string][] = [['all', 'All'], ['open', 'Open'], ['handled', 'Handled']];
 
-export default function ContactInbox({ messages, unhandled }: Props) {
+export default function ContactInbox({ messages, unhandled, filters }: Props) {
     const toggle = (id: number) => router.post(`/admin/contact/${id}/toggle`, {}, { preserveScroll: true });
+    const setStatus = (status: string) => router.get('/admin/contact', status === 'all' ? {} : { status }, { preserveScroll: true, preserveState: true });
+    const exportUrl = `/admin/contact/export${filters.status !== 'all' ? `?status=${filters.status}` : ''}`;
 
     return (
         <>
             <Head title="Contact messages" />
             <div className="mx-auto w-full max-w-4xl flex-1 p-4">
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Contact messages</h1>
                         <p className="text-sm text-muted-foreground">Submissions from the public contact form.</p>
                     </div>
-                    {unhandled > 0 && <Badge className="bg-foreground text-background">{unhandled} open</Badge>}
+                    <div className="flex items-center gap-2">
+                        {unhandled > 0 && <Badge className="bg-foreground text-background">{unhandled} open</Badge>}
+                        <Button asChild variant="outline" size="sm"><a href={exportUrl} download><Download className="size-3.5" /> Export CSV</a></Button>
+                    </div>
+                </div>
+
+                <div className="mb-5 flex flex-wrap gap-2">
+                    {TABS.map(([v, l]) => (
+                        <button key={v} onClick={() => setStatus(v)} className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${filters.status === v ? 'border-foreground bg-foreground text-background' : 'border-border hover:border-foreground/40'}`}>{l}</button>
+                    ))}
                 </div>
 
                 {messages.data.length === 0 ? (
@@ -57,9 +69,10 @@ export default function ContactInbox({ messages, unhandled }: Props) {
                 )}
 
                 {(messages.prev_page_url || messages.next_page_url) && (
-                    <div className="mt-8 flex justify-between">
-                        <Button asChild variant="outline" disabled={!messages.prev_page_url}>{messages.prev_page_url ? <Link href={messages.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <Button asChild variant="outline" disabled={!messages.next_page_url}>{messages.next_page_url ? <Link href={messages.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
+                    <div className="mt-8 flex items-center justify-between gap-2">
+                        <Button asChild variant="outline" size="sm" disabled={!messages.prev_page_url}>{messages.prev_page_url ? <Link href={messages.prev_page_url} preserveScroll>← Previous</Link> : <span>← Previous</span>}</Button>
+                        <span className="text-sm text-muted-foreground">Page {messages.current_page} of {messages.last_page} · {messages.total} total</span>
+                        <Button asChild variant="outline" size="sm" disabled={!messages.next_page_url}>{messages.next_page_url ? <Link href={messages.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
                     </div>
                 )}
             </div>

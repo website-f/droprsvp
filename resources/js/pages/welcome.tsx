@@ -58,6 +58,32 @@ interface LandingSections {
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const AVATAR_TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7'];
 
+// Cached geolocation fix so we never re-prompt the visitor on every homepage visit.
+const GEO_CACHE_KEY = 'drsvp_geo';
+const GEO_ASKED_KEY = 'drsvp_geo_asked';
+const GEO_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+function readGeoCache(): { lat: number; lng: number } | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const raw = localStorage.getItem(GEO_CACHE_KEY);
+
+        if (raw) {
+            const c = JSON.parse(raw) as { lat: number; lng: number; ts: number };
+
+            if (c && Date.now() - c.ts < GEO_MAX_AGE) {
+                return { lat: c.lat, lng: c.lng };
+            }
+        }
+    } catch {
+        /* ignore malformed cache */
+    }
+
+    return null;
+}
+
 /** A single event card — shared by Featured, "Events in {city}" and "For you". */
 function EventCard({ e }: { e: FeaturedEvent }) {
     return (
@@ -101,8 +127,9 @@ function EventCard({ e }: { e: FeaturedEvent }) {
 }
 
 export default function Welcome() {
-    const { auth, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null } = usePage().props as unknown as {
+    const { auth, seo, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null } = usePage().props as unknown as {
         auth?: { user?: unknown };
+        seo?: { title?: string };
         featured?: FeaturedEvent[];
         categories?: { name: string; slug: string; icon?: string | null; blurb?: string | null; color?: string | null }[];
         sections?: LandingSections;
@@ -118,18 +145,62 @@ export default function Welcome() {
     const featuredOrgs = sections?.featured_organizers;
     const contact = sections?.contact;
 
-    // Ask for the visitor's location (once) so nearby cities can show distance.
-    const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+    // Resolve the visitor's location for the nearby-cities distances. We do this at
+    // most ONCE per browser: a fresh cached fix is reused silently (loaded straight
+    // into state), and we only ever show the permission prompt a single time.
+    const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(readGeoCache);
     useEffect(() => {
         if (!nearby?.enabled || typeof navigator === 'undefined' || !navigator.geolocation) {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (pos) => setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => {},
-            { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
-        );
+        // A fresh cached fix already seeded state — nothing to prompt for.
+        if (readGeoCache()) {
+            return;
+        }
+
+        const fetchFix = () => {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const g = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setGeo(g);
+
+                    try {
+                        localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ ...g, ts: Date.now() }));
+                    } catch {
+                        /* storage full/blocked — non-fatal */
+                    }
+                },
+                () => {},
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: GEO_MAX_AGE },
+            );
+        };
+
+        // If we can read the permission state, only prompt when it's actually
+        // needed and only once; if already granted, fetch silently every time.
+        if (navigator.permissions?.query) {
+            navigator.permissions
+                .query({ name: 'geolocation' as PermissionName })
+                .then((status) => {
+                    if (status.state === 'granted') {
+                        fetchFix(); // no prompt shown
+                    } else if (status.state === 'prompt' && !localStorage.getItem(GEO_ASKED_KEY)) {
+                        localStorage.setItem(GEO_ASKED_KEY, '1'); // ask a single time, ever
+                        fetchFix();
+                    }
+                    // 'denied' → respect it, never prompt.
+                })
+                .catch(() => {
+                    if (!localStorage.getItem(GEO_ASKED_KEY)) {
+                        localStorage.setItem(GEO_ASKED_KEY, '1');
+                        fetchFix();
+                    }
+                });
+        } else if (!localStorage.getItem(GEO_ASKED_KEY)) {
+            // No Permissions API — fall back to a single lifetime prompt.
+            localStorage.setItem(GEO_ASKED_KEY, '1');
+            fetchFix();
+        }
     }, [nearby?.enabled]);
 
     const nearbyCities = useMemo(() => {
@@ -174,7 +245,8 @@ export default function Welcome() {
 
     return (
         <>
-            <Head title="Find your people — DropRSVP" />
+            {/* The admin's saved SEO title (the title callback won't double-brand it). */}
+            <Head title={seo?.title ?? 'Find your people — DropRSVP'} />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

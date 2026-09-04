@@ -48,6 +48,14 @@
         <x-inertia::head />
     </head>
     <body class="font-sans antialiased">
+        {{-- Crawlable content fallback: since there's no Node/SSR in production,
+             content pages (help, blog…) render their body server-side here so
+             non-JS crawlers index the actual text, not just the meta tags. Real
+             visitors get the React version and never see this. --}}
+        @php($seoBody = app(\App\Support\SeoManager::class)->crawlableHtml())
+        @if($seoBody)
+            <noscript>{!! $seoBody !!}</noscript>
+        @endif
         <x-inertia::app />
     </body>
 </html>

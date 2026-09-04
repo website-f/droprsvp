@@ -390,6 +390,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
         // Contact-form inbox.
         Route::get('contact', [AdminContactController::class, 'index'])->name('contact.index');
+        Route::get('contact/export', [AdminContactController::class, 'export'])->name('contact.export');
         Route::post('contact/{message}/toggle', [AdminContactController::class, 'toggle'])->name('contact.toggle');
 
         // Site appearance — landing sections + footer builder.

@@ -88,11 +88,13 @@ go(i + (dx < 0 ? 1 : -1));
 
                 {n > 1 && (
                     <>
-                        <button type="button" aria-label="Previous" onClick={() => go(i - 1)} className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow transition-colors hover:bg-white"><ChevronLeft className="size-5" /></button>
-                        <button type="button" aria-label="Next" onClick={() => go(i + 1)} className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow transition-colors hover:bg-white"><ChevronRight className="size-5" /></button>
-                        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+                        {/* Liquid-glass controls — translucent, blurred, kept off the copy. */}
+                        <button type="button" aria-label="Previous" onClick={() => go(i - 1)} className="absolute left-3 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-white/25"><ChevronLeft className="size-4" /></button>
+                        <button type="button" aria-label="Next" onClick={() => go(i + 1)} className="absolute right-3 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-white/25"><ChevronRight className="size-4" /></button>
+                        {/* Dots: small, glassy, tucked in the bottom-right so they never sit over the heading/CTA. */}
+                        <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-white/10 px-2 py-1.5 ring-1 ring-white/20 backdrop-blur-md">
                             {slides.map((_, d) => (
-                                <button key={d} type="button" aria-label={`Slide ${d + 1}`} onClick={() => go(d)} className={`h-1.5 rounded-full transition-all ${d === i ? 'w-6 bg-white' : 'w-1.5 bg-white/60'}`} />
+                                <button key={d} type="button" aria-label={`Slide ${d + 1}`} onClick={() => go(d)} className={`h-1 rounded-full transition-all ${d === i ? 'w-4 bg-white' : 'w-1 bg-white/50 hover:bg-white/80'}`} />
                             ))}
                         </div>
                     </>

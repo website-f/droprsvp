@@ -12,7 +12,17 @@ import SettingsLayout from '@/layouts/settings/layout';
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    // Append the brand — but not when the page's title already contains it (e.g. an
+    // admin-set SEO title like "… | Drop RSVP"), so we never double-brand the tab.
+    title: (title) => {
+        if (!title) {
+            return appName;
+        }
+
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        return norm(title).includes(norm(appName)) ? title : `${title} - ${appName}`;
+    },
     layout: (name) => {
         switch (true) {
             case name === 'welcome':

@@ -68,7 +68,9 @@ class HelpController extends Controller
                 ['name' => 'Home', 'url' => url('/')],
                 ['name' => 'Help center', 'url' => url('/help')],
                 ['name' => $article->title, 'url' => $canonical],
-            ]);
+            ])
+            // Server-render the article so non-JS crawlers index the real content.
+            ->crawlable('<article><h1>'.e($article->title).'</h1>'.$article->body.'</article>');
 
         return Inertia::render('public/help/show', [
             'article' => [

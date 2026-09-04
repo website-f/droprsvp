@@ -38,7 +38,27 @@ class SeoManager
     /** Extra raw <meta> tags: ['name'|'property' => ..., 'content' => ...]. */
     protected array $extra = [];
 
+    /** Server-rendered content HTML for crawlers (there's no Node/SSR in prod). */
+    protected ?string $crawlableHtml = null;
+
     // ---- fluent setters ----------------------------------------------------
+
+    /**
+     * Provide the page's main content as HTML so it's present in the server
+     * response for crawlers/agents that don't run JavaScript (emitted in a
+     * <noscript> block; the React app renders the same content for real users).
+     */
+    public function crawlable(?string $html): static
+    {
+        $this->crawlableHtml = $html ? trim($html) : null;
+
+        return $this;
+    }
+
+    public function crawlableHtml(): ?string
+    {
+        return $this->crawlableHtml;
+    }
 
     public function title(?string $title, bool $appendSiteName = true): static
     {

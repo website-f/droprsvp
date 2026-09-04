@@ -79,7 +79,9 @@ class BlogController extends Controller
                 ['name' => 'Home', 'url' => url('/')],
                 ['name' => 'Blog', 'url' => url('/blog')],
                 ['name' => $post->title, 'url' => $canonical],
-            ]);
+            ])
+            // Server-render the post so non-JS crawlers index the real content.
+            ->crawlable('<article><h1>'.e($post->title).'</h1>'.$post->body.'</article>');
 
         return Inertia::render('public/blog/show', [
             'post' => [

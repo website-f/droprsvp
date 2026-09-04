@@ -117,7 +117,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
                     {tab === 'payments' && (
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2 grid gap-1.5">
-                                <Label>Platform fee</Label>
+                                <Label>Platform fee <span className="font-normal text-muted-foreground">— charged to organizers</span></Label>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <div className="inline-flex h-10 rounded-lg border border-border p-0.5">
                                         <button type="button" onClick={() => setData('fee_type', 'percent')} className={`flex items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors ${data.fee_type === 'percent' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}><Percent className="size-3.5" /> Percentage</button>
@@ -135,7 +135,12 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-xs text-muted-foreground">{data.fee_type === 'percent' ? "Kept from each organizer's gross ticket revenue." : 'A flat amount kept from each paid order — capped at the order total.'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {data.fee_type === 'percent'
+                                        ? "Deducted from each organizer's ticket revenue at payout (e.g. 5% of a RM100 sale = RM5 kept, RM95 to the organizer)."
+                                        : 'A flat amount deducted from each paid order at payout — capped at the order total.'}
+                                    {' '}Buyers are never charged this — they only pay the ticket price (plus tax, if enabled).
+                                </p>
                             </div>
                             <Field label="Event boost price (RM)"><input type="number" min={0} step="1" className={input} value={data.boost_price} onChange={(e) => setData('boost_price', e.target.value)} /></Field>
                             <Field label="Boost duration (days)"><input type="number" min={1} step="1" className={input} value={data.boost_days} onChange={(e) => setData('boost_days', e.target.value)} /></Field>
