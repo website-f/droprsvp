@@ -5,6 +5,19 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        {{-- Google tag (gtag.js) — site-wide analytics. Skipped on local/testing so
+             dev traffic and the test suite never pollute the GA property. --}}
+        @unless(app()->environment('local', 'testing'))
+            <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q80TSQSFQ1"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+
+                gtag('config', 'G-Q80TSQSFQ1');
+            </script>
+        @endunless
+
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {

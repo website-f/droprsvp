@@ -15,6 +15,7 @@ class SiteContent
     public static function landing(): array
     {
         $defaults = self::defaultLanding();
+        $premadeSeo = $defaults['seo_text'];   // capture before the merge loop mutates it
         $saved = Setting::getArray('landing_sections', []);
 
         foreach ($defaults as $key => $section) {
@@ -23,7 +24,25 @@ class SiteContent
             }
         }
 
+        // Keep the premade SEO copy visible until the admin writes their own,
+        // while always respecting an explicit enable/disable choice.
+        $defaults['seo_text'] = self::mergeSeoText($premadeSeo, $saved['seo_text'] ?? []);
+
         return $defaults;
+    }
+
+    /**
+     * Merge a saved SEO-text block over its premade default: respect the admin's
+     * enable/disable toggle, but fall back to the premade heading/body whenever the
+     * admin hasn't supplied their own — so the block never renders empty.
+     */
+    private static function mergeSeoText(array $premade, array $saved): array
+    {
+        return [
+            'enabled' => array_key_exists('enabled', $saved) ? (bool) $saved['enabled'] : $premade['enabled'],
+            'heading' => filled($saved['heading'] ?? null) ? $saved['heading'] : $premade['heading'],
+            'body' => filled($saved['body'] ?? null) ? $saved['body'] : $premade['body'],
+        ];
     }
 
     /**
@@ -62,6 +81,7 @@ class SiteContent
     public static function eventsPage(): array
     {
         $defaults = self::defaultEventsPage();
+        $premadeSeo = $defaults['seo_text'];   // capture before the merge loop mutates it
         $saved = Setting::getArray('events_page', []);
 
         foreach ($defaults as $key => $section) {
@@ -69,6 +89,8 @@ class SiteContent
                 $defaults[$key] = array_replace($section, $saved[$key]);
             }
         }
+
+        $defaults['seo_text'] = self::mergeSeoText($premadeSeo, $saved['seo_text'] ?? []);
 
         return $defaults;
     }
@@ -87,13 +109,26 @@ class SiteContent
                 'cta_url' => '',
                 'align' => 'left',
             ],
-            // A keyword-friendly text block below the event grid (collapsed to a teaser).
+            // A keyword-friendly text block below the event grid (collapsed to a
+            // teaser). Shown with premade copy out of the box; the admin can edit or
+            // hide it from Admin → Events page → SEO text block.
             'seo_text' => [
-                'enabled' => false,
-                'heading' => '',
-                'body' => '',
+                'enabled' => true,
+                'heading' => 'Events & things to do in Malaysia',
+                'body' => self::eventsSeoBody(),
             ],
         ];
+    }
+
+    /** Premade, keyword-friendly copy for the events page's SEO text block. */
+    private static function eventsSeoBody(): string
+    {
+        return implode("\n", [
+            '<p>Looking for things to do in Malaysia? Explore upcoming events on DropRSVP — concerts, festivals, workshops, conferences, sports, nightlife, food fairs and community meetups, all in one place.</p>',
+            '<p>Filter by city to find events in Kuala Lumpur, Petaling Jaya, Penang, Johor Bahru, Ipoh and more, or narrow your search by category to match your interests. Every listing shows the date, venue, ticket price and how many people are going, so you can decide fast.</p>',
+            '<p>Found something you like? Grab your ticket in seconds and receive a secure QR pass that gets you straight through the door. Your tickets live in your DropRSVP account, ready whenever the event begins.</p>',
+            "<p>Organizers add new events every day, so check back often to see what's happening near you.</p>",
+        ]);
     }
 
     /**
@@ -243,13 +278,25 @@ class SiteContent
                 'enabled' => true,
             ],
             // An SEO-friendly text block near the foot of the page (collapsed to a
-            // teaser with "Read more"). Admin-editable copy for keywords/context.
+            // teaser with "Read more"). Shown with premade copy out of the box; the
+            // admin can edit or hide it from Admin → Landing → SEO text block.
             'seo_text' => [
-                'enabled' => false,
-                'heading' => '',
-                'body' => '',
+                'enabled' => true,
+                'heading' => 'Discover & host events across Malaysia',
+                'body' => self::landingSeoBody(),
             ],
         ];
+    }
+
+    /** Premade, keyword-friendly copy for the home page's SEO text block. */
+    private static function landingSeoBody(): string
+    {
+        return implode("\n", [
+            "<p>DropRSVP is Malaysia's home for discovering and hosting events. From live concerts and music festivals to workshops, conferences, food fairs and community meetups, you'll always find something happening near you — in Kuala Lumpur, Petaling Jaya, Penang, Johor Bahru, Ipoh and beyond.</p>",
+            '<p>Browse events by city or category, compare ticket prices, and check out in seconds with a secure QR pass that&rsquo;s ready at the door — no queues and no printing. Every ticket is saved to your account, so getting in is as easy as showing your phone.</p>',
+            '<p>Running your own event? Create a listing in minutes, sell tickets online, manage reserved seating or table layouts, and check guests in with a quick QR scan. Track sales and attendance in real time and get paid straight to your bank — all from one simple dashboard.</p>',
+            "<p>Whether you're after something to do this weekend or launching your next big night out, DropRSVP makes discovering, booking and hosting events across Malaysia effortless.</p>",
+        ]);
     }
 
     /** Default footer as a Puck document (a single Footer block). */
