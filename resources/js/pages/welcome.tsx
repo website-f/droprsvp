@@ -500,43 +500,74 @@ export default function Welcome() {
                 </>)}
 
                 {/* ------------------------------------------ How DropRSVP works */}
-                {(org?.enabled ?? true) && (
-                    <section className="px-6 pt-6 pb-20">
-                        <div className="mx-auto max-w-6xl">
-                            <Reveal className="mb-12 text-center">
-                                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{org?.heading || 'How DropRSVP works'}</h2>
-                                <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">From finding your next night out to hosting your own — three simple steps.</p>
-                            </Reveal>
-                            <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-stretch lg:justify-center">
-                                {[
-                                    { icon: Compass, tint: '#6c63ff', title: 'Discover events near you', body: 'Browse concerts, workshops, food fests and meetups happening around you.', cta: 'Explore events', url: '/en-my/all' },
-                                    { icon: Ticket, tint: '#2ec4b6', title: 'Get your ticket in seconds', body: 'Book with a secure QR pass that’s ready at the door — no queues, no printing.', cta: 'Find events', url: '/en-my/all' },
-                                    { icon: CalendarPlus, tint: '#f5a524', title: 'Host your own event', body: 'Create an event, sell tickets, manage seating and check guests in — all in one place.', cta: 'Create an event', url: signedIn ? dashboard() : '/get-started' },
-                                ].map((s, i) => (
-                                    <div key={s.title} className="flex w-full flex-col items-center lg:w-auto lg:flex-row lg:items-stretch">
-                                        <Reveal delay={i * 100} className="w-full max-w-sm lg:w-72">
-                                            <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${s.tint}1f`, color: s.tint }}><s.icon className="size-6" /></span>
-                                                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Step {i + 1}</span>
-                                                </div>
-                                                <h3 className="mt-4 text-lg font-semibold">{s.title}</h3>
-                                                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-                                                <Link href={s.url} className="mt-4 inline-flex w-max items-center gap-1 text-sm font-semibold text-primary hover:underline">{s.cta} <ArrowRight className="size-3.5" /></Link>
-                                            </div>
-                                        </Reveal>
-                                        {i < 2 && (
-                                            <div className="flex items-center justify-center py-1 text-muted-foreground/40 lg:px-1" aria-hidden>
-                                                <ArrowRight className="hidden size-6 lg:block" />
-                                                <ArrowDown className="size-5 lg:hidden" />
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                {(org?.enabled ?? true) && (() => {
+                    const steps = [
+                        { icon: Compass, tint: '#6c63ff', title: 'Discover events near you', body: 'Browse concerts, workshops, food fests and meetups happening around you.', cta: 'Start exploring', url: '/en-my/all' },
+                        { icon: Ticket, tint: '#2ec4b6', title: 'Get your ticket in seconds', body: 'Book with a secure QR pass that’s ready at the door — no queues, no printing.', cta: 'Find events', url: '/en-my/all' },
+                        { icon: CalendarPlus, tint: '#f5a524', title: 'Host your own event', body: 'Create an event, sell tickets, manage seating and check guests in — all in one place.', cta: 'Create an event', url: signedIn ? dashboard() : '/get-started' },
+                    ];
+                    const card = (s: (typeof steps)[number]) => (
+                        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                            <div className="flex gap-4">
+                                <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${s.tint}1f`, color: s.tint }}><s.icon className="size-6" /></span>
+                                <div>
+                                    <h3 className="font-semibold leading-snug">{s.title}</h3>
+                                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                                    <Link href={s.url} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">{s.cta} <ArrowRight className="size-3.5" /></Link>
+                                </div>
                             </div>
                         </div>
-                    </section>
-                )}
+                    );
+                    const doodle = () => (
+                        <div className="flex items-center gap-3">
+                            <UserPlus className="size-9 shrink-0 text-[#f5a524]" strokeWidth={1.75} />
+                            <span className="max-w-[9rem] -rotate-6 text-sm font-extrabold uppercase leading-tight tracking-wide text-[#f5a524]">Your people, your night</span>
+                        </div>
+                    );
+
+                    return (
+                        <section className="relative overflow-hidden px-6 pt-6 pb-24">
+                            <div className="mx-auto max-w-6xl">
+                                <Reveal className="mb-10 text-center sm:mb-4">
+                                    <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How DropRSVP works</h2>
+                                    <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">From finding your next night out to hosting your own — three simple steps.</p>
+                                </Reveal>
+
+                                {/* Desktop: flowing, staggered layout with hand-drawn connectors */}
+                                <Reveal className="hidden lg:block">
+                                    <div className="relative mx-auto" style={{ width: 960, height: 560 }}>
+                                        <svg viewBox="0 0 960 560" fill="none" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full text-muted-foreground/40" aria-hidden>
+                                            {/* card 1 → card 2 : a little loop, then arrow right */}
+                                            <path d="M305 118 C 392 74 424 74 456 122 C 482 162 520 172 648 152" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                                            <path d="M634 142 L650 152 L634 162" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                            {/* card 2 → card 3 : sweep down and back to the left */}
+                                            <path d="M812 258 C 856 356 834 428 664 414" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                                            <path d="M681 402 L662 414 L678 428" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                        </svg>
+
+                                        <div className="absolute" style={{ left: 0, top: 40, width: 320 }}>{card(steps[0])}</div>
+                                        <div className="absolute" style={{ left: 640, top: 60, width: 320 }}>{card(steps[1])}</div>
+                                        <div className="absolute" style={{ left: 320, top: 348, width: 340 }}>{card(steps[2])}</div>
+                                        <div className="absolute" style={{ left: 24, top: 430 }}>{doodle()}</div>
+                                    </div>
+                                </Reveal>
+
+                                {/* Mobile / tablet: stacked with soft connectors */}
+                                <div className="mt-4 space-y-3 lg:hidden">
+                                    {steps.map((s, i) => (
+                                        <div key={s.title}>
+                                            <Reveal delay={i * 80}>{card(s)}</Reveal>
+                                            {i < steps.length - 1 && (
+                                                <div className="flex justify-center py-1 text-muted-foreground/40" aria-hidden><ArrowDown className="size-5" /></div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <div className="pt-3">{doodle()}</div>
+                                </div>
+                            </div>
+                        </section>
+                    );
+                })()}
 
                 {/* --------------------------------------------- SEO text block */}
                 {seoText?.enabled && seoText.body && (
