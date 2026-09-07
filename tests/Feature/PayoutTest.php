@@ -6,8 +6,9 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Payments\ChipSendGateway;
+use App\Services\PayoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -49,7 +50,7 @@ class PayoutTest extends TestCase
         $future = Event::create(['user_id' => $host->id, 'title' => 'Later', 'slug' => 'later-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(5)]);
         Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $future->id, 'status' => 'paid', 'total' => 100, 'paid_at' => now()]);
 
-        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+        $balance = app(PayoutService::class)->balanceFor($host);
         $this->assertSame(0.0, $balance['available']);
         $this->assertSame(100.0, $balance['pending_clearance']);
 
@@ -57,7 +58,7 @@ class PayoutTest extends TestCase
         $past = Event::create(['user_id' => $host->id, 'title' => 'Done', 'slug' => 'done-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->subDays(2), 'ends_at' => now()->subDay()]);
         Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $past->id, 'status' => 'paid', 'total' => 40, 'paid_at' => now()]);
 
-        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+        $balance = app(PayoutService::class)->balanceFor($host);
         $this->assertSame(40.0, $balance['available']);
         $this->assertSame(100.0, $balance['pending_clearance']);
     }
@@ -70,7 +71,7 @@ class PayoutTest extends TestCase
         // Buyer paid RM105 (RM100 ticket + RM5 fee); RM40 later refunded to them.
         Order::create(['reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid', 'subtotal' => 100, 'fees' => 5, 'total' => 105, 'refunded_amount' => 40, 'paid_at' => now()]);
 
-        $balance = app(\App\Services\PayoutService::class)->balanceFor($host);
+        $balance = app(PayoutService::class)->balanceFor($host);
 
         // Organizer keeps total − fees − refunded = 105 − 5 − 40 = 60.
         $this->assertSame(60.0, $balance['net']);
@@ -111,5 +112,32 @@ class PayoutTest extends TestCase
     {
         $user = User::factory()->create();
         $this->actingAs($user)->get(route('admin.payouts.index'))->assertForbidden();
+    }
+
+    public function test_a_chip_send_outage_returns_a_message_not_a_500(): void
+    {
+        Role::findOrCreate('superadmin', 'web');
+        $admin = User::factory()->create();
+        $admin->assignRole('superadmin');
+
+        $host = $this->hostWithRevenue(200);
+        $host->forceFill([
+            'payout_bank_code' => 'MBBEMYKL', 'payout_bank_account_number' => '1234567890', 'payout_bank_account_name' => 'Host Co',
+        ])->save();
+        $this->actingAs($host)->post(route('host.payouts.request'));
+        $payout = Payout::first();
+
+        // CHIP Send is configured but the API call blows up mid-transfer.
+        $this->mock(ChipSendGateway::class, function ($m) {
+            $m->shouldReceive('configured')->andReturnTrue();
+            $m->shouldReceive('send')->andThrow(new \RuntimeException('CHIP unreachable'));
+        });
+
+        $this->actingAs($admin)->post(route('admin.payouts.send', $payout))
+            ->assertRedirect()
+            ->assertSessionHas('flash_error');
+
+        // Nothing was marked paid — it stays pending and retryable.
+        $this->assertSame('pending', $payout->fresh()->status);
     }
 }

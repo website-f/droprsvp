@@ -8,6 +8,7 @@ use App\Services\Payments\ChipSendGateway;
 use App\Services\PayoutService;
 use App\Support\Banks;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PayoutController extends Controller
 {
@@ -54,7 +55,18 @@ class PayoutController extends Controller
     /** Automated — pay the organizer via CHIP Send. */
     public function send(Payout $payout, ChipSendGateway $send)
     {
-        $this->payouts->sendViaChip($payout, $send);
+        // Real money + a live API call: a misconfiguration, missing bank details, or
+        // a CHIP outage must never 500 mid-transfer — always come back with a clear,
+        // actionable message (toasted) so the admin can retry or pay out manually.
+        try {
+            $this->payouts->sendViaChip($payout, $send);
+        } catch (ValidationException $e) {
+            throw $e; // config / bank-details problems surface as inline field errors
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('flash_error', 'CHIP Send couldn’t process this payout right now — try again, refresh its status, or pay it out manually.');
+        }
 
         return back()->with('flash_success', $payout->fresh()->status === 'paid'
             ? "{$payout->reference} paid via CHIP Send."
@@ -64,7 +76,13 @@ class PayoutController extends Controller
     /** Re-check an in-flight CHIP Send payout's status. */
     public function sync(Payout $payout, ChipSendGateway $send)
     {
-        $this->payouts->syncChipStatus($payout, $send);
+        try {
+            $this->payouts->syncChipStatus($payout, $send);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('flash_error', 'Couldn’t reach CHIP to refresh this payout’s status. Please try again shortly.');
+        }
 
         return back()->with('flash_success', "Refreshed {$payout->reference}: {$payout->fresh()->status}.");
     }

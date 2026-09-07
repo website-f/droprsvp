@@ -9,6 +9,7 @@ use App\Models\RefundRequest;
 use App\Services\CheckoutService;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The organizer's refund queue — buyers' refund requests on their events, which
@@ -47,26 +48,34 @@ class RefundController extends Controller
         // Claim the request under a row lock so two concurrent approvals of the SAME
         // request can't both fire a gateway refund. The gateway itself runs inside
         // the order lock in CheckoutService::refund.
-        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($refundRequest, $order, $amount, $gateway, $checkout, $request) {
-            $claimed = RefundRequest::whereKey($refundRequest->id)->lockForUpdate()->first();
-            if (! $claimed || $claimed->status !== 'pending') {
-                return ['ok' => false, 'reason' => 'claimed'];
-            }
+        try {
+            $result = DB::transaction(function () use ($refundRequest, $order, $amount, $gateway, $checkout, $request) {
+                $claimed = RefundRequest::whereKey($refundRequest->id)->lockForUpdate()->first();
+                if (! $claimed || $claimed->status !== 'pending') {
+                    return ['ok' => false, 'reason' => 'claimed'];
+                }
 
-            $refund = $checkout->refund($order, $amount, $gateway);
-            if (! $refund['ok']) {
+                $refund = $checkout->refund($order, $amount, $gateway);
+                if (! $refund['ok']) {
+                    return $refund;
+                }
+
+                $claimed->update([
+                    'status' => 'approved',
+                    'approved_amount' => $refund['amount'],
+                    'decided_by' => $request->user()->id,
+                    'decided_at' => now(),
+                ]);
+
                 return $refund;
-            }
+            });
+        } catch (\Throwable $e) {
+            // e.g. the gateway host is unreachable — the transaction rolled back, so
+            // nothing was refunded. Tell the organizer instead of showing a 500.
+            report($e);
 
-            $claimed->update([
-                'status' => 'approved',
-                'approved_amount' => $refund['amount'],
-                'decided_by' => $request->user()->id,
-                'decided_at' => now(),
-            ]);
-
-            return $refund;
-        });
+            return back()->with('flash_error', 'We couldn’t reach the payment gateway to process this refund. Please try again shortly.');
+        }
 
         if (! ($result['ok'] ?? false)) {
             return back()->with('flash_error', ($result['reason'] ?? '') === 'gateway'
