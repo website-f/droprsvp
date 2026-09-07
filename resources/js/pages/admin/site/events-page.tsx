@@ -1,7 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ExternalLink, Save, Upload } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { RichEditor } from '@/components/rich-editor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +35,7 @@ export default function EventsPageSettings({ data: initial }: { data: Data }) {
         setUploading(false);
     };
 
-    const save = () => form.post('/admin/site/events-page', { preserveScroll: true, onSuccess: () => toast.success('Events page saved') });
+    const save = () => form.post('/admin/site/events-page', { preserveScroll: true });
 
     return (
         <>

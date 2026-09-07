@@ -286,7 +286,8 @@ return;
                     input?.focus({ preventScroll: true });
                 });
             },
-            onSuccess: () => toast.success(publish ? 'Event published 🎉' : 'Saved to draft.'),
+            // Success feedback comes from the server flash (global FlashWatcher),
+            // which distinguishes "Event published." vs "Draft saved."
         };
 
         if (isEdit) {

@@ -71,7 +71,8 @@ class EventController extends Controller
         $this->syncProps($event, $data['ticketing_mode'] === 'tables' ? ($data['props'] ?? []) : []);
         $this->flagPolicy($event);
 
-        return redirect()->route('host.events.index')->with('success', 'Event created.');
+        return redirect()->route('host.events.index')
+            ->with('success', $event->status === 'published' ? 'Event published.' : 'Draft saved.');
     }
 
     public function edit(Request $request, Event $event)
@@ -106,7 +107,8 @@ class EventController extends Controller
         $this->syncProps($event, $data['ticketing_mode'] === 'tables' ? ($data['props'] ?? []) : []);
         $this->flagPolicy($event);
 
-        return redirect()->route('host.events.index')->with('success', 'Event updated.');
+        return redirect()->route('host.events.index')
+            ->with('success', $event->status === 'published' ? 'Event published.' : 'Draft saved.');
     }
 
     public function destroy(Request $request, Event $event)

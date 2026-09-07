@@ -1,13 +1,12 @@
 import { Head, useForm } from '@inertiajs/react';
 import { ExternalLink, RotateCcw, Save } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
 export default function RobotsEditor({ content, default: fallback, url }: { content: string; default: string; url: string }) {
     const form = useForm<{ content: string }>({ content });
     const { data, setData, processing } = form;
 
-    const save = () => form.post('/admin/site/robots', { preserveScroll: true, onSuccess: () => toast.success('robots.txt saved') });
+    const save = () => form.post('/admin/site/robots', { preserveScroll: true });
 
     return (
         <>

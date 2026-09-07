@@ -1,7 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Eye, ImageUp, Loader2, RotateCcw, Save } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { SwitchField } from '@/components/ui/switch';
@@ -115,7 +114,7 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
     const form = useForm<Branding>({ ...branding });
     const { data, setData, processing } = form;
 
-    const save = () => form.post('/admin/site/branding', { preserveScroll: true, onSuccess: () => toast.success('Branding saved') });
+    const save = () => form.post('/admin/site/branding', { preserveScroll: true });
 
     const previewRows = [
         { label: 'Header', h: data.header_height },

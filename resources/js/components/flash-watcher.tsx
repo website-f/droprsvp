@@ -1,46 +1,55 @@
 import { router } from '@inertiajs/react';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 
-interface PageProps { flash?: { warning?: string } }
+interface FlashProps { flash?: { success?: string; error?: string; warning?: string } }
 
 /**
- * Surfaces the shared `flash.warning` prop as a toast on every page. Mounted once
- * app-wide (outside the Inertia page tree), so it reads props via the global
- * router — NOT usePage(), which requires the page context. Used for session-timeout
- * notices: when a protected route bounces a guest to /login, the server flashes a
- * warning and this shows it, so the user knows why they landed on the login screen.
- * (success/error stay inline per page, so only `warning` is toasted here.)
+ * Surfaces server flash messages as toasts on every page, app-wide. Mounted once
+ * outside the Inertia page tree, so it reads props via the global router (NOT
+ * usePage(), which needs the page context).
+ *
+ * Laravel flash is one-shot — a controller's ->with('success'/'flash_error'/…)
+ * is present only on the immediate redirect target and gone on the next request —
+ * so we simply toast whatever's present on each navigation; it never repeats.
+ * This means every action that redirects with a message gives the user feedback
+ * without each page having to wire it up.
  */
 export function FlashWatcher() {
-    const last = useRef<string | undefined>(undefined);
-
     useEffect(() => {
-        const show = (props?: PageProps) => {
-            const warning = props?.flash?.warning;
+        const show = (props?: FlashProps) => {
+            const flash = props?.flash;
 
-            if (warning && warning !== last.current) {
-                last.current = warning;
-                toast.warning(warning);
+            if (!flash) {
+                return;
+            }
+
+            if (flash.success) {
+                toast.success(flash.success);
+            }
+
+            if (flash.error) {
+                toast.error(flash.error);
+            }
+
+            if (flash.warning) {
+                toast.warning(flash.warning);
             }
         };
 
-        // Initial page (e.g. a session-timeout full reload straight to /login).
+        // Initial page (e.g. a full-page redirect straight into a flashed page).
         try {
             const el = document.getElementById('app');
 
             if (el?.dataset.page) {
-                show(JSON.parse(el.dataset.page).props as PageProps);
+                show(JSON.parse(el.dataset.page).props as FlashProps);
             }
         } catch {
             /* ignore malformed initial payload */
         }
 
-        // Subsequent Inertia navigations (the common case: clicking within the app
-        // when the session has expired → server 302s to /login with the warning).
-        return router.on('navigate', (event) => {
-            show((event.detail.page.props as PageProps));
-        });
+        // Subsequent Inertia navigations (the common case: redirect after a POST).
+        return router.on('navigate', (event) => show(event.detail.page.props as FlashProps));
     }, []);
 
     return null;
