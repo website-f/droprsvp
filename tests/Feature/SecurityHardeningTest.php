@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\HtmlSanitizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Models\Role;
@@ -59,6 +60,16 @@ class SecurityHardeningTest extends TestCase
         $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])->post('/uploads', [
             'file' => UploadedFile::fake()->image('x.png', 100, 100),
         ])->assertOk()->assertJsonStructure(['url']);
+    }
+
+    /** Validation is content-based (getimagesize), so a non-image wearing a .jpg
+     *  name is still rejected — and uploads never call the fileinfo MIME guesser. */
+    public function test_image_upload_rejects_a_disguised_non_image(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])->post('/uploads', [
+            'file' => UploadedFile::fake()->create('malware.jpg', 10, 'image/jpeg'),
+        ])->assertStatus(422)->assertJsonValidationErrors('file');
     }
 
     // ---- Checkout capability-token access control -------------------------
@@ -118,7 +129,7 @@ class SecurityHardeningTest extends TestCase
     public function test_html_sanitizer_strips_scripts_and_handlers(): void
     {
         $dirty = '<p onclick="steal()">hi</p><script>alert(1)</script><a href="javascript:evil()">x</a>';
-        $clean = \App\Support\HtmlSanitizer::clean($dirty);
+        $clean = HtmlSanitizer::clean($dirty);
 
         $this->assertStringNotContainsString('<script', $clean);
         $this->assertStringNotContainsString('onclick', $clean);
