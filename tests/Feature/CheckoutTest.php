@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\TicketType;
 use App\Models\User;
+use App\Services\Payments\PaymentGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -147,5 +148,37 @@ class CheckoutTest extends TestCase
         $this->assertSame('paid', $order->status);
         $this->assertSame(1, $order->tickets()->count());
         Mail::assertSent(TicketsIssued::class);
+    }
+
+    public function test_a_gateway_outage_returns_the_buyer_with_a_message_not_a_500(): void
+    {
+        [$event, $tt] = $this->publishedEventWithTicket();
+        $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 1]]]);
+        $order = Order::first();
+
+        // A gateway that fails mid-hand-off must not 500 the buyer.
+        $this->mock(PaymentGateway::class, function ($m) {
+            $m->shouldReceive('createCheckout')->andThrow(new \RuntimeException('gateway down'));
+        });
+
+        $this->post(route('checkout.pay', $order), [
+            'buyer_name' => 'Ali', 'buyer_email' => 'ali@example.com', 'buyer_phone' => '0123456789', 'consent' => true,
+        ])->assertRedirect()->assertSessionHas('flash_error');
+
+        // The order is left pending and retryable, not broken.
+        $this->assertSame('pending', $order->fresh()->status);
+    }
+
+    public function test_a_sold_out_ticket_reports_a_clear_error_at_checkout_start(): void
+    {
+        [$event, $tt] = $this->publishedEventWithTicket(['quantity' => 1, 'max_per_order' => 5]);
+
+        // Ask for more than remain → CheckoutService rejects with a helpful message
+        // (shown to the buyer as a toast via the event page's onError).
+        $this->post(route('checkout.start', $event), ['items' => [['ticket_type_id' => $tt->id, 'quantity' => 3]]])
+            ->assertRedirect()
+            ->assertSessionHasErrors('items');
+
+        $this->assertSame(0, Order::count());
     }
 }

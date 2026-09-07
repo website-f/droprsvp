@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { SeatMap   } from '@/components/seat-map';
@@ -124,6 +125,14 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
     const total = event.seating_enabled ? seatingTotal : event.ticket_types.reduce((sum, t) => sum + (qty[t.id] || 0) * t.price, 0);
     const count = event.seating_enabled ? seatingCount : Object.values(qty).reduce((a, b) => a + b, 0);
 
+    // Surface sold-out / limit / seat errors (from CheckoutService validation) as a
+    // toast — otherwise the page just silently re-renders and the buyer is left guessing.
+    const checkoutOpts = {
+        onFinish: () => setSubmitting(false),
+        onError: (errors: Record<string, string>) =>
+            toast.error(errors.items || errors.seats || 'Sorry — we couldn’t start checkout. Please try again.'),
+    };
+
     const getTickets = () => {
         setSubmitting(true);
 
@@ -138,7 +147,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                 return;
             }
 
-            router.post(`/e/${event.slug}/checkout`, { seats: [...selectedSeats], items }, { onFinish: () => setSubmitting(false) });
+            router.post(`/e/${event.slug}/checkout`, { seats: [...selectedSeats], items }, checkoutOpts);
 
             return;
         }
@@ -151,7 +160,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
             return;
         }
 
-        router.post(`/e/${event.slug}/checkout`, { items }, { onFinish: () => setSubmitting(false) });
+        router.post(`/e/${event.slug}/checkout`, { items }, checkoutOpts);
     };
 
     const post = (parentId: number | null) => {

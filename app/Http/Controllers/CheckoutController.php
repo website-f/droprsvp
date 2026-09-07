@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Admin\SettingsController;
+use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Services\CheckoutService;
+use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -58,7 +61,7 @@ class CheckoutController extends Controller
 
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
-            'required' => \App\Http\Controllers\Admin\SettingsController::checkoutRequired(),
+            'required' => SettingsController::checkoutRequired(),
             'buyer' => $user ? [
                 'name' => $user->name,
                 'email' => $user->email,
@@ -113,7 +116,7 @@ class CheckoutController extends Controller
         abort_unless($order->status === 'pending', 410);
 
         // Which fields the superadmin marked required (name + email always are).
-        $req = \App\Http\Controllers\Admin\SettingsController::checkoutRequired();
+        $req = SettingsController::checkoutRequired();
         $need = fn (string $field) => $req[$field] ? 'required' : 'nullable';
 
         $data = $request->validate([
@@ -136,7 +139,7 @@ class CheckoutController extends Controller
         // Re-validate any applied promo code at pay time — it may have expired, been
         // deactivated, or hit its redemption limit since it was applied (stale cart).
         if ($order->discount_code_id) {
-            $code = \App\Models\DiscountCode::find($order->discount_code_id);
+            $code = DiscountCode::find($order->discount_code_id);
             if (! $code || $code->rejectionReason((float) $order->subtotal) !== null) {
                 $this->checkout->clearDiscount($order);
 
@@ -151,7 +154,18 @@ class CheckoutController extends Controller
             return redirect()->route('checkout.confirmation', $order);
         }
 
-        return Inertia::location($gateway->createCheckout($order));
+        // Hand off to the payment gateway. If it's unreachable or errors, don't blow
+        // up with a 500 mid-checkout — send the buyer back with a clear, retryable
+        // message (surfaced as a toast by FlashWatcher).
+        try {
+            $redirectUrl = $gateway->createCheckout($order);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('flash_error', 'We couldn’t reach the payment gateway just now. Please try again in a moment.');
+        }
+
+        return Inertia::location($redirectUrl);
     }
 
     /** The fake gateway's "payment page" — instantly settles, then confirms. DEV ONLY. */
@@ -176,13 +190,16 @@ class CheckoutController extends Controller
 
         // The webhook is the source of truth, but it can lag the redirect — so if
         // the order is still pending, confirm directly with the gateway.
-        if ($order && $order->status === 'pending' && $gateway instanceof \App\Services\Payments\ChipGateway && $gateway->isPaid($order)) {
+        if ($order && $order->status === 'pending' && $gateway instanceof ChipGateway && $gateway->isPaid($order)) {
             $this->checkout->markPaid($order, $order->payment_ref);
         }
 
-        return $order
-            ? redirect()->route('checkout.confirmation', $order)
-            : redirect()->route('home');
+        if (! $order) {
+            return redirect()->route('home')
+                ->with('warning', 'We couldn’t match that payment to an order. If you were charged, contact us with your payment reference and we’ll sort it out.');
+        }
+
+        return redirect()->route('checkout.confirmation', $order);
     }
 
     /** Order confirmation with the issued tickets. */
