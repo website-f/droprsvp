@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\SeoMeta;
 use Illuminate\Support\Str;
 
 /**
@@ -16,17 +17,29 @@ use Illuminate\Support\Str;
 class SeoManager
 {
     protected ?string $title = null;
+
     protected bool $appendSiteName = true;
+
     protected ?string $description = null;
+
     protected ?string $canonical = null;
+
     protected bool $index = true;
+
     protected bool $follow = true;
+
     protected string $ogType = 'website';
+
     protected ?string $ogTitle = null;
+
     protected ?string $image = null;
+
     protected ?int $imageW = null;
+
     protected ?int $imageH = null;
+
     protected ?string $imageAlt = null;
+
     protected ?string $keywords = null;
 
     /** article:* metadata (published_time, modified_time, section, author, tags[]). */
@@ -175,7 +188,7 @@ class SeoManager
      * Convenience: apply a content model's per-entry SeoMeta overrides
      * (Yoast/Rank-Math-style) on top of sensible fallbacks.
      */
-    public function fromSeoMeta(?\App\Models\SeoMeta $seo, string $fallbackTitle, ?string $fallbackDescription, ?string $canonical, ?string $fallbackImage = null): static
+    public function fromSeoMeta(?SeoMeta $seo, string $fallbackTitle, ?string $fallbackDescription, ?string $canonical, ?string $fallbackImage = null): static
     {
         $this->title($seo?->seo_title ?: $fallbackTitle);
         $this->description($seo?->meta_description ?: $fallbackDescription);
@@ -197,6 +210,13 @@ class SeoManager
 
     public function render(): string
     {
+        // The admin panel must never be indexed or its links followed, regardless of
+        // any per-page SEO — force noindex,nofollow on every /admin page.
+        if (request()->is('admin', 'admin/*')) {
+            $this->index = false;
+            $this->follow = false;
+        }
+
         $site = config('seo.site_name', 'DropRSVP');
         $sep = config('seo.title_separator', '·');
 

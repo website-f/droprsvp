@@ -9,6 +9,7 @@ use App\Models\EventReview;
 use App\Models\Order;
 use App\Support\Ics;
 use App\Support\SeoManager;
+use App\Support\SeoTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -53,11 +54,16 @@ class EventController extends Controller
             EventDailyStat::bump($event->id, 'impressions');
         }
 
+        // Resolve any {token} placeholders in the admin-authored SEO copy.
+        $seoTitle = SeoTemplate::render($seo?->seo_title, $event);
+        $seoDesc = SeoTemplate::render($seo?->meta_description, $event);
+        $seoKeywords = SeoTemplate::render($seo?->meta_keywords, $event);
+
         // --- server-rendered SEO (no JS needed) ---
         $manager = app(SeoManager::class)
-            ->title($seo?->seo_title ?: $event->title)
-            ->description($seo?->meta_description ?: $description)
-            ->keywords($seo?->meta_keywords)
+            ->title($seoTitle ?: $event->title)
+            ->description($seoDesc ?: $description)
+            ->keywords($seoKeywords)
             ->canonical($seo?->canonical_url ?: $canonical)
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
             ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount))

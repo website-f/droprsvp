@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { TagInput } from '@/components/ui/tag-input';
@@ -15,6 +16,8 @@ export interface SeoData {
     og_image: string | null;
 }
 
+export interface SeoToken { token: string; label: string }
+
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
@@ -24,8 +27,58 @@ function Count({ value, max }: { value: string | null; max: number }) {
     return <span className={`text-xs ${len > max ? 'text-destructive' : 'text-muted-foreground'}`}>{len}/{max}</span>;
 }
 
+/** Replace {tokens} in a preview string using the resolved values map. */
+function resolve(text: string, values?: Record<string, string>): string {
+    if (!values) {
+        return text;
+    }
+
+    return text.replace(/\{[a-z_]+\}/g, (m) => (m in values ? values[m] : m));
+}
+
+/** Insert a token at the input's caret (or append), then restore the caret. */
+function insertToken(el: HTMLInputElement | HTMLTextAreaElement | null, value: string | null, token: string, onChange: (v: string) => void) {
+    const cur = value ?? '';
+
+    if (!el) {
+        onChange(cur + (cur && !cur.endsWith(' ') ? ' ' : '') + token);
+
+        return;
+    }
+
+    const start = el.selectionStart ?? cur.length;
+    const end = el.selectionEnd ?? cur.length;
+    const next = cur.slice(0, start) + token + cur.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + token.length;
+        el.setSelectionRange(pos, pos);
+    });
+}
+
+/** A row of clickable {token} chips that insert into the linked field. */
+function TokenRow({ tokens, onInsert }: { tokens: SeoToken[]; onInsert: (token: string) => void }) {
+    return (
+        <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground">Insert:</span>
+            {tokens.map((t) => (
+                <button
+                    key={t.token}
+                    type="button"
+                    title={t.label}
+                    onClick={() => onInsert(t.token)}
+                    className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                    {t.token}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 export function SeoFields({
-    seo, onChange, slug, onSlug, fallbackTitle, baseUrl,
+    seo, onChange, slug, onSlug, fallbackTitle, baseUrl, tokens, tokenValues,
 }: {
     seo: SeoData;
     onChange: (patch: Partial<SeoData>) => void;
@@ -33,9 +86,18 @@ export function SeoFields({
     onSlug: (v: string) => void;
     fallbackTitle: string;
     baseUrl: string;
+    tokens?: SeoToken[];
+    tokenValues?: Record<string, string>;
 }) {
-    const previewTitle = seo.seo_title || fallbackTitle || 'Untitled';
-    const previewDesc = seo.meta_description || 'Add a meta description to control how this appears in search results.';
+    const titleRef = useRef<HTMLInputElement>(null);
+    const descRef = useRef<HTMLTextAreaElement>(null);
+    const ogTitleRef = useRef<HTMLInputElement>(null);
+    const ogDescRef = useRef<HTMLTextAreaElement>(null);
+    const hasTokens = !!tokens && tokens.length > 0;
+
+    // Preview substitutes tokens so the admin sees the real search snippet.
+    const previewTitle = resolve(seo.seo_title || fallbackTitle || 'Untitled', tokenValues);
+    const previewDesc = resolve(seo.meta_description || 'Add a meta description to control how this appears in search results.', tokenValues);
     const previewUrl = `${baseUrl}/${slug || 'slug'}`;
 
     return (
@@ -59,11 +121,13 @@ export function SeoFields({
                 </div>
                 <div className="grid gap-1.5">
                     <div className="flex items-center justify-between"><Label>SEO title</Label><Count value={seo.seo_title} max={60} /></div>
-                    <input className={field} value={seo.seo_title ?? ''} onChange={(e) => onChange({ seo_title: e.target.value })} placeholder={fallbackTitle} />
+                    <input ref={titleRef} className={field} value={seo.seo_title ?? ''} onChange={(e) => onChange({ seo_title: e.target.value })} placeholder={fallbackTitle} />
+                    {hasTokens && <TokenRow tokens={tokens!} onInsert={(t) => insertToken(titleRef.current, seo.seo_title, t, (v) => onChange({ seo_title: v }))} />}
                 </div>
                 <div className="grid gap-1.5">
                     <div className="flex items-center justify-between"><Label>Meta description</Label><Count value={seo.meta_description} max={155} /></div>
-                    <textarea rows={3} className={area} value={seo.meta_description ?? ''} onChange={(e) => onChange({ meta_description: e.target.value })} />
+                    <textarea ref={descRef} rows={3} className={area} value={seo.meta_description ?? ''} onChange={(e) => onChange({ meta_description: e.target.value })} />
+                    {hasTokens && <TokenRow tokens={tokens!} onInsert={(t) => insertToken(descRef.current, seo.meta_description, t, (v) => onChange({ meta_description: v }))} />}
                 </div>
                 <div className="grid gap-1.5">
                     <Label>Focus keyphrase</Label>
@@ -84,8 +148,16 @@ export function SeoFields({
                     <summary className="cursor-pointer text-sm font-medium">Social &amp; advanced</summary>
                     <div className="mt-3 grid gap-4">
                         <div className="grid gap-1.5"><Label>Canonical URL</Label><input className={field} value={seo.canonical_url ?? ''} onChange={(e) => onChange({ canonical_url: e.target.value })} placeholder={previewUrl} /></div>
-                        <div className="grid gap-1.5"><Label>Social title (OG)</Label><input className={field} value={seo.og_title ?? ''} onChange={(e) => onChange({ og_title: e.target.value })} /></div>
-                        <div className="grid gap-1.5"><Label>Social description (OG)</Label><textarea rows={2} className={area} value={seo.og_description ?? ''} onChange={(e) => onChange({ og_description: e.target.value })} /></div>
+                        <div className="grid gap-1.5">
+                            <Label>Social title (OG)</Label>
+                            <input ref={ogTitleRef} className={field} value={seo.og_title ?? ''} onChange={(e) => onChange({ og_title: e.target.value })} />
+                            {hasTokens && <TokenRow tokens={tokens!} onInsert={(t) => insertToken(ogTitleRef.current, seo.og_title, t, (v) => onChange({ og_title: v }))} />}
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label>Social description (OG)</Label>
+                            <textarea ref={ogDescRef} rows={2} className={area} value={seo.og_description ?? ''} onChange={(e) => onChange({ og_description: e.target.value })} />
+                            {hasTokens && <TokenRow tokens={tokens!} onInsert={(t) => insertToken(ogDescRef.current, seo.og_description, t, (v) => onChange({ og_description: v }))} />}
+                        </div>
                         <div className="grid gap-1.5"><Label>Social image URL (OG)</Label><input className={field} value={seo.og_image ?? ''} onChange={(e) => onChange({ og_image: e.target.value })} placeholder="https://…" /></div>
                     </div>
                 </details>

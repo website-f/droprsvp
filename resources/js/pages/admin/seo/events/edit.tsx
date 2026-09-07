@@ -1,14 +1,14 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, ExternalLink, Save } from 'lucide-react';
 import { SeoFields } from '@/components/seo-fields';
-import type { SeoData } from '@/components/seo-fields';
+import type { SeoData, SeoToken } from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface EventInfo { slug: string; title: string; status: string }
-interface Props { event: EventInfo; seo: SeoData; fallback: { title: string; description: string }; baseUrl: string }
+interface Props { event: EventInfo; seo: SeoData; fallback: { title: string; description: string }; baseUrl: string; templateTokens: SeoToken[]; templateValues: Record<string, string> }
 
-export default function EventSeoEdit({ event, seo, fallback, baseUrl }: Props) {
+export default function EventSeoEdit({ event, seo, fallback, baseUrl, templateTokens, templateValues }: Props) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const form = useForm<{ slug: string; seo: SeoData }>({ slug: event.slug, seo });
     const { data, setData, processing } = form;
@@ -41,6 +41,8 @@ export default function EventSeoEdit({ event, seo, fallback, baseUrl }: Props) {
                     onSlug={(v) => setData('slug', v)}
                     fallbackTitle={fallback.title}
                     baseUrl={baseUrl}
+                    tokens={templateTokens}
+                    tokenValues={templateValues}
                 />
 
                 <p className="mt-2 px-1 text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 import type { Config, Data } from '@measured/puck';
 import { DEFAULT_COPYRIGHT, DEFAULT_LEGAL_LINKS, DEFAULT_SUPPORT_EMAIL, Footer } from '@/components/cms/footer-blocks';
-import type { FooterLink } from '@/components/cms/footer-blocks';
+import type { FooterLink, SocialLink } from '@/components/cms/footer-blocks';
+import { platformLabel, socialOptions } from '@/components/social-icons';
 
 /**
  * Footer-only Puck config — a single Footer component whose render IS the live
@@ -13,6 +14,7 @@ type FooterProps = {
         tagline: string; ctaLabel: string; ctaUrl: string;
         columns: { title: string; links: FooterLink[] }[];
         legalLinks: FooterLink[]; copyright: string; supportEmail: string;
+        socials: SocialLink[];
         background: 'muted' | 'card' | 'plain';
     };
 };
@@ -30,6 +32,7 @@ const DEFAULTS = {
     legalLinks: DEFAULT_LEGAL_LINKS,
     copyright: DEFAULT_COPYRIGHT,
     supportEmail: DEFAULT_SUPPORT_EMAIL,
+    socials: [] as SocialLink[],
     background: 'muted' as const,
 };
 
@@ -62,13 +65,22 @@ export const footerConfig: Config<FooterProps> = {
                     defaultItemProps: { title: 'Column', links: [{ label: 'Link', url: '/' }] },
                     getItemSummary: (item: { title: string }) => item.title || 'Column',
                 },
+                socials: {
+                    type: 'array',
+                    arrayFields: {
+                        platform: { type: 'select', options: socialOptions },
+                        url: { type: 'text' },
+                    },
+                    defaultItemProps: { platform: 'facebook', url: '' },
+                    getItemSummary: (item: { platform: string }) => platformLabel(item.platform || 'facebook'),
+                },
                 legalLinks: linkField,
                 copyright: { type: 'text' },
             },
             defaultProps: DEFAULTS,
-            render: ({ tagline, ctaLabel, ctaUrl, columns, legalLinks, copyright, supportEmail, background }) => (
+            render: ({ tagline, ctaLabel, ctaUrl, columns, legalLinks, copyright, supportEmail, socials, background }) => (
                 <Footer tagline={tagline} ctaLabel={ctaLabel} ctaUrl={ctaUrl} columns={columns}
-                    legalLinks={legalLinks} copyright={copyright} supportEmail={supportEmail} background={background} />
+                    legalLinks={legalLinks} copyright={copyright} supportEmail={supportEmail} socials={socials} background={background} />
             ),
         },
     },

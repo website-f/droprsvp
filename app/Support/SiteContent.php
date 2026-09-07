@@ -66,6 +66,31 @@ class SiteContent
         return array_replace($defaults, $saved);
     }
 
+    /** The served robots.txt — the superadmin's custom text, or a sensible default. */
+    public static function robotsTxt(): string
+    {
+        $saved = Setting::get('robots_txt');
+
+        return filled($saved) ? (string) $saved : self::defaultRobotsTxt();
+    }
+
+    /** Default robots.txt — allows the public site, blocks private/admin areas. */
+    public static function defaultRobotsTxt(): string
+    {
+        return implode("\n", [
+            'User-agent: *',
+            'Allow: /',
+            'Disallow: /admin',
+            'Disallow: /host',
+            'Disallow: /my',
+            'Disallow: /settings',
+            'Disallow: /dashboard',
+            'Disallow: /checkout',
+            '',
+            'Sitemap: '.url('/sitemap.xml'),
+        ])."\n";
+    }
+
     /** Superadmin-editable SEO for the /en-my/all browse page (blank → computed default). */
     public static function discoverSeo(): array
     {
@@ -138,8 +163,8 @@ class SiteContent
      */
     public static function footer(): array
     {
-        // Bumped to v3 when the legal-row / copyright / background props were added.
-        return Cache::rememberForever('site.footer_v3', function () {
+        // Bumped to v4 when the social links prop was added (v3 = legal-row / copyright / background).
+        return Cache::rememberForever('site.footer_v4', function () {
             $saved = Setting::getArray('footer', []);
 
             if (empty($saved['content'])) {
@@ -162,7 +187,7 @@ class SiteContent
 
     public static function forgetFooter(): void
     {
-        Cache::forget('site.footer_v3');
+        Cache::forget('site.footer_v4');
     }
 
     /**
@@ -324,6 +349,7 @@ class SiteContent
                         ]],
                     ],
                     'supportEmail' => 'support@droprsvp.com',
+                    'socials' => [],
                     'background' => 'muted',
                     'legalLinks' => [
                         ['label' => 'Contact', 'url' => '/contact'],

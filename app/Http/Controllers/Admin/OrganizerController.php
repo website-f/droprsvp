@@ -58,6 +58,11 @@ class OrganizerController extends Controller
     {
         $organizer->load('user:id,name,email,created_at');
 
+        // Opening a *pending* application locks it from further applicant edits.
+        if ($organizer->status === 'pending' && $organizer->review_opened_at === null) {
+            $organizer->forceFill(['review_opened_at' => now()])->save();
+        }
+
         return inertia('admin/organizers/show', [
             'application' => [
                 'id' => $organizer->id,
@@ -74,6 +79,7 @@ class OrganizerController extends Controller
                 'reason' => $organizer->review_reason,
                 'submitted_at' => optional($organizer->submitted_at)->format('j M Y, g:i A'),
                 'reviewed_at' => optional($organizer->reviewed_at)->format('j M Y, g:i A'),
+                'review_opened_at' => optional($organizer->review_opened_at)->format('j M Y, g:i A'),
             ],
         ]);
     }

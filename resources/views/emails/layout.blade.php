@@ -44,7 +44,7 @@
                             @hasSection('footnote')
                                 <p style="margin:0 0 10px;">@yield('footnote')</p>
                             @endif
-                            <p style="margin:0 0 4px;">{{ config('app.name') }} · powered by My Hub Solution Enterprise</p>
+                            <p style="margin:0 0 4px;">powered by {{ config('app.name') }}</p>
                             <p style="margin:0;">
                                 Need help? <a href="{{ url('/help') }}" style="color:#8a8a92;text-decoration:underline;">Help centre</a>
                                 &nbsp;·&nbsp; <a href="{{ url('/contact') }}" style="color:#8a8a92;text-decoration:underline;">Contact us</a>

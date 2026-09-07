@@ -154,6 +154,24 @@ class SiteController extends Controller
         return back()->with('success', 'Events page saved.');
     }
 
+    /** Superadmin-editable robots.txt (served at /robots.txt). */
+    public function robots()
+    {
+        return inertia('admin/site/robots', [
+            'content' => Setting::get('robots_txt') ?: SiteContent::defaultRobotsTxt(),
+            'default' => SiteContent::defaultRobotsTxt(),
+            'url' => url('/robots.txt'),
+        ]);
+    }
+
+    public function saveRobots(Request $request)
+    {
+        $data = $request->validate(['content' => ['nullable', 'string', 'max:20000']]);
+        Setting::put('robots_txt', trim((string) ($data['content'] ?? '')));
+
+        return back()->with('success', 'robots.txt saved.');
+    }
+
     public function branding()
     {
         return inertia('admin/site/branding', ['branding' => SiteContent::branding()]);

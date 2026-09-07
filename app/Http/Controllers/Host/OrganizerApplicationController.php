@@ -22,7 +22,9 @@ class OrganizerApplicationController extends Controller
         if ($profile && $profile->status === 'approved') {
             return redirect()->route('host.events.index');
         }
-        if ($profile && $profile->status === 'pending') {
+        // A pending application is only editable until the superadmin opens it for
+        // review. Once locked, bounce back to the read-only pending screen.
+        if ($profile && $profile->status === 'pending' && ! $profile->isEditableByApplicant()) {
             return redirect()->route('host.pending');
         }
 
@@ -36,12 +38,20 @@ class OrganizerApplicationController extends Controller
                 'gallery' => $profile?->gallery ?? [],
                 'status' => $profile?->status,
                 'reason' => $profile?->review_reason,
+                // A pending-but-still-editable application is being resubmitted/edited.
+                'editing' => (bool) ($profile && $profile->status === 'pending'),
             ],
         ]);
     }
 
     public function submit(Request $request)
     {
+        // Block edits once a pending application has been opened for review.
+        $existing = $request->user()->organizerProfile;
+        if ($existing && $existing->status === 'pending' && ! $existing->isEditableByApplicant()) {
+            return redirect()->route('host.pending')->with('warning', 'Your application is being reviewed and can no longer be edited.');
+        }
+
         $data = $request->validate([
             'business_name' => ['required', 'string', 'max:120'],
             'phone' => ['required', 'string', 'max:40'],
@@ -54,7 +64,9 @@ class OrganizerApplicationController extends Controller
 
         $profile = $request->user()->organizerProfile()->updateOrCreate(
             ['user_id' => $request->user()->id],
-            [...$data, 'status' => 'pending', 'submitted_at' => now(), 'review_reason' => null],
+            // A fresh submission/appeal starts a new review cycle → unlock edits again
+            // until the superadmin re-opens it.
+            [...$data, 'status' => 'pending', 'submitted_at' => now(), 'review_reason' => null, 'review_opened_at' => null],
         );
 
         // Confirm receipt by email (non-fatal).
@@ -77,6 +89,8 @@ class OrganizerApplicationController extends Controller
 
         return inertia('host/pending', [
             'submitted_at' => optional($profile->submitted_at)->format('j M Y'),
+            // Drives whether the "Edit application" button shows or the locked notice.
+            'editable' => $profile->isEditableByApplicant(),
         ]);
     }
 }

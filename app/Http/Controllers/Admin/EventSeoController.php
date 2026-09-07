@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Support\SeoTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -19,7 +20,7 @@ class EventSeoController extends Controller
 
         $events = Event::query()
             ->when($q !== '', fn ($x) => $x->where('title', 'like', "%{$q}%"))
-            ->with('seo')
+            ->with(['seo', 'category:id,name', 'user:id,name'])
             ->latest()
             ->paginate(12)
             ->withQueryString()
@@ -28,8 +29,8 @@ class EventSeoController extends Controller
                 'title' => $e->title,
                 'status' => $e->status,
                 'customised' => (bool) ($e->seo && ($e->seo->seo_title || $e->seo->meta_description || $e->seo->meta_keywords)),
-                'preview_title' => $e->seo?->seo_title ?: $e->title,
-                'preview_desc' => $e->seo?->meta_description ?: $this->defaultDescription($e),
+                'preview_title' => SeoTemplate::render($e->seo?->seo_title, $e) ?: $e->title,
+                'preview_desc' => SeoTemplate::render($e->seo?->meta_description, $e) ?: $this->defaultDescription($e),
             ]);
 
         return inertia('admin/seo/events/index', [
@@ -41,6 +42,7 @@ class EventSeoController extends Controller
 
     public function edit(Event $event)
     {
+        $event->loadMissing('category:id,name', 'user:id,name');
         $seo = $event->seo;
 
         return inertia('admin/seo/events/edit', [
@@ -49,6 +51,10 @@ class EventSeoController extends Controller
                 'title' => $event->title,
                 'status' => $event->status,
             ],
+            // Clickable {token} chips + their resolved values for this event, so the
+            // admin can build titles like "Visit {event_name} in {city}".
+            'templateTokens' => SeoTemplate::chips(),
+            'templateValues' => SeoTemplate::values($event),
             'seo' => [
                 'seo_title' => $seo?->seo_title,
                 'meta_description' => $seo?->meta_description,

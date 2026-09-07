@@ -95,7 +95,7 @@ Route::post('contact', [ContactController::class, 'store'])->middleware('throttl
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('robots.txt', function () {
-    return response("User-agent: *\nAllow: /\nSitemap: ".url('/sitemap.xml')."\n", 200)
+    return response(\App\Support\SiteContent::robotsTxt(), 200)
         ->header('Content-Type', 'text/plain');
 })->name('robots');
 
@@ -414,6 +414,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         // Dedicated editor for the landing SEO text block.
         Route::get('site/seo-text', [AdminSiteController::class, 'seoText'])->name('site.seo-text');
         Route::post('site/seo-text', [AdminSiteController::class, 'saveSeoText'])->name('site.seo-text.save');
+        // Superadmin robots.txt editor.
+        Route::get('site/robots', [AdminSiteController::class, 'robots'])->name('site.robots');
+        Route::post('site/robots', [AdminSiteController::class, 'saveRobots'])->name('site.robots.save');
         // Legal pages — Privacy Policy + Terms (rich text; live at /privacy-policy, /terms).
         Route::get('site/legal', [AdminLegalController::class, 'edit'])->name('site.legal');
         Route::post('site/legal', [AdminLegalController::class, 'update'])->name('site.legal.save');
