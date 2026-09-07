@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { CreatableSelect } from '@/components/ui/creatable-select';
 import { Label } from '@/components/ui/label';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; seo: SeoData }
 
@@ -43,14 +43,13 @@ return;
 }
 
         setUploading(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
-            setData('cover_image', await uploadImage(file));
-        } catch {
-            /* keep the current value on failure */
-        } finally {
-            setUploading(false);
+        if (url) {
+            setData('cover_image', url);
         }
+
+        setUploading(false);
     };
 
     const save = (publish: boolean) => {

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { SwitchField } from '@/components/ui/switch';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface Branding {
     logo_full: string; logo_mark: string;
@@ -143,7 +143,13 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
                         value={data.logo_full}
                         fallback={DEFAULTS.logo_full}
                         invert={data.invert_dark}
-                        onUpload={async (file) => setData('logo_full', await uploadImage(file))}
+                        onUpload={async (file) => {
+ const url = await uploadImageWithToast(file);
+
+ if (url) {
+setData('logo_full', url);
+} 
+}}
                         onRemove={() => setData('logo_full', '')}
                     />
                     <LogoSlot
@@ -152,7 +158,13 @@ export default function BrandingPage({ branding }: { branding: Branding }) {
                         value={data.logo_mark}
                         fallback={DEFAULTS.logo_mark}
                         invert={data.invert_dark}
-                        onUpload={async (file) => setData('logo_mark', await uploadImage(file))}
+                        onUpload={async (file) => {
+ const url = await uploadImageWithToast(file);
+
+ if (url) {
+setData('logo_mark', url);
+} 
+}}
                         onRemove={() => setData('logo_mark', '')}
                     />
                 </div>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface Hero { enabled: boolean; heading: string; subheading: string; image: string; cta_label: string; cta_url: string; align: 'left' | 'center' | 'right' }
 interface SeoText { enabled: boolean; heading: string; body: string }
@@ -27,12 +27,13 @@ export default function EventsPageSettings({ data: initial }: { data: Data }) {
         }
 
         setUploading(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
-            patchHero({ image: await uploadImage(file) });
-        } finally {
-            setUploading(false);
+        if (url) {
+            patchHero({ image: url });
         }
+
+        setUploading(false);
     };
 
     const save = () => form.post('/admin/site/events-page', { preserveScroll: true, onSuccess: () => toast.success('Events page saved') });

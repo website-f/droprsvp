@@ -5,7 +5,7 @@ import type {ReactNode} from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface Template {
     accent: string; logo: string; show_logo: boolean; logo_align: 'left' | 'right';
@@ -100,12 +100,13 @@ export default function ReceiptEditor({ template }: { template: Template }) {
         }
 
         setUploading(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
-            set('logo', await uploadImage(file));
-        } finally {
-            setUploading(false);
+        if (url) {
+            set('logo', url);
         }
+
+        setUploading(false);
     };
 
     return (

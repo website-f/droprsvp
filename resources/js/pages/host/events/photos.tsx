@@ -3,7 +3,7 @@ import { ArrowLeft, ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface Photo { id: number; path: string; caption: string | null }
 interface EventLite { title: string; slug: string }
@@ -22,13 +22,8 @@ return;
         setUploading(true);
 
         try {
-            const paths: string[] = [];
-
-            for (const file of Array.from(files)) {
-                try {
- paths.push(await uploadImage(file)); 
-} catch { /* skip a bad file */ }
-            }
+            const results = await Promise.all(Array.from(files).map((f) => uploadImageWithToast(f)));
+            const paths = results.filter((p): p is string => p !== null);
 
             if (paths.length) {
                 router.post(`/host/events/${event.slug}/photos`, { paths }, { preserveScroll: true });

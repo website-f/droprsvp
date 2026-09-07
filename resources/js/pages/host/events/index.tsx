@@ -12,7 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface HostEvent {
     id: number;
@@ -47,13 +47,12 @@ function ReappealDialog({ event, onClose }: { event: HostEvent | null; onClose: 
         setUploading(true);
 
         try {
-            const urls: string[] = [];
+            const results = await Promise.all(Array.from(files).map((f) => uploadImageWithToast(f)));
+            const urls = results.filter((u): u is string => u !== null);
 
-            for (const f of Array.from(files)) {
-                urls.push(await uploadImage(f));
+            if (urls.length > 0) {
+                form.setData('attachments', [...form.data.attachments, ...urls].slice(0, 6));
             }
-
-            form.setData('attachments', [...form.data.attachments, ...urls].slice(0, 6));
         } finally {
             setUploading(false);
         }

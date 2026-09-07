@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Switch } from '@/components/ui/switch';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface City { name: string; slug: string }
 interface Banner { image: string; heading: string; subheading: string; cta_label: string; cta_url: string; align?: 'left' | 'center' | 'right' }
@@ -73,12 +73,13 @@ return;
 }
 
         setUploading(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
- patch('organizer', { image: await uploadImage(file) }); 
-} catch { /* keep */ } finally {
- setUploading(false); 
-}
+        if (url) {
+            patch('organizer', { image: url });
+        }
+
+        setUploading(false);
     };
 
     // Hero banners.
@@ -91,12 +92,13 @@ return;
         }
 
         setUploading(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
-            patchBanner(i, { image: await uploadImage(file) });
-        } catch { /* keep */ } finally {
-            setUploading(false);
+        if (url) {
+            patchBanner(i, { image: url });
         }
+
+        setUploading(false);
     };
 
     const save = () => form.post('/admin/site/landing', { preserveScroll: true });

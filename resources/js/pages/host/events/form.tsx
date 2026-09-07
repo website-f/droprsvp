@@ -15,7 +15,7 @@ import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Switch, SwitchField } from '@/components/ui/switch';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { uploadImage } from '@/lib/upload';
+import { imageError, uploadImage, uploadImageWithToast } from '@/lib/upload';
 
 interface Category { id: number; name: string }
 interface City { name: string; slug: string }
@@ -49,24 +49,6 @@ const RECOMMEND_COVER = 'Recommended: 1600×900px (16:9) · JPG or PNG · under 
 const RECOMMEND_BANNER = 'Recommended: 2400×800px (wide 3:1) · shown across the top of your event page & featured in the events-page hero';
 const RECOMMEND_GALLERY = 'Recommended: 1200×800px or larger · JPG or PNG · under 5 MB each · up to 12 images';
 const MAX_GALLERY = 12;
-
-// Mirror the server rules (MediaController) so oversized/unsupported files are
-// caught before the round-trip and the user gets an immediate, clear reason.
-const MAX_IMAGE_MB = 5;
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
-/** Returns a human error if the file isn't an allowed image within the size limit, else null. */
-function imageError(file: File): string | null {
-    if (file.type && !ALLOWED_IMAGE_TYPES.includes(file.type)) {
-        return `“${file.name}” isn’t a supported image. Use JPG, PNG, WEBP or GIF.`;
-    }
-
-    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-        return `“${file.name}” is ${formatBytes(file.size)} — the limit is ${MAX_IMAGE_MB} MB.`;
-    }
-
-    return null;
-}
 
 function formatBytes(n: number): string {
     if (n < 1024) {
@@ -157,25 +139,15 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
 return;
 }
 
-        const err = imageError(file);
-
-        if (err) {
-            toast.error(err);
-
-            return;
-        }
-
         setUploadingCover(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
-            const url = await uploadImage(file);
+        if (url) {
             setData('cover_image', url);
             readImageMeta(file).then(setCoverMeta).catch(() => {});   // meta is best-effort
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Upload failed. Please try again.');
-        } finally {
-            setUploadingCover(false);
         }
+
+        setUploadingCover(false);
     };
 
     const onPickBanner = async (file: File | undefined) => {
@@ -183,25 +155,15 @@ return;
 return;
 }
 
-        const err = imageError(file);
-
-        if (err) {
-            toast.error(err);
-
-            return;
-        }
-
         setUploadingBanner(true);
+        const url = await uploadImageWithToast(file);
 
-        try {
-            const url = await uploadImage(file);
+        if (url) {
             setData('banner_image', url);
             readImageMeta(file).then(setBannerMeta).catch(() => {});
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Upload failed. Please try again.');
-        } finally {
-            setUploadingBanner(false);
         }
+
+        setUploadingBanner(false);
     };
 
     const onPickGallery = async (files: FileList | null) => {

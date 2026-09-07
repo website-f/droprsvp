@@ -1,7 +1,7 @@
 import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Code2, Eye, Image as ImageIcon, Italic, Link2, List, ListOrdered, Maximize2, Minimize2, Minus, Quote, RemoveFormatting, Strikethrough, Underline, Youtube } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { usePrompt } from '@/components/prompt-dialog';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 /** Pull the 11-char video id out of any common YouTube URL shape. */
 function youtubeId(url: string): string | null {
@@ -234,11 +234,10 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
                 return;
             }
 
-            try {
-                const url = await uploadImage(file);
+            const url = await uploadImageWithToast(file);
+
+            if (url) {
                 insertHtml(`<img src="${url}" alt="">`);
-            } catch {
-                /* ignore */
             }
         };
         input.click();

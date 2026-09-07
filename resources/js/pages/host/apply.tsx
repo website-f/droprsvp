@@ -1,10 +1,11 @@
 import { Head, useForm } from '@inertiajs/react';
 import { ImageUp, Loader2, Store, X } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 
 interface Application {
     business_name: string; website: string | null; phone: string | null; bio: string | null;
@@ -34,23 +35,42 @@ export default function OrganizerApply({ application }: { application: Applicati
         }
 
         setBusy('poster');
+        const url = await uploadImageWithToast(file);
 
-        try {
-            setData('poster', await uploadImage(file));
-        } finally {
-            setBusy(null);
+        if (url) {
+            setData('poster', url);
         }
+
+        setBusy(null);
     };
     const pickGallery = async (files: FileList | null) => {
         if (!files?.length) {
             return;
         }
 
+        const room = 8 - data.gallery.length;
+
+        if (room <= 0) {
+            toast.error('You can add up to 8 gallery images.');
+
+            return;
+        }
+
+        const picked = [...files];
+
+        if (picked.length > room) {
+            toast.error(`Only ${room} more image${room === 1 ? '' : 's'} can be added.`);
+        }
+
         setBusy('gallery');
 
         try {
-            const urls = await Promise.all([...files].slice(0, 8 - data.gallery.length).map((f) => uploadImage(f)));
-            setData('gallery', [...data.gallery, ...urls].slice(0, 8));
+            const results = await Promise.all(picked.slice(0, room).map((f) => uploadImageWithToast(f)));
+            const urls = results.filter((u): u is string => u !== null);
+
+            if (urls.length > 0) {
+                setData('gallery', [...data.gallery, ...urls].slice(0, 8));
+            }
         } finally {
             setBusy(null);
         }

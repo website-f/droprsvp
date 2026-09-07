@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
-import { uploadImage } from '@/lib/upload';
+import { uploadImageWithToast } from '@/lib/upload';
 import { renderComponents } from './puck-render';
 import type { PostCard, Props } from './puck-render';
 
@@ -64,14 +63,13 @@ function ImageUploadField({ name, value, onChange }: { name: string; value: stri
             }
 
             setBusy(true);
+            const url = await uploadImageWithToast(file);
 
-            try {
-                onChange(await uploadImage(file));
-            } catch {
-                toast.error('Upload failed — try a smaller image.');
-            } finally {
-                setBusy(false);
+            if (url) {
+                onChange(url);
             }
+
+            setBusy(false);
         };
         input.click();
     };
