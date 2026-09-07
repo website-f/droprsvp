@@ -44,8 +44,15 @@ class MediaController extends Controller
         }
 
         $name = Str::random(40).'.'.self::ALLOWED[$info[2]];
-        $path = $file->storeAs('cms', $name, 'public');
 
-        return response()->json(['url' => Storage::disk('public')->url($path)]);
+        // Write with a native move (move_uploaded_file/rename) rather than
+        // Storage::store()/storeAs(), whose Flysystem write path can invoke a
+        // finfo-based MIME detector — which throws on hosts that don't load the
+        // fileinfo extension for the web SAPI. $disk->path()/url() are plain string
+        // ops, and this still respects Storage::fake() in tests.
+        $disk = Storage::disk('public');
+        $file->move($disk->path('cms'), $name);
+
+        return response()->json(['url' => $disk->url('cms/'.$name)]);
     }
 }
