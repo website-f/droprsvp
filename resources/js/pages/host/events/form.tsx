@@ -2,6 +2,7 @@ import type {FormDataConvertible} from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { LayoutEditorOverlay, LayoutPreview } from '@/components/layout-editor-overlay';
 import { usePrompt } from '@/components/prompt-dialog';
 import {  newSection } from '@/components/seat-layout-editor';
@@ -48,6 +49,24 @@ const RECOMMEND_COVER = 'Recommended: 1600×900px (16:9) · JPG or PNG · under 
 const RECOMMEND_BANNER = 'Recommended: 2400×800px (wide 3:1) · shown across the top of your event page & featured in the events-page hero';
 const RECOMMEND_GALLERY = 'Recommended: 1200×800px or larger · JPG or PNG · under 5 MB each · up to 12 images';
 const MAX_GALLERY = 12;
+
+// Mirror the server rules (MediaController) so oversized/unsupported files are
+// caught before the round-trip and the user gets an immediate, clear reason.
+const MAX_IMAGE_MB = 5;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+/** Returns a human error if the file isn't an allowed image within the size limit, else null. */
+function imageError(file: File): string | null {
+    if (file.type && !ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        return `“${file.name}” isn’t a supported image. Use JPG, PNG, WEBP or GIF.`;
+    }
+
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+        return `“${file.name}” is ${formatBytes(file.size)} — the limit is ${MAX_IMAGE_MB} MB.`;
+    }
+
+    return null;
+}
 
 function formatBytes(n: number): string {
     if (n < 1024) {
@@ -121,6 +140,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     const prompt = usePrompt();
     const [editorOpen, setEditorOpen] = useState(false);
     const tabCls = (active: boolean) => `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`;
+    const formRef = useRef<HTMLFormElement>(null);
     const coverRef = useRef<HTMLInputElement>(null);
     const bannerRef = useRef<HTMLInputElement>(null);
     const galleryRef = useRef<HTMLInputElement>(null);
@@ -129,20 +149,30 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     const [uploadingGallery, setUploadingGallery] = useState(false);
     const [coverMeta, setCoverMeta] = useState<{ w: number; h: number; size: number } | null>(null);
     const [bannerMeta, setBannerMeta] = useState<{ w: number; h: number; size: number } | null>(null);
+    // Block Save/Publish while any image is still uploading, so a half-uploaded form can't be submitted.
+    const uploadingAny = uploadingCover || uploadingBanner || uploadingGallery;
 
     const onPickCover = async (file: File | undefined) => {
         if (!file) {
 return;
 }
 
+        const err = imageError(file);
+
+        if (err) {
+            toast.error(err);
+
+            return;
+        }
+
         setUploadingCover(true);
 
         try {
-            const [url, meta] = await Promise.all([uploadImage(file), readImageMeta(file)]);
+            const url = await uploadImage(file);
             setData('cover_image', url);
-            setCoverMeta(meta);
-        } catch {
-            /* keep the existing value on failure */
+            readImageMeta(file).then(setCoverMeta).catch(() => {});   // meta is best-effort
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Upload failed. Please try again.');
         } finally {
             setUploadingCover(false);
         }
@@ -153,14 +183,22 @@ return;
 return;
 }
 
+        const err = imageError(file);
+
+        if (err) {
+            toast.error(err);
+
+            return;
+        }
+
         setUploadingBanner(true);
 
         try {
-            const [url, meta] = await Promise.all([uploadImage(file), readImageMeta(file)]);
+            const url = await uploadImage(file);
             setData('banner_image', url);
-            setBannerMeta(meta);
-        } catch {
-            /* keep the existing value on failure */
+            readImageMeta(file).then(setBannerMeta).catch(() => {});
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Upload failed. Please try again.');
         } finally {
             setUploadingBanner(false);
         }
@@ -171,19 +209,61 @@ return;
 return;
 }
 
+        const clearInput = () => {
+            if (galleryRef.current) {
+                galleryRef.current.value = '';
+            }
+        };
+
+        // Reject invalid files up-front (each with its own reason).
+        const valid = Array.from(files).filter((f) => {
+            const err = imageError(f);
+
+            if (err) {
+                toast.error(err);
+            }
+
+            return !err;
+        });
+
+        const room = MAX_GALLERY - data.gallery.length;
+
+        if (room <= 0) {
+            toast.error(`You’ve reached the ${MAX_GALLERY}-image limit.`);
+            clearInput();
+
+            return;
+        }
+
+        const toUpload = valid.slice(0, room);
+
+        if (valid.length > room) {
+            toast.error(`Only ${room} more image${room === 1 ? '' : 's'} can be added.`);
+        }
+
+        if (toUpload.length === 0) {
+            clearInput();
+
+            return;
+        }
+
         setUploadingGallery(true);
 
         try {
-            const urls = await Promise.all(Array.from(files).map((f) => uploadImage(f)));
-            setData('gallery', [...data.gallery, ...urls].slice(0, MAX_GALLERY));
-        } catch {
-            /* keep what uploaded */
+            const results = await Promise.allSettled(toUpload.map((f) => uploadImage(f)));
+            const urls = results.filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled').map((r) => r.value);
+            const failed = results.length - urls.length;
+
+            if (urls.length > 0) {
+                setData('gallery', [...data.gallery, ...urls].slice(0, MAX_GALLERY));
+            }
+
+            if (failed > 0) {
+                toast.error(`${failed} image${failed === 1 ? '' : 's'} failed to upload.`);
+            }
         } finally {
             setUploadingGallery(false);
-
-            if (galleryRef.current) {
-galleryRef.current.value = '';
-}
+            clearInput();
         }
     };
 
@@ -221,18 +301,44 @@ galleryRef.current.value = '';
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
 
+        const options = {
+            preserveScroll: true,
+            onError: (errs: Record<string, string>) => {
+                const messages = Object.values(errs).filter(Boolean);
+                const n = messages.length;
+                const first = messages[0] ?? 'Please review the highlighted fields.';
+                toast.error(publish ? 'Can’t publish yet' : 'Can’t save yet', {
+                    description: n > 1 ? `${first} (and ${n - 1} more)` : first,
+                });
+
+                // Bring the first invalid field into view (mobile + desktop) and focus it.
+                requestAnimationFrame(() => {
+                    const marker = formRef.current?.querySelector('.text-destructive');
+
+                    if (!marker) {
+                        return;
+                    }
+
+                    marker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const input = marker.closest('div')?.querySelector('input, textarea, select, [tabindex]') as HTMLElement | null;
+                    input?.focus({ preventScroll: true });
+                });
+            },
+            onSuccess: () => toast.success(publish ? 'Event published 🎉' : 'Saved to draft.'),
+        };
+
         if (isEdit) {
-form.put(`/host/events/${event!.slug}`);
+form.put(`/host/events/${event!.slug}`, options);
 } else {
-form.post('/host/events');
+form.post('/host/events', options);
 }
     };
 
     return (
         <>
             <Head title={isEdit ? 'Edit event' : 'Create event'} />
-            <form onSubmit={(e) => {
- e.preventDefault(); save(false); 
+            <form ref={formRef} onSubmit={(e) => {
+ e.preventDefault(); save(false);
 }} className="mx-auto w-full max-w-3xl flex-1 p-4">
                 <div className="mb-6 flex items-center gap-3">
                     <Button asChild variant="ghost" size="icon"><Link href="/host/events"><ArrowLeft className="size-4" /></Link></Button>
@@ -495,7 +601,11 @@ form.post('/host/events');
                     <div className="grid gap-4">
                         {data.ticketTypes.map((t, i) => (
                             <div key={i} className="grid gap-3 rounded-lg border border-border p-3">
-                                <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto]">
+                                <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                                    <span className="text-sm font-semibold text-muted-foreground">Ticket {i + 1}{t.name ? ` · ${t.name}` : ''}</span>
+                                    <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setData('ticketTypes', data.ticketTypes.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /> Remove</Button>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
                                         <Label>Name</Label>
                                         <input className={field} value={t.name} onChange={(e) => patchTicket(i, 'name', e.target.value)} placeholder="e.g. Early Bird" />
@@ -508,9 +618,6 @@ form.post('/host/events');
                                             onChange={(v) => patchTicket(i, 'kind', v)}
                                             options={[{ value: 'paid', label: 'Paid' }, { value: 'free', label: 'Free' }, { value: 'donation', label: 'Donation' }]}
                                         />
-                                    </div>
-                                    <div className="flex items-end">
-                                        <Button type="button" variant="ghost" size="icon" aria-label="Remove ticket type" onClick={() => setData('ticketTypes', data.ticketTypes.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /></Button>
                                     </div>
                                 </div>
 
@@ -610,8 +717,9 @@ form.post('/host/events');
 
                 {/* Actions — generous, responsive spacing off the last card */}
                 <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-end">
-                    <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing} onClick={() => save(false)}>Save draft</Button>
-                    <Button type="button" className="w-full sm:w-auto" disabled={processing} onClick={() => save(true)}>Publish</Button>
+                    {uploadingAny && <span className="text-xs text-muted-foreground sm:mr-auto">Finishing image upload…</span>}
+                    <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing || uploadingAny} onClick={() => save(false)}>Save draft</Button>
+                    <Button type="button" className="w-full sm:w-auto" disabled={processing || uploadingAny} onClick={() => save(true)}>Publish</Button>
                 </div>
             </form>
         </>
