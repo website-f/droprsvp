@@ -110,8 +110,11 @@ class CheckoutService
             }
 
             // Buyer-paid booking fee (higher of % or flat) + optional tax, both on
-            // the ticket spend. A discount applied later re-prices via reprice().
-            $fees = \App\Support\PlatformFee::on($subtotal);
+            // the ticket spend. The rate is the organizer's own when an admin has
+            // put them on one, else the global rate. A discount applied later
+            // re-prices via reprice(); the fee is frozen on the order from here,
+            // so a later rate change never moves an order that already exists.
+            $fees = \App\Support\PlatformFee::on($subtotal, $event->user);
             $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
             $tax = round($subtotal * $taxPercent / 100, 2);
 
@@ -172,8 +175,9 @@ class CheckoutService
         $discount = round(min($discount, $subtotal), 2);
         $taxable = max(0.0, $subtotal - $discount);
 
-        // Fee + tax follow the discounted ticket spend.
-        $fees = \App\Support\PlatformFee::on($taxable);
+        // Fee + tax follow the discounted ticket spend, at the same rate the
+        // order opened on (the event owner's, custom or global).
+        $fees = \App\Support\PlatformFee::on($taxable, $order->event?->user);
         $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
         $tax = round($taxable * $taxPercent / 100, 2);
 

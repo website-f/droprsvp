@@ -36,7 +36,7 @@ class UserController extends Controller
     }
 
     /** Full profile + activity for one user. */
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
         $user->load('roles:id,name');
         $paidIds = \App\Models\Order::where('user_id', $user->id)->where('status', 'paid')->pluck('id');
@@ -59,7 +59,15 @@ class UserController extends Controller
                 'profile_completed_at' => optional($user->profile_completed_at)->format('j M Y'),
                 'email_verified' => (bool) $user->email_verified_at,
                 'joined' => optional($user->created_at)->format('j M Y'),
+                // Hosts can be moved off the global booking fee from this page.
+                'is_organizer' => $user->hasRole('organizer') || $user->events()->exists(),
             ],
+            // The booking fee this host is charged, plus the platform-wide rate to
+            // compare it against. Editing is gated on the Settings section, which is
+            // where the global fee lives (the endpoint enforces this too).
+            'fee' => \App\Support\PlatformFee::toArray($user),
+            'globalFee' => \App\Support\PlatformFee::toArray(),
+            'canManageFees' => \App\Support\RolePermissions::can($request->user(), 'settings'),
             'activity' => [
                 'events' => $user->events()->count(),
                 'orders' => $paidIds->count(),

@@ -46,7 +46,7 @@ class FinanceController extends Controller
 
         return inertia('host/finance', [
             'balance' => $balance,
-            'feeLabel' => PlatformFee::label(),
+            'feeLabel' => PlatformFee::label($user),
             'events' => $events,
         ]);
     }

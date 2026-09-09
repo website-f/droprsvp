@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, ClipboardList, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck } from 'lucide-react';
+import { ArmchairIcon, Banknote, ClipboardList, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Users } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -133,6 +133,19 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                     Added to each paid order as a booking fee and shown as its own line on the receipt. The system charges whichever is greater — so a RM29 ticket earns the flat RM{data.fee_flat || '0'}, while a RM200 ticket earns {data.fee_percent || '0'}%. Organizers keep the full ticket price; free tickets are never charged.
                                 </p>
                             </div>
+                            {/* The fee above is the platform default; single organizers can be
+                                moved onto a rate of their own from here. */}
+                            <Link href="/admin/organizer-fees" className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:border-foreground/30 hover:bg-muted/40">
+                                <div className="flex items-center gap-3">
+                                    <span className="flex size-9 items-center justify-center rounded-lg bg-muted"><Users className="size-4" /></span>
+                                    <div>
+                                        <div className="text-sm font-medium">Apply to individual organizers</div>
+                                        <div className="text-xs text-muted-foreground">Override the fee above for a specific organizer — a negotiated deal, promo period or high-volume host.</div>
+                                    </div>
+                                </div>
+                                <span className="shrink-0 text-sm font-medium text-muted-foreground">Manage →</span>
+                            </Link>
+
                             <Field label="Event boost price (RM)"><input type="number" min={0} step="1" className={input} value={data.boost_price} onChange={(e) => setData('boost_price', e.target.value)} /></Field>
                             <Field label="Boost duration (days)"><input type="number" min={1} step="1" className={input} value={data.boost_days} onChange={(e) => setData('boost_days', e.target.value)} /></Field>
                             <Field label="Premium price / period (RM)"><input type="number" min={0} step="1" className={input} value={data.premium_price} onChange={(e) => setData('premium_price', e.target.value)} /></Field>

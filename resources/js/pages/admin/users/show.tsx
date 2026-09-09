@@ -1,5 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, Ban, CalendarDays, Heart, Mail, MapPin, Phone, Power, ShieldCheck, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Ban, CalendarDays, Heart, Mail, MapPin, Percent, Phone, Power, ShieldCheck, SlidersHorizontal, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
+import { useState } from 'react';
+import {  OrganizerFeeDialog } from '@/components/admin/organizer-fee-dialog';
+import type {FeeRate} from '@/components/admin/organizer-fee-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +11,7 @@ interface UserDetail {
     id: number; name: string; email: string; phone: string | null;
     gender: string | null; age_band: string | null; city: string | null; country: string | null;
     roles: string[]; is_superadmin: boolean; disabled: boolean; disabled_at: string | null; profile_complete: boolean; profile_completed_at: string | null;
-    email_verified: boolean; joined: string | null;
+    email_verified: boolean; joined: string | null; is_organizer: boolean;
 }
 interface Activity { events: number; orders: number; tickets: number; spent: number; followers: number; following: number }
 
@@ -39,9 +42,10 @@ function Row({ icon: Icon, label, children }: { icon: typeof Mail; label: string
     );
 }
 
-export default function UserShow({ user, activity }: { user: UserDetail; activity: Activity }) {
+export default function UserShow({ user, activity, fee, globalFee, canManageFees }: { user: UserDetail; activity: Activity; fee: FeeRate; globalFee: FeeRate; canManageFees: boolean }) {
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
     const confirm = useConfirm();
+    const [editingFee, setEditingFee] = useState(false);
 
     const toggle = async () => {
         const verb = user.is_superadmin ? 'Revoke superadmin from' : 'Grant superadmin to';
@@ -119,6 +123,33 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
                     <Stat icon={Heart} label="Following" value={activity.following.toLocaleString()} tint="#a855f7" />
                 </div>
 
+                {/* Booking fee — only meaningful for hosts, and only editable by admins
+                    who can reach Settings (where the global rate lives). */}
+                {user.is_organizer && (
+                    <section className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted"><Percent className="size-4" /></span>
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h2 className="text-sm font-semibold">Booking fee</h2>
+                                        {fee.custom ? <Badge>Custom</Badge> : <Badge variant="secondary" className="font-normal">Global</Badge>}
+                                    </div>
+                                    <p className="mt-1 text-sm">Buyers pay {fee.label} on this organizer&rsquo;s events.</p>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                        {fee.custom ? `Overrides the global rate of ${globalFee.label}.` : 'Following the platform-wide rate. Set a custom one for a negotiated deal.'}
+                                    </p>
+                                </div>
+                            </div>
+                            {canManageFees && (
+                                <Button variant="outline" onClick={() => setEditingFee(true)}>
+                                    <SlidersHorizontal className="size-4" /> {fee.custom ? 'Change fee' : 'Override fee'}
+                                </Button>
+                            )}
+                        </div>
+                    </section>
+                )}
+
                 {/* Details */}
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -141,6 +172,12 @@ export default function UserShow({ user, activity }: { user: UserDetail; activit
                     </section>
                 </div>
             </div>
+
+            <OrganizerFeeDialog
+                target={editingFee ? { id: user.id, name: user.name, fee } : null}
+                global={globalFee}
+                onClose={() => setEditingFee(false)}
+            />
         </>
     );
 }

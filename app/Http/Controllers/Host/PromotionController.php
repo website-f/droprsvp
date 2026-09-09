@@ -38,9 +38,9 @@ class PromotionController extends Controller
                 'price' => $this->promotions->price(),
                 'days' => $this->promotions->days(),
             ],
-            // Transparency: what the platform charges on ticket sales.
-            'platform_fee_percent' => PlatformFee::percent(),
-            'platform_fee_label' => PlatformFee::label(),
+            // Transparency: what the platform charges this organizer on ticket sales.
+            'platform_fee_percent' => PlatformFee::percent($event->user),
+            'platform_fee_label' => PlatformFee::label($event->user),
             'result' => $result,
         ];
     }

@@ -46,7 +46,7 @@ class PayoutService
 
         return [
             'gross' => round($net, 2), // organizer's ticket revenue (no fee deducted)
-            'fee_label' => PlatformFee::label(),
+            'fee_label' => PlatformFee::label($organizer),
             'net' => round($net, 2),
             'withdrawn' => round($withdrawn, 2),
             'available' => max(0.0, round($maturedNet - $withdrawn, 2)),

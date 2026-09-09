@@ -37,7 +37,7 @@ class RolePermissions
         'archive' => ['label' => 'Archive', 'prefixes' => ['admin.archive']],
         'content' => ['label' => 'Content (CMS)', 'prefixes' => ['admin.cms', 'admin.seo', 'admin.site.legal', 'admin.site.home-seo']],
         'appearance' => ['label' => 'Appearance', 'prefixes' => ['admin.site.branding', 'admin.site.landing', 'admin.site.footer', 'admin.site.receipt']],
-        'settings' => ['label' => 'Settings', 'prefixes' => ['admin.settings', 'admin.broadcast']],
+        'settings' => ['label' => 'Settings', 'prefixes' => ['admin.settings', 'admin.broadcast', 'admin.organizer-fees']],
     ];
 
     /** Sensible starting grant for a brand-new staff role (read-heavy, no money/users/settings). */

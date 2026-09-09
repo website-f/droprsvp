@@ -54,6 +54,9 @@ class User extends Authenticatable implements PasskeyUser
             'disabled_at' => 'datetime',
             'must_set_password' => 'boolean',
             'notification_preferences' => 'array',
+            // Per-organizer booking-fee override (NULL = use the global rate).
+            'platform_fee_percent' => 'decimal:2',
+            'platform_fee_flat' => 'decimal:2',
         ];
     }
 
@@ -117,6 +120,28 @@ class User extends Authenticatable implements PasskeyUser
     public function canSubscribeToPremium(): bool
     {
         return ! $this->hasRole('superadmin');
+    }
+
+    /**
+     * Whether this organizer is billed at a booking-fee rate of their own instead
+     * of the platform-wide one. Set by an admin; see \App\Support\PlatformFee.
+     */
+    public function hasFeeOverride(): bool
+    {
+        return $this->platform_fee_percent !== null || $this->platform_fee_flat !== null;
+    }
+
+    /**
+     * Put this organizer on their own booking-fee rate, or (with nulls) hand them
+     * back to the global one. Deliberately not mass-assignable — it's money config
+     * and may only be changed from the admin fee screens.
+     */
+    public function setFeeOverride(?float $percent, ?float $flat): void
+    {
+        $this->forceFill([
+            'platform_fee_percent' => $percent,
+            'platform_fee_flat' => $flat,
+        ])->save();
     }
 
     /** A URL-safe organizer handle derived from the name, de-duplicated with a count. */

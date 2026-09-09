@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\EventSeoController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\LegalController as AdminLegalController;
 use App\Http\Controllers\Admin\OrganizerController as AdminOrganizerController;
+use App\Http\Controllers\Admin\OrganizerFeeController;
 use App\Http\Controllers\Host\OrganizerApplicationController;
 use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MenuController;
@@ -331,6 +332,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
         // The role → section permission matrix (superadmin-only; guarded in the controller).
         Route::post('settings/permissions', [AdminSettingsController::class, 'savePermissions'])->name('settings.permissions');
+
+        // Per-organizer booking-fee overrides (Settings → Payments → per-organizer).
+        Route::get('organizer-fees', [OrganizerFeeController::class, 'index'])->name('organizer-fees.index');
+        Route::post('organizer-fees/{user}', [OrganizerFeeController::class, 'update'])->name('organizer-fees.update');
+        Route::delete('organizer-fees/{user}', [OrganizerFeeController::class, 'destroy'])->name('organizer-fees.destroy');
         // Broadcast an in-app notification to an audience.
         Route::post('broadcast', [\App\Http\Controllers\Admin\BroadcastController::class, 'store'])->name('broadcast');
 
