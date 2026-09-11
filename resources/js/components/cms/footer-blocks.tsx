@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Mail } from 'lucide-react';
+import { ArrowRight, Mail } from 'lucide-react';
 import { Wordmark } from '@/components/brand';
 import { platformLabel, SocialIcon } from '@/components/social-icons';
 
@@ -35,7 +35,10 @@ export function Footer({
     tagline, ctaLabel = 'Create an event', ctaUrl = '/get-started', columns = [],
     legalLinks, copyright, supportEmail, socials, background = 'muted',
 }: Partial<FooterData>) {
-    const footerHeight = usePage().props.branding?.footer_height ?? 36;
+    const page = usePage().props;
+    const footerHeight = page.branding?.footer_height ?? 36;
+    // Shared on every page by HandleInertiaRequests; empty until a post exists.
+    const posts = page.footerPosts ?? [];
     const legal = (legalLinks ?? DEFAULT_LEGAL_LINKS).filter((l) => l.label && l.url);
     const email = supportEmail ?? DEFAULT_SUPPORT_EMAIL;
     const rights = (copyright ?? DEFAULT_COPYRIGHT).replace('{year}', String(new Date().getFullYear()));
@@ -44,9 +47,13 @@ export function Footer({
     return (
         <footer className={`mt-auto border-t border-border ${BG[background ?? 'muted'] ?? BG.muted}`}>
             <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Brand */}
+                {/* Brand. The logo and every column heading share one row height
+                    (`footerHeight`) so their text lines up across the footer —
+                    otherwise the short headings float above the taller wordmark. */}
                 <div className="flex max-w-xs flex-col items-start">
-                    <Link href="/en-my/" aria-label="DropRSVP home"><Wordmark height={footerHeight} /></Link>
+                    <Link href="/en-my/" aria-label="DropRSVP home" className="flex items-center" style={{ minHeight: footerHeight }}>
+                        <Wordmark height={footerHeight} />
+                    </Link>
                     {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
                     {email && <a href={`mailto:${email}`} className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"><Mail className="size-3.5 shrink-0" /> {email}</a>}
                     {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex w-max rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
@@ -71,15 +78,42 @@ export function Footer({
 
                 {/* Link columns */}
                 {(columns ?? []).map((col, i) => (
-                    <div key={i}>
-                        {col.title && <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">{col.title}</h3>}
-                        <nav className="mt-4 flex flex-col gap-2.5">
+                    <div key={i} className="flex flex-col items-start">
+                        <h3 className="flex items-center text-xs font-semibold uppercase tracking-wider text-foreground" style={{ minHeight: footerHeight }}>
+                            {col.title}
+                        </h3>
+                        <nav className="mt-3 flex flex-col gap-2.5">
                             {(col.links ?? []).filter((l) => l.label && l.url).map((l, j) => (
                                 <Link key={j} href={l.url} className="text-sm text-muted-foreground transition-colors hover:text-foreground">{l.label}</Link>
                             ))}
                         </nav>
                     </div>
                 ))}
+
+                {/* From the blog — fills the last column with the newest posts
+                    instead of leaving it empty. Titles only; they're links. */}
+                {posts.length > 0 && (
+                    <div className="flex flex-col items-start">
+                        <h3 className="flex items-center text-xs font-semibold uppercase tracking-wider text-foreground" style={{ minHeight: footerHeight }}>
+                            From the blog
+                        </h3>
+                        <nav className="mt-3 flex flex-col gap-2.5">
+                            {posts.map((p) => (
+                                <Link
+                                    key={p.slug}
+                                    href={`/en-my/blog/${p.slug}/`}
+                                    title={p.title}
+                                    className="line-clamp-2 max-w-[15rem] text-sm text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                    {p.title}
+                                </Link>
+                            ))}
+                            <Link href="/en-my/blog/" className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-foreground hover:underline">
+                                All posts <ArrowRight className="size-3.5" />
+                            </Link>
+                        </nav>
+                    </div>
+                )}
             </div>
 
             {(legal.length > 0 || rights) && (

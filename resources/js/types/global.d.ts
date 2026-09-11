@@ -16,6 +16,8 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             nav: PublicNavItem[];
             footer: FooterConfig;
+            /** Newest posts for the footer's "From the blog" column. */
+            footerPosts: { title: string; slug: string }[];
             branding: Branding;
             [key: string]: unknown;
         };

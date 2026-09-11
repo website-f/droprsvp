@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/components/confirm-dialog';
 import { ExternalLink, Newspaper, Pencil, Plus, Trash2 } from 'lucide-react';
 
-interface PostRow { id: number; title: string; slug: string; status: string; category: string | null; updated_at: string }
+interface PostRow { id: number; title: string; slug: string; status: string; category: string | null; updated_at: string; published_at: string | null }
 
 export default function PostsIndex({ posts }: { posts: PostRow[] }) {
     const confirm = useConfirm();
@@ -43,13 +43,13 @@ export default function PostsIndex({ posts }: { posts: PostRow[] }) {
                                     <tr key={p.id} className="hover:bg-muted/30">
                                         <td className="px-4 py-3">
                                             <div className="font-medium">{p.title}</div>
-                                            <div className="text-xs text-muted-foreground">/blog/{p.slug} · {p.updated_at}</div>
+                                            <div className="text-xs text-muted-foreground">/en-my/blog/{p.slug}/ · {p.status === 'scheduled' && p.published_at ? `goes live ${p.published_at}` : p.updated_at}</div>
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">{p.category ?? '—'}</td>
-                                        <td className="px-4 py-3"><Badge variant={p.status === 'published' ? 'default' : 'secondary'} className="capitalize">{p.status}</Badge></td>
+                                        <td className="px-4 py-3"><Badge variant={p.status === 'published' ? 'default' : p.status === 'scheduled' ? 'outline' : 'secondary'} className="capitalize">{p.status}</Badge></td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-2">
-                                                {p.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/blog/${p.slug}`} target="_blank" rel="noreferrer"><ExternalLink className="size-3.5" /></a></Button>}
+                                                {p.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/en-my/blog/${p.slug}/`} target="_blank" rel="noreferrer"><ExternalLink className="size-3.5" /></a></Button>}
                                                 <Button asChild variant="outline" size="sm"><Link href={`/admin/cms/posts/${p.id}/edit`}><Pencil className="size-3.5" /> Edit</Link></Button>
                                                 <Button variant="ghost" size="sm" onClick={() => remove(p)}><Trash2 className="size-3.5" /></Button>
                                             </div>

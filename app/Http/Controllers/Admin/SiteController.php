@@ -78,6 +78,33 @@ class SiteController extends Controller
         return back()->with('success', 'Landing sections saved.');
     }
 
+    /** The promo slot in the blog's right-hand rail. */
+    public function blog()
+    {
+        return inertia('admin/site/blog', ['ad' => SiteContent::blogAd()]);
+    }
+
+    public function saveBlog(Request $request)
+    {
+        $data = $request->validate([
+            'enabled' => ['boolean'],
+            'title' => ['nullable', 'string', 'max:80'],
+            'image' => ['nullable', 'string', 'max:2048'],
+            'url' => ['nullable', 'string', 'max:2048'],
+            'caption' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        Setting::putArray('blog_ad', [
+            'enabled' => $request->boolean('enabled'),
+            'title' => $data['title'] ?? '',
+            'image' => $data['image'] ?? '',
+            'url' => $data['url'] ?? '',
+            'caption' => $data['caption'] ?? '',
+        ]);
+
+        return back()->with('success', 'Blog sidebar saved.');
+    }
+
     public function homeSeo()
     {
         return inertia('admin/site/home-seo', [

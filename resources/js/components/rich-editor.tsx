@@ -1,4 +1,4 @@
-import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Code2, Eye, Image as ImageIcon, Italic, Link2, List, ListOrdered, Maximize2, Minimize2, Minus, Quote, RemoveFormatting, Strikethrough, Underline, Youtube } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Code2, Eye, Image as ImageIcon, Italic, Link2, List, ListOrdered, ListTree, Maximize2, Minimize2, Minus, Quote, RemoveFormatting, Strikethrough, Table, Underline, Youtube } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { usePrompt } from '@/components/prompt-dialog';
 import { uploadImageWithToast } from '@/lib/upload';
@@ -36,7 +36,16 @@ export const contentClass =
     '[&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.9em] [&_pre_code]:bg-transparent [&_pre_code]:p-0 ' +
     '[&_table]:my-5 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:border-collapse ' +
     '[&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 ' +
-    '[&_.ql-align-center]:text-center [&_.ql-align-right]:text-right [&_.ql-align-justify]:text-justify';
+    '[&_.ql-align-center]:text-center [&_.ql-align-right]:text-right [&_.ql-align-justify]:text-justify ' +
+    // Table of contents — both the editor's placeholder block and the rendered
+    // <nav class="post-toc"> the server swaps in for it on the public page.
+    '[&_.post-toc]:my-6 [&_.post-toc]:rounded-xl [&_.post-toc]:border [&_.post-toc]:border-border [&_.post-toc]:bg-muted/40 [&_.post-toc]:p-4 [&_.post-toc]:sm:p-5 ' +
+    '[&_.post-toc-title]:m-0 [&_.post-toc-title]:text-xs [&_.post-toc-title]:font-semibold [&_.post-toc-title]:uppercase [&_.post-toc-title]:tracking-wider [&_.post-toc-title]:text-muted-foreground ' +
+    '[&_.post-toc_ol]:mt-3 [&_.post-toc_ol]:mb-0 [&_.post-toc_ol]:list-none [&_.post-toc_ol]:pl-0 [&_.post-toc_ol]:space-y-1.5 ' +
+    '[&_.post-toc_li]:my-0 [&_.post-toc-l3]:pl-5 ' +
+    '[&_.post-toc_a]:text-foreground/80 [&_.post-toc_a]:no-underline hover:[&_.post-toc_a]:text-foreground hover:[&_.post-toc_a]:underline ' +
+    // Headings are anchor targets — keep them clear of a sticky header on jump.
+    '[&_h2]:scroll-mt-24 [&_h3]:scroll-mt-24';
 
 const Btn = ({ onClick, title, active, children }: { onClick: () => void; title: string; active?: boolean; children: React.ReactNode }) => (
     <button type="button" title={title} aria-label={title} aria-pressed={active} onMouseDown={(e) => e.preventDefault()} onClick={onClick}
@@ -243,6 +252,29 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
         input.click();
     };
 
+    /**
+     * Drop in a contents placeholder. It stays a simple marker in the stored
+     * HTML — the server (App\Support\TableOfContents) swaps it for the real list
+     * at render time, so the contents can never drift from the headings.
+     */
+    const toc = () => {
+        if ((value || '').includes('data-toc')) {
+            return; // one per post
+        }
+
+        insertHtml('<div data-toc="1" class="post-toc"><p class="post-toc-title">Table of Contents</p><p>Built automatically from this post’s H2 and H3 headings.</p></div><p><br></p>');
+    };
+
+    const table = () => {
+        const cell = '<td>&nbsp;</td>';
+        const head = '<th>Heading</th>';
+        insertHtml(
+            '<table><thead><tr>' + head.repeat(3) + '</tr></thead><tbody>'
+            + ('<tr>' + cell.repeat(3) + '</tr>').repeat(2)
+            + '</tbody></table><p><br></p>',
+        );
+    };
+
     const toCode = () => setMode('code');
     const toVisual = () => {
         if (editorRef.current) {
@@ -253,11 +285,20 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
     };
 
     const empty = isEmptyHtml(value || '');
+    const hasToc = (value || '').includes('data-toc');
+
+    // Live word count + reading estimate, the way WordPress shows them.
+    const words = (() => {
+        const text = (value || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim();
+
+        return text ? text.split(/\s+/).length : 0;
+    })();
 
     return (
         <div className={`rte flex flex-col overflow-hidden rounded-xl border border-input bg-card shadow-sm ${full ? 'fixed inset-0 z-40 rounded-none' : ''}`}>
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-0.5 border-b border-input bg-muted/40 px-2 py-1.5">
+            {/* Toolbar — sticks to the top of the editor while writing, and scrolls
+                sideways on narrow screens rather than stacking into a tall block. */}
+            <div className="sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b border-input bg-muted/60 px-2 py-1.5 backdrop-blur [scrollbar-width:thin] md:flex-wrap md:overflow-visible">
                 {mode === 'visual' && (
                     <>
                         {/* Paragraph / heading level (P + H1–H6) — reflects the caret's block */}
@@ -293,12 +334,15 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
                         <Btn onClick={link} title="Link"><Link2 className="size-4" /></Btn>
                         <Btn onClick={image} title="Image"><ImageIcon className="size-4" /></Btn>
                         <Btn onClick={video} title="YouTube video"><Youtube className="size-4" /></Btn>
+                        <Btn onClick={table} title="Insert table"><Table className="size-4" /></Btn>
                         <Btn onClick={() => exec('insertHorizontalRule')} title="Divider"><Minus className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={toc} title="Table of contents" active={hasToc}><ListTree className="size-4" /></Btn>
                         <Btn onClick={() => exec('removeFormat')} title="Clear formatting"><RemoveFormatting className="size-4" /></Btn>
                     </>
                 )}
 
-                <div className="ml-auto flex items-center gap-0.5">
+                <div className="ml-auto flex shrink-0 items-center gap-0.5">
                     <button type="button" onClick={mode === 'visual' ? toCode : toVisual}
                         className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                         {mode === 'visual' ? <><Code2 className="size-3.5" /> HTML</> : <><Eye className="size-3.5" /> Visual</>}
@@ -329,6 +373,15 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
             {mode === 'code' && (
                 <CodeArea value={value || ''} onChange={(v) => onChangeRef.current(isEmptyHtml(v) ? '' : v)} />
             )}
+
+            {/* Status bar */}
+            <div className="flex items-center gap-3 border-t border-input bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                <span>{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>
+                <span aria-hidden>·</span>
+                <span>{Math.max(1, Math.ceil(words / 200))} min read</span>
+                {hasToc && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1"><ListTree className="size-3.5" /> Contents block</span></>}
+                <span className="ml-auto hidden sm:inline">{mode === 'visual' ? 'Visual' : 'HTML'}</span>
+            </div>
         </div>
     );
 }

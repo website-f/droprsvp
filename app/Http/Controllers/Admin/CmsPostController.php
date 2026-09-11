@@ -17,6 +17,7 @@ class CmsPostController extends Controller
             'posts' => CmsPost::with('category:id,name')->latest()->get()->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
                 'category' => $p->category?->name, 'updated_at' => $p->updated_at->format('j M Y'),
+                'published_at' => $p->published_at?->format('j M Y, g:i A'),
             ]),
         ]);
     }
@@ -51,7 +52,7 @@ class CmsPostController extends Controller
     {
         $data = $this->validated($request, $post->id);
 
-        $post->fill($this->attributes($data));
+        $post->fill($this->attributes($data, $post));
         $post->category_id = $this->resolveCategory($data['category'] ?? null);
         $post->slug = $this->uniqueSlug(($data['slug'] ?? '') ?: $data['title'], $post->id);
         $post->save();
@@ -78,7 +79,10 @@ class CmsPostController extends Controller
             'body' => ['nullable', 'string'],
             'cover_image' => ['nullable', 'string', 'max:2048'],
             'category' => ['nullable', 'string', 'max:80'],
-            'publish' => ['boolean'],
+            // draft | published | scheduled. A schedule needs a future date;
+            // without one it's just an immediate publish.
+            'status' => ['required', 'in:draft,published,scheduled'],
+            'published_at' => ['nullable', 'date', 'required_if:status,scheduled'],
             'seo' => ['array'],
             'seo.seo_title' => ['nullable', 'string', 'max:70'],
             'seo.meta_description' => ['nullable', 'string', 'max:320'],
@@ -93,16 +97,49 @@ class CmsPostController extends Controller
         ]);
     }
 
-    private function attributes(array $data): array
+    /**
+     * @param  CmsPost|null  $existing  the post being updated, so an already-live
+     *                                  post keeps its original publish date
+     */
+    private function attributes(array $data, ?CmsPost $existing = null): array
     {
+        [$status, $publishedAt] = $this->publishState($data, $existing);
+
         return [
             'title' => $data['title'],
             'excerpt' => $data['excerpt'] ?? null,
             'body' => \App\Support\HtmlSanitizer::clean($data['body'] ?? null),
             'cover_image' => $data['cover_image'] ?? null,
-            'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
-            'published_at' => ($data['publish'] ?? false) ? now() : null,
+            'status' => $status,
+            'published_at' => $publishedAt,
         ];
+    }
+
+    /**
+     * Resolve the post's status + publish date.
+     *
+     * A schedule whose moment has already passed is simply published now — the
+     * alternative is a post that sits in "scheduled" waiting for a date in the
+     * past, which never arrives. Editing a live post preserves its original
+     * date so its URL, ordering and "published on" line don't shift.
+     *
+     * @return array{0: string, 1: \Illuminate\Support\Carbon|null}
+     */
+    private function publishState(array $data, ?CmsPost $existing): array
+    {
+        $status = $data['status'];
+        $when = ! empty($data['published_at']) ? \Illuminate\Support\Carbon::parse($data['published_at']) : null;
+
+        if ($status === 'draft') {
+            return ['draft', null];
+        }
+
+        if ($status === 'scheduled' && $when && $when->isFuture()) {
+            return ['scheduled', $when];
+        }
+
+        // Publish now — or keep the date this post already went live on.
+        return ['published', $when ?? $existing?->published_at ?? now()];
     }
 
     private function seoAttributes(array $data): array
@@ -161,6 +198,8 @@ class CmsPostController extends Controller
             'cover_image' => $post->cover_image,
             'category' => $post->category?->name,
             'status' => $post->status,
+            // "YYYY-MM-DDTHH:mm" — the DateTimePicker's value format.
+            'published_at' => $post->published_at?->format('Y-m-d\TH:i'),
             'seo' => [
                 'seo_title' => $post->seo?->seo_title,
                 'meta_description' => $post->seo?->meta_description,

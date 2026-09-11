@@ -58,6 +58,8 @@ class HomeController extends Controller
             'categories' => EventCategory::orderBy('sort_order')->orderBy('name')->get(['name', 'slug', 'icon', 'blurb', 'color']),
             'sections' => $sections,
             'organizers' => $this->featuredOrganizers(),
+            // Three latest posts for the blog strip above the contact section.
+            'posts' => \App\Support\PostCards::recent(3),
             // Personalized feeds for signed-in visitors.
             'cityEvents' => $this->cityEvents($request),
             'forYou' => $this->forYou(),

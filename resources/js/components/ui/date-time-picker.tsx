@@ -9,7 +9,11 @@ const parse = (v: string) => { const [d, t] = (v || '').split('T'); return { dat
 const compose = (date: string, time: string) => (date ? `${date}T${time || '00:00'}` : '');
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+// Every minute, not 5-minute steps — a scheduled post goes out at the exact
+// time the author set. The columns scroll; the boxes above them take typing.
+const MINS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const clamp = (n: number, max: number) => Math.min(max, Math.max(0, n));
 
 /**
  * Custom, responsive date + time picker — replaces native datetime-local.
@@ -93,9 +97,16 @@ export function DateTimePicker({ value, onChange, id, placeholder = 'Pick date &
                             );
                         })}
                     </div>
-                    {/* time */}
+                    {/* time — type an exact HH:MM, or scroll-pick below */}
                     <div className="mt-3 border-t border-border pt-3">
-                        <div className="mb-1.5 text-xs font-medium text-muted-foreground">Time</div>
+                        <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Time</span>
+                            <div className="flex items-center gap-1">
+                                <TimeBox label="Hour" max={23} value={hh} onCommit={setHH} />
+                                <span className="text-sm font-semibold text-muted-foreground">:</span>
+                                <TimeBox label="Minute" max={59} value={mm} onCommit={setMM} />
+                            </div>
+                        </div>
                         <div className="flex gap-2">
                             <TimeColumn label="Hour" items={HOURS} value={hh} onSelect={setHH} />
                             <TimeColumn label="Min" items={MINS} value={mm} onSelect={setMM} />
@@ -107,6 +118,65 @@ export function DateTimePicker({ value, onChange, id, placeholder = 'Pick date &
     );
 }
 
+/**
+ * A two-digit hour/minute box you can type into. Keystrokes are held locally so
+ * a half-typed "1" isn't immediately normalised to "01"; the value is committed
+ * (clamped and padded) on blur, Enter, or an arrow key.
+ */
+function TimeBox({ label, max, value, onCommit }: { label: string; max: number; value: string; onCommit: (v: string) => void }) {
+    const [draft, setDraft] = useState<string | null>(null);
+    // Drop a half-typed draft the moment the value changes from elsewhere (the
+    // scroll columns, or clearing the field) so the box can't show a stale digit.
+    const [lastSeen, setLastSeen] = useState(value);
+
+    if (value !== lastSeen) {
+        setLastSeen(value);
+        setDraft(null);
+    }
+
+    const shown = draft ?? value;
+
+    const commit = (raw: string) => {
+        setDraft(null);
+
+        if (raw.trim() === '') {
+            return;
+        }
+
+        onCommit(pad2(clamp(parseInt(raw, 10) || 0, max)));
+    };
+
+    const nudge = (by: number) => {
+        const current = parseInt(shown, 10);
+        onCommit(pad2(clamp((Number.isNaN(current) ? 0 : current) + by, max)));
+        setDraft(null);
+    };
+
+    return (
+        <input
+            type="text"
+            inputMode="numeric"
+            aria-label={label}
+            value={shown}
+            placeholder="--"
+            onChange={(e) => setDraft(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commit(e.currentTarget.value);
+                }
+
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    nudge(e.key === 'ArrowUp' ? 1 : -1);
+                }
+            }}
+            className="h-7 w-9 rounded-md border border-input bg-card text-center text-sm tabular-nums outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
+        />
+    );
+}
+
 function TimeColumn({ label, items, value, onSelect }: { label: string; items: string[]; value: string; onSelect: (v: string) => void }) {
     return (
         <div className="flex-1">
@@ -115,6 +185,7 @@ function TimeColumn({ label, items, value, onSelect }: { label: string; items: s
                     <button
                         key={it}
                         type="button"
+                        ref={value === it ? (el) => el?.scrollIntoView({ block: 'nearest' }) : undefined}
                         onClick={() => onSelect(it)}
                         className={`block w-full px-3 py-1.5 text-center text-sm ${value === it ? 'bg-foreground text-background' : 'hover:bg-accent'}`}
                     >{it}</button>

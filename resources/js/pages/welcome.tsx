@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowDown, ArrowRight, CalendarDays, CalendarPlus, CheckCircle2, Compass, Headset, MapPin, MessageSquare, Send, Sparkles, Star, Tag, Ticket, UserCheck, UserPlus } from 'lucide-react';
+import { ArrowDown, ArrowRight, CalendarDays, CalendarPlus, CheckCircle2, Compass, Headset, MapPin, MessageSquare, Newspaper, Send, Sparkles, Star, Tag, Ticket, UserCheck, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
@@ -47,12 +47,15 @@ return 'Free';
 
 interface Organizer { id: number; slug: string; name: string; events_count: number; followers: number; next_slug: string | null; is_following: boolean; is_self: boolean }
 
+interface BlogPost { title: string; slug: string; excerpt: string | null; cover_image: string | null; category: string | null; date: string | null }
+
 interface LandingSections {
     hero: { style: 'classic' | 'banners'; autoplay: boolean; interval: number; banners: Banner[] };
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
     nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; lat: number | null; lng: number | null }> };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
+    blog?: { enabled: boolean; heading: string; subheading: string; cta_label: string };
     contact: { enabled: boolean; heading: string; subheading: string };
     showcase?: { enabled: boolean };
     seo_text?: { enabled: boolean; heading: string; body: string };
@@ -130,7 +133,7 @@ function EventCard({ e }: { e: FeaturedEvent }) {
 }
 
 export default function Welcome() {
-    const { auth, seo, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null } = usePage().props as unknown as {
+    const { auth, seo, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null, posts = [] } = usePage().props as unknown as {
         auth?: { user?: unknown };
         seo?: { title?: string };
         featured?: FeaturedEvent[];
@@ -139,6 +142,7 @@ export default function Welcome() {
         organizers?: Organizer[];
         cityEvents?: { city: string; slug: string; events: FeaturedEvent[] } | null;
         forYou?: FeaturedEvent[] | null;
+        posts?: BlogPost[];
     };
     const signedIn = !!auth?.user;
     const hero = sections?.hero;
@@ -147,6 +151,7 @@ export default function Welcome() {
     const nearby = sections?.nearby_cities;
     const featuredOrgs = sections?.featured_organizers;
     const contact = sections?.contact;
+    const blog = sections?.blog;
     const seoText = sections?.seo_text;
     const [seoExpanded, setSeoExpanded] = useState(false);
 
@@ -581,6 +586,56 @@ export default function Welcome() {
                             <button type="button" onClick={() => setSeoExpanded((v) => !v)} className="mt-2 text-sm font-semibold text-primary hover:underline">
                                 {seoExpanded ? 'Show less' : 'Read more'}
                             </button>
+                        </div>
+                    </section>
+                )}
+
+                {/* ------------------------------------------- From the blog */}
+                {(blog?.enabled ?? true) && posts.length > 0 && (
+                    <section className="border-t border-border">
+                        <div className="mx-auto w-full max-w-6xl px-6 py-14 sm:py-16">
+                            <Reveal>
+                                <div className="flex flex-wrap items-end justify-between gap-4">
+                                    <div>
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                                            <Newspaper className="size-3.5" /> Latest reads
+                                        </span>
+                                        <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">{blog?.heading ?? 'From the blog'}</h2>
+                                        {blog?.subheading && <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">{blog.subheading}</p>}
+                                    </div>
+                                    <Button asChild variant="outline" className="hidden sm:inline-flex">
+                                        <Link href="/en-my/blog/">{blog?.cta_label ?? 'See all posts'} <ArrowRight className="size-4" /></Link>
+                                    </Button>
+                                </div>
+                            </Reveal>
+
+                            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                {posts.slice(0, 3).map((p) => (
+                                    <Link
+                                        key={p.slug}
+                                        href={`/en-my/blog/${p.slug}/`}
+                                        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md"
+                                    >
+                                        {p.cover_image
+                                            ? <img src={p.cover_image} alt={p.title} className="aspect-[16/9] w-full object-cover" loading="lazy" />
+                                            : <span className="aspect-[16/9] w-full bg-muted" />}
+                                        <div className="flex flex-1 flex-col p-5">
+                                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                                {p.category && <Badge variant="secondary">{p.category}</Badge>}
+                                                {p.date && <span className="text-xs text-muted-foreground">{p.date}</span>}
+                                            </div>
+                                            <h3 className="text-base font-semibold leading-snug group-hover:underline">{p.title}</h3>
+                                            {p.excerpt && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.excerpt}</p>}
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+
+                            <div className="mt-8 sm:hidden">
+                                <Button asChild variant="outline" className="w-full">
+                                    <Link href="/en-my/blog/">{blog?.cta_label ?? 'See all posts'} <ArrowRight className="size-4" /></Link>
+                                </Button>
+                            </div>
                         </div>
                     </section>
                 )}

@@ -437,6 +437,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('site/events-page', [AdminSiteController::class, 'eventsPage'])->name('site.events-page');
         Route::post('site/events-page', [AdminSiteController::class, 'saveEventsPage'])->name('site.events-page.save');
         // Homepage SEO — the landing page is premade, so only its SEO is editable.
+        // Blog sidebar (promo slot shown beside posts).
+        Route::get('site/blog', [AdminSiteController::class, 'blog'])->name('site.blog');
+        Route::post('site/blog', [AdminSiteController::class, 'saveBlog'])->name('site.blog.save');
+
         Route::get('site/home-seo', [AdminSiteController::class, 'homeSeo'])->name('site.home-seo');
         Route::post('site/home-seo', [AdminSiteController::class, 'saveHomeSeo'])->name('site.home-seo.save');
         // Dedicated editor for the landing SEO text block.

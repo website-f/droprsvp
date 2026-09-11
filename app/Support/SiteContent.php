@@ -69,6 +69,25 @@ class SiteContent
         return array_replace($defaults, $saved);
     }
 
+    /**
+     * The promo slot in the blog's right-hand rail. Blank image = no ad is
+     * rendered, so the rail simply closes up. Edited under Admin → Blog.
+     *
+     * @return array{enabled: bool, title: string, image: string, url: string, caption: string}
+     */
+    public static function blogAd(): array
+    {
+        $saved = Setting::getArray('blog_ad', []);
+
+        return [
+            'enabled' => (bool) ($saved['enabled'] ?? false),
+            'title' => (string) ($saved['title'] ?? 'Advertise with us'),
+            'image' => (string) ($saved['image'] ?? ''),
+            'url' => (string) ($saved['url'] ?? ''),
+            'caption' => (string) ($saved['caption'] ?? ''),
+        ];
+    }
+
     /** The served robots.txt — the superadmin's custom text, or a sensible default. */
     public static function robotsTxt(): string
     {
@@ -294,6 +313,13 @@ class SiteContent
                 'enabled' => true,
                 'heading' => 'Featured organizers',
                 'subheading' => 'The people behind the events you love.',
+            ],
+            // Latest blog posts, shown just above the contact section.
+            'blog' => [
+                'enabled' => true,
+                'heading' => 'From the blog',
+                'subheading' => 'Guides, tips and stories for hosts and event-goers.',
+                'cta_label' => 'See all posts',
             ],
             'contact' => [
                 'enabled' => true,

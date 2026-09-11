@@ -32,7 +32,7 @@ class CmsPostTest extends TestCase
             'excerpt' => 'A short intro',
             'body' => '<p>Body text</p>',
             'category' => 'News',
-            'publish' => true,
+            'status' => 'published',
             'seo' => ['meta_description' => 'Read our news', 'robots_index' => true, 'robots_follow' => true],
         ])->assertRedirect(route('admin.cms.posts.index'));
 

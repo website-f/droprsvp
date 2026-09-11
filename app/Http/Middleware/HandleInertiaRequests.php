@@ -58,6 +58,8 @@ class HandleInertiaRequests extends Middleware
             'nav' => MenuItem::header(),
             // Footer config (cached; edited under Admin → Footer).
             'footer' => SiteContent::footer(),
+            // Latest posts for the footer's "From the blog" column (cached).
+            'footerPosts' => \App\Models\CmsPost::forFooter(),
             // Brand logos + sizing (cached; edited under Admin → Branding).
             'branding' => SiteContent::branding(),
             // Site-wide announcement (banner / modal on public pages; cached).
