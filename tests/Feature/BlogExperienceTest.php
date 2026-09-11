@@ -134,6 +134,36 @@ class BlogExperienceTest extends TestCase
             ->assertSee('<link rel="canonical" href="'.rtrim(url('/'), '/').'/en-my/blog/?category=news"', false);
     }
 
+    public function test_related_posts_come_from_the_same_category(): void
+    {
+        $news = CmsCategory::create(['name' => 'News', 'slug' => 'news']);
+        $other = CmsCategory::create(['name' => 'Tips', 'slug' => 'tips']);
+        $this->makePost('reading', '<p>a</p>', $news);
+        $this->makePost('sibling', '<p>b</p>', $news);
+        $this->makePost('unrelated', '<p>c</p>', $other);
+
+        $this->get('/en-my/blog/reading')->assertOk()
+            ->assertInertia(fn ($p) => $p->count('sidebar.related', 1)
+                ->where('sidebar.related.0.slug', 'sibling'));
+    }
+
+    public function test_the_listing_rail_has_no_related_block(): void
+    {
+        $news = CmsCategory::create(['name' => 'News', 'slug' => 'news']);
+        $this->makePost('one', '<p>a</p>', $news);
+
+        $this->get('/en-my/blog')->assertInertia(fn ($p) => $p->count('sidebar.related', 0));
+    }
+
+    public function test_the_page_reports_whether_the_author_placed_their_own_contents_block(): void
+    {
+        $this->makePost('plain', '<h2>One</h2><h2>Two</h2>');
+        $this->makePost('inline', '<div data-toc="1" class="post-toc"></div><h2>One</h2><h2>Two</h2>');
+
+        $this->get('/en-my/blog/plain')->assertInertia(fn ($p) => $p->where('hasInlineToc', false)->count('toc', 2));
+        $this->get('/en-my/blog/inline')->assertInertia(fn ($p) => $p->where('hasInlineToc', true));
+    }
+
     // ---- the promo slot ----------------------------------------------------
 
     public function test_the_promo_slot_is_off_until_an_admin_turns_it_on(): void

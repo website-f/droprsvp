@@ -113,7 +113,10 @@ class BlogController extends Controller
             ],
             // Sticky contents rail — the same headings the inline block lists.
             'toc' => $toc['items'],
-            'sidebar' => $this->sidebar($post->id),
+            // The author already placed a contents block in the body, so the
+            // page shouldn't add its own on top of it.
+            'hasInlineToc' => str_contains((string) $toc['html'], 'class="post-toc"'),
+            'sidebar' => $this->sidebar($post->id, $post->category_id),
             'seo' => ['title' => $seo?->seo_title ?: $post->title],
         ]);
     }
@@ -123,7 +126,7 @@ class BlogController extends Controller
      * switch between (with counts), the latest posts, and the admin-managed ad
      * slot. Shared by the index and the article page so the rail is identical.
      */
-    private function sidebar(?int $excludePostId = null): array
+    private function sidebar(?int $excludePostId = null, ?int $relatedToCategory = null): array
     {
         $counts = CmsPost::published()
             ->selectRaw('category_id, count(*) as total')
@@ -146,9 +149,23 @@ class BlogController extends Controller
             ->map(fn (CmsPost $p) => $this->card($p))
             ->all();
 
+        // More from the same category — the "related" rail on an article page.
+        $related = $relatedToCategory
+            ? CmsPost::published()
+                ->with('category:id,name,slug')
+                ->where('category_id', $relatedToCategory)
+                ->when($excludePostId, fn ($q) => $q->whereKeyNot($excludePostId))
+                ->orderByDesc('published_at')
+                ->limit(4)
+                ->get()
+                ->map(fn (CmsPost $p) => $this->card($p))
+                ->all()
+            : [];
+
         return [
             'categories' => $categories,
             'recent' => $recent,
+            'related' => $related,
             'ad' => SiteContent::blogAd(),
         ];
     }

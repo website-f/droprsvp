@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, CalendarDays, Clock, User } from 'lucide-react';
-import {  BlogSidebar, categoryUrl  } from '@/components/blog-sidebar';
-import type {BlogSidebarData, TocItem} from '@/components/blog-sidebar';
+import { BlogSidebar, categoryUrl, hasContents, TableOfContentsCard } from '@/components/blog-sidebar';
+import type { BlogSidebarData, TocItem } from '@/components/blog-sidebar';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ interface PostView {
 }
 interface Seo { title: string }
 
-export default function BlogShow({ post, toc, sidebar, seo }: { post: PostView; toc: TocItem[]; sidebar: BlogSidebarData; seo: Seo }) {
+export default function BlogShow({ post, toc, hasInlineToc, sidebar, seo }: { post: PostView; toc: TocItem[]; hasInlineToc: boolean; sidebar: BlogSidebarData; seo: Seo }) {
     const meta = [
         post.author && { icon: User, text: post.author },
         post.date && { icon: CalendarDays, text: post.date },
@@ -56,6 +56,13 @@ export default function BlogShow({ post, toc, sidebar, seo }: { post: PostView; 
 
                             {post.cover_image && (
                                 <img src={post.cover_image} alt={post.title} className="mt-7 aspect-[16/8] w-full rounded-2xl border border-border object-cover" />
+                            )}
+
+                            {/* Contents for phones, where the rail is below the article.
+                                Collapsed by default, and skipped when the author already
+                                placed their own block in the body. */}
+                            {hasContents(toc) && !hasInlineToc && (
+                                <TableOfContentsCard items={toc} defaultOpen={false} className="mt-8 lg:hidden" />
                             )}
 
                             {/* Body. Any [data-toc] block the author inserted has already
