@@ -58,11 +58,11 @@ export default function BlogShow({ post, toc, hasInlineToc, sidebar, seo }: { po
                                 <img src={post.cover_image} alt={post.title} className="mt-7 aspect-[16/8] w-full rounded-2xl border border-border object-cover" />
                             )}
 
-                            {/* Contents for phones, where the rail is below the article.
-                                Collapsed by default, and skipped when the author already
-                                placed their own block in the body. */}
+                            {/* Contents — top of the article, above the body, on every
+                                screen size. Skipped when the author already placed their
+                                own [data-toc] block, so there's never two. */}
                             {hasContents(toc) && !hasInlineToc && (
-                                <TableOfContentsCard items={toc} defaultOpen={false} className="mt-8 lg:hidden" />
+                                <TableOfContentsCard items={toc} className="mt-8" />
                             )}
 
                             {/* Body. Any [data-toc] block the author inserted has already
@@ -70,7 +70,7 @@ export default function BlogShow({ post, toc, hasInlineToc, sidebar, seo }: { po
                             <div className={`mt-8 ${contentClass}`} dangerouslySetInnerHTML={{ __html: post.body ?? '' }} />
                         </article>
 
-                        <BlogSidebar sidebar={sidebar} toc={toc} />
+                        <BlogSidebar sidebar={sidebar} />
                     </div>
                 </main>
 

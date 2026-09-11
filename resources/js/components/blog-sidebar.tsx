@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ChevronDown, Clock, FolderOpen, LayoutList, Newspaper } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export interface BlogPostCard {
     title: string;
@@ -34,13 +34,9 @@ function Widget({ icon: Icon, title, children }: { icon: typeof Clock; title: st
 }
 
 /**
- * Collapsible table of contents.
- *
- * Rendered twice on an article: sticky at the top of the desktop rail, and
- * collapsed at the top of the article on phones (where the rail sits far below
- * the text and would be useless). The links are real anchors, so they work for
- * crawlers and with JavaScript off; the click handler only adds smooth scrolling
- * and the highlight follows the heading you're actually reading.
+ * Collapsible table of contents, shown at the top of the article itself (above
+ * the body) — not in the rail. The links are real anchors, so they work for
+ * crawlers and with JavaScript off; the click handler only adds smooth scrolling.
  */
 export function TableOfContentsCard({ items, defaultOpen = true, className = '' }: {
     items: TocItem[];
@@ -48,40 +44,6 @@ export function TableOfContentsCard({ items, defaultOpen = true, className = '' 
     className?: string;
 }) {
     const [open, setOpen] = useState(defaultOpen);
-    const [active, setActive] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (items.length === 0 || typeof IntersectionObserver === 'undefined') {
-            return;
-        }
-
-        const headings = items
-            .map((i) => document.getElementById(i.id))
-            .filter((el): el is HTMLElement => el !== null);
-
-        if (headings.length === 0) {
-            return;
-        }
-
-        // Treat the band just under the sticky header as "current": a heading
-        // counts once it reaches it, and stops counting past the top third.
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const onScreen = entries
-                    .filter((e) => e.isIntersecting)
-                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-
-                if (onScreen.length > 0) {
-                    setActive(onScreen[0].target.id);
-                }
-            },
-            { rootMargin: '-96px 0px -66% 0px', threshold: 0 },
-        );
-
-        headings.forEach((h) => observer.observe(h));
-
-        return () => observer.disconnect();
-    }, [items]);
 
     if (items.length === 0) {
         return null;
@@ -98,36 +60,31 @@ export function TableOfContentsCard({ items, defaultOpen = true, className = '' 
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
         history.replaceState(null, '', `#${id}`);
-        setActive(id);
     };
 
     return (
-        <section className={`overflow-hidden rounded-2xl border border-border bg-card ${className}`}>
+        <section className={`overflow-hidden rounded-xl border border-border bg-muted/30 ${className}`}>
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
                 aria-expanded={open}
-                className="flex w-full items-center gap-2 px-5 py-3.5 text-left transition-colors hover:bg-muted/50"
+                className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60 sm:px-5"
             >
-                <LayoutList className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="flex-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Table of Contents</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">{items.length}</span>
+                <LayoutList className="size-4 shrink-0 text-muted-foreground" />
+                <span className="flex-1 text-sm font-semibold">Table of Contents</span>
+                <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">{items.length}</span>
                 <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open && (
-                <nav aria-label="Table of contents" className="max-h-[min(26rem,50vh)] overflow-y-auto border-t border-border px-3 py-3 [scrollbar-width:thin]">
-                    <ol className="space-y-0.5 text-sm">
+                <nav aria-label="Table of contents" className="border-t border-border px-4 py-3 sm:px-5">
+                    <ol className="space-y-1 text-sm">
                         {items.map((h) => (
-                            <li key={h.id}>
+                            <li key={h.id} className={h.level === 3 ? 'pl-5' : ''}>
                                 <a
                                     href={`#${h.id}`}
                                     onClick={(e) => jump(e, h.id)}
-                                    className={`block border-l-2 py-1.5 pr-2 transition-colors ${h.level === 3 ? 'pl-6 text-[13px]' : 'pl-3'} ${
-                                        active === h.id
-                                            ? 'border-foreground font-medium text-foreground'
-                                            : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-                                    }`}
+                                    className="block py-1 text-muted-foreground transition-colors hover:text-foreground hover:underline"
                                 >
                                     {h.text}
                                 </a>
@@ -181,14 +138,15 @@ function PostRow({ post }: { post: BlogPostCard }) {
 }
 
 /**
- * The blog's right-hand rail: contents first, then the promo slot, categories,
- * related and recent posts. The whole rail sticks beside the article on desktop
- * and scrolls internally when it's taller than the screen; on mobile it flows
- * under the article, so nothing is hidden behind a toggle.
+ * The blog's right-hand rail: the promo slot, then categories, related and
+ * recent posts. The table of contents deliberately lives at the top of the
+ * article instead — see TableOfContentsCard.
+ *
+ * The rail sticks beside the article on desktop and scrolls internally when
+ * it's taller than the screen; on mobile it flows under the article.
  */
-export function BlogSidebar({ sidebar, toc, activeCategory }: {
+export function BlogSidebar({ sidebar, activeCategory }: {
     sidebar: BlogSidebarData;
-    toc?: TocItem[];
     activeCategory?: string | null;
 }) {
     const related = sidebar.related ?? [];
@@ -197,9 +155,6 @@ export function BlogSidebar({ sidebar, toc, activeCategory }: {
     return (
         <aside className="min-w-0">
             <div className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 lg:[scrollbar-width:thin]">
-                {/* Contents sits at the very top — it's the navigation, not an extra. */}
-                {hasContents(toc) && <TableOfContentsCard items={toc!} className="hidden lg:block" />}
-
                 <AdSlot ad={sidebar.ad} />
 
                 {sidebar.categories.length > 0 && (
