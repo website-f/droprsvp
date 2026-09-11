@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronDown, Clock, FolderOpen, LayoutList, Newspaper } from 'lucide-react';
+import { ChevronDown, Clock, FolderOpen, LayoutList, Newspaper, Ticket } from 'lucide-react';
 import { useState } from 'react';
 
 export interface BlogPostCard {
@@ -120,6 +120,32 @@ function AdSlot({ ad }: { ad: BlogAd }) {
     );
 }
 
+/**
+ * The one card that always renders. Everything else in the rail is conditional
+ * — no ad configured, an uncategorised post, no other posts yet — and without
+ * this the column can end up completely blank next to the article.
+ */
+function SidebarCta() {
+    return (
+        <section className="rounded-2xl border border-border bg-foreground p-5 text-background">
+            <Ticket className="size-5" />
+            <h2 className="mt-3 text-base font-semibold leading-snug">Running an event?</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-background/70">
+                Sell tickets, manage seating and check guests in — all from one place.
+            </p>
+            <Link
+                href="/get-started"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground transition-opacity hover:opacity-90"
+            >
+                Create an event
+            </Link>
+            <Link href="/en-my/all/" className="mt-3 block text-center text-xs text-background/70 underline-offset-2 hover:underline">
+                Or browse what&rsquo;s on
+            </Link>
+        </section>
+    );
+}
+
 /** A compact thumbnail + title row, used by both post lists in the rail. */
 function PostRow({ post }: { post: BlogPostCard }) {
     return (
@@ -199,6 +225,8 @@ export function BlogSidebar({ sidebar, activeCategory }: {
                         </ul>
                     </Widget>
                 )}
+
+                <SidebarCta />
             </div>
         </aside>
     );

@@ -164,6 +164,18 @@ class BlogExperienceTest extends TestCase
         $this->get('/en-my/blog/inline')->assertInertia(fn ($p) => $p->where('hasInlineToc', true));
     }
 
+    /** The first, uncategorised post leaves every conditional widget empty. */
+    public function test_a_solo_uncategorised_post_still_renders_with_an_empty_rail(): void
+    {
+        $this->makePost('only', '<h2>One</h2><h2>Two</h2>');
+
+        $this->get('/en-my/blog/only')->assertOk()
+            ->assertInertia(fn ($p) => $p->count('sidebar.categories', 0)
+                ->count('sidebar.related', 0)
+                ->count('sidebar.recent', 0)
+                ->where('sidebar.ad.enabled', false));
+    }
+
     // ---- the promo slot ----------------------------------------------------
 
     public function test_the_promo_slot_is_off_until_an_admin_turns_it_on(): void
