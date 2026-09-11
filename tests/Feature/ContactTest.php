@@ -18,7 +18,7 @@ class ContactTest extends TestCase
 
     public function test_the_contact_page_renders(): void
     {
-        $this->get('/contact')->assertOk()
+        $this->get('/en-my/contact')->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/contact')->has('categories', 3));
     }
 
@@ -27,7 +27,7 @@ class ContactTest extends TestCase
         Mail::fake();
         Setting::put('support_email', 'ops@droprsvp.test');
 
-        $this->post('/contact', [
+        $this->post('/en-my/contact', [
             'name' => 'Jane', 'email' => 'jane@example.com', 'phone' => '0123456789',
             'category' => 'sales', 'message' => 'Hello, we would like a demo.',
         ])->assertSessionHasNoErrors();
@@ -38,12 +38,12 @@ class ContactTest extends TestCase
 
     public function test_contact_requires_all_fields(): void
     {
-        $this->post('/contact', [])->assertSessionHasErrors(['name', 'email', 'phone', 'category', 'message']);
+        $this->post('/en-my/contact', [])->assertSessionHasErrors(['name', 'email', 'phone', 'category', 'message']);
     }
 
     public function test_category_must_be_one_of_the_allowed(): void
     {
-        $this->post('/contact', ['name' => 'A', 'email' => 'a@b.com', 'phone' => '1', 'category' => 'spam', 'message' => 'hi'])
+        $this->post('/en-my/contact', ['name' => 'A', 'email' => 'a@b.com', 'phone' => '1', 'category' => 'spam', 'message' => 'hi'])
             ->assertSessionHasErrors('category');
     }
 

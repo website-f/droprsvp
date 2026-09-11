@@ -58,6 +58,11 @@ class AppServiceProvider extends ServiceProvider
         // Password-reset link requests.
         RateLimiter::for('password-reset', fn (Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()));
 
+        // "Continue with Google" round-trip. Generous enough that a person
+        // retrying never notices, tight enough that the callback (which can
+        // create accounts) can't be hammered.
+        RateLimiter::for('oauth', fn (Request $r) => Limit::perMinute(20)->by($r->ip()));
+
         // Checkout start + pay.
         RateLimiter::for('checkout', fn (Request $r) => Limit::perMinute(30)->by($byUserOrIp($r)));
 

@@ -46,8 +46,8 @@
                             @endif
                             <p style="margin:0 0 4px;">powered by {{ config('app.name') }}</p>
                             <p style="margin:0;">
-                                Need help? <a href="{{ url('/help') }}" style="color:#8a8a92;text-decoration:underline;">Help centre</a>
-                                &nbsp;·&nbsp; <a href="{{ url('/contact') }}" style="color:#8a8a92;text-decoration:underline;">Contact us</a>
+                                Need help? <a href="{{ \App\Support\Url::to('help') }}" style="color:#8a8a92;text-decoration:underline;">Help centre</a>
+                                &nbsp;·&nbsp; <a href="{{ \App\Support\Url::to('contact') }}" style="color:#8a8a92;text-decoration:underline;">Contact us</a>
                             </p>
                             <p style="margin:10px 0 0;">You’re receiving this email because you have an account or a booking on {{ config('app.name') }}.</p>
                         </td>

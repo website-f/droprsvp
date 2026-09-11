@@ -90,7 +90,9 @@ class SeoManager
 
     public function canonical(?string $url): static
     {
-        $this->canonical = $url ? $this->absolute($url) : null;
+        // Always the trailing-slash form — that's what Apache redirects to, so a
+        // canonical without it would point at a URL that 301s somewhere else.
+        $this->canonical = $url ? Url::slash($this->absolute($url)) : null;
 
         return $this;
     }
@@ -177,7 +179,7 @@ class SeoManager
                 '@type' => 'ListItem',
                 'position' => $i + 1,
                 'name' => $item['name'] ?? null,
-                'item' => isset($item['url']) ? $this->absolute($item['url']) : null,
+                'item' => isset($item['url']) ? Url::slash($this->absolute($item['url'])) : null,
             ]);
         }
 

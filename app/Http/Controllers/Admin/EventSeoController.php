@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\Url;
 use App\Models\Event;
 use App\Support\SeoTemplate;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class EventSeoController extends Controller
         return inertia('admin/seo/events/index', [
             'events' => $events,
             'filters' => ['q' => $q],
-            'baseUrl' => url('/en-my/e'),
+            'baseUrl' => rtrim(Url::to('e'), '/'),
         ]);
     }
 
@@ -71,7 +72,7 @@ class EventSeoController extends Controller
                 'title' => $event->title,
                 'description' => $this->defaultDescription($event),
             ],
-            'baseUrl' => url('/en-my/e'),
+            'baseUrl' => rtrim(Url::to('e'), '/'),
         ]);
     }
 

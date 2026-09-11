@@ -39,7 +39,7 @@ class AnalyticsTest extends TestCase
     {
         $event = $this->publishedEvent();
 
-        $this->get('/e/'.$event->slug)->assertOk();
+        $this->get('/en-my/e/'.$event->slug)->assertOk();
 
         $this->assertDatabaseHas('event_daily_stats', ['event_id' => $event->id, 'impressions' => 1]);
     }
@@ -49,7 +49,7 @@ class AnalyticsTest extends TestCase
         $host = $this->organizer();
         $event = $this->publishedEvent($host);
 
-        $this->actingAs($host)->get('/e/'.$event->slug)->assertOk();
+        $this->actingAs($host)->get('/en-my/e/'.$event->slug)->assertOk();
 
         $this->assertDatabaseMissing('event_daily_stats', ['event_id' => $event->id]);
     }

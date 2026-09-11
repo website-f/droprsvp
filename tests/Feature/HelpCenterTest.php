@@ -27,7 +27,7 @@ class HelpCenterTest extends TestCase
         HelpArticle::create(['category' => 'Tickets', 'title' => 'Buying', 'slug' => 'buying', 'body' => '<p>x</p>', 'status' => 'published', 'published_at' => now()]);
         HelpArticle::create(['category' => 'Tickets', 'title' => 'Draft one', 'slug' => 'draft-one', 'body' => '<p>x</p>', 'status' => 'draft']);
 
-        $this->get('/help')->assertOk()->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my/help')->assertOk()->assertInertia(fn (Assert $p) => $p
             ->component('public/help/index')
             ->has('categories', 1)
             ->where('categories.0.name', 'Tickets')
@@ -38,7 +38,7 @@ class HelpCenterTest extends TestCase
     {
         HelpArticle::create(['category' => 'Tickets', 'title' => 'Refunds', 'slug' => 'refunds', 'body' => '<p>How refunds work.</p>', 'status' => 'published', 'published_at' => now()]);
 
-        $this->get('/help/refunds')->assertOk()
+        $this->get('/en-my/help/refunds')->assertOk()
             ->assertSee('"@type":"FAQPage"', false)
             ->assertInertia(fn (Assert $p) => $p->component('public/help/show')->where('article.title', 'Refunds'));
     }
@@ -46,7 +46,7 @@ class HelpCenterTest extends TestCase
     public function test_draft_help_article_is_404(): void
     {
         HelpArticle::create(['category' => 'X', 'title' => 'Secret', 'slug' => 'secret-help', 'body' => '<p>x</p>', 'status' => 'draft']);
-        $this->get('/help/secret-help')->assertNotFound();
+        $this->get('/en-my/help/secret-help')->assertNotFound();
     }
 
     public function test_superadmin_can_create_a_help_article(): void

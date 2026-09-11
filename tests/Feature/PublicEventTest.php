@@ -33,7 +33,7 @@ class PublicEventTest extends TestCase
         $event = $this->makeEvent();
         $event->ticketTypes()->create(['name' => 'GA', 'kind' => 'paid', 'price' => 30, 'quantity' => 50]);
 
-        $this->get("/e/{$event->slug}")
+        $this->get("/en-my/e/{$event->slug}")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('public/event')
@@ -48,18 +48,18 @@ class PublicEventTest extends TestCase
     public function test_draft_event_is_hidden_from_guests(): void
     {
         $event = $this->makeEvent(['status' => 'draft']);
-        $this->get("/e/{$event->slug}")->assertNotFound();
+        $this->get("/en-my/e/{$event->slug}")->assertNotFound();
     }
 
     public function test_owner_can_preview_their_own_draft(): void
     {
         $event = $this->makeEvent(['status' => 'draft']);
-        $this->actingAs($event->user)->get("/e/{$event->slug}")->assertOk();
+        $this->actingAs($event->user)->get("/en-my/e/{$event->slug}")->assertOk();
     }
 
     public function test_private_event_is_hidden_from_guests(): void
     {
         $event = $this->makeEvent(['visibility' => 'private']);
-        $this->get("/e/{$event->slug}")->assertNotFound();
+        $this->get("/en-my/e/{$event->slug}")->assertNotFound();
     }
 }

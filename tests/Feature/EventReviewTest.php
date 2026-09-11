@@ -86,7 +86,7 @@ class EventReviewTest extends TestCase
         $this->actingAs(User::factory()->create())->post("/e/{$event->slug}/reviews", ['rating' => 4]);
         $this->actingAs(User::factory()->create())->post("/e/{$event->slug}/reviews", ['rating' => 2]);
 
-        $this->get('/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
             ->where('reviews.count', 2)
             ->has('reviews.list', 2));
     }

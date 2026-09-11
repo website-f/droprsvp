@@ -40,7 +40,7 @@ class MembershipTest extends TestCase
             $this->paidOrder($event, "m{$i}@example.com");
         }
 
-        $this->get('/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
             ->where('participants.count', 7)
             ->where('participants.unlocked', false)
             ->has('participants.list', 4));
@@ -54,7 +54,7 @@ class MembershipTest extends TestCase
         }
         $premium = User::factory()->create(['premium_until' => now()->addMonth()]);
 
-        $this->actingAs($premium)->get('/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
+        $this->actingAs($premium)->get('/en-my/e/'.$event->slug)->assertInertia(fn (Assert $p) => $p
             ->where('participants.unlocked', true)
             ->has('participants.list', 7)
             ->where('viewer.can_post', true));

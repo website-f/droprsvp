@@ -30,7 +30,7 @@ class OrganizerDiscussionTest extends TestCase
         $this->actingAs($visitor)->post("/o/{$host->slug}/discussion", ['body' => 'Do you host beginner events?'])->assertRedirect();
         $this->assertDatabaseHas('organizer_posts', ['organizer_id' => $host->id, 'user_id' => $visitor->id, 'body' => 'Do you host beginner events?']);
 
-        $this->get("/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p->has('discussion.posts', 1)
+        $this->get("/en-my/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p->has('discussion.posts', 1)
             ->where('discussion.posts.0.body', 'Do you host beginner events?')
             ->where('discussion.pagination.total', 1));
     }
@@ -42,7 +42,7 @@ class OrganizerDiscussionTest extends TestCase
 
         $this->actingAs($host)->post("/o/{$host->slug}/discussion", ['body' => 'Yes we do!', 'parent_id' => $post->id])->assertRedirect();
 
-        $this->get("/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p
+        $this->get("/en-my/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p
             ->where('discussion.posts.0.replies.0.body', 'Yes we do!')
             ->where('discussion.posts.0.replies.0.is_organizer', true));
     }
@@ -59,7 +59,7 @@ class OrganizerDiscussionTest extends TestCase
 
         // Posting "as organizer" stamps the organizer as author, so it carries the badge.
         $this->assertDatabaseHas('organizer_posts', ['organizer_id' => $host->id, 'user_id' => $host->id, 'body' => 'On behalf']);
-        $this->get("/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p
+        $this->get("/en-my/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p
             ->where('discussion.posts.0.replies.0.is_organizer', true));
     }
 
@@ -73,7 +73,7 @@ class OrganizerDiscussionTest extends TestCase
         // A reply to a reply is allowed (chains of any depth).
         $this->actingAs($u)->post("/o/{$host->slug}/discussion", ['body' => 'Nested', 'parent_id' => $reply->id])->assertRedirect();
 
-        $this->get("/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p
+        $this->get("/en-my/o/{$host->slug}")->assertInertia(fn (Assert $p) => $p
             ->where('discussion.posts.0.replies.0.replies.0.body', 'Nested'));
     }
 

@@ -22,7 +22,7 @@ export default function HelpIndex({ categories, filters }: { categories: Categor
                         <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-foreground text-background"><LifeBuoy className="size-6" /></span>
                         <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">How can we help?</h1>
                         <p className="mt-2 text-sm text-muted-foreground sm:text-base">Search our guides, or browse by topic below.</p>
-                        <form onSubmit={(e) => { e.preventDefault(); router.get('/help', q ? { q } : {}, { preserveState: true }); }} className="mx-auto mt-7 flex h-14 max-w-xl items-center gap-3 rounded-full border border-border bg-card px-5 shadow-sm focus-within:border-foreground/40">
+                        <form onSubmit={(e) => { e.preventDefault(); router.get('/en-my/help/', q ? { q } : {}, { preserveState: true }); }} className="mx-auto mt-7 flex h-14 max-w-xl items-center gap-3 rounded-full border border-border bg-card px-5 shadow-sm focus-within:border-foreground/40">
                             <Search className="size-5 shrink-0 text-muted-foreground" />
                             <input value={q} onChange={(e) => setQ(e.target.value)} className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" placeholder="Search for answers…" aria-label="Search help" />
                         </form>
@@ -55,7 +55,7 @@ export default function HelpIndex({ categories, filters }: { categories: Categor
                     <div className="mt-12 rounded-2xl border border-border bg-muted/30 p-8 text-center">
                         <h3 className="text-lg font-semibold">Still need help?</h3>
                         <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">Can’t find what you’re looking for? Reach out and we’ll get back to you.</p>
-                        <Button asChild className="mt-5"><Link href="/">Contact us</Link></Button>
+                        <Button asChild className="mt-5"><Link href="/en-my/contact/">Contact us</Link></Button>
                     </div>
                 </main>
 

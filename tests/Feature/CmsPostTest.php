@@ -48,7 +48,7 @@ class CmsPostTest extends TestCase
         CmsPost::create(['title' => 'Live', 'slug' => 'live', 'body' => '<p>x</p>', 'status' => 'published', 'published_at' => now()]);
         CmsPost::create(['title' => 'Hidden', 'slug' => 'hidden', 'body' => '<p>x</p>', 'status' => 'draft']);
 
-        $this->get('/blog')
+        $this->get('/en-my/blog')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/blog/index')->has('posts.data', 1));
     }
@@ -59,7 +59,7 @@ class CmsPostTest extends TestCase
         $post = CmsPost::create(['title' => 'Deep Dive', 'slug' => 'deep-dive', 'body' => '<p>content</p>', 'status' => 'published', 'published_at' => now(), 'author_id' => $author->id]);
         $post->seo()->create(['meta_description' => 'A deep dive', 'robots_index' => true, 'robots_follow' => true]);
 
-        $this->get('/blog/deep-dive')
+        $this->get('/en-my/blog/deep-dive')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p
                 ->component('public/blog/show')
@@ -73,7 +73,7 @@ class CmsPostTest extends TestCase
     public function test_draft_article_is_404(): void
     {
         CmsPost::create(['title' => 'Draft', 'slug' => 'draft-post', 'body' => '<p>x</p>', 'status' => 'draft']);
-        $this->get('/blog/draft-post')->assertNotFound();
+        $this->get('/en-my/blog/draft-post')->assertNotFound();
     }
 
     public function test_non_superadmin_cannot_manage_posts(): void

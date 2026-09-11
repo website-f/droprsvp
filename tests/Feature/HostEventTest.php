@@ -83,7 +83,7 @@ class HostEventTest extends TestCase
         $this->assertSame(['/uploads/one.jpg', '/uploads/two.jpg'], $event->gallery);
 
         // Public event page receives the gallery (absolute URLs).
-        $this->get('/e/'.$event->slug)->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+        $this->get('/en-my/e/'.$event->slug)->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
             ->component('public/event')
             ->has('event.gallery', 2));
     }

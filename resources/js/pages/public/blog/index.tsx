@@ -24,7 +24,7 @@ export default function BlogIndex({ posts, seo }: { posts: Paginated; seo: Seo }
                     ) : (
                         <div className="mt-8 grid gap-6 sm:grid-cols-2">
                             {posts.data.map((p) => (
-                                <Link key={p.slug} href={`/blog/${p.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
+                                <Link key={p.slug} href={`/en-my/blog/${p.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
                                     {p.cover_image && <img src={p.cover_image} alt={p.title} className="aspect-[16/9] w-full object-cover" />}
                                     <div className="p-5">
                                         <div className="mb-2 flex items-center gap-2">

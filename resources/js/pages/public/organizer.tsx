@@ -212,7 +212,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
         setLoadingMore(true);
 
         try {
-            const res = await fetch(`/o/${organizer.slug}/discussion?discuss_page=${dpage + 1}`, { headers: { Accept: 'application/json' } });
+            const res = await fetch(`/en-my/o/${organizer.slug}/discussion?discuss_page=${dpage + 1}`, { headers: { Accept: 'application/json' } });
 
             if (res.ok) {
                 const data: DiscussionData = await res.json();
@@ -227,7 +227,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 
     const postDiscussion = (parentId: number | null) => {
         ask.transform((d) => ({ ...d, parent_id: parentId, as_organizer: asOrganizer }));
-        ask.post(`/o/${organizer.slug}/discussion`, { preserveScroll: true, onSuccess: () => {
+        ask.post(`/en-my/o/${organizer.slug}/discussion`, { preserveScroll: true, onSuccess: () => {
             ask.reset(); setReplyTo(null); setAsOrganizer(false);
         } });
     };

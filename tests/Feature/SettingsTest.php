@@ -68,7 +68,7 @@ class SettingsTest extends TestCase
         CmsPage::create(['title' => 'Blog page', 'slug' => 'blog-page', 'status' => 'published', 'published_at' => now(),
             'puck_data' => ['root' => [], 'content' => [['type' => 'Posts', 'props' => ['id' => 'p', 'heading' => 'Posts', 'limit' => 6]]]]]);
 
-        $this->get('/blog-page')->assertOk()->assertInertia(fn (Assert $p) => $p
+        $this->get('/en-my/blog-page')->assertOk()->assertInertia(fn (Assert $p) => $p
             ->component('public/page')
             ->where('page.posts.0.title', 'Hello World'));
     }

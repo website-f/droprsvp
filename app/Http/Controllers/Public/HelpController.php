@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\HelpArticle;
 use App\Support\SeoManager;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -32,8 +33,8 @@ class HelpController extends Controller
         app(SeoManager::class)
             ->title($q !== '' ? "Help — “{$q}”" : 'Help center')
             ->description('Answers and guides for buying tickets, organizing events and managing your DropRSVP account.')
-            ->canonical(url('/help'))
-            ->breadcrumb([['name' => 'Home', 'url' => url('/')], ['name' => 'Help center', 'url' => url('/help')]]);
+            ->canonical(Url::to('help'))
+            ->breadcrumb([['name' => 'Home', 'url' => Url::to()], ['name' => 'Help center', 'url' => Url::to('help')]]);
         if ($q !== '') {
             app(SeoManager::class)->noindex();
         }
@@ -50,7 +51,7 @@ class HelpController extends Controller
         abort_unless($article->status === 'published', 404);
 
         $description = $article->excerpt ?: Str::limit(trim(strip_tags((string) $article->body)), 155);
-        $canonical = url('/help/'.$article->slug);
+        $canonical = Url::to('help', $article->slug);
 
         app(SeoManager::class)
             ->title($article->title)
@@ -65,8 +66,8 @@ class HelpController extends Controller
                 ]],
             ])
             ->breadcrumb([
-                ['name' => 'Home', 'url' => url('/')],
-                ['name' => 'Help center', 'url' => url('/help')],
+                ['name' => 'Home', 'url' => Url::to()],
+                ['name' => 'Help center', 'url' => Url::to('help')],
                 ['name' => $article->title, 'url' => $canonical],
             ])
             // Server-render the article so non-JS crawlers index the real content.

@@ -47,7 +47,7 @@ class LegalPagesTest extends TestCase
 
         $this->assertSame('<h2>Our privacy promise</h2>', CmsPage::where('slug', 'privacy-policy')->value('body'));
 
-        $this->get('/privacy-policy')
+        $this->get('/en-my/privacy-policy')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/page')->where('page.title', 'Privacy Policy'));
     }

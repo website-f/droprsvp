@@ -137,6 +137,6 @@ class SiteSettingsTest extends TestCase
             ->has('featured', 1)
             ->where('featured.0.slug', 'banner-ev')
             ->where('featured.0.banner_image', '/uploads/banner.jpg')
-            ->where('featured.0.url', '/en-my/e/banner-ev'));
+            ->where('featured.0.url', '/en-my/e/banner-ev/'));
     }
 }

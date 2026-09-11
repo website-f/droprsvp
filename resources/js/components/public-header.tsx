@@ -53,7 +53,7 @@ export function PublicHeader() {
         <>
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
-                <Link href="/" aria-label="DropRSVP home" className="shrink-0">
+                <Link href="/en-my/" aria-label="DropRSVP home" className="shrink-0">
                     <Wordmark height={branding?.header_height ?? 44} />
                 </Link>
 
@@ -79,7 +79,7 @@ export function PublicHeader() {
                         {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
                     </button>
                     <div className="hidden items-center gap-2 md:flex">
-                        <Link href="/help" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
+                        <Link href="/en-my/help/" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
                         {auth?.user ? (
                             <Button asChild><Link href={dashboard()}>Dashboard</Link></Button>
                         ) : (

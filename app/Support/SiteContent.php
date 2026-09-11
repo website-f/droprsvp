@@ -57,6 +57,9 @@ class SiteContent
             'title' => "{$site} — Discover events near you",
             'description' => "Find events happening near you and get tickets, or host your own on {$site}. Concerts, conferences, food festivals, workshops and community meetups.",
             'keywords' => '',
+            // Social share image. Blank = the branded site-wide default
+            // (config seo.default_image, /og-default.png).
+            'image' => '',
         ];
 
         // Only non-blank saved values override the defaults (a cleared title still
@@ -338,7 +341,7 @@ class SiteContent
                     'ctaUrl' => '/get-started',
                     'columns' => [
                         ['title' => 'Discover', 'links' => [
-                            ['label' => 'Browse events', 'url' => '/en-my/all'],
+                            ['label' => 'Browse events', 'url' => Url::path('all')],
                             ['label' => 'Blog', 'url' => '/blog'],
                             ['label' => 'Help center', 'url' => '/help'],
                         ]],

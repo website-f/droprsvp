@@ -7,6 +7,7 @@ use App\Mail\ContactMessageMail;
 use App\Models\ContactMessage;
 use App\Models\Setting;
 use App\Support\SeoManager;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -24,7 +25,7 @@ class ContactController extends Controller
         app(SeoManager::class)
             ->title('Contact us')
             ->description('Get in touch with the DropRSVP team — support, sales or a general enquiry.')
-            ->canonical(url('/contact'));
+            ->canonical(Url::to('contact'));
 
         return inertia('public/contact', [
             'categories' => self::CATEGORIES,

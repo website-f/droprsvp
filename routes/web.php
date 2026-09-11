@@ -55,43 +55,63 @@ use Illuminate\Support\Facades\Route;
 
 // Everything lives under a locale prefix (/en-my) so more locales (/en-sg, …)
 // can be added later. The bare root just redirects to the default locale home.
-Route::get('/', fn () => redirect('/en-my'))->name('home');
-
-// Public, server-rendered event page (SEO) — canonical is locale-prefixed;
-// the old /e/{slug} keeps working as an alias so existing links don't break.
-// Declared before the {locale}/{city}/{category} discovery routes so it wins.
-Route::get('en-my/e/{event}', [PublicEventController::class, 'show'])->name('events.show');
-Route::get('en-my/e/{event}/calendar.ics', [\App\Http\Controllers\CalendarController::class, 'event'])->name('events.ics');
-Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show.legacy');
-
-// Legacy /events?… → 301 to the canonical locale path (/en-my/all…).
-Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('events.browse');
-
-// Public organizer profile (all their events + follow) — pretty slug URL.
-Route::get('o/{organizer:slug}', [OrganizerController::class, 'show'])->name('organizers.show');
-// Load-more feed for the discussion wall (public read, paginated).
-Route::get('o/{organizer:slug}/discussion', [OrganizerController::class, 'discussionFeed'])->name('organizers.discussion.feed');
+Route::get('/', fn () => redirect(\App\Support\Url::to()))->name('home');
 
 // Global search autocomplete suggestions (JSON).
 Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:suggest')->name('search.suggest');
 
-// Locale home = the marketing landing. Browse/discovery lives one level deeper:
-// /en-my/all, /en-my/{city}, /en-my/all/{category}, /en-my/{city}/{category}.
-Route::get('en-my', [HomeController::class, 'index'])->name('home.locale');
-Route::get('{locale}/{city}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover.city');
-Route::get('{locale}/{city}/{category}', [DiscoverController::class, 'index'])->whereIn('locale', ['en-my'])->name('discover.city.category');
+// ---------------------------------------------------------------------------
+// Public, indexable pages. Every one of them lives under the /en-my locale
+// prefix and is served at a trailing-slash URL (Apache redirects to that form —
+// see public/.htaccess); App\Support\Url builds the same string for canonicals,
+// the sitemap and in-app links. Order matters: the literal paths are declared
+// before the {city} catch-alls so "blog"/"help"/"contact" win over a city slug.
+// ---------------------------------------------------------------------------
+Route::prefix(\App\Support\Url::LOCALE)->group(function () {
+    // Locale home = the marketing landing. Browse/discovery lives one level
+    // deeper: /en-my/all/, /en-my/{city}/, /en-my/{city}/{category}/.
+    Route::get('/', [HomeController::class, 'index'])->name('home.locale');
 
-// Public blog (SEO).
-Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
-Route::get('blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+    // Event page + its calendar file.
+    Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
+    Route::get('e/{event}/calendar.ics', [\App\Http\Controllers\CalendarController::class, 'event'])->name('events.ics');
 
-// Public help center (SEO).
-Route::get('help', [HelpController::class, 'index'])->name('help.index');
-Route::get('help/{article}', [HelpController::class, 'show'])->name('help.show');
+    // Public organizer profile (all their events + follow) — pretty slug URL.
+    Route::get('o/{organizer:slug}', [OrganizerController::class, 'show'])->name('organizers.show');
+    // Load-more feed for the discussion wall (public read, paginated).
+    Route::get('o/{organizer:slug}/discussion', [OrganizerController::class, 'discussionFeed'])->name('organizers.discussion.feed');
 
-// Public contact form.
-Route::get('contact', [ContactController::class, 'show'])->name('contact.show');
-Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:posting')->name('contact.store');
+    // Public blog (SEO).
+    Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
+    Route::get('blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+
+    // Public help center (SEO).
+    Route::get('help', [HelpController::class, 'index'])->name('help.index');
+    Route::get('help/{article}', [HelpController::class, 'show'])->name('help.show');
+
+    // Public contact form.
+    Route::get('contact', [ContactController::class, 'show'])->name('contact.show');
+    Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:posting')->name('contact.store');
+
+    // Discovery — and, for a single unrecognised segment, CMS pages: the
+    // controller resolves city → category → published CMS page → 404, so
+    // /en-my/terms/ reaches the Terms page without a second catch-all route.
+    Route::get('{city}', [DiscoverController::class, 'index'])->name('discover.city');
+    Route::get('{city}/{category}', [DiscoverController::class, 'index'])->name('discover.city.category');
+});
+
+// ---- Legacy URLs → 301 to the canonical locale form -----------------------
+// These were live and are linked from the wild, so they redirect rather than
+// 404. Destinations are absolute on purpose: a relative one is normalised by
+// url()->to(), which strips the trailing slash and would cost a second hop.
+Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('events.browse');
+Route::get('blog', fn () => redirect(\App\Support\Url::to('blog'), 301));
+Route::get('help', fn () => redirect(\App\Support\Url::to('help'), 301));
+Route::get('contact', fn () => redirect(\App\Support\Url::to('contact'), 301));
+Route::get('e/{event}', fn (string $event) => redirect(\App\Support\Url::to('e', $event), 301))->name('events.show.legacy');
+Route::get('blog/{post}', fn (string $post) => redirect(\App\Support\Url::to('blog', $post), 301));
+Route::get('help/{article}', fn (string $article) => redirect(\App\Support\Url::to('help', $article), 301));
+Route::get('o/{organizer}', fn (string $organizer) => redirect(\App\Support\Url::to('o', $organizer), 301));
 
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
@@ -130,8 +150,10 @@ Route::middleware('guest')->group(function () {
     Route::post('get-started/complete', [OrganizerSignupController::class, 'complete'])->middleware('throttle:posting')->name('organizer.complete');
 
     // "Continue with Google" (OAuth 2.0).
-    Route::get('auth/google/redirect', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->name('google.redirect');
-    Route::get('auth/google/callback', [\App\Http\Controllers\Auth\GoogleController::class, 'callback'])->name('google.callback');
+    // Throttled like the other sign-in entry points: the callback creates
+    // accounts, so it shouldn't be an unmetered endpoint.
+    Route::get('auth/google/redirect', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->middleware('throttle:oauth')->name('google.redirect');
+    Route::get('auth/google/callback', [\App\Http\Controllers\Auth\GoogleController::class, 'callback'])->middleware('throttle:oauth')->name('google.callback');
 });
 
 // First-login password setup for auto-created guest buyer accounts.
@@ -431,6 +453,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
 require __DIR__.'/settings.php';
 
-// CMS pages at their own root slug — declared LAST so it only catches URLs no
-// other route matched. Server-rendered for SEO.
-Route::fallback([PublicPageController::class, 'show']);
+// CMS pages used to live at their own root slug (/terms). They're now served
+// under the locale prefix by DiscoverController, so this last-resort route only
+// 301s the old URL across — and 404s anything that was never a page.
+Route::fallback([PublicPageController::class, 'legacyRedirect']);

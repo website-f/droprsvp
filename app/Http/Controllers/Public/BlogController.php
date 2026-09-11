@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\CmsPost;
 use App\Support\SeoManager;
+use App\Support\Url;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -30,17 +31,17 @@ class BlogController extends Controller
         app(SeoManager::class)
             ->title('Blog')
             ->description("News, guides and stories from {$site}.")
-            ->canonical(url('/blog'))
+            ->canonical(Url::to('blog'))
             ->type('website')
             ->schema([
                 '@type' => ['CollectionPage', 'Blog'],
                 'name' => "Blog · {$site}",
-                'url' => url('/blog'),
+                'url' => Url::to('blog'),
                 'isPartOf' => ['@id' => url('/#website')],
             ])
             ->breadcrumb([
-                ['name' => 'Home', 'url' => url('/')],
-                ['name' => 'Blog', 'url' => url('/blog')],
+                ['name' => 'Home', 'url' => Url::to()],
+                ['name' => 'Blog', 'url' => Url::to('blog')],
             ]);
 
         return Inertia::render('public/blog/index', [
@@ -57,7 +58,7 @@ class BlogController extends Controller
 
         $seo = $post->seo;
         $description = $seo?->meta_description ?: ($post->excerpt ?: Str::limit(trim(strip_tags((string) $post->body)), 155));
-        $canonical = $seo?->canonical_url ?: url('/blog/'.$post->slug);
+        $canonical = $seo?->canonical_url ?: Url::to('blog', $post->slug);
         $cover = $post->cover_image ? $this->absolute($post->cover_image) : null;
         $wordCount = str_word_count(strip_tags((string) $post->body));
 
@@ -76,8 +77,8 @@ class BlogController extends Controller
             ->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true))
             ->schema($this->postSchema($post, $description, $cover, $canonical, $wordCount))
             ->breadcrumb([
-                ['name' => 'Home', 'url' => url('/')],
-                ['name' => 'Blog', 'url' => url('/blog')],
+                ['name' => 'Home', 'url' => Url::to()],
+                ['name' => 'Blog', 'url' => Url::to('blog')],
                 ['name' => $post->title, 'url' => $canonical],
             ])
             // Server-render the post so non-JS crawlers index the real content.

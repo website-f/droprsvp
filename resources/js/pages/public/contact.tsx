@@ -19,7 +19,7 @@ export default function Contact({ categories, seo }: { categories: Category[]; s
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.post('/contact', { preserveScroll: true, onSuccess: () => {
+        form.post('/en-my/contact', { preserveScroll: true, onSuccess: () => {
             form.reset(); setSent(true);
         } });
     };

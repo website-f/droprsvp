@@ -55,7 +55,7 @@ class CmsPageTest extends TestCase
         $page = CmsPage::where('slug', 'keyworded')->first();
         $this->assertSame('alpha, beta, gamma', $page->seo->meta_keywords);
 
-        $this->get('/'.$page->slug)->assertSee('<meta name="keywords" content="alpha, beta, gamma">', false);
+        $this->get('/en-my/'.$page->slug)->assertSee('<meta name="keywords" content="alpha, beta, gamma">', false);
     }
 
     public function test_published_page_renders_at_its_root_slug_with_seo(): void
@@ -63,7 +63,7 @@ class CmsPageTest extends TestCase
         $page = CmsPage::create(['title' => 'About', 'slug' => 'about', 'body' => '<p>x</p>', 'status' => 'published', 'published_at' => now()]);
         $page->seo()->create(['meta_description' => 'Learn about us', 'robots_index' => true, 'robots_follow' => true]);
 
-        $this->get('/about')
+        $this->get('/en-my/about')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/page')->where('page.title', 'About'))
             // SEO is now server-rendered into the HTML head (no JS needed).
@@ -74,12 +74,12 @@ class CmsPageTest extends TestCase
     public function test_draft_page_is_404_for_guests(): void
     {
         CmsPage::create(['title' => 'Secret', 'slug' => 'secret', 'body' => '<p>x</p>', 'status' => 'draft']);
-        $this->get('/secret')->assertNotFound();
+        $this->get('/en-my/secret')->assertNotFound();
     }
 
     public function test_unknown_slug_is_404(): void
     {
-        $this->get('/no-such-page')->assertNotFound();
+        $this->get('/en-my/no-such-page')->assertNotFound();
     }
 
     public function test_non_superadmin_cannot_access_the_cms(): void
@@ -109,7 +109,7 @@ class CmsPageTest extends TestCase
         $this->assertNotNull($page->builder_edited_at);
 
         // Public page receives the structured Puck data to render with the shared widgets.
-        $this->get('/'.$page->slug)
+        $this->get('/en-my/'.$page->slug)
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/page')
                 ->where('page.puck.content.0.props.title', 'Welcome to DropRSVP'));

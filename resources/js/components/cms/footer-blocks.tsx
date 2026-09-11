@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Mail } from 'lucide-react';
-import { LogoMark, Wordmark } from '@/components/brand';
+import { Wordmark } from '@/components/brand';
 import { platformLabel, SocialIcon } from '@/components/social-icons';
 
 /**
@@ -22,9 +22,9 @@ export interface FooterData {
 }
 
 export const DEFAULT_LEGAL_LINKS: FooterLink[] = [
-    { label: 'Contact', url: '/contact' },
-    { label: 'Privacy Policy', url: '/privacy-policy' },
-    { label: 'Terms & Conditions', url: '/terms' },
+    { label: 'Contact', url: '/en-my/contact/' },
+    { label: 'Privacy Policy', url: '/en-my/privacy-policy/' },
+    { label: 'Terms & Conditions', url: '/en-my/terms/' },
 ];
 export const DEFAULT_COPYRIGHT = '© {year} DropRSVP. All rights reserved.';
 export const DEFAULT_SUPPORT_EMAIL = 'support@droprsvp.com';
@@ -46,7 +46,7 @@ export function Footer({
             <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Brand */}
                 <div className="flex max-w-xs flex-col items-start">
-                    <Link href="/" aria-label="DropRSVP home"><Wordmark height={footerHeight} /></Link>
+                    <Link href="/en-my/" aria-label="DropRSVP home"><Wordmark height={footerHeight} /></Link>
                     {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
                     {email && <a href={`mailto:${email}`} className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"><Mail className="size-3.5 shrink-0" /> {email}</a>}
                     {ctaLabel && <Link href={ctaUrl} className="mt-5 inline-flex w-max rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">{ctaLabel}</Link>}
@@ -84,14 +84,12 @@ export function Footer({
 
             {(legal.length > 0 || rights) && (
                 <div className="border-t border-border">
-                    <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
-                        <LogoMark className="size-6" />
-                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                            {legal.map((l, i) => (
-                                <Link key={i} href={l.url} className="hover:text-foreground">{l.label}</Link>
-                            ))}
-                            {rights && <span>{rights}</span>}
-                        </div>
+                    {/* Legal row — the brand already appears above, so no second mark here. */}
+                    <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 py-6 text-sm text-muted-foreground sm:justify-end">
+                        {legal.map((l, i) => (
+                            <Link key={i} href={l.url} className="hover:text-foreground">{l.label}</Link>
+                        ))}
+                        {rights && <span>{rights}</span>}
                     </div>
                 </div>
             )}

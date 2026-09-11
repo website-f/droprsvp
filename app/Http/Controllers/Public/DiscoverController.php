@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Support\Cities;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
+use App\Support\Url;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -28,14 +29,16 @@ class DiscoverController extends Controller
      * Free-text search (?q=) and time (?when=) stay as query refinements and are
      * kept out of the index.
      */
-    public function index(Request $request, string $locale, ?string $city = null, ?string $category = null)
+    public function index(Request $request, ?string $city = null, ?string $category = null)
     {
-        // A two-segment URL (/en-my/{seg}) may be a city OR a category — resolve it.
+        // A two-segment URL (/en-my/{seg}) may be a city, a category, or a CMS
+        // page slug (/en-my/terms/) — they share this space, so resolve in that
+        // order and hand anything left over to the CMS before giving up.
         if ($category === null && $city !== null && ! Cities::isKnownSlug($city)) {
             if (EventCategory::where('slug', $city)->exists()) {
                 [$city, $category] = [Cities::ANY, $city];
             } else {
-                abort(404);
+                return app(PageController::class)->show($request, $city);
             }
         }
 
@@ -97,7 +100,7 @@ class DiscoverController extends Controller
                     'itemListElement' => $events->getCollection()->map(fn ($e, $i) => [
                         '@type' => 'ListItem',
                         'position' => $i + 1,
-                        'url' => url('/e/'.$e['slug']),
+                        'url' => Url::to('e', $e['slug']),
                         'name' => $e['title'],
                     ])->values()->all(),
                 ],
@@ -132,7 +135,7 @@ class DiscoverController extends Controller
                 'city' => $e->city,
                 'when' => $e->starts_at?->setTimezone($e->timezone)->format('D, j M Y'),
                 'venue' => $e->is_online ? 'Online' : $e->venue_name,
-                'url' => "/en-my/e/{$e->slug}",
+                'url' => Url::path('e', $e->slug),
             ])->all();
 
         $eventsPage = SiteContent::eventsPage();
@@ -186,17 +189,12 @@ class DiscoverController extends Controller
      */
     private function pathUrl(?string $citySlug, ?string $catSlug): string
     {
-        $segments = [self::LOCALE];
         if ($catSlug) {
-            $segments[] = $citySlug ?: Cities::ANY;
-            $segments[] = $catSlug;
-        } elseif ($citySlug) {
-            $segments[] = $citySlug;
-        } else {
-            $segments[] = Cities::ANY; // /en-my/all = browse everything
+            return Url::to($citySlug ?: Cities::ANY, $catSlug);
         }
 
-        return url('/'.implode('/', $segments));
+        // /en-my/all/ = browse everything (the bare locale is the landing page).
+        return Url::to($citySlug ?: Cities::ANY);
     }
 
     private function heading(?string $catName, ?string $cityName, string $q): string
@@ -228,7 +226,7 @@ class DiscoverController extends Controller
     private function breadcrumb(?string $cityName, string $citySlug, ?EventCategory $category): array
     {
         $crumbs = [
-            ['name' => 'Home', 'url' => url('/')],
+            ['name' => 'Home', 'url' => Url::to()],
             ['name' => 'Events', 'url' => $this->pathUrl(null, null)],
         ];
         if ($cityName) {
@@ -246,7 +244,7 @@ class DiscoverController extends Controller
     {
         $rel = fn (?string $c, ?string $cat) => str_replace(url('/'), '', $this->pathUrl($c, $cat)) ?: '/';
         $crumbs = [
-            ['name' => 'Home', 'url' => '/en-my'],
+            ['name' => 'Home', 'url' => Url::path()],
             ['name' => 'Events', 'url' => $rel(null, null)],
         ];
         if ($cityName) {

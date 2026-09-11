@@ -26,10 +26,11 @@ class SeoAndMediaTest extends TestCase
 
         $res = $this->get('/sitemap.xml')->assertOk();
         $this->assertStringContainsString('application/xml', $res->headers->get('Content-Type'));
-        $res->assertSee(url('/en-my/e/pub-ev'), false)
-            ->assertSee(url('/about'), false)
-            ->assertSee(url('/blog/hello'), false)
-            ->assertDontSee(url('/en-my/e/draft-ev'), false);
+        // Every entry is the canonical locale-prefixed, trailing-slash form.
+        $res->assertSee(url('/en-my/e/pub-ev/'), false)
+            ->assertSee(url('/en-my/about/'), false)
+            ->assertSee(url('/en-my/blog/hello/'), false)
+            ->assertDontSee(url('/en-my/e/draft-ev/'), false);
     }
 
     public function test_robots_points_to_the_sitemap(): void

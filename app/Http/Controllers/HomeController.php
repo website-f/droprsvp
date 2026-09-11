@@ -7,6 +7,7 @@ use App\Models\EventCategory;
 use App\Models\User;
 use App\Support\Cities;
 use App\Support\SeoManager;
+use App\Support\Url;
 use App\Support\SiteContent;
 use Inertia\Inertia;
 
@@ -17,13 +18,17 @@ class HomeController extends Controller
     {
         $featured = $this->upcoming()->limit(3)->get()->map(fn (Event $e) => $this->card($e))->values();
 
-        // Homepage SEO is superadmin-editable (title/description/keywords only).
+        // Homepage SEO is superadmin-editable (title/description/keywords/share image).
         $home = SiteContent::homeSeo();
         app(SeoManager::class)
             ->title($home['title'], false)
             ->description($home['description'])
             ->keywords($home['keywords'] ?: null)
-            ->canonical(url('/en-my'))
+            // Blank falls through to the branded site-wide default in SeoManager.
+            // No width/height: the admin uploads any size and a wrong og:image:width
+            // is worse than none.
+            ->image($home['image'] ?: null)
+            ->canonical(Url::to())
             ->type('website')
             ->schema([
                 '@type' => 'ItemList',
@@ -31,7 +36,7 @@ class HomeController extends Controller
                 'itemListElement' => $featured->map(fn ($e, $i) => [
                     '@type' => 'ListItem',
                     'position' => $i + 1,
-                    'url' => url('/en-my/e/'.$e['slug']),
+                    'url' => Url::to('e', $e['slug']),
                     'name' => $e['title'],
                 ])->all(),
             ]);

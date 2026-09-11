@@ -78,7 +78,7 @@ class Ics
 
     private static function url(Event $event): string
     {
-        return rtrim((string) config('app.url'), '/').'/en-my/e/'.$event->slug;
+        return rtrim((string) config('app.url'), '/').Url::path('e', $event->slug);
     }
 
     private static function stamp(CarbonInterface $dt): string

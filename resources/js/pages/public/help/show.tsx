@@ -15,7 +15,7 @@ export default function HelpShow({ article, related }: { article: Article; relat
 
                 <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
                     <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Link href="/help" className="hover:text-foreground">Help center</Link>
+                        <Link href="/en-my/help/" className="hover:text-foreground">Help center</Link>
                         <ChevronRight className="size-3.5" />
                         <span className="text-foreground">{article.category}</span>
                     </nav>
@@ -38,7 +38,7 @@ export default function HelpShow({ article, related }: { article: Article; relat
                         </div>
                     )}
 
-                    <Link href="/help" className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to help center</Link>
+                    <Link href="/en-my/help/" className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to help center</Link>
                 </main>
 
                 <PublicFooter />

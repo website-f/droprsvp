@@ -45,7 +45,7 @@ class EventPhotoTest extends TestCase
         $host->ensureSlug();
 
         // Photos are behind the auth wall — a signed-in viewer sees them.
-        $this->actingAs(User::factory()->create())->get("/o/{$host->slug}")->assertOk()
+        $this->actingAs(User::factory()->create())->get("/en-my/o/{$host->slug}")->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
                 ->has('photos', 1)
                 ->where('photos.0.path', '/storage/live.jpg')
@@ -60,7 +60,7 @@ class EventPhotoTest extends TestCase
         $host->ensureSlug();
 
         // Guests get no photo data (auth wall) but the count is still exposed.
-        $this->get("/o/{$host->slug}")->assertOk()
+        $this->get("/en-my/o/{$host->slug}")->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
                 ->has('photos', 0)
                 ->where('organizer.photos_count', 1));

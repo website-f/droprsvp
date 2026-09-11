@@ -101,7 +101,7 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                 </div>
 
                 {/* Powered by */}
-                <Link href="/" className="mt-8 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-label="DropRSVP home">
+                <Link href="/en-my/" className="mt-8 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-label="DropRSVP home">
                     powered by <LogoMark className="size-4" /> <span className="font-semibold">Drop RSVP</span>
                 </Link>
             </div>

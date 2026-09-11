@@ -27,7 +27,7 @@ class SearchTest extends TestCase
 
         $this->getJson('/search/suggest?q=jazz')->assertOk()
             ->assertJsonPath('events.0.label', 'Jazz Night')
-            ->assertJsonPath('events.0.url', '/en-my/e/jazz-night');
+            ->assertJsonPath('events.0.url', '/en-my/e/jazz-night/');
     }
 
     public function test_admin_trending_keywords_surface_as_hot(): void

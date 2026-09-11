@@ -69,10 +69,28 @@ class GoogleController extends Controller
             return redirect()->route('login')->withErrors(['email' => 'Google didn’t return your email. Please try another method.']);
         }
 
+        // Google must vouch for the address. Without this an account whose email
+        // Google never verified could be used to claim an existing DropRSVP
+        // account that happens to share it (the classic pre-hijack attack),
+        // because findOrCreate() falls back to matching on email.
+        if (($profile['email_verified'] ?? false) !== true) {
+            return redirect()->route('login')->withErrors(['email' => 'Your Google email address isn’t verified. Verify it with Google, or sign in with a password.']);
+        }
+
         $user = $this->findOrCreate($googleId, $email, $profile);
+
+        // A suspended account must not get in through the side door — the web
+        // middleware would bounce them on the next request anyway, but never
+        // start a session for them in the first place.
+        if ($user->isDisabled()) {
+            return redirect()->route('login')->withErrors(['email' => 'Your account has been disabled. Please contact support if you think this is a mistake.']);
+        }
+
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
+        // Same landing as a password sign-in: EnsureAboutYou sends a brand-new
+        // attendee to /profile/about-you from here, so both paths onboard alike.
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
@@ -89,6 +107,15 @@ class GoogleController extends Controller
                 'email_verified_at' => $user->email_verified_at ?: now(),
             ]))->save();
 
+            // Guest-checkout accounts are created with a temporary password and
+            // flagged to change it on first login. Someone arriving through
+            // Google has proven the address and doesn't need a password at all,
+            // so clear the flag — otherwise EnsurePasswordSet traps them on the
+            // set-password screen right after a successful sign-in.
+            if ($user->must_set_password) {
+                $user->forceFill(['must_set_password' => false])->save();
+            }
+
             return $user;
         }
 
@@ -100,13 +127,13 @@ class GoogleController extends Controller
             'password' => bcrypt(Str::random(40)),   // random — they sign in with Google
         ]);
         $user->forceFill(['email_verified_at' => now()])->save();
+
+        // Same grant as a password sign-up (see Actions\Fortify\CreateNewUser):
+        // a free attendee. Hosting is the separate /get-started vendor flow.
         $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
-        try {
-            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\WelcomeMail($user));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        // Deferred + non-fatal, exactly like the password sign-up path.
+        \App\Support\Mailer::defer($user->email, new \App\Mail\WelcomeMail($user));
 
         return $user;
     }

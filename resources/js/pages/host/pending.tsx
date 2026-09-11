@@ -53,7 +53,7 @@ export default function OrganizerPending({ submitted_at, editable = false }: { s
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button asChild variant="outline"><Link href="/contact">Contact support</Link></Button>
+                        <Button asChild variant="outline"><Link href="/en-my/contact/">Contact support</Link></Button>
                         <Button onClick={() => setLockedOpen(false)}>Got it</Button>
                     </DialogFooter>
                 </DialogContent>

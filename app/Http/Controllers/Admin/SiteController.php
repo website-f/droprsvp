@@ -80,7 +80,11 @@ class SiteController extends Controller
 
     public function homeSeo()
     {
-        return inertia('admin/site/home-seo', ['seo' => SiteContent::homeSeo()]);
+        return inertia('admin/site/home-seo', [
+            'seo' => SiteContent::homeSeo(),
+            // Shown in the preview when no custom image is set.
+            'defaultImage' => url((string) config('seo.default_image')),
+        ]);
     }
 
     public function saveHomeSeo(Request $request)
@@ -89,6 +93,7 @@ class SiteController extends Controller
             'title' => ['nullable', 'string', 'max:70'],
             'description' => ['nullable', 'string', 'max:320'],
             'keywords' => ['nullable', 'string', 'max:500'],
+            'image' => ['nullable', 'string', 'max:2048'],
         ]);
 
         Setting::putArray('home_seo', $data);

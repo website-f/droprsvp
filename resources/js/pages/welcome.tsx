@@ -397,7 +397,7 @@ export default function Welcome() {
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                             {organizers.map((o, i) => {
                                 const tint = AVATAR_TINTS[i % AVATAR_TINTS.length];
-                                const href = `/o/${o.slug}`;
+                                const href = `/en-my/o/${o.slug}/`;
 
                                 return (
                                     <Reveal key={o.id} delay={i * 60}>
@@ -626,7 +626,7 @@ function ContactForm() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.post('/contact', { preserveScroll: true, onSuccess: () => {
+        form.post('/en-my/contact', { preserveScroll: true, onSuccess: () => {
             form.reset(); setSent(true);
         } });
     };

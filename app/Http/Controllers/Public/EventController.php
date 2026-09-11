@@ -9,6 +9,7 @@ use App\Models\EventReview;
 use App\Models\Order;
 use App\Support\Ics;
 use App\Support\SeoManager;
+use App\Support\Url;
 use App\Support\SeoTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -68,8 +69,8 @@ class EventController extends Controller
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
             ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount))
             ->breadcrumb([
-                ['name' => 'Home', 'url' => url('/en-my')],
-                ['name' => 'Events', 'url' => url('/en-my/all')],
+                ['name' => 'Home', 'url' => Url::to()],
+                ['name' => 'Events', 'url' => Url::to('all')],
                 ['name' => $event->title, 'url' => $canonical],
             ]);
         // Draft / owner-preview pages must never be indexed.

@@ -70,7 +70,7 @@ class ServerSeoTest extends TestCase
     {
         $event = $this->publishedEvent();
 
-        $res = $this->get('/e/'.$event->slug)->assertOk();
+        $res = $this->get('/en-my/e/'.$event->slug)->assertOk();
         $res->assertSee('<title>Neon Nights', false);
         $res->assertSee('<meta name="description" content="Four acts under the stars."', false);
         $res->assertSee('<link rel="canonical" href="'.url('/en-my/e/'.$event->slug).'/">', false);
@@ -89,7 +89,7 @@ class ServerSeoTest extends TestCase
             'status' => 'draft', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
         ]);
 
-        $this->actingAs($host)->get('/e/'.$event->slug)
+        $this->actingAs($host)->get('/en-my/e/'.$event->slug)
             ->assertOk()
             ->assertSee('<meta name="robots" content="noindex, follow">', false);
     }
@@ -103,7 +103,7 @@ class ServerSeoTest extends TestCase
             'status' => 'published', 'published_at' => now(),
         ]);
 
-        $res = $this->get('/blog/'.$post->slug)->assertOk();
+        $res = $this->get('/en-my/blog/'.$post->slug)->assertOk();
         $res->assertSee('"@type":"BlogPosting"', false);
         $res->assertSee('<meta property="og:type" content="article">', false);
         $res->assertSee('article:published_time', false);
@@ -115,7 +115,7 @@ class ServerSeoTest extends TestCase
         $page = CmsPage::create(['title' => 'About', 'slug' => 'about', 'body' => '<p>Hi</p>', 'status' => 'published', 'published_at' => now()]);
         $page->seo()->create(['meta_description' => 'About us', 'robots_index' => false, 'robots_follow' => true]);
 
-        $res = $this->get('/about')->assertOk();
+        $res = $this->get('/en-my/about')->assertOk();
         $res->assertSee('"@type":"WebPage"', false);
         $res->assertSee('<meta name="description" content="About us">', false);
         $res->assertSee('<meta name="robots" content="noindex, follow">', false); // honors SeoMeta

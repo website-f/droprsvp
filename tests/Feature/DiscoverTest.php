@@ -42,13 +42,14 @@ class DiscoverTest extends TestCase
     public function test_locale_root_is_the_home_landing(): void
     {
         $this->get('/en-my')->assertOk()->assertInertia(fn (Assert $p) => $p->component('welcome'));
-        $this->get('/')->assertRedirect('/en-my');
+        $this->assertSame(rtrim(url('/'), '/').'/en-my/', $this->get('/')->headers->get('Location'));
     }
 
     public function test_legacy_events_url_redirects_to_locale_path(): void
     {
-        $this->get('/events')->assertRedirect('/en-my/all');
-        $this->get('/events?category=music')->assertRedirect('/en-my/all/music');
+        $base = rtrim(url('/'), '/');
+        $this->assertSame($base.'/en-my/all/', $this->get('/events')->headers->get('Location'));
+        $this->assertSame($base.'/en-my/all/music/', $this->get('/events?category=music')->headers->get('Location'));
     }
 
     public function test_search_filters_by_keyword(): void

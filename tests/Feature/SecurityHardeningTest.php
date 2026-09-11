@@ -113,12 +113,12 @@ class SecurityHardeningTest extends TestCase
         $user = User::factory()->create();
         $user->ensureSlug();
 
-        $this->get("/o/{$user->slug}/discussion")->assertNotFound();
+        $this->get("/en-my/o/{$user->slug}/discussion")->assertNotFound();
     }
 
     public function test_contact_honeypot_silently_drops_bot_submissions(): void
     {
-        $this->post('/contact', [
+        $this->post('/en-my/contact', [
             'name' => 'Bot', 'email' => 'bot@spam.test', 'phone' => '0100000000',
             'category' => 'support', 'message' => 'buy cheap stuff', 'website' => 'http://spam.test',
         ])->assertRedirect();
