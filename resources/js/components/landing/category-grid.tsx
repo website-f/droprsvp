@@ -18,7 +18,7 @@ export function CategoryGrid({ categories }: { categories: CategoryTile[] }) {
                 return (
                     <Reveal key={c.slug} delay={i * 45}>
                         <Link
-                            href={`/en-my/all/${c.slug}`}
+                            href={`/en-my/all/${c.slug}/`}
                             className="group flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent)] hover:shadow-md"
                             style={{ '--accent': accent } as CSSProperties}
                         >

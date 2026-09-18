@@ -84,7 +84,7 @@ export function HeaderSearch({ className = '', onSubmitted }: { className?: stri
 
         setOpen(false);
         onSubmitted?.();
-        const base = city === 'all' ? '/en-my/all' : `/en-my/${city}`;
+        const base = city === 'all' ? '/en-my/all/' : `/en-my/${city}/`;
         router.get(base, q.trim() ? { q: q.trim() } : {});
     };
     const onKey = (e: React.KeyboardEvent) => {

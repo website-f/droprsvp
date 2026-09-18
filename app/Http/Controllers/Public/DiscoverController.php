@@ -107,6 +107,12 @@ class DiscoverController extends Controller
             ])
             ->breadcrumb($this->breadcrumb($cityName, $citySlug, $categoryModel));
 
+        // The listing as text. There is no Node/SSR in production, so without
+        // this a crawler that doesn't run JavaScript got the meta tags and an
+        // empty body — the page looked like it had no content at all. The React
+        // app renders the same events for real visitors.
+        $manager->crawlable($this->crawlableListing($title, $description, $events->getCollection()));
+
         // City/category pages ARE indexable (the whole point); only free-text
         // search results are kept out of the index.
         if ($q !== '') {
@@ -278,6 +284,42 @@ class DiscoverController extends Controller
             default:
                 return [null, null];
         }
+    }
+
+    /**
+     * The event listing rendered as plain HTML for crawlers.
+     *
+     * Mirrors what the React cards show — title, when, venue, city, category —
+     * so it is the same content, not a keyword-stuffed alternative version.
+     */
+    private function crawlableListing(string $heading, ?string $intro, \Illuminate\Support\Collection $events): string
+    {
+        $html = '<h1>'.e($heading).'</h1>';
+
+        if ($intro) {
+            $html .= '<p>'.e($intro).'</p>';
+        }
+
+        if ($events->isEmpty()) {
+            return $html.'<p>No events listed here yet.</p>';
+        }
+
+        $html .= '<ul>';
+
+        foreach ($events as $event) {
+            $meta = implode(' · ', array_filter([
+                $event['when'] ?? null,
+                $event['venue'] ?? null,
+                $event['city'] ?? null,
+                $event['category'] ?? null,
+            ]));
+
+            $html .= '<li><a href="'.e(Url::path('e', $event['slug'])).'">'.e($event['title']).'</a>'
+                .($meta === '' ? '' : ' — '.e($meta))
+                .'</li>';
+        }
+
+        return $html.'</ul>';
     }
 
     private function card(Event $event): array

@@ -46,7 +46,7 @@ export default function EventsPageSettings({ data: initial }: { data: Data }) {
                         <h1 className="text-2xl font-bold tracking-tight">Events page</h1>
                         <p className="text-sm text-muted-foreground">
                             The hero banner &amp; SEO block on the public{' '}
-                            <Link href="/en-my/all" className="inline-flex items-center gap-1 text-primary hover:underline">browse events page <ExternalLink className="size-3" /></Link>.
+                            <Link href="/en-my/all/" className="inline-flex items-center gap-1 text-primary hover:underline">browse events page <ExternalLink className="size-3" /></Link>.
                         </p>
                     </div>
                     <Button onClick={save} disabled={processing}><Save className="size-4" /> {processing ? 'Saving…' : 'Save'}</Button>
@@ -93,7 +93,7 @@ export default function EventsPageSettings({ data: initial }: { data: Data }) {
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="hero-url">Button link</Label>
-                                <Input id="hero-url" value={data.hero.cta_url} onChange={(e) => patchHero({ cta_url: e.target.value })} placeholder="/en-my/all" />
+                                <Input id="hero-url" value={data.hero.cta_url} onChange={(e) => patchHero({ cta_url: e.target.value })} placeholder="/en-my/all/" />
                             </div>
                         </div>
                         <div className="grid gap-1.5">

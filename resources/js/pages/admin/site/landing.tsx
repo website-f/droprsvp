@@ -163,7 +163,7 @@ patchHero({ style: 'banners', banners: [emptyBanner()] });
                                         <div className="grid gap-1.5"><Label className="text-xs">Subheading</Label><input className={field} value={b.subheading} onChange={(e) => patchBanner(i, { subheading: e.target.value })} /></div>
                                         <div className="grid gap-3 sm:grid-cols-2">
                                             <div className="grid gap-1.5"><Label className="text-xs">Button label</Label><input className={field} value={b.cta_label} onChange={(e) => patchBanner(i, { cta_label: e.target.value })} placeholder="Get Into Live Music" /></div>
-                                            <div className="grid gap-1.5"><Label className="text-xs">Button link</Label><input className={field} value={b.cta_url} onChange={(e) => patchBanner(i, { cta_url: e.target.value })} placeholder="/en-my/all/music" /></div>
+                                            <div className="grid gap-1.5"><Label className="text-xs">Button link</Label><input className={field} value={b.cta_url} onChange={(e) => patchBanner(i, { cta_url: e.target.value })} placeholder="/en-my/all/music/" /></div>
                                         </div>
                                         <div className="grid gap-1.5">
                                             <Label className="text-xs">Text position</Label>

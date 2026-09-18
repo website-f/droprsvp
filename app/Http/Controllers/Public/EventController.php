@@ -76,6 +76,11 @@ class EventController extends Controller
         // Draft / owner-preview pages must never be indexed.
         $isPublic ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true)) : $manager->noindex();
 
+        // The event as text. There is no Node/SSR in production, so without this
+        // a crawler that doesn't run JavaScript got the meta tags and an empty
+        // body. Real visitors get the React version and never see it.
+        $manager->crawlable($this->crawlableEvent($event, $description, $organizer));
+
         // --- social: members + discussion (with free/premium gating) ---
         // Superadmins + the organizer always have full access; everyone else needs Premium.
         $user = $request->user();
@@ -312,6 +317,48 @@ class EventController extends Controller
     }
 
     /** schema.org/Event JSON-LD for rich results. Null fields are pruned. */
+    /**
+     * The event page rendered as plain HTML for crawlers — the same facts the
+     * React page shows (what, when, where, who, and the description), so this is
+     * the same content rather than an alternative version of it.
+     */
+    private function crawlableEvent(Event $event, string $description, string $organizer): string
+    {
+        $starts = $event->starts_at?->setTimezone($event->timezone);
+        $ends = $event->ends_at?->setTimezone($event->timezone);
+
+        $when = $starts?->format('l, j F Y, g:ia')
+            .($ends ? ' – '.$ends->format($ends->isSameDay($starts) ? 'g:ia' : 'l, j F Y, g:ia') : '');
+
+        $html = '<article><h1>'.e($event->title).'</h1>';
+
+        if ($event->subtitle) {
+            $html .= '<p>'.e($event->subtitle).'</p>';
+        }
+
+        $html .= '<dl>';
+        if ($when !== '') {
+            $html .= '<dt>When</dt><dd>'.e($when).'</dd>';
+        }
+        $html .= '<dt>Where</dt><dd>'.e($event->is_online
+            ? 'Online'
+            : implode(', ', array_filter([$event->venue_name, $event->venue_address, $event->city]))).'</dd>';
+        $html .= '<dt>Organizer</dt><dd>'
+            .($event->user?->slug
+                ? '<a href="'.e(Url::path('o', $event->user->slug)).'">'.e($organizer).'</a>'
+                : e($organizer))
+            .'</dd>';
+        if ($event->category?->name) {
+            $html .= '<dt>Category</dt><dd>'.e($event->category->name).'</dd>';
+        }
+        $html .= '</dl>';
+
+        // description is already the plain-text summary used for the meta tag.
+        $html .= '<p>'.e($description).'</p>';
+
+        return $html.'</article>';
+    }
+
     private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer, float $ratingAvg = 0.0, int $ratingCount = 0): array
     {
         $schema = [

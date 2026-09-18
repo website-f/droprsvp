@@ -216,7 +216,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                         <Field label="Message"><textarea rows={2} className={area} value={data.announcement.body} onChange={(e) => setAnnounce('body', e.target.value)} /></Field>
                                         <div className="grid gap-3 sm:grid-cols-2">
                                             <Field label="Button label"><input className={input} value={data.announcement.cta_label} onChange={(e) => setAnnounce('cta_label', e.target.value)} placeholder="Learn more" /></Field>
-                                            <Field label="Button link"><input className={input} value={data.announcement.cta_url} onChange={(e) => setAnnounce('cta_url', e.target.value)} placeholder="/en-my/all" /></Field>
+                                            <Field label="Button link"><input className={input} value={data.announcement.cta_url} onChange={(e) => setAnnounce('cta_url', e.target.value)} placeholder="/en-my/all/" /></Field>
                                         </div>
                                     </div>
                                     <p className="text-xs text-muted-foreground">Announcement saves with the <strong>Save changes</strong> button above.</p>

@@ -39,7 +39,7 @@ export default function OrganizerPending({ submitted_at, editable = false }: { s
                         ) : (
                             <Button variant="outline" onClick={() => setLockedOpen(true)}><Lock className="size-4" /> Edit application</Button>
                         )}
-                        <Button asChild><Link href="/en-my">Browse events</Link></Button>
+                        <Button asChild><Link href="/en-my/">Browse events</Link></Button>
                     </div>
                 </div>
             </div>

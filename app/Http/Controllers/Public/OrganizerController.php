@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\User;
 use App\Support\SeoManager;
+use App\Support\Url;
 use Illuminate\Http\Request;
 
 class OrganizerController extends Controller
@@ -54,11 +55,23 @@ class OrganizerController extends Controller
                 ->map(fn ($u) => ['name' => $u->name])->values()
             : collect();
 
+        // Canonical must be the locale, trailing-slash URL this page is actually
+        // served at. It used to be url("/o/{slug}") — the LEGACY path, which 301s
+        // to Url::to('o', …), so the canonical pointed at a URL that redirects
+        // somewhere else and the page named no valid canonical of its own.
+        $canonical = Url::to('o', $organizer->slug);
+
         app(SeoManager::class)
             ->title("{$organizer->name} — events on ".config('seo.site_name', 'DropRSVP'))
             ->description($profile?->bio ?: "See every event hosted by {$organizer->name} and follow for updates.")
-            ->canonical(url("/o/{$organizer->slug}"))
-            ->type('profile');
+            ->canonical($canonical)
+            ->type('profile')
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => Url::to()],
+                ['name' => $organizer->name, 'url' => $canonical],
+            ])
+            // The profile as text, for crawlers that don't run JavaScript.
+            ->crawlable($this->crawlableProfile($organizer, $profile, $upcoming, $past));
 
         return inertia('public/organizer', [
             'organizer' => [
@@ -205,6 +218,40 @@ class OrganizerController extends Controller
             ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
             ->orderByRaw('starts_at is null, starts_at asc')
             ->limit(4)->get()->map(fn (Event $e) => $this->card($e))->values();
+    }
+
+    /**
+     * The organizer profile rendered as plain HTML for crawlers: the bio plus
+     * their upcoming and past events. Only the publicly visible parts — members,
+     * photos and the discussion wall sit behind an auth wall and stay out.
+     */
+    private function crawlableProfile(User $organizer, mixed $profile, \Illuminate\Support\Collection $upcoming, \Illuminate\Support\Collection $past): string
+    {
+        $html = '<h1>'.e($profile?->business_name ?: $organizer->name).'</h1>';
+
+        if ($profile?->bio) {
+            $html .= '<p>'.e($profile->bio).'</p>';
+        }
+
+        foreach ([['Upcoming events', $upcoming], ['Past events', $past]] as [$heading, $events]) {
+            if ($events->isEmpty()) {
+                continue;
+            }
+
+            $html .= '<h2>'.e($heading).'</h2><ul>';
+
+            foreach ($events as $event) {
+                $meta = implode(' · ', array_filter([$event['when'] ?? null, $event['venue'] ?? null]));
+
+                $html .= '<li><a href="'.e(Url::path('e', $event['slug'])).'">'.e($event['title']).'</a>'
+                    .($meta === '' ? '' : ' — '.e($meta))
+                    .'</li>';
+            }
+
+            $html .= '</ul>';
+        }
+
+        return $html;
     }
 
     private function card(Event $event): array

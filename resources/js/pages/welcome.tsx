@@ -93,7 +93,7 @@ function readGeoCache(): { lat: number; lng: number } | null {
 /** A single event card — shared by Featured, "Events in {city}" and "For you". */
 function EventCard({ e }: { e: FeaturedEvent }) {
     return (
-        <Link href={`/en-my/e/${e.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+        <Link href={`/en-my/e/${e.slug}/`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
             <div className="aspect-[16/10] overflow-hidden bg-muted">
                 {e.cover_image
                     ? <img src={e.cover_image} alt={e.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -283,7 +283,7 @@ export default function Welcome() {
                             </p>
 
                             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                                <Button asChild size="lg"><Link href="/en-my/all">Browse events</Link></Button>
+                                <Button asChild size="lg"><Link href="/en-my/all/">Browse events</Link></Button>
                                 <Button asChild size="lg" variant="outline"><Link href="/get-started">Create an event</Link></Button>
                             </div>
 
@@ -300,7 +300,7 @@ export default function Welcome() {
                         <Reveal className="flex flex-wrap items-center gap-3">
                             <h2 className="mr-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{eventTime.heading}</h2>
                             {eventTime.items.filter((i) => i.label && i.value).map((i) => (
-                                <Link key={i.value} href={`/en-my/all?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
+                                <Link key={i.value} href={`/en-my/all/?when=${encodeURIComponent(i.value)}`} className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium transition-colors hover:border-foreground/40">{i.label}</Link>
                             ))}
                         </Reveal>
                     </section>
@@ -314,7 +314,7 @@ export default function Welcome() {
                                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Browse by category</h2>
                                 <p className="mt-1.5 text-sm text-muted-foreground">Pick a vibe — we’ll show you what’s on.</p>
                             </div>
-                            <Link href="/en-my/all" className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
+                            <Link href="/en-my/all/" className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
                                 All events <ArrowRight className="size-4" />
                             </Link>
                         </Reveal>
@@ -330,12 +330,12 @@ export default function Welcome() {
                                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Events in {cityEvents.city}</h2>
                                 <p className="mt-1.5 text-sm text-muted-foreground">Happening near you.</p>
                             </div>
-                            <Link href={`/en-my/${cityEvents.slug}`} className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">See all <ArrowRight className="size-4" /></Link>
+                            <Link href={`/en-my/${cityEvents.slug}/`} className="hidden shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">See all <ArrowRight className="size-4" /></Link>
                         </Reveal>
                         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                             {cityEvents.events.map((e, i) => <Reveal key={e.slug} delay={i * 60}><EventCard e={e} /></Reveal>)}
                         </div>
-                        <Button asChild variant="outline" className="mt-6 w-full sm:hidden"><Link href={`/en-my/${cityEvents.slug}`}>See all events in {cityEvents.city}</Link></Button>
+                        <Button asChild variant="outline" className="mt-6 w-full sm:hidden"><Link href={`/en-my/${cityEvents.slug}/`}>See all events in {cityEvents.city}</Link></Button>
                     </section>
                 )}
 
@@ -359,7 +359,7 @@ export default function Welcome() {
                             <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">{nearby.heading}</h2>
                             <div className="flex flex-wrap gap-2.5">
                                 {nearbyCities.map((c) => (
-                                    <Link key={c.name} href={`/en-my/${c.slug ?? citySlug(c.name)}`} className="rounded-xl border border-border bg-card px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">
+                                    <Link key={c.name} href={`/en-my/${c.slug ?? citySlug(c.name)}/`} className="rounded-xl border border-border bg-card px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">
                                         <span className="block text-sm font-medium">{c.name}</span>
                                         {c.km != null && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="size-3" /> {c.km < 1 ? 'under 1 km away' : `~${Math.round(c.km)} km away`}</span>}
                                     </Link>
@@ -379,7 +379,7 @@ export default function Welcome() {
                                     <p className="mt-1.5 text-sm text-muted-foreground">Hand-picked events worth showing up for.</p>
                                 </div>
                                 <Button asChild variant="outline" className="hidden shrink-0 sm:inline-flex">
-                                    <Link href="/en-my/all">See all</Link>
+                                    <Link href="/en-my/all/">See all</Link>
                                 </Button>
                             </Reveal>
 
@@ -459,7 +459,7 @@ export default function Welcome() {
                                     </span>
                                 ))}
                             </div>
-                            <Button asChild className="mt-8"><Link href="/en-my/all">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
+                            <Button asChild className="mt-8"><Link href="/en-my/all/">Explore what’s on <ArrowRight className="size-4" /></Link></Button>
                         </Reveal>
                         <Reveal delay={120} className="order-1 lg:order-2">
                             <div className="relative mx-auto max-w-lg">
@@ -507,8 +507,8 @@ export default function Welcome() {
                 {/* ------------------------------------------ How DropRSVP works */}
                 {(org?.enabled ?? true) && (() => {
                     const steps = [
-                        { icon: Compass, tint: '#6c63ff', title: 'Discover events near you', body: 'Browse concerts, workshops, food fests and meetups happening around you.', cta: 'Start exploring', url: '/en-my/all' },
-                        { icon: Ticket, tint: '#2ec4b6', title: 'Get your ticket in seconds', body: 'Book with a secure QR pass that’s ready at the door — no queues, no printing.', cta: 'Find events', url: '/en-my/all' },
+                        { icon: Compass, tint: '#6c63ff', title: 'Discover events near you', body: 'Browse concerts, workshops, food fests and meetups happening around you.', cta: 'Start exploring', url: '/en-my/all/' },
+                        { icon: Ticket, tint: '#2ec4b6', title: 'Get your ticket in seconds', body: 'Book with a secure QR pass that’s ready at the door — no queues, no printing.', cta: 'Find events', url: '/en-my/all/' },
                         { icon: CalendarPlus, tint: '#f5a524', title: 'Host your own event', body: 'Create an event, sell tickets, manage seating and check guests in — all in one place.', cta: 'Create an event', url: signedIn ? dashboard() : '/get-started' },
                     ];
                     const card = (s: (typeof steps)[number]) => (

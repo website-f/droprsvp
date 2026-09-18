@@ -97,7 +97,7 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                     {!voided && ticket.event.google_url && ticket.event.ics_url && (
                         <AddToCalendar googleUrl={ticket.event.google_url} icsUrl={ticket.event.ics_url} />
                     )}
-                    <Link href={`/en-my/e/${ticket.event.slug}`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
+                    <Link href={`/en-my/e/${ticket.event.slug}/`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
                 </div>
 
                 {/* Powered by */}

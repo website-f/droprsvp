@@ -7,6 +7,7 @@ import { SearchAutocomplete } from '@/components/search-autocomplete';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ANY, lp } from '@/lib/routes';
 
 interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; has_free: boolean; participants: number; faces: string[]; rating: number | null; rating_count: number }
 interface Featured { slug: string; title: string; subtitle: string | null; banner_image: string; category: string | null; city: string | null; when: string | null; venue: string | null; url: string }
@@ -145,22 +146,22 @@ function SeoBlock({ heading, body }: { heading: string; body: string }) {
     );
 }
 
-const LOCALE = 'en-my';
-const ANY = 'all';
-
-/** Build a discovery path: /en-my, /en-my/{city}, or /en-my/{city|all}/{category}. */
+/**
+ * Build a discovery path: /en-my/all/, /en-my/{city}/, or
+ * /en-my/{city|all}/{category}/.
+ *
+ * lp() supplies the canonical trailing slash. It matters most here: these paths
+ * are what every city/category filter navigates to, so a slashless one puts a
+ * slashless URL in the address bar for the visitor to bookmark and share — the
+ * duplicate that showed up in Search Console.
+ */
 function pathFor(citySlug: string | null, catSlug: string | null): string {
-    const segs = [LOCALE];
-
     if (catSlug) {
-        segs.push(citySlug || ANY, catSlug);
-    } else if (citySlug) {
-        segs.push(citySlug);
-    } else {
-        segs.push(ANY); // /en-my/all = browse everything (/en-my is the home)
+        return lp(citySlug || ANY, catSlug);
     }
 
-    return '/' + segs.join('/');
+    // /en-my/all/ = browse everything (/en-my/ itself is the marketing home).
+    return lp(citySlug || ANY);
 }
 
 function priceLabel(c: Card): string {
@@ -254,7 +255,7 @@ export default function Discover({ events, categories, cities, active, filters, 
                     ) : (
                         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {events.data.map((e) => (
-                                <Link key={e.slug} href={`/en-my/e/${e.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
+                                <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
                                     <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                                         {e.cover_image
                                             ? <img src={e.cover_image} alt={e.title} className="size-full object-cover" />

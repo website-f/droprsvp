@@ -52,7 +52,7 @@ function EventGrid({ events }: { events: EventCard[] }) {
     return (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((e) => (
-                <Link key={e.slug} href={`/en-my/e/${e.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
+                <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
                     <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                         {e.cover_image
                             ? <img src={e.cover_image} alt={e.title} loading="lazy" className={`size-full object-cover ${e.is_past ? 'opacity-70 grayscale' : ''}`} />

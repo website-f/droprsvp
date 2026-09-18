@@ -86,7 +86,7 @@ export function SearchAutocomplete({ variant = 'compact', initial = '', placehol
         if (onSubmit) {
             onSubmit(term);
         } else {
-            router.get('/en-my/all', term ? { q: term } : {});
+            router.get('/en-my/all/', term ? { q: term } : {});
         }
     };
     const onKey = (e: React.KeyboardEvent) => {

@@ -39,7 +39,13 @@ class HomeController extends Controller
                     'url' => Url::to('e', $e['slug']),
                     'name' => $e['title'],
                 ])->all(),
-            ]);
+            ])
+            // The landing page as text. There is no Node/SSR in production, so
+            // without this a crawler that doesn't run JavaScript got the meta
+            // tags and an empty body — which is why fetching the home page
+            // returned metadata and nothing else. Real visitors get the React
+            // version and never see this.
+            ->crawlable($this->crawlableHome($home, $featured));
 
         // Enrich the nearby-cities section with coordinates so the client can show
         // "~N km away" from the visitor's location.
@@ -64,6 +70,48 @@ class HomeController extends Controller
             'cityEvents' => $this->cityEvents($request),
             'forYou' => $this->forYou(),
         ]);
+    }
+
+    /**
+     * The landing page rendered as plain HTML for crawlers: the admin's own SEO
+     * copy, the featured events, and links into the main browse pages so there
+     * is a crawlable path deeper into the site.
+     */
+    private function crawlableHome(array $home, \Illuminate\Support\Collection $featured): string
+    {
+        $html = '<h1>'.e($home['title'] ?: config('seo.site_name', 'DropRSVP')).'</h1>';
+
+        if ($home['description']) {
+            $html .= '<p>'.e($home['description']).'</p>';
+        }
+
+        if ($featured->isNotEmpty()) {
+            $html .= '<h2>Featured events</h2><ul>';
+
+            foreach ($featured as $event) {
+                $meta = implode(' · ', array_filter([
+                    $event['when'] ?? null,
+                    $event['venue'] ?? null,
+                    $event['city'] ?? null,
+                    $event['category'] ?? null,
+                ]));
+
+                $html .= '<li><a href="'.e(Url::path('e', $event['slug'])).'">'.e($event['title']).'</a>'
+                    .($meta === '' ? '' : ' — '.e($meta))
+                    .'</li>';
+            }
+
+            $html .= '</ul>';
+        }
+
+        $html .= '<h2>Browse</h2><ul>'
+            .'<li><a href="'.e(Url::path(Cities::ANY)).'">All events</a></li>'
+            .'<li><a href="'.e(Url::path('blog')).'">Blog</a></li>'
+            .'<li><a href="'.e(Url::path('help')).'">Help center</a></li>'
+            .'<li><a href="'.e(Url::path('contact')).'">Contact</a></li>'
+            .'</ul>';
+
+        return $html;
     }
 
     /** Base query: upcoming published events with the counts the card needs. */
