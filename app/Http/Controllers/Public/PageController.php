@@ -57,7 +57,12 @@ class PageController extends Controller
             ->breadcrumb([
                 ['name' => 'Home', 'url' => Url::to()],
                 ['name' => $seo?->breadcrumb_title ?: $page->title, 'url' => $canonical],
-            ]);
+            ])
+            // The page's own text. These are the legal pages (terms, privacy) —
+            // pure prose, and they were reaching crawlers as meta tags over an
+            // empty body. A Puck-built page has no $body, so there is nothing to
+            // emit for one and the heading alone is served.
+            ->crawlable('<article><h1>'.e($page->title).'</h1>'.((string) $page->body).'</article>');
 
         return Inertia::render('public/page', [
             'page' => [

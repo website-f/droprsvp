@@ -142,6 +142,76 @@ class CrawlableContentTest extends TestCase
         $response->assertDontSee('<link rel="canonical" href="'.url('/o/neon-collective').'">', false);
     }
 
+    /**
+     * Sweep: every URL the sitemap advertises must carry body text.
+     *
+     * The per-page tests above each cover one controller, which is exactly how
+     * the gap happened — the blog and help INDEXES, the CMS pages (terms,
+     * privacy) and the contact page were each somebody else's controller, and
+     * all four shipped meta tags over an empty body. This asserts the property
+     * across the whole indexable surface instead of page by page, so a new
+     * public page cannot be added without crawlable content.
+     */
+    public function test_every_sitemap_url_serves_body_text(): void
+    {
+        $this->publishedEvent();
+
+        $post = \App\Models\CmsPost::create([
+            'title' => 'Cost of hosting', 'slug' => 'cost-of-hosting',
+            'body' => '<p>What it actually costs to host an event in Malaysia, '
+                .'venue by venue.</p>',
+            'status' => 'published', 'published_at' => now()->subDay(),
+        ]);
+        \App\Models\CmsPage::create([
+            'title' => 'Terms', 'slug' => 'terms',
+            'body' => '<p>These terms of service govern your use of DropRSVP, '
+                .'including buying tickets and hosting events.</p>',
+            'status' => 'published',
+        ]);
+        \App\Models\HelpArticle::create([
+            'title' => 'What is DropRSVP', 'slug' => 'what-is-droprsvp',
+            'category' => 'Basics', 'excerpt' => 'An intro.',
+            'body' => '<p>DropRSVP lists events across Malaysia and lets anyone '
+                .'host their own for free.</p>',
+            'status' => 'published',
+        ]);
+
+        $sitemap = $this->get('/sitemap.xml')->assertOk()->getContent();
+        preg_match_all('~<loc>([^<]+)</loc>~', $sitemap, $m);
+        $urls = $m[1];
+
+        $this->assertNotEmpty($urls, 'the sitemap advertised no URLs');
+
+        $empty = [];
+
+        foreach ($urls as $url) {
+            $path = parse_url($url, PHP_URL_PATH);
+            $html = $this->get($path)->getContent();
+
+            // The crawlable fallback lives in a <noscript> block; measure the
+            // TEXT in it, so a page that emits only empty markup still fails.
+            preg_match_all('~<noscript>(.*?)</noscript>~s', $html, $blocks);
+
+            $text = 0;
+            foreach ($blocks[1] as $block) {
+                $text = max($text, strlen(trim(html_entity_decode(strip_tags($block)))));
+            }
+
+            if ($text < 40) {
+                $empty[] = $path.' ('.$text.' chars)';
+            }
+        }
+
+        $this->assertSame([], $empty, implode("\n", [
+            'These sitemap URLs serve no body text, so a crawler that does not run',
+            'JavaScript sees metadata over an empty page. Give the controller a',
+            '->crawlable(...) body (see SeoManager::crawlable):',
+            '',
+            ...$empty,
+            '',
+        ]));
+    }
+
     public function test_a_draft_event_serves_no_crawlable_content(): void
     {
         $this->publishedEvent(['status' => 'draft', 'slug' => 'secret-gig', 'title' => 'Secret Gig']);

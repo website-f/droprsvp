@@ -34,7 +34,11 @@ class HelpController extends Controller
             ->title($q !== '' ? "Help — “{$q}”" : 'Help center')
             ->description('Answers and guides for buying tickets, organizing events and managing your DropRSVP account.')
             ->canonical(Url::to('help'))
-            ->breadcrumb([['name' => 'Home', 'url' => Url::to()], ['name' => 'Help center', 'url' => Url::to('help')]]);
+            ->breadcrumb([['name' => 'Home', 'url' => Url::to()], ['name' => 'Help center', 'url' => Url::to('help')]])
+            // The article list as text. show() already did this per article, but
+            // the index — the page that links to all of them — served an empty
+            // body, so a non-JS crawler found no path to any of them.
+            ->crawlable($this->crawlableIndex($categories));
         if ($q !== '') {
             app(SeoManager::class)->noindex();
         }
@@ -86,5 +90,29 @@ class HelpController extends Controller
                 ->get(['title', 'slug'])
                 ->map(fn ($a) => ['title' => $a->title, 'slug' => $a->slug]),
         ]);
+    }
+
+    /** The help centre index as plain HTML for crawlers, grouped by category. */
+    private function crawlableIndex(\Illuminate\Support\Collection $categories): string
+    {
+        $html = '<h1>Help center</h1>';
+
+        if ($categories->isEmpty()) {
+            return $html.'<p>No articles published yet.</p>';
+        }
+
+        foreach ($categories as $category) {
+            $html .= '<h2>'.e($category['name'] ?: 'General').'</h2><ul>';
+
+            foreach ($category['articles'] as $article) {
+                $html .= '<li><a href="'.e(Url::path('help', $article['slug'])).'">'.e($article['title']).'</a>'
+                    .($article['excerpt'] ? ' — '.e($article['excerpt']) : '')
+                    .'</li>';
+            }
+
+            $html .= '</ul>';
+        }
+
+        return $html;
     }
 }

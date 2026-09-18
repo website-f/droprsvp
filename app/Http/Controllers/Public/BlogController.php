@@ -51,7 +51,11 @@ class BlogController extends Controller
                 ['name' => 'Home', 'url' => Url::to()],
                 ['name' => 'Blog', 'url' => Url::to('blog')],
                 $active ? ['name' => $active->name, 'url' => $canonical] : null,
-            ])));
+            ])))
+            // The post list as text. show() already did this for a single post,
+            // but the index served meta tags over an empty body — so the page
+            // that links to every article was itself the dead end.
+            ->crawlable($this->crawlableIndex($title, $posts->getCollection()));
 
         return Inertia::render('public/blog/index', [
             'posts' => $posts,
@@ -171,6 +175,29 @@ class BlogController extends Controller
     }
 
     /** One post as list/card data. */
+    /** The blog listing as plain HTML for crawlers: title, excerpt, date. */
+    private function crawlableIndex(string $heading, \Illuminate\Support\Collection $posts): string
+    {
+        $html = '<h1>'.e($heading).'</h1>';
+
+        if ($posts->isEmpty()) {
+            return $html.'<p>No posts published yet.</p>';
+        }
+
+        $html .= '<ul>';
+
+        foreach ($posts as $post) {
+            $meta = implode(' · ', array_filter([$post['date'] ?? null, $post['category'] ?? null]));
+
+            $html .= '<li><a href="'.e(Url::path('blog', $post['slug'])).'">'.e($post['title']).'</a>'
+                .($meta === '' ? '' : ' — '.e($meta))
+                .($post['excerpt'] ? '<p>'.e($post['excerpt']).'</p>' : '')
+                .'</li>';
+        }
+
+        return $html.'</ul>';
+    }
+
     private function card(CmsPost $p): array
     {
         return [

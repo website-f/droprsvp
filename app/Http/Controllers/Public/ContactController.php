@@ -25,7 +25,20 @@ class ContactController extends Controller
         app(SeoManager::class)
             ->title('Contact us')
             ->description('Get in touch with the DropRSVP team — support, sales or a general enquiry.')
-            ->canonical(Url::to('contact'));
+            ->canonical(Url::to('contact'))
+            ->breadcrumb([
+                ['name' => 'Home', 'url' => Url::to()],
+                ['name' => 'Contact us', 'url' => Url::to('contact')],
+            ])
+            // The form itself can't be server-rendered usefully, but the page
+            // must not reach a crawler as an empty body: say what it is and what
+            // can be asked for, and link on to the help centre.
+            ->crawlable(
+                '<h1>Contact us</h1>'
+                .'<p>Get in touch with the DropRSVP team — support, sales or a general enquiry.</p>'
+                .'<p>Looking for a quick answer? Try the '
+                .'<a href="'.e(Url::path('help')).'">help center</a>.</p>'
+            );
 
         return inertia('public/contact', [
             'categories' => self::CATEGORIES,
