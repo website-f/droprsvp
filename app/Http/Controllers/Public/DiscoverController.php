@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\Order;
 use App\Support\Cities;
+use App\Support\EventFaces;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use App\Support\Url;
@@ -71,8 +72,13 @@ class DiscoverController extends Controller
             ->orderByRaw('(boosted_until is not null and boosted_until > ?) desc', [now()])
             ->orderByRaw('starts_at is null, starts_at asc')
             ->paginate(12)
-            ->withQueryString()
-            ->through(fn (Event $e) => $this->card($e));
+            ->withQueryString();
+
+        // Attendee names for every card on this page in ONE query. Done before
+        // through() so the ids are still readable off the model collection —
+        // this used to be a query per card inside card() itself.
+        $faces = EventFaces::for($events->getCollection()->pluck('id'));
+        $events->through(fn (Event $e) => $this->card($e, $faces));
 
         $site = config('seo.site_name', 'DropRSVP');
         $catName = $categoryModel?->name;
@@ -322,7 +328,8 @@ class DiscoverController extends Controller
         return $html.'</ul>';
     }
 
-    private function card(Event $event): array
+    /** @param  array<int|string, list<string>>  $faces  prefetched by EventFaces */
+    private function card(Event $event, array $faces = []): array
     {
         $active = $event->ticketTypes->where('is_active', true);
         $paid = $active->where('kind', 'paid')->pluck('price')->map(fn ($p) => (float) $p);
@@ -339,8 +346,7 @@ class DiscoverController extends Controller
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
-            'faces' => Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_name')
-                ->orderByDesc('paid_at')->limit(8)->pluck('buyer_name')->unique()->take(3)->values()->all(),
+            'faces' => $faces[$event->id] ?? [],
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
             'rating_count' => (int) ($event->reviews_count ?? 0),
         ];

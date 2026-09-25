@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\User;
 use App\Support\Cities;
+use App\Support\EventFaces;
 use App\Support\SeoManager;
 use App\Support\Url;
 use App\Support\SiteContent;
@@ -16,7 +17,9 @@ class HomeController extends Controller
     /** The marketing landing page — featured upcoming events + category tiles. */
     public function index(\Illuminate\Http\Request $request)
     {
-        $featured = $this->upcoming()->limit(3)->get()->map(fn (Event $e) => $this->card($e))->values();
+        $featuredEvents = $this->upcoming()->limit(3)->get();
+        $featuredFaces = EventFaces::for($featuredEvents->pluck('id'));
+        $featured = $featuredEvents->map(fn (Event $e) => $this->card($e, $featuredFaces))->values();
 
         // Homepage SEO is superadmin-editable (title/description/keywords/share image).
         $home = SiteContent::homeSeo();
@@ -144,7 +147,9 @@ class HomeController extends Controller
             return null;
         }
 
-        $events = $this->upcoming()->where('city', $cityName)->limit(4)->get()->map(fn (Event $e) => $this->card($e))->values();
+        $events = $this->upcoming()->where('city', $cityName)->limit(4)->get();
+        $faces = EventFaces::for($events->pluck('id'));
+        $events = $events->map(fn (Event $e) => $this->card($e, $faces))->values();
         if ($events->isEmpty()) {
             return null;
         }
@@ -171,9 +176,15 @@ class HomeController extends Controller
         }
 
         $events = $this->upcoming()->whereIn('category_id', $categoryIds)->whereNotIn('id', $attendedIds)
-            ->limit(4)->get()->map(fn (Event $e) => $this->card($e))->values();
+            ->limit(4)->get();
 
-        return $events->isEmpty() ? null : $events;
+        if ($events->isEmpty()) {
+            return null;
+        }
+
+        $faces = EventFaces::for($events->pluck('id'));
+
+        return $events->map(fn (Event $e) => $this->card($e, $faces))->values();
     }
 
     /** Top organizers by number of published events, with their soonest event. */
@@ -209,7 +220,8 @@ class HomeController extends Controller
             ->values();
     }
 
-    private function card(Event $event): array
+    /** @param  array<int|string, list<string>>  $faces  prefetched by EventFaces */
+    private function card(Event $event, array $faces = []): array
     {
         $active = $event->ticketTypes->where('is_active', true);
         $paid = $active->where('kind', 'paid')->pluck('price')->map(fn ($p) => (float) $p);
@@ -224,8 +236,7 @@ class HomeController extends Controller
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
-            'faces' => \App\Models\Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_name')
-                ->orderByDesc('paid_at')->limit(8)->pluck('buyer_name')->unique()->take(3)->values()->all(),
+            'faces' => $faces[$event->id] ?? [],
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
             'rating_count' => (int) ($event->reviews_count ?? 0),
         ];
