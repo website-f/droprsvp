@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Loader2, Lock, Tag, X } from 'lucide-react';
+import { Loader2, Lock, Tag, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
 import { CustomFieldsSection, type CustomAnswers, type CustomField } from '@/components/custom-fields';
@@ -26,9 +26,12 @@ const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Inst
 
 interface Buyer { name: string | null; email: string | null; phone: string | null; gender: string | null; age_band: string | null; city: string | null }
 
-export default function CheckoutShow({ order, required, buyer, customFields = [], ticketCount = 0 }: {
+interface Account { name: string; email: string }
+
+export default function CheckoutShow({ order, required, buyer, customFields = [], ticketCount = 0, account = null, loginUrl }: {
     order: OrderView; required: Required; buyer: Buyer | null;
     customFields?: CustomField[]; ticketCount?: number;
+    account?: Account | null; loginUrl?: string;
 }) {
     const form = useForm({
         buyer_name: buyer?.name ?? '',
@@ -41,6 +44,9 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
         notes: '',
         // One answer set per ticket, in the order tickets are issued.
         custom_answers: Array.from({ length: ticketCount }, () => ({}) as CustomAnswers),
+        // Only meaningful for guests: an account is created either way, this just
+        // decides whether they land on the confirmation already signed in.
+        auto_login: true,
         consent: true,
     });
     const isFree = order.total <= 0;
@@ -92,6 +98,31 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
                         <p className="mt-1 text-sm text-muted-foreground">
                             {buyer ? 'We’ve filled in your details — edit anything below, then ' : 'Enter your details to '}{isFree ? 'register' : 'continue to payment'}.
                         </p>
+
+                        {/* Who is checking out. An account is created for every
+                            buyer either way — this is about whether they arrive
+                            signed in, and lets a returning customer log in first
+                            so the order joins the account they already have. */}
+                        {account ? (
+                            <div className="mt-6 flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+                                <UserRound className="size-4 shrink-0 text-muted-foreground" />
+                                <span>
+                                    Signed in as <strong>{account.name}</strong>{' '}
+                                    <span className="text-muted-foreground">({account.email})</span>
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+                                <span className="text-muted-foreground">
+                                    We’ll create an account so you can find your tickets later.
+                                </span>
+                                {loginUrl && (
+                                    <Button asChild type="button" variant="outline" size="sm">
+                                        <a href={loginUrl}>Already have an account? Log in</a>
+                                    </Button>
+                                )}
+                            </div>
+                        )}
 
                         <div className="mt-6 grid gap-4">
                             <div className="grid gap-1.5">
@@ -159,6 +190,16 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
                                         onChange={(next) => form.setData('custom_answers', next)}
                                         errors={form.errors as unknown as Record<string, string>}
                                     />
+                                </div>
+                            )}
+
+                            {/* Guests only: a signed-in buyer is already signed in. */}
+                            {!account && (
+                                <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                    <Switch checked={form.data.auto_login} onCheckedChange={(v) => form.setData('auto_login', v)} aria-label="Keep me signed in" className="mt-0.5" />
+                                    <span className="text-muted-foreground">
+                                        Keep me signed in after payment, so I can see my tickets straight away.
+                                    </span>
                                 </div>
                             )}
 

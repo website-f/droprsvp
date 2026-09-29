@@ -263,13 +263,26 @@ class CheckoutService
             // profile the user maintained themselves is never overwritten.
             \App\Support\Profile::syncFromOrder($order->fresh()->load('user'));
 
-            $order->load(['event', 'tickets']);
+            $order->load(['event', 'tickets', 'items', 'event.user']);
             // Sent after the HTTP response so slow SMTP never delays checkout.
             defer(function () use ($order) {
                 try {
                     Mail::to($order->buyer_email)->send(new TicketsIssued($order));
                 } catch (\Throwable $e) {
                     report($e);
+                }
+
+                // The internal copy. Previously nobody on the platform side was
+                // told a sale had happened, so it was invisible until someone
+                // opened the admin panel. Same inbox the contact form uses.
+                $inbox = \App\Models\Setting::get('support_email') ?: config('mail.from.address');
+
+                if ($inbox) {
+                    try {
+                        Mail::to($inbox)->send(new \App\Mail\OrderPlacedAdminMail($order));
+                    } catch (\Throwable $e) {
+                        report($e); // a failed notification must never affect the buyer
+                    }
                 }
             });
         }
@@ -289,6 +302,10 @@ class CheckoutService
 
         $existing = \App\Models\User::where('email', $order->buyer_email)->first();
         if ($existing) {
+            // Matched an account that already belonged to someone. The order is
+            // linked so their tickets appear in it, but `account_created` stays
+            // false — knowing an email address must never sign you in as its
+            // owner, and that flag is what gates the auto-login after checkout.
             $order->update(['user_id' => $existing->id]);
 
             return;
@@ -307,7 +324,12 @@ class CheckoutService
             $user->save();
             $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
-            $order->update(['user_id' => $user->id]);
+            // Freshly minted for this checkout and nobody else's — the one case
+            // where signing the buyer in afterwards is safe.
+            $order->update([
+                'user_id' => $user->id,
+                'meta' => [...($order->meta ?? []), 'account_created' => true],
+            ]);
 
             defer(fn () => Mail::to($user->email)->send(new \App\Mail\GuestAccountMail($user, $temp)));
         } catch (\Throwable $e) {

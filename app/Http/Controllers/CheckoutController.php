@@ -60,9 +60,19 @@ class CheckoutController extends Controller
         // know — they can still edit any field before paying.
         $user = $request->user();
 
+        // Someone who logged in mid-checkout arrives back here with the order
+        // still held by their session but not yet tied to them. Claim it, so the
+        // order shows in their account and they keep access if the session rolls.
+        if ($user && ! $order->user_id) {
+            $order->update(['user_id' => $user->id]);
+        }
+
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
             'required' => SettingsController::checkoutRequired(),
+            // Drives the "signed in as…" line vs the "log in" button.
+            'account' => $user ? ['name' => $user->name, 'email' => $user->email] : null,
+            'loginUrl' => route('checkout.login', $order, false),
             // The organizer's own questions, asked once per ticket in the order.
             'customFields' => CustomFields::forEvent($order->event),
             'ticketCount' => (int) $order->items->sum('quantity'),
@@ -75,6 +85,49 @@ class CheckoutController extends Controller
                 'city' => $user->city,
             ] : null,
         ]);
+    }
+
+    /**
+     * "Already have an account? Log in" — from the checkout page.
+     *
+     * Parks the checkout URL as the intended destination and hands off to the
+     * normal login screen, so Fortify's redirect()->intended() brings them
+     * straight back to the same order, now signed in. The order stays reachable
+     * because the session keeps its `checkout_orders` entry across login.
+     */
+    public function login(Request $request, Order $order)
+    {
+        $this->authorizeOrderAccess($order, $request);
+
+        $request->session()->put('url.intended', route('checkout.show', $order));
+
+        return redirect()->route('login');
+    }
+
+    /**
+     * Sign the buyer in after a successful checkout, when they asked us to.
+     *
+     * Deliberately narrow. It only ever signs in an account that was created for
+     * THIS order moments ago — `account_created` is set by
+     * CheckoutService::provisionBuyerAccount only on the branch that mints a new
+     * user. Checking out with an email that already belongs to somebody links
+     * the order to them but must never sign the buyer in as them, or knowing an
+     * address would be enough to take over an account.
+     */
+    private function autoLoginIfRequested(Order $order): void
+    {
+        $meta = $order->meta ?? [];
+
+        if (auth()->check()
+            || empty($meta['auto_login'])
+            || empty($meta['account_created'])
+            || $order->status !== 'paid'
+            || ! $order->user) {
+            return;
+        }
+
+        auth()->login($order->user);
+        request()->session()->regenerate();
     }
 
     /** Apply a promo code to the pending order and recompute the total. */
@@ -140,6 +193,9 @@ class CheckoutController extends Controller
             // thing that knows what the options actually are.
             'custom_answers' => ['array', 'max:100'],
             'custom_answers.*' => ['array'],
+            // "Keep me signed in" — honoured only when checkout creates a brand
+            // new account for this buyer; see autoLoginIfRequested().
+            'auto_login' => ['boolean'],
             // Consent to use their details for the RSVP + updates.
             'consent' => ['accepted'],
         ], ['consent.accepted' => 'Please agree to the terms to continue.']);
@@ -159,6 +215,13 @@ class CheckoutController extends Controller
         }
 
         $data['custom_answers'] = $answers;
+
+        // Stash the preference on the order: the sign-in happens after the
+        // gateway returns, which is a different request entirely.
+        $autoLogin = (bool) ($data['auto_login'] ?? false);
+        unset($data['auto_login']);
+        $data['meta'] = [...($order->meta ?? []), 'auto_login' => $autoLogin];
+
         $order->update($data);
 
         // Re-validate any applied promo code at pay time — it may have expired, been
@@ -175,6 +238,7 @@ class CheckoutController extends Controller
         // Free order → settle immediately, no gateway.
         if ((float) $order->total <= 0) {
             $this->checkout->markPaid($order);
+            $this->autoLoginIfRequested($order->fresh());
 
             return redirect()->route('checkout.confirmation', $order);
         }
@@ -223,6 +287,11 @@ class CheckoutController extends Controller
             return redirect()->route('home')
                 ->with('warning', 'We couldn’t match that payment to an order. If you were charged, contact us with your payment reference and we’ll sort it out.');
         }
+
+        // The account is provisioned by markPaid, which may have run here or in
+        // the webhook — either way this is the first request back in the buyer's
+        // own browser, so it is the only place a session can be started for them.
+        $this->autoLoginIfRequested($order->fresh()->load('user'));
 
         return redirect()->route('checkout.confirmation', $order);
     }

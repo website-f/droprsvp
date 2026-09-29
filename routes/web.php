@@ -126,6 +126,9 @@ Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->middlew
 Route::post('e/{event}/waitlist', [\App\Http\Controllers\Public\WaitlistController::class, 'join'])->middleware('throttle:posting')->name('events.waitlist.join');
 Route::get('checkout/return', [CheckoutController::class, 'return'])->name('checkout.return');
 Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('checkout.show');
+// "Already have an account?" from the checkout page — parks the return URL and
+// hands off to the normal login screen.
+Route::get('checkout/{order}/login', [CheckoutController::class, 'login'])->name('checkout.login');
 Route::post('checkout/{order}/code', [CheckoutController::class, 'applyCode'])->middleware('throttle:checkout')->name('checkout.code');
 Route::delete('checkout/{order}/code', [CheckoutController::class, 'removeCode'])->middleware('throttle:checkout')->name('checkout.code.remove');
 Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->middleware('throttle:checkout')->name('checkout.pay');
