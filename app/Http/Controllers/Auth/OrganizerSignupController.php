@@ -123,6 +123,16 @@ class OrganizerSignupController extends Controller
         // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
         \App\Support\Mailer::defer($user->email, new WelcomeMail($user));
 
+        // ...and tell our side. A vendor registering is the start of an
+        // application, so it is worth knowing before the details arrive.
+        \App\Support\PlatformAlert::raise(
+            type: 'organizer',
+            title: 'New vendor registered',
+            body: $user->name.' registered as a vendor and can now apply to host.',
+            url: '/admin/users/'.$user->id,
+            details: ['Name' => $user->name, 'Email' => $user->email],
+        );
+
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 

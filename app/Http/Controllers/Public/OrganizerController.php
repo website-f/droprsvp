@@ -78,7 +78,11 @@ class OrganizerController extends Controller
                 'id' => $organizer->id,
                 'slug' => $organizer->slug,
                 'name' => $profile?->business_name ?: $organizer->name,
-                'avatar' => $organizer->avatar ?: $profile?->poster,
+                // Company logo first: this is a business profile, and an
+                // organizer who signed up with Google would otherwise show their
+                // personal Google photo forever while their uploaded logo sat
+                // unused. Falls back to the personal photo when no logo is set.
+                'avatar' => $profile?->poster ?: $organizer->avatar,
                 'bio' => $profile?->bio,
                 'website' => $profile?->website,
                 'location' => $organizer->city,

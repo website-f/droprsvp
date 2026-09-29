@@ -45,6 +45,15 @@ class CreateNewUser implements CreatesNewUsers
         // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
         \App\Support\Mailer::defer($user->email, new WelcomeMail($user));
 
+        // ...and tell our side. Previously only the new user heard about it.
+        \App\Support\PlatformAlert::raise(
+            type: 'user',
+            title: 'New attendee signed up',
+            body: $user->name.' created an account.',
+            url: '/admin/users/'.$user->id,
+            details: ['Name' => $user->name, 'Email' => $user->email],
+        );
+
         return $user;
     }
 }

@@ -21,9 +21,23 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        $isOrganizer = $user->hasAnyRole(['organizer', 'superadmin']);
+        $profile = $isOrganizer ? $user->organizerProfile : null;
+
         return Inertia::render('settings/profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // Branding lives on this page so there is one obvious place to set a
+            // photo or a company logo — see Settings\BrandingController.
+            'isOrganizer' => $isOrganizer,
+            'branding' => [
+                'avatar' => $user->avatar,
+                'business_name' => $profile?->business_name ?? '',
+                'poster' => $profile?->poster ?? '',
+                'website' => $profile?->website ?? '',
+                'bio' => $profile?->bio ?? '',
+            ],
         ]);
     }
 

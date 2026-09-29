@@ -76,6 +76,23 @@ class OrganizerApplicationController extends Controller
             report($e);
         }
 
+        // An application sits waiting for a superadmin, so it is the one that
+        // most needs surfacing — it used to email only the applicant.
+        \App\Support\PlatformAlert::raise(
+            type: 'organizer',
+            title: 'New organizer application',
+            body: $data['business_name'].' applied to host events.',
+            url: '/admin/organizers/'.$profile->id,
+            details: array_filter([
+                'Business' => $data['business_name'],
+                'Applicant' => $request->user()->name,
+                'Email' => $request->user()->email,
+                'Phone' => $data['phone'] ?? null,
+                'Website' => $data['website'] ?? null,
+            ]),
+            level: 'warning', // it is blocking someone until it is reviewed
+        );
+
         return redirect()->route('host.pending')->with('success', 'Application submitted — we’ll be in touch by email or phone.');
     }
 

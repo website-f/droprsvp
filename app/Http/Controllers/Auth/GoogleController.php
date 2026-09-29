@@ -135,6 +135,15 @@ class GoogleController extends Controller
         // Deferred + non-fatal, exactly like the password sign-up path.
         \App\Support\Mailer::defer($user->email, new \App\Mail\WelcomeMail($user));
 
+        // ...and the same alert, so a Google sign-up is as visible as any other.
+        \App\Support\PlatformAlert::raise(
+            type: 'user',
+            title: 'New attendee signed up',
+            body: $user->name.' created an account with Google.',
+            url: '/admin/users/'.$user->id,
+            details: ['Name' => $user->name, 'Email' => $user->email, 'Via' => 'Google'],
+        );
+
         return $user;
     }
 

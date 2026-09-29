@@ -12,6 +12,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
+    // Profile photo + (for organizers) company branding. Separate from the
+    // application form so changing a logo never re-opens an approval review.
+    Route::patch('settings/branding', [\App\Http\Controllers\Settings\BrandingController::class, 'update'])->name('branding.update');
+
     Route::get('settings/notifications', [NotificationController::class, 'edit'])->name('notifications.edit');
     Route::patch('settings/notifications', [NotificationController::class, 'update'])->name('notifications.update');
 });

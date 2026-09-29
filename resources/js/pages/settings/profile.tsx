@@ -2,6 +2,7 @@ import { Form, Head, usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import { Download } from 'lucide-react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import { BrandingSettings, type Branding } from '@/components/branding-settings';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -19,9 +20,13 @@ type PageProps = {
 export default function Profile({
     mustVerifyEmail,
     status,
+    branding,
+    isOrganizer = false,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
+    branding: Branding;
+    isOrganizer?: boolean;
 }) {
     const { auth } = usePage<PageProps>().props;
 
@@ -122,6 +127,12 @@ export default function Profile({
                         </>
                     )}
                 </Form>
+            </div>
+
+            {/* Photo + (for organizers) company logo. Here rather than on the
+                host application form, which reopens an approval review on save. */}
+            <div className="space-y-6">
+                <BrandingSettings branding={branding} isOrganizer={isOrganizer} />
             </div>
 
             <div className="space-y-6">
