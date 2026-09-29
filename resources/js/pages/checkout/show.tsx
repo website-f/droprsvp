@@ -141,11 +141,11 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
                                 </div>
                             </div>
 
-                            {/* The organizer's own questions — asked once per ticket. */}
+                            {/* The organizer's own additional fields — one set per ticket. */}
                             {customFields.length > 0 && (
                                 <div className="grid gap-4 rounded-xl border border-border p-4">
                                     <div>
-                                        <h2 className="text-sm font-semibold">{order.event.title} — a few questions</h2>
+                                        <h2 className="text-sm font-semibold">{order.event.title} — a few more details</h2>
                                         <p className="text-xs text-muted-foreground">
                                             {ticketCount > 1
                                                 ? `Asked for each of your ${ticketCount} tickets.`

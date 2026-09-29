@@ -6,11 +6,19 @@ use App\Models\Event;
 use Illuminate\Support\Str;
 
 /**
- * Organizer-defined questions on the checkout form, answered once per ticket.
+ * Organizer-defined additional fields on the checkout form, filled in once per
+ * ticket.
  *
  * An organizer adds fields to their event the way they would in a form builder —
- * "Which water?" with photos of each option, "T-shirt size", "Dietary needs" —
- * and every buyer answers them for each ticket in their order.
+ * "Which water?", "T-shirt size", "Dietary needs" — and every buyer fills them
+ * in for each ticket in their order.
+ *
+ * A field can carry an IMAGE of its own, independent of its type. That is the
+ * case this was built for: the organizer uploads a photo of the drinks menu and
+ * the buyer simply types which one they want, no options to maintain. Attach the
+ * picture to the field and it renders above the input; leave it off and the
+ * field is a plain question. Per-OPTION images are a separate thing, used by the
+ * image_choice type when each individual choice needs its own picture.
  *
  * Everything about the shape of a field lives here: the types, how a definition
  * is validated on save, and how an answer is validated and normalised at
@@ -19,7 +27,7 @@ use Illuminate\Support\Str;
  * later by a different controller.
  *
  * Definition:
- *   { id, label, type, required, help, multiple, options: [{ id, label, image }] }
+ *   { id, label, type, required, help, image, multiple, options: [{ id, label, image }] }
  *
  * Answer (one per ticket, keyed by field id):
  *   "text"            => string
@@ -64,6 +72,9 @@ class CustomFields
             'custom_fields.*.type' => ['required', 'in:'.implode(',', self::TYPES)],
             'custom_fields.*.help' => ['nullable', 'string', 'max:200'],
             'custom_fields.*.required' => ['boolean'],
+            // An illustration for the field itself — a menu photo, a size chart,
+            // a seating diagram. Optional on every type.
+            'custom_fields.*.image' => ['nullable', 'string', 'max:2048'],
             'custom_fields.*.multiple' => ['boolean'],
             'custom_fields.*.options' => ['array', 'max:'.self::MAX_OPTIONS],
             'custom_fields.*.options.*.id' => ['nullable', 'string', 'max:40'],
@@ -100,6 +111,7 @@ class CustomFields
                 'type' => $type,
                 'help' => trim((string) ($field['help'] ?? '')) ?: null,
                 'required' => (bool) ($field['required'] ?? false),
+                'image' => trim((string) ($field['image'] ?? '')) ?: null,
             ];
 
             if (in_array($type, self::CHOICE_TYPES, true)) {

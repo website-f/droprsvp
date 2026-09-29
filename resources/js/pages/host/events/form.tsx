@@ -678,10 +678,10 @@ form.post('/host/events', options);
                     )}
                 </section>
 
-                {/* Organizer's own questions on the checkout form. */}
+                {/* Organizer's own extra fields on the checkout form. */}
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        Booking questions
+                        Additional fields
                     </h2>
                     <CustomFieldsBuilder
                         fields={data.custom_fields}

@@ -2,7 +2,8 @@ import { Check } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 /**
- * The organizer's own questions on the checkout form, asked once per ticket.
+ * The organizer's own additional fields on the checkout form, filled in once per
+ * ticket.
  *
  * The definitions are authored in the event builder and mirrored here — the
  * shapes must match App\Support\CustomFields, which validates the answers on the
@@ -23,6 +24,8 @@ export interface CustomField {
     type: CustomFieldType;
     help?: string | null;
     required?: boolean;
+    /** An illustration for the field itself — a menu photo, a size chart. */
+    image?: string | null;
     multiple?: boolean;
     options?: CustomFieldOption[];
 }
@@ -34,7 +37,7 @@ const inputClass =
     'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 /**
- * Renders one ticket's worth of questions.
+ * Renders one ticket's worth of fields.
  *
  * `errors` is keyed the way Laravel returns them — custom_answers.<index>.<fieldId>
  * — so a message lands on the exact ticket and question it belongs to.
@@ -82,6 +85,15 @@ export function CustomFieldSet({
                             {f.required && <span className="ml-0.5 text-destructive">*</span>}
                         </Label>
                         {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+
+                        {/* The organizer's own illustration — a photo of the drinks
+                            menu, a size chart. Shown on any field type, so "here is
+                            the menu, type what you want" needs no options at all. */}
+                        {f.image && (
+                            <a href={f.image} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-border">
+                                <img src={f.image} alt={f.label} className="max-h-72 w-full object-contain bg-muted/30" />
+                            </a>
+                        )}
 
                         {f.type === 'text' && (
                             <input
@@ -158,7 +170,7 @@ export function CustomFieldSet({
 }
 
 /**
- * All tickets in the order, each with its own copy of the questions.
+ * All tickets in the order, each with its own copy of the fields.
  *
  * The list order is load-bearing: CheckoutService issues tickets by walking the
  * order items and their quantities in exactly this sequence, and copies

@@ -8,7 +8,8 @@ import { uploadImageWithToast } from '@/lib/upload';
 import type { CustomField, CustomFieldOption, CustomFieldType } from '@/components/custom-fields';
 
 /**
- * The organizer's form builder: the questions a buyer answers for each ticket.
+ * The organizer's form builder: the additional fields a buyer fills in for each
+ * ticket.
  *
  * Mirrors App\Support\CustomFields, which sanitises and stores what this
  * produces. Ids are minted on the server and echoed back unchanged — they are
@@ -20,10 +21,10 @@ const field =
     'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 const TYPES: Array<{ value: CustomFieldType; label: string }> = [
-    { value: 'text', label: 'Short answer' },
-    { value: 'textarea', label: 'Long answer' },
-    { value: 'select', label: 'Pick from a list' },
-    { value: 'image_choice', label: 'Pick from pictures' },
+    { value: 'text', label: 'Text — short answer' },
+    { value: 'textarea', label: 'Text — long answer' },
+    { value: 'select', label: 'Choice — pick from a list' },
+    { value: 'image_choice', label: 'Choice — pick from pictures' },
 ];
 
 const CHOICE_TYPES: CustomFieldType[] = ['select', 'image_choice'];
@@ -35,6 +36,7 @@ const blankField = (): CustomField => ({
     type: 'text',
     help: '',
     required: false,
+    image: null,
     multiple: false,
     options: [],
 });
@@ -61,9 +63,11 @@ export function CustomFieldsBuilder({
     return (
         <div className="grid gap-3">
             <p className="text-sm text-muted-foreground">
-                Ask buyers anything you need — a meal choice, a t-shirt size, a drink from a photo menu.
-                Each question is answered <strong>once per ticket</strong>, and the answers show on your
-                attendee list and at check-in.
+                Collect anything you need from buyers — a meal choice, a t-shirt size, a drink from a
+                photo menu. Add a picture to a field and it shows above it, so you can post your menu and
+                let people simply type what they want. Every field is filled in{' '}
+                <strong>once per ticket</strong>, and the answers show on your attendee list, at check-in
+                and in your CSV export.
             </p>
 
             {fields.map((f, i) => (
@@ -71,7 +75,7 @@ export function CustomFieldsBuilder({
                     <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
                         <span className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
                             <GripVertical className="size-4" />
-                            Question {i + 1}
+                            Field {i + 1}
                             {f.label ? ` · ${f.label}` : ''}
                         </span>
                         <Button
@@ -87,7 +91,7 @@ export function CustomFieldsBuilder({
 
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
-                            <Label>Question</Label>
+                            <Label>Label</Label>
                             <input
                                 className={field}
                                 value={f.label}
@@ -125,9 +129,11 @@ export function CustomFieldsBuilder({
                             className={field}
                             value={f.help ?? ''}
                             onChange={(e) => patch(i, { help: e.target.value })}
-                            placeholder="Shown under the question"
+                            placeholder="Shown under the label"
                         />
                     </div>
+
+                    <FieldImage image={f.image ?? null} onChange={(image) => patch(i, { image })} />
 
                     {CHOICE_TYPES.includes(f.type) && (
                         <OptionList
@@ -156,13 +162,85 @@ export function CustomFieldsBuilder({
             ))}
 
             <Button type="button" variant="outline" className="gap-1.5" onClick={() => onChange([...fields, blankField()])}>
-                <Plus className="size-4" /> Add a question
+                <Plus className="size-4" /> Add a field
             </Button>
         </div>
     );
 }
 
-/** The choices for a select / picture question, each with an optional image. */
+/**
+ * An optional picture for the field itself, on any type.
+ *
+ * This is the "post your menu and let people type what they want" case: the
+ * organizer uploads one photo, adds a plain text field under it, and never has
+ * to maintain a list of options. Distinct from the per-CHOICE images used by the
+ * pick-from-pictures type.
+ */
+function FieldImage({ image, onChange }: { image: string | null; onChange: (image: string | null) => void }) {
+    const [uploading, setUploading] = useState(false);
+    const input = useRef<HTMLInputElement | null>(null);
+
+    const pick = async (file: File | undefined) => {
+        if (!file) {
+            return;
+        }
+        setUploading(true);
+        const url = await uploadImageWithToast(file);
+        if (url) {
+            onChange(url);
+        }
+        setUploading(false);
+    };
+
+    return (
+        <div className="grid gap-1.5">
+            <Label>
+                Picture <span className="font-normal text-muted-foreground">— optional, shown above the field</span>
+            </Label>
+
+            <input
+                ref={input}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => pick(e.target.files?.[0])}
+            />
+
+            {image ? (
+                <div className="flex items-start gap-3">
+                    <img src={image} alt="" className="max-h-28 rounded-lg border border-border object-contain" />
+                    <div className="flex flex-col gap-1.5">
+                        <Button type="button" variant="outline" size="sm" onClick={() => input.current?.click()}>
+                            Replace
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => onChange(null)}
+                        >
+                            Remove
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-self-start gap-1.5"
+                    disabled={uploading}
+                    onClick={() => input.current?.click()}
+                >
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+                    Upload a picture
+                </Button>
+            )}
+        </div>
+    );
+}
+
+/** The choices for a pick-from-a-list / pick-from-pictures field, each with an optional image. */
 function OptionList({
     fieldIndex,
     type,

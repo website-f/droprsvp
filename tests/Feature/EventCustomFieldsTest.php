@@ -101,6 +101,45 @@ class EventCustomFieldsTest extends TestCase
         $this->assertSame('Kept', $fields[0]['label']);
     }
 
+    /**
+     * The case this whole feature came from: the organizer posts a photo of the
+     * drinks menu and the buyer simply types which one they want. No options to
+     * maintain — the picture carries the choices.
+     */
+    public function test_a_field_can_carry_its_own_picture_on_any_type(): void
+    {
+        [$event, $type] = $this->eventWithFields([
+            [
+                'label' => 'Which water would you like?',
+                'type' => CustomFields::TEXT,
+                'required' => true,
+                'image' => 'https://img.test/water-menu.jpg',
+            ],
+        ]);
+
+        $field = $event->custom_fields[0];
+
+        $this->assertSame('https://img.test/water-menu.jpg', $field['image']);
+        $this->assertSame(CustomFields::TEXT, $field['type']);
+
+        // And it reaches the buyer with the picture attached.
+        $order = app(CheckoutService::class)->start($event, [['ticket_type_id' => $type->id, 'quantity' => 1]]);
+
+        $this->withSession(['checkout_orders' => [$order->reference]])
+            ->get("/checkout/{$order->reference}")
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p->where('customFields.0.image', 'https://img.test/water-menu.jpg'));
+    }
+
+    public function test_a_field_without_a_picture_is_simply_a_question(): void
+    {
+        [$event] = $this->eventWithFields([
+            ['label' => 'Dietary needs', 'type' => CustomFields::TEXTAREA],
+        ]);
+
+        $this->assertNull($event->custom_fields[0]['image']);
+    }
+
     // ---- answers at checkout ----------------------------------------------
 
     public function test_a_required_question_must_be_answered_for_every_ticket(): void
