@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Host;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Ticket;
+use App\Support\CustomFields;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -55,10 +56,22 @@ class AttendeeController extends Controller
         return response()->streamDownload(function () use ($tickets, $event) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders names correctly
-            fputcsv($out, ['Name', 'Email', 'Phone', 'Ticket type', 'Seat / Table', 'Order', 'Purchased', 'Status', 'Checked in at', 'Token']);
+            // One extra column per booking question, in the order the organizer
+            // defined them — a caterer wants the meal choices as a column they
+            // can sort, not buried in a notes field.
+            $questions = array_column(CustomFields::forEvent($event), 'label');
+
+            fputcsv($out, array_merge(
+                ['Name', 'Email', 'Phone', 'Ticket type', 'Seat / Table', 'Order', 'Purchased', 'Status', 'Checked in at', 'Token'],
+                $questions,
+            ));
+
             foreach ($tickets as $t) {
                 $r = $this->row($t, $event);
-                fputcsv($out, [$r['name'], $r['email'], $r['phone'], $r['type'], $r['seat'], $r['order_ref'], $r['purchased_at'], $r['status'], $r['checked_in_at'], $r['token']]);
+                fputcsv($out, array_merge(
+                    [$r['name'], $r['email'], $r['phone'], $r['type'], $r['seat'], $r['order_ref'], $r['purchased_at'], $r['status'], $r['checked_in_at'], $r['token']],
+                    array_map(fn (string $q) => $r['answers'][$q] ?? '', $questions),
+                ));
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv']);
@@ -188,6 +201,11 @@ class AttendeeController extends Controller
             'purchased_at' => $t->order?->paid_at?->setTimezone($event->timezone)->format('d M Y, g:i A'),
             'status' => $t->status,
             'checked_in_at' => $t->checked_in_at?->setTimezone($event->timezone)->format('d M Y, g:i A'),
+            // The organizer's own questions, answered per ticket at checkout, as
+            // readable label => answer pairs. Resolved against the event's CURRENT
+            // definitions, so a renamed question shows its new wording and a
+            // deleted one drops out rather than showing a bare id.
+            'answers' => CustomFields::readable($event, $t->custom_answers),
         ];
     }
 

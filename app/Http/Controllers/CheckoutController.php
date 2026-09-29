@@ -7,6 +7,7 @@ use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\Order;
+use App\Support\CustomFields;
 use App\Services\CheckoutService;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
@@ -62,6 +63,9 @@ class CheckoutController extends Controller
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
             'required' => SettingsController::checkoutRequired(),
+            // The organizer's own questions, asked once per ticket in the order.
+            'customFields' => CustomFields::forEvent($order->event),
+            'ticketCount' => (int) $order->items->sum('quantity'),
             'buyer' => $user ? [
                 'name' => $user->name,
                 'email' => $user->email,
@@ -130,10 +134,31 @@ class CheckoutController extends Controller
             'buyer_source' => [$need('source'), 'in:instagram,facebook,tiktok,friend,search,email,other'],
             // Free-text notes / remarks for the organizer (dietary needs, questions…).
             'notes' => [$need('notes'), 'string', 'max:1000'],
+            // The organizer's own questions, one answer set per ticket. Shape is
+            // checked here; the values are validated against the event's field
+            // definitions by CustomFields::normalise below, which is the only
+            // thing that knows what the options actually are.
+            'custom_answers' => ['array', 'max:100'],
+            'custom_answers.*' => ['array'],
             // Consent to use their details for the RSVP + updates.
             'consent' => ['accepted'],
         ], ['consent.accepted' => 'Please agree to the terms to continue.']);
         unset($data['consent']);
+
+        // Answers are captured per TICKET, in the order tickets will be issued —
+        // markPaid() walks the order items and their quantities in exactly this
+        // sequence, which is what lets each answer set land on the right ticket.
+        [$answers, $answerErrors] = CustomFields::normalise(
+            $order->event,
+            $data['custom_answers'] ?? [],
+            (int) $order->items->sum('quantity'),
+        );
+
+        if ($answerErrors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($answerErrors);
+        }
+
+        $data['custom_answers'] = $answers;
         $order->update($data);
 
         // Re-validate any applied promo code at pay time — it may have expired, been

@@ -2,6 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Loader2, Lock, Tag, X } from 'lucide-react';
 import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
+import { CustomFieldsSection, type CustomAnswers, type CustomField } from '@/components/custom-fields';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -25,7 +26,10 @@ const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Inst
 
 interface Buyer { name: string | null; email: string | null; phone: string | null; gender: string | null; age_band: string | null; city: string | null }
 
-export default function CheckoutShow({ order, required, buyer }: { order: OrderView; required: Required; buyer: Buyer | null }) {
+export default function CheckoutShow({ order, required, buyer, customFields = [], ticketCount = 0 }: {
+    order: OrderView; required: Required; buyer: Buyer | null;
+    customFields?: CustomField[]; ticketCount?: number;
+}) {
     const form = useForm({
         buyer_name: buyer?.name ?? '',
         buyer_email: buyer?.email ?? '',
@@ -35,6 +39,8 @@ export default function CheckoutShow({ order, required, buyer }: { order: OrderV
         buyer_city: buyer?.city ?? '',
         buyer_source: '',
         notes: '',
+        // One answer set per ticket, in the order tickets are issued.
+        custom_answers: Array.from({ length: ticketCount }, () => ({}) as CustomAnswers),
         consent: true,
     });
     const isFree = order.total <= 0;
@@ -135,6 +141,27 @@ export default function CheckoutShow({ order, required, buyer }: { order: OrderV
                                 </div>
                             </div>
 
+                            {/* The organizer's own questions — asked once per ticket. */}
+                            {customFields.length > 0 && (
+                                <div className="grid gap-4 rounded-xl border border-border p-4">
+                                    <div>
+                                        <h2 className="text-sm font-semibold">{order.event.title} — a few questions</h2>
+                                        <p className="text-xs text-muted-foreground">
+                                            {ticketCount > 1
+                                                ? `Asked for each of your ${ticketCount} tickets.`
+                                                : 'Asked by the organizer of this event.'}
+                                        </p>
+                                    </div>
+                                    <CustomFieldsSection
+                                        fields={customFields}
+                                        ticketCount={ticketCount}
+                                        answers={form.data.custom_answers}
+                                        onChange={(next) => form.setData('custom_answers', next)}
+                                        errors={form.errors as unknown as Record<string, string>}
+                                    />
+                                </div>
+                            )}
+
                             {/* Consent */}
                             <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
                                 <Switch checked={form.data.consent} onCheckedChange={(v) => form.setData('consent', v)} aria-label="Agree to terms" className="mt-0.5" />
@@ -191,7 +218,6 @@ export default function CheckoutShow({ order, required, buyer }: { order: OrderV
                                 <div className="grid gap-1.5 text-sm">
                                     <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>RM {order.subtotal.toFixed(2)}</span></div>
                                     {order.discount > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span>− RM {order.discount.toFixed(2)}</span></div>}
-                                    {order.fees > 0 && <div className="flex justify-between text-muted-foreground"><span>Platform fee</span><span>RM {order.fees.toFixed(2)}</span></div>}
                                     {order.tax > 0 && <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>RM {order.tax.toFixed(2)}</span></div>}
                                 </div>
                             )}

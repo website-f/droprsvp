@@ -14,6 +14,8 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\EventDuplicator;
 use App\Support\Cities;
+use App\Support\CustomFields;
+use App\Support\PlatformFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -51,6 +53,8 @@ class EventController extends Controller
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
             'ticketingModes' => SettingsController::ticketingModes(),
             'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
+            // Drives the price hint + inline warning on paid ticket tiers.
+            'platformFee' => PlatformFee::toArray($request->user()),
         ]);
     }
 
@@ -58,6 +62,7 @@ class EventController extends Controller
     {
         $data = $this->validated($request);
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
+        $this->assertTicketPricesCoverTheFee($data, $request->user());
 
         $event = new Event($this->eventAttributes($data));
         $event->user_id = $request->user()->id;
@@ -89,6 +94,8 @@ class EventController extends Controller
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
             'ticketingModes' => SettingsController::ticketingModes(),
             'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
+            // Drives the price hint + inline warning on paid ticket tiers.
+            'platformFee' => PlatformFee::toArray($event->user),
         ]);
     }
 
@@ -97,6 +104,9 @@ class EventController extends Controller
         $this->authorize('update', $event);
 
         $data = $this->validated($request);
+        // The floor follows the EVENT's owner, not whoever is editing — an admin
+        // editing on someone's behalf must not be measured against their own rate.
+        $this->assertTicketPricesCoverTheFee($data, $event->user);
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
         $event->fill($this->eventAttributes($data))->save();
 
@@ -337,7 +347,55 @@ class EventController extends Controller
             'ticketTypes.*.sales_start' => ['nullable', 'date'],
             'ticketTypes.*.sales_end' => ['nullable', 'date', 'after_or_equal:ticketTypes.*.sales_start'],
             'ticketTypes.*.is_active' => ['boolean'],
-        ]);
+        ] + CustomFields::rules());
+    }
+
+    /**
+     * A paid ticket may not be priced below the platform commission it carries.
+     *
+     * Buyers pay the ticket price and nothing else, so the commission comes out
+     * of the organizer's takings — which means a ticket priced under it pays them
+     * a NEGATIVE amount. On the default flat RM3 fee an RM2 ticket would settle
+     * at minus one ringgit per sale.
+     *
+     * The floor is this organizer's own: an admin can put them on a custom rate,
+     * and that moves the minimum with it. Free and donation tiers are exempt —
+     * PlatformFee::on() charges nothing on a zero base.
+     *
+     * Kept out of validated() because it needs the event's owner, which the
+     * rules array has no access to.
+     */
+    private function assertTicketPricesCoverTheFee(array $data, User $organizer): void
+    {
+        $minimum = PlatformFee::minimumTicketPrice($organizer);
+
+        if ($minimum <= 0) {
+            return;
+        }
+
+        $errors = [];
+
+        foreach ($data['ticketTypes'] ?? [] as $i => $type) {
+            if (($type['kind'] ?? null) !== 'paid') {
+                continue;
+            }
+
+            $price = (float) ($type['price'] ?? 0);
+
+            if ($price > 0 && $price < $minimum) {
+                $errors["ticketTypes.{$i}.price"] = sprintf(
+                    'This is below the RM%s platform fee on your account, so you would receive '
+                    .'RM%s per sale. Price it at RM%s or more, or make it a free ticket.',
+                    number_format($minimum, 2),
+                    number_format(PlatformFee::organizerNet($price, $organizer), 2),
+                    number_format($minimum, 2),
+                );
+            }
+        }
+
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
     }
 
     /** Map validated input to the event's own columns (status derived from `publish`). */
@@ -351,6 +409,9 @@ class EventController extends Controller
             'cover_image' => $data['cover_image'] ?? null,
             'banner_image' => $data['banner_image'] ?? null,
             'gallery' => $data['gallery'] ?? [],
+            // Sanitised here so ids are minted once and kept: they are the keys
+            // every answer already placed is stored under.
+            'custom_fields' => CustomFields::sanitize($data['custom_fields'] ?? []),
             'show_participants' => $data['show_participants'] ?? true,
             'show_reviews' => $data['show_reviews'] ?? true,
             'refund_policy' => $data['refund_policy'] ?? 'until_event',

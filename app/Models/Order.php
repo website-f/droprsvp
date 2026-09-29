@@ -12,6 +12,7 @@ class Order extends Model
         'reference', 'user_id', 'event_id', 'status', 'buyer_name', 'buyer_email', 'buyer_phone',
         'buyer_gender', 'buyer_age_band', 'buyer_city', 'buyer_source', 'notes',
         'subtotal', 'discount', 'discount_code_id', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
+        'custom_answers',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class Order extends Model
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',
             'meta' => 'array',
+            'custom_answers' => 'array',
         ];
     }
 
@@ -76,7 +78,14 @@ class Order extends Model
      */
     public function remainingRefundable(): float
     {
-        return max(0.0, round((float) $this->total - (float) $this->fees - (float) $this->refunded_amount, 2));
+        // The buyer pays the ticket price plus tax and nothing else — the
+        // platform commission comes out of the organizer's takings, never the
+        // buyer's card. So everything the buyer paid is refundable to them.
+        //
+        // This used to subtract `fees`, from when the buyer paid a booking fee on
+        // top and that fee was kept on a refund. Under the current model that
+        // would short the buyer by the commission on money they never paid.
+        return max(0.0, round((float) $this->total - (float) $this->refunded_amount, 2));
     }
 
     /** Is there a refund request awaiting an organizer decision? */

@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Switch, SwitchField } from '@/components/ui/switch';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { imageError, uploadImage, uploadImageWithToast } from '@/lib/upload';
+import { CustomFieldsBuilder } from '@/components/custom-fields-builder';
+import type { CustomField } from '@/components/custom-fields';
 
 interface Category { id: number; name: string }
 interface City { name: string; slug: string }
@@ -29,7 +31,7 @@ type SectionRow = LayoutSectionRow;
 interface SeatTemplate { id: number; name: string; data: Array<Partial<LayoutSectionRow> & { name: string; kind: 'seated' | 'ga' | 'stage' }> }
 interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
-    description: string | null; cover_image: string | null; banner_image: string | null; gallery: string[] | null; visibility: string; timezone: string;
+    description: string | null; cover_image: string | null; banner_image: string | null; gallery: string[] | null; custom_fields: unknown[] | null; visibility: string; timezone: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null; show_participants: boolean; show_reviews: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
@@ -80,7 +82,9 @@ function readImageMeta(file: File): Promise<{ w: number; h: number; size: number
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
 const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
-export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean }) {
+interface PlatformFeeInfo { percent: number; flat: number; label: string; custom: boolean; min_ticket_price: number }
+
+export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false, platformFee }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean; platformFee?: PlatformFeeInfo }) {
     const isEdit = !!event;
     // A mode is offered if the platform allows it (superadmins always see all).
     const modeAllowed = (m: TicketingMode) => m === 'general' || isSuperadmin || ticketingModes[m];
@@ -111,6 +115,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         tables: (event?.seating_tables ?? []).map((t): TableRow => ({ id: t.id, name: t.name, shape: t.shape, capacity: t.capacity, pos_x: t.pos_x, pos_y: t.pos_y, rotation: t.rotation ?? 0 })),
         props: (event?.props ?? []).map((p): PropRow => ({ id: p.id, kind: p.kind, label: p.label ?? '', color: p.color ?? '#6c63ff', pos_x: p.pos_x, pos_y: p.pos_y, width: p.width, height: p.height, rotation: p.rotation ?? 0 })),
         publish: false,
+        custom_fields: ((event?.custom_fields ?? []) as CustomField[]),
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
         sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0' })),
@@ -591,7 +596,27 @@ form.post('/host/events', options);
                                             <div className="grid gap-1.5">
                                                 <Label>{t.kind === 'donation' ? 'Suggested amount (RM)' : 'Selling price (RM)'}</Label>
                                                 <input type="number" min={0} step="0.01" className={field} value={t.price} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
-                                                {errors[`ticketTypes.${i}.price` as keyof typeof errors] && <p className="text-xs text-destructive">Enter a valid price</p>}
+                                                {/* Buyers pay the ticket price alone — the platform fee comes out
+                                                    of the organizer's takings, so a price under it would pay them
+                                                    a negative amount. The server enforces the same floor. */}
+                                                {t.kind === 'paid' && platformFee && platformFee.min_ticket_price > 0 && (() => {
+                                                    const price = parseFloat(t.price || '0');
+                                                    const below = price > 0 && price < platformFee.min_ticket_price;
+                                                    const net = Math.max(price - Math.max(price * platformFee.percent / 100, platformFee.flat), price - platformFee.flat);
+
+                                                    return below ? (
+                                                        <p className="text-xs text-destructive">
+                                                            Below the RM{platformFee.min_ticket_price.toFixed(2)} platform fee on your account —
+                                                            you would receive RM{net.toFixed(2)} per sale. Price it at RM{platformFee.min_ticket_price.toFixed(2)} or more.
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Buyers pay this exactly. Platform fee is {platformFee.label}, taken from your payout
+                                                            {price > 0 ? ` — you keep RM${(price - Math.max(price * platformFee.percent / 100, platformFee.flat)).toFixed(2)}` : ''}.
+                                                        </p>
+                                                    );
+                                                })()}
+                                                {errors[`ticketTypes.${i}.price` as keyof typeof errors] && <p className="text-xs text-destructive">{String(errors[`ticketTypes.${i}.price` as keyof typeof errors])}</p>}
                                             </div>
                                             {t.kind === 'paid' && (
                                                 <div className="grid gap-1.5">
@@ -651,6 +676,18 @@ form.post('/host/events', options);
                             ) : undefined}
                         />
                     )}
+                </section>
+
+                {/* Organizer's own questions on the checkout form. */}
+                <section className="mb-6 rounded-xl border border-border bg-card p-5">
+                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        Booking questions
+                    </h2>
+                    <CustomFieldsBuilder
+                        fields={data.custom_fields}
+                        onChange={(next) => setData('custom_fields', next)}
+                        errors={errors as unknown as Record<string, string>}
+                    />
                 </section>
 
                 {/* Event page sections */}

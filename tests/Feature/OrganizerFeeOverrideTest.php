@@ -60,7 +60,12 @@ class OrganizerFeeOverrideTest extends TestCase
 
         $this->assertFalse($host->hasFeeOverride());
         $this->assertSame(5.0, PlatformFee::on(100, $host)); // global 5% beats the RM3 flat
-        $this->assertEquals(105, (float) $this->order($host)->total);
+
+        // The commission is withheld from the organizer, so the buyer's total is
+        // the ticket price alone.
+        $order = $this->order($host);
+        $this->assertEquals(5, (float) $order->fees);
+        $this->assertEquals(100, (float) $order->total);
     }
 
     public function test_an_override_replaces_the_global_rate_at_checkout(): void
@@ -71,10 +76,11 @@ class OrganizerFeeOverrideTest extends TestCase
         $this->assertTrue($host->fresh()->hasFeeOverride());
         $this->assertSame(10.0, PlatformFee::on(100, $host->fresh()));
 
-        // The order is priced with the host's own rate, not the platform's.
+        // The order carries the host's own rate, not the platform's — and the
+        // buyer still pays only the RM100 ticket.
         $order = $this->order($host->fresh());
         $this->assertEquals(10, (float) $order->fees);
-        $this->assertEquals(110, (float) $order->total);
+        $this->assertEquals(100, (float) $order->total);
 
         // Other organizers are untouched.
         $this->assertSame(5.0, PlatformFee::on(100, $this->host()));
@@ -114,7 +120,7 @@ class OrganizerFeeOverrideTest extends TestCase
         $host->setFeeOverride(20, 10);
 
         $this->assertEquals(5, (float) $order->fresh()->fees);
-        $this->assertEquals(105, (float) $order->fresh()->total);
+        $this->assertEquals(100, (float) $order->fresh()->total);
     }
 
     public function test_the_fee_table_lists_organizers_with_their_effective_rate(): void

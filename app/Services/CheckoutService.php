@@ -109,11 +109,16 @@ class CheckoutService
                 }
             }
 
-            // Buyer-paid booking fee (higher of % or flat) + optional tax, both on
-            // the ticket spend. The rate is the organizer's own when an admin has
-            // put them on one, else the global rate. A discount applied later
-            // re-prices via reprice(); the fee is frozen on the order from here,
-            // so a later rate change never moves an order that already exists.
+            // The platform commission, recorded on the order but NOT added to what
+            // the buyer pays: a buyer pays the ticket price plus any tax and
+            // nothing else. `fees` is the platform's cut of the organizer's
+            // takings, and PayoutService settles `total - fees` so it is simply
+            // never paid out to them.
+            //
+            // The rate is the organizer's own when an admin has put them on one,
+            // else the global rate. A discount applied later re-prices via
+            // reprice(); the fee is frozen on the order from here, so a later
+            // rate change never moves an order that already exists.
             $fees = \App\Support\PlatformFee::on($subtotal, $event->user);
             $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
             $tax = round($subtotal * $taxPercent / 100, 2);
@@ -126,7 +131,9 @@ class CheckoutService
                 'subtotal' => $subtotal,
                 'fees' => $fees,
                 'tax' => $tax,
-                'total' => round($subtotal + $fees + $tax, 2),
+                // Buyer-facing total: tickets + tax. The commission is deliberately
+                // absent — it is deducted from the organizer, not added here.
+                'total' => round($subtotal + $tax, 2),
                 'currency' => $currency,
             ]);
             $order->items()->createMany($lines);
@@ -175,8 +182,9 @@ class CheckoutService
         $discount = round(min($discount, $subtotal), 2);
         $taxable = max(0.0, $subtotal - $discount);
 
-        // Fee + tax follow the discounted ticket spend, at the same rate the
-        // order opened on (the event owner's, custom or global).
+        // Commission + tax follow the discounted ticket spend, at the same rate
+        // the order opened on (the event owner's, custom or global). The
+        // commission still does not reach the buyer's total — see start().
         $fees = \App\Support\PlatformFee::on($taxable, $order->event?->user);
         $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
         $tax = round($taxable * $taxPercent / 100, 2);
@@ -186,7 +194,7 @@ class CheckoutService
             'discount_code_id' => $discountCodeId,
             'fees' => $fees,
             'tax' => $tax,
-            'total' => round($taxable + $fees + $tax, 2),
+            'total' => round($taxable + $tax, 2),
         ]);
     }
 
@@ -211,6 +219,14 @@ class CheckoutService
                 \App\Models\DiscountCode::whereKey($locked->discount_code_id)->lockForUpdate()->increment('redemptions');
             }
 
+            // The buyer answered the organizer's questions once per ticket, and
+            // stored them as a flat list in this exact iteration order — items in
+            // order, then one entry per unit of quantity. `$slot` walks that list
+            // in step so each answer set lands on the ticket it was filled in for.
+            // Changing the order of this loop would silently shuffle the answers.
+            $answers = $locked->custom_answers ?? [];
+            $slot = 0;
+
             foreach ($locked->items as $item) {
                 for ($i = 0; $i < $item->quantity; $i++) {
                     $locked->tickets()->create([
@@ -221,6 +237,7 @@ class CheckoutService
                         'attendee_email' => $locked->buyer_email,
                         'status' => 'valid',
                         'seat_label' => $item->seat_label,
+                        'custom_answers' => $answers[$slot++] ?? null,
                     ]);
                 }
             }
@@ -317,8 +334,9 @@ class CheckoutService
                 return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'not_paid'];
             }
 
-            // The booking fee is non-refundable — only the ticket+tax portion is.
-            $refundable = round((float) $locked->total - (float) $locked->fees, 2);
+            // Everything the buyer paid is refundable: the total IS the ticket +
+            // tax, because the platform commission never touched their card.
+            $refundable = round((float) $locked->total, 2);
             $remaining = max(0.0, round($refundable - (float) $locked->refunded_amount, 2));
             $amt = $amount === null ? $remaining : round(min((float) $amount, $remaining), 2);
             if ($amt <= 0) {
@@ -334,12 +352,26 @@ class CheckoutService
             $newRefunded = round((float) $locked->refunded_amount + $amt, 2);
             $full = $newRefunded >= $refundable - 0.001;
 
+            // The commission is charged on a completed sale, so it follows the
+            // refund down in proportion — and is gone entirely on a full one.
+            // Without this the organizer would end up NEGATIVE on a refund:
+            // PayoutService settles `total - fees - refunded_amount`, so leaving
+            // the fee behind on a fully refunded order would bill them for a sale
+            // that no longer exists.
+            $keptShare = $refundable > 0 ? max(0.0, ($refundable - $newRefunded) / $refundable) : 0.0;
+            $fees = $full ? 0.0 : round((float) $locked->fees * $keptShare, 2);
+
             if ($full) {
-                $locked->update(['status' => 'refunded', 'refunded_at' => now(), 'refunded_amount' => $refundable]);
+                $locked->update([
+                    'status' => 'refunded',
+                    'refunded_at' => now(),
+                    'refunded_amount' => $refundable,
+                    'fees' => 0,
+                ]);
                 $locked->tickets()->whereIn('status', ['valid', 'checked_in'])->update(['status' => 'refunded']);
                 $this->releaseStock($locked);
             } else {
-                $locked->update(['refunded_amount' => $newRefunded]);
+                $locked->update(['refunded_amount' => $newRefunded, 'fees' => $fees]);
             }
 
             return ['ok' => true, 'full' => $full, 'amount' => $amt, 'reason' => 'ok'];

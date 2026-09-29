@@ -15,6 +15,7 @@ class Event extends Model
 
     protected $fillable = [
         'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'banner_image', 'gallery',
+        'custom_fields',
         'show_participants', 'show_reviews', 'seating_enabled', 'ticketing_mode', 'auto_assign_tables',
         'status', 'cancelled_reason', 'appeal_status', 'appeal_reason', 'appeal_attachments', 'appealed_at',
         'refund_policy', 'refund_policy_note',
@@ -33,6 +34,7 @@ class Event extends Model
             'appeal_attachments' => 'array',
             'appealed_at' => 'datetime',
             'gallery' => 'array',
+            'custom_fields' => 'array',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'published_at' => 'datetime',
