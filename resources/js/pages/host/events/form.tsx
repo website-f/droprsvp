@@ -35,7 +35,9 @@ interface EventProp {
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null; show_participants: boolean; show_reviews: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
-    sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; capacity: number | null }>;
+    // *_local are the same instants in the EVENT's timezone, computed server-side
+    // for the datetime-local inputs, which carry no timezone of their own.
+    sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; starts_at_local?: string | null; ends_at_local?: string | null; capacity: number | null }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
     seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null; rotation?: number | null }>;
     seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number; rotation?: number }>;
@@ -45,6 +47,15 @@ type TicketingMode = 'general' | 'reserved' | 'tables';
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
+/**
+ * Value for a datetime-local input.
+ *
+ * Prefers the *_local field the server computes in the EVENT's timezone. The
+ * raw column is UTC, and slicing that fed the input a time 8 hours off for a
+ * Malaysian event — which is the same confusion that made the public page show
+ * 11pm for a 3pm session. Falls back to slicing for a value with no local
+ * companion (a brand new, unsaved row).
+ */
 const dt = (v: string | null | undefined) => (v ? v.slice(0, 16) : '');
 
 const RECOMMEND_COVER = 'Recommended: 1600×900px (16:9) · JPG or PNG · under 5 MB';
@@ -116,7 +127,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         props: (event?.props ?? []).map((p): PropRow => ({ id: p.id, kind: p.kind, label: p.label ?? '', color: p.color ?? '#6c63ff', pos_x: p.pos_x, pos_y: p.pos_y, width: p.width, height: p.height, rotation: p.rotation ?? 0 })),
         publish: false,
         custom_fields: ((event?.custom_fields ?? []) as CustomField[]),
-        sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: dt(s.starts_at), ends_at: dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
+        sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: s.starts_at_local ?? dt(s.starts_at), ends_at: s.ends_at_local ?? dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
         sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0' })),
     });

@@ -18,6 +18,7 @@ use App\Support\CustomFields;
 use App\Support\PlatformFee;
 use App\Support\Url;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class EventController extends Controller
@@ -67,6 +68,7 @@ class EventController extends Controller
     {
         $data = $this->validated($request);
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
+        $data = $this->sessionsToUtc($data);
         $this->assertTicketPricesCoverTheFee($data, $request->user());
 
         $event = new Event($this->eventAttributes($data));
@@ -91,6 +93,15 @@ class EventController extends Controller
 
         $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats'), 'seatingTables' => fn ($q) => $q->orderBy('sort_order'), 'props']);
 
+        // Hand the datetime-local inputs the event's OWN local time. They are
+        // stored in UTC (see sessionsToUtc) and the input has no timezone, so
+        // without this an organizer in Kuala Lumpur would open their 3pm session
+        // and find 7am in the box.
+        $event->sessions->each(function ($session) use ($event) {
+            $session->starts_at_local = $session->starts_at?->copy()->setTimezone($event->timezone)->format('Y-m-d\TH:i');
+            $session->ends_at_local = $session->ends_at?->copy()->setTimezone($event->timezone)->format('Y-m-d\TH:i');
+        });
+
         return inertia('host/events/form', [
             'event' => $event,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
@@ -109,6 +120,7 @@ class EventController extends Controller
         $this->authorize('update', $event);
 
         $data = $this->validated($request);
+        $data = $this->sessionsToUtc($data);
         // The floor follows the EVENT's owner, not whoever is editing — an admin
         // editing on someone's behalf must not be measured against their own rate.
         $this->assertTicketPricesCoverTheFee($data, $event->user);
@@ -268,6 +280,41 @@ class EventController extends Controller
             $keep[] = $model->id;
         }
         $event->props()->whereKeyNot($keep)->delete();
+    }
+
+    /**
+     * Re-read the session datetimes as the EVENT's local time and store UTC.
+     *
+     * The form posts "2026-10-10T15:00" from a datetime-local input, which has
+     * no timezone in it — it is whatever the organizer typed, in the timezone
+     * they picked for the event. It used to be handed straight to the model,
+     * where Laravel's datetime cast parsed it in config('app.timezone') = UTC.
+     * So 3pm in Kuala Lumpur was stored as 3pm UTC, and every public display
+     * (which converts UTC into the event's timezone) then showed it as 11pm.
+     *
+     * The edit form hid this: it sliced the ISO string and ignored the timezone
+     * too, so it echoed back exactly what had been typed and the round trip
+     * looked correct from the organizer's side.
+     *
+     * Everything downstream — sessions AND the event's own starts_at/ends_at,
+     * which are the min/max of these — is derived after this runs, so there is
+     * one conversion point rather than several.
+     */
+    private function sessionsToUtc(array $data): array
+    {
+        $timezone = $data['timezone'] ?? config('app.timezone');
+
+        foreach ($data['sessions'] ?? [] as $i => $session) {
+            foreach (['starts_at', 'ends_at'] as $field) {
+                $local = $session[$field] ?? null;
+
+                $data['sessions'][$i][$field] = $local
+                    ? Carbon::parse($local, $timezone)->utc()->toDateTimeString()
+                    : null;
+            }
+        }
+
+        return $data;
     }
 
     private function validated(Request $request): array

@@ -126,13 +126,16 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
 
                         <div className="mt-6 grid gap-4">
                             <div className="grid gap-1.5">
-                                <Label htmlFor="buyer_name">Full name</Label>
-                                <input id="buyer_name" className={field} value={form.data.buyer_name} onChange={(e) => form.setData('buyer_name', e.target.value)} />
+                                {/* Always required server-side (see CheckoutController::pay),
+                                    unlike the fields below whose requirement is a
+                                    platform setting — so the marker is not conditional. */}
+                                <Label htmlFor="buyer_name">{req('Full name', true)}</Label>
+                                <input id="buyer_name" required aria-required="true" className={field} value={form.data.buyer_name} onChange={(e) => form.setData('buyer_name', e.target.value)} />
                                 {form.errors.buyer_name && <p className="text-xs text-destructive">{form.errors.buyer_name}</p>}
                             </div>
                             <div className="grid gap-1.5">
-                                <Label htmlFor="buyer_email">Email</Label>
-                                <input id="buyer_email" type="email" className={field} value={form.data.buyer_email} onChange={(e) => form.setData('buyer_email', e.target.value)} />
+                                <Label htmlFor="buyer_email">{req('Email', true)}</Label>
+                                <input id="buyer_email" type="email" required aria-required="true" className={field} value={form.data.buyer_email} onChange={(e) => form.setData('buyer_email', e.target.value)} />
                                 {form.errors.buyer_email && <p className="text-xs text-destructive">{form.errors.buyer_email}</p>}
                             </div>
                             <div className="grid gap-1.5">
