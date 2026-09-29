@@ -218,9 +218,12 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     </div>
                 )}
 
+                {/* Same treatment as the banner: an event with no banner shows
+                    its cover here, so cropping this one to 16/6 just moved the
+                    problem rather than fixing it. */}
                 {event.cover_image && (
                     <div className="mx-auto max-w-6xl px-6 pt-6">
-                        <img src={event.cover_image} alt={event.title} className="aspect-[16/6] w-full rounded-2xl object-cover" />
+                        <EventBanner src={event.cover_image} alt={event.title} />
                     </div>
                 )}
 
