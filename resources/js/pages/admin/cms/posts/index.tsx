@@ -33,8 +33,8 @@ export default function PostsIndex({ posts }: { posts: PostRow[] }) {
                         <Button asChild><Link href="/admin/cms/posts/create"><Plus className="size-4" /> Write your first post</Link></Button>
                     </div>
                 ) : (
-                    <div className="overflow-hidden rounded-xl border border-border">
-                        <table className="w-full text-sm">
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                        <table className="w-full min-w-[640px] text-sm">
                             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr><th className="px-4 py-3 font-medium">Title</th><th className="px-4 py-3 font-medium">Category</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 text-right font-medium">Actions</th></tr>
                             </thead>

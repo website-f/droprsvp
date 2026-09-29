@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, CornerDownRight, Globe, Images, Info, Lock, MapPin, MessageCircle, Send, Shield, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
+import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -186,6 +187,8 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 }) {
     const [tab, setTab] = useState<Tab>('events');
     const [replyTo, setReplyTo] = useState<number | null>(null);
+    // Photo lightbox — tapping a thumbnail opens the full image, swipeable.
+    const gallery = useLightbox();
     const [asOrganizer, setAsOrganizer] = useState(false);
     const ask = useForm({ body: '', parent_id: null as number | null, as_organizer: false });
     const follow = () => (viewer.authed
@@ -371,7 +374,15 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                         ) : (
                             <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [&>*]:mb-3">
                                 {photos.map((ph, i) => (
-                                    <img key={i} src={ph.path} alt={ph.caption ?? ''} loading="lazy" className="w-full break-inside-avoid rounded-xl border border-border object-cover" />
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => gallery.open(i)}
+                                        aria-label={`View photo ${i + 1} of ${photos.length}`}
+                                        className="block w-full cursor-zoom-in break-inside-avoid overflow-hidden rounded-xl border border-border transition-opacity hover:opacity-90"
+                                    >
+                                        <img src={ph.path} alt={ph.caption ?? ''} loading="lazy" className="w-full object-cover" />
+                                    </button>
                                 ))}
                             </div>
                         )
@@ -447,6 +458,13 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 
                 <PublicFooter />
             </div>
+
+            <ImageLightbox
+                images={photos.map((ph) => ({ src: ph.path, alt: ph.caption ?? '' }))}
+                index={gallery.index}
+                onClose={gallery.close}
+                onIndexChange={gallery.change}
+            />
         </>
     );
 }

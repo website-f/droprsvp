@@ -26,8 +26,8 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                     <Button type="submit">Search</Button>
                 </form>
 
-                <div className="overflow-hidden rounded-xl border border-border">
-                    <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-xl border border-border">
+                    <table className="w-full min-w-[760px] text-sm">
                         <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                             <tr><th className="px-4 py-3 font-medium">Event</th><th className="px-4 py-3 font-medium">Organizer</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Sold</th><th className="px-4 py-3 font-medium">Revenue</th><th className="px-4 py-3"></th></tr>
                         </thead>

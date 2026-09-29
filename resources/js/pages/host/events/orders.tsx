@@ -38,8 +38,8 @@ export default function Orders({ event, orders }: Props) {
                         <p className="text-sm text-muted-foreground">No orders yet.</p>
                     </div>
                 ) : (
-                    <div className="overflow-hidden rounded-xl border border-border">
-                        <table className="w-full text-sm">
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                        <table className="w-full min-w-[700px] text-sm">
                             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr><th className="px-4 py-3 font-medium">Buyer</th><th className="px-4 py-3 font-medium">Tickets</th><th className="px-4 py-3 font-medium">Total</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 text-right font-medium">Actions</th></tr>
                             </thead>

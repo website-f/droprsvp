@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
 import { EventBanner } from '@/components/event-banner';
+import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { SeatMap   } from '@/components/seat-map';
 import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
@@ -82,6 +83,8 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
     const [submitting, setSubmitting] = useState(false);
     const [tab, setTab] = useState<Tab>('about');
     const [replyTo, setReplyTo] = useState<number | null>(null);
+    // Gallery lightbox — tapping a thumbnail opens the full photo, swipeable.
+    const gallery = useLightbox();
 
     const ask = useForm({ body: '', parent_id: null as number | null });
     const review = useForm({ rating: reviews.mine?.rating ?? 0, body: reviews.mine?.body ?? '' });
@@ -361,7 +364,15 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                     event.gallery.length > 0 ? (
                                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                             {event.gallery.map((src, i) => (
-                                                <img key={i} src={src} alt={`${event.title} photo ${i + 1}`} className="aspect-square w-full rounded-xl border border-border object-cover" loading="lazy" />
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => gallery.open(i)}
+                                                    aria-label={`View photo ${i + 1} of ${event.gallery.length}`}
+                                                    className="cursor-zoom-in overflow-hidden rounded-xl border border-border transition-opacity hover:opacity-90"
+                                                >
+                                                    <img src={src} alt={`${event.title} photo ${i + 1}`} className="aspect-square w-full object-cover" loading="lazy" />
+                                                </button>
                                             ))}
                                         </div>
                                     ) : <p className="text-sm text-muted-foreground">No photos yet.</p>
@@ -601,6 +612,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
                 <PublicFooter />
             </div>
+
+            <ImageLightbox
+                images={event.gallery.map((src, i) => ({ src, alt: `${event.title} photo ${i + 1}` }))}
+                index={gallery.index}
+                onClose={gallery.close}
+                onIndexChange={gallery.change}
+            />
         </>
     );
 }

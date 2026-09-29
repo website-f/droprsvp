@@ -38,7 +38,7 @@ export default function HostInvoices({ payouts, events }: Props) {
                         <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No events yet.</p>
                     ) : (
                         <>
-                            <div className="overflow-hidden rounded-2xl border border-border">
+                            <div className="overflow-x-auto rounded-2xl border border-border">
                                 <table className="w-full min-w-[560px] text-sm">
                                     <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                         <tr>

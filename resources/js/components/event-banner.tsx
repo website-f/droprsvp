@@ -1,5 +1,6 @@
-import { Expand, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Expand } from 'lucide-react';
+import { useState } from 'react';
+import { ImageLightbox } from '@/components/image-lightbox';
 
 /**
  * An event's artwork, shown at whatever shape it was uploaded in.
@@ -21,23 +22,8 @@ import { useEffect, useState } from 'react';
 export function EventBanner({ src, alt }: { src: string; alt: string }) {
     const [full, setFull] = useState(false);
 
-    // Escape closes the lightbox, and the page must not scroll behind it.
-    useEffect(() => {
-        if (!full) {
-            return;
-        }
-
-        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setFull(false);
-        const previous = document.body.style.overflow;
-
-        document.body.style.overflow = 'hidden';
-        window.addEventListener('keydown', onKey);
-
-        return () => {
-            document.body.style.overflow = previous;
-            window.removeEventListener('keydown', onKey);
-        };
-    }, [full]);
+    // Escape, scroll-lock and the backdrop all live in ImageLightbox, so a
+    // single-image banner behaves exactly like a gallery of one.
 
     return (
         <>
@@ -72,33 +58,12 @@ export function EventBanner({ src, alt }: { src: string; alt: string }) {
                 </span>
             </div>
 
-            {full && (
-                <div
-                    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-4"
-                    onClick={() => setFull(false)}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={alt}
-                >
-                    <button
-                        type="button"
-                        onClick={() => setFull(false)}
-                        aria-label="Close"
-                        className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-                    >
-                        <X className="size-5" />
-                    </button>
-
-                    {/* Stop propagation so tapping the poster itself doesn't close it —
-                        people pinch-zoom here, and a stray tap shouldn't dismiss. */}
-                    <img
-                        src={src}
-                        alt={alt}
-                        onClick={(e) => e.stopPropagation()}
-                        className="max-h-full max-w-full object-contain"
-                    />
-                </div>
-            )}
+            <ImageLightbox
+                images={[{ src, alt }]}
+                index={full ? 0 : null}
+                onClose={() => setFull(false)}
+                onIndexChange={() => undefined}
+            />
         </>
     );
 }
