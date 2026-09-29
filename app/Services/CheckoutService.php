@@ -256,6 +256,13 @@ class CheckoutService
         // Email the tickets exactly once, after settlement (outside the transaction).
         if ($newlyPaid && $order->fresh()->buyer_email) {
             $this->provisionBuyerAccount($order->fresh());
+
+            // Checkout asks the same demographics as the "about you" profile, so
+            // carry them onto the account — whether it already existed (a signed-in
+            // purchase) or was just provisioned above for a guest. Blanks only; a
+            // profile the user maintained themselves is never overwritten.
+            \App\Support\Profile::syncFromOrder($order->fresh()->load('user'));
+
             $order->load(['event', 'tickets']);
             // Sent after the HTTP response so slow SMTP never delays checkout.
             defer(function () use ($order) {
