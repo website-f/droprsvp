@@ -180,11 +180,24 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                                 ? <Badge variant="secondary" className="shrink-0">Appeal pending</Badge>
                                                 : <Button variant="outline" size="sm" onClick={() => setAppealEvent(e)}><Gavel className="size-3.5" /> <span className="hidden sm:inline">Appeal</span></Button>
                                         )}
-                                        {/* Only a published event has a link worth
-                                            sharing — a draft would 404 for whoever
-                                            the organizer sent it to. */}
-                                        {e.status === 'published' && e.public_url && (
-                                            <ShareEventButton url={e.public_url} title={e.title} />
+                                        {/* Always shown, so its absence is never
+                                            mistaken for a missing feature. A draft
+                                            or a private event 404s for anyone but
+                                            the owner, so in those cases the button
+                                            says why instead of handing out a dead
+                                            link. */}
+                                        {e.public_url && (
+                                            <ShareEventButton
+                                                url={e.public_url}
+                                                title={e.title}
+                                                unavailableReason={
+                                                    e.status !== 'published'
+                                                        ? 'Publish this event first — until then the link only works for you.'
+                                                        : e.visibility === 'private'
+                                                          ? 'This event is private, so the link only works for you. Set it to Public or Unlisted to share it.'
+                                                          : undefined
+                                                }
+                                            />
                                         )}
                                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/attendees`}><Users className="size-3.5" /> <span className="hidden sm:inline">Attendees</span></Link></Button>
                                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/edit`}><Pencil className="size-3.5" /> <span className="hidden sm:inline">Edit</span></Link></Button>

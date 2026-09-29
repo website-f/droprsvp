@@ -18,11 +18,19 @@ export function ShareEventButton({
     title,
     label = 'Share',
     variant = 'outline',
+    unavailableReason,
 }: {
     url: string;
     title: string;
     label?: string;
     variant?: 'outline' | 'ghost' | 'default';
+    /**
+     * Set when the link would not work for whoever received it — a draft, or a
+     * private event. The button stays PRESENT and says why instead of
+     * disappearing: a control that vanishes silently just reads as a missing
+     * feature, which is how this was first reported.
+     */
+    unavailableReason?: string;
 }) {
     const [, copy] = useClipboard();
     const [copied, setCopied] = useState(false);
@@ -37,6 +45,14 @@ export function ShareEventButton({
     }, [copied]);
 
     const share = async () => {
+        if (unavailableReason) {
+            // Deliberately not a `disabled` button: a disabled control cannot be
+            // tapped, so on a phone there would be no way to find out why.
+            toast.info(unavailableReason);
+
+            return;
+        }
+
         if (typeof navigator !== 'undefined' && navigator.share) {
             try {
                 await navigator.share({ title, text: `Register for ${title}`, url });
@@ -60,7 +76,14 @@ export function ShareEventButton({
     };
 
     return (
-        <Button type="button" variant={variant} size="sm" onClick={share} title={url}>
+        <Button
+            type="button"
+            variant={variant}
+            size="sm"
+            onClick={share}
+            title={unavailableReason ?? url}
+            className={unavailableReason ? 'text-muted-foreground' : undefined}
+        >
             {copied ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
             <span className="hidden sm:inline">{copied ? 'Copied' : label}</span>
         </Button>
