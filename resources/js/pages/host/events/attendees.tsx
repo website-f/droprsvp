@@ -227,7 +227,10 @@ p.set('type', filters.type);
                     {ticketTypes.length > 0 && (
                         <div className="w-44"><AppSelect value={filters.type || 'all'} onChange={(v) => applyFilters({ type: v })} options={[{ value: 'all', label: 'All ticket types' }, ...ticketTypes.map((t) => ({ value: String(t.id), label: t.name }))]} /></div>
                     )}
-                    <Button asChild variant="outline" size="sm"><a href={exportUrl()}><Download className="size-4" /> Export</a></Button>
+                    {/* `download` keeps the CSV in this tab. Without it a mobile
+                        browser opens a new tab to fetch the file and leaves a blank
+                        white page behind if anything goes wrong server-side. */}
+                    <Button asChild variant="outline" size="sm"><a href={exportUrl()} download><Download className="size-4" /> Export</a></Button>
                 </div>
 
                 {/* Table */}

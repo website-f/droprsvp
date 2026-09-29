@@ -16,6 +16,7 @@ use App\Services\EventDuplicator;
 use App\Support\Cities;
 use App\Support\CustomFields;
 use App\Support\PlatformFee;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -35,6 +36,10 @@ class EventController extends Controller
                 // Flag events shared with this user so the UI can label them.
                 $e->setAttribute('mine', $e->user_id === $user->id);
                 $e->setAttribute('owner_name', $e->user_id === $user->id ? null : $e->user?->name);
+                // The public registration link, built server-side so it carries
+                // the canonical host and trailing slash rather than whatever the
+                // browser happens to be on.
+                $e->setAttribute('public_url', Url::to('e', $e->slug));
                 unset($e->user);
 
                 return $e;

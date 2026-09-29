@@ -1,7 +1,7 @@
 import type {FormDataConvertible} from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { LayoutEditorOverlay, LayoutPreview } from '@/components/layout-editor-overlay';
 import { usePrompt } from '@/components/prompt-dialog';
@@ -20,7 +20,7 @@ import { CustomFieldsBuilder } from '@/components/custom-fields-builder';
 import type { CustomField } from '@/components/custom-fields';
 
 interface Category { id: number; name: string }
-interface City { name: string; slug: string }
+interface City { name: string; slug: string; state: string }
 interface SessionRow { id?: number; title: string; starts_at: string; ends_at: string; capacity: string }
 interface TicketRow {
     id?: number; name: string; description: string; kind: 'paid' | 'free' | 'donation';
@@ -121,6 +121,15 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0' })),
     });
     const { data, setData, errors, processing } = form;
+
+    // The state is a picker convenience, not stored data — only the city is
+    // saved. Seed it from the event's existing city so editing opens on the
+    // right state instead of an empty box.
+    const states = useMemo<string[]>(() => [...new Set(cities.map((c) => c.state))], [cities]);
+    const citiesFor = (state: string) => (state ? cities.filter((c) => c.state === state) : []);
+    const [stateValue, setStateValue] = useState(
+        () => cities.find((c) => c.name === (event?.city ?? ''))?.state ?? '',
+    );
     // Warn before losing unsaved event edits (refresh, back, or navigating away).
     useUnsavedChanges(form.isDirty && !processing);
     const mode = data.ticketing_mode;
@@ -452,13 +461,38 @@ form.post('/host/events', options);
                                     <Label htmlFor="venue_name">Venue name</Label>
                                     <input id="venue_name" className={field} value={data.venue_name} onChange={(e) => setData('venue_name', e.target.value)} placeholder="e.g. The Bee, Publika" />
                                 </div>
+                                {/* State first, then the cities in it. Picking from
+                                    66 unrelated names was the complaint; narrowing to
+                                    one state leaves a handful. Only the city is stored
+                                    — the state is derived from it, so nothing about
+                                    the saved data or the city URLs changes. */}
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="state">State</Label>
+                                    <AppSelect
+                                        id="state"
+                                        value={stateValue || 'none'}
+                                        onChange={(v) => {
+                                            const next = v === 'none' ? '' : v;
+                                            setStateValue(next);
+                                            // The chosen city almost certainly isn't in
+                                            // the new state, so don't leave a mismatch.
+                                            if (data.city && citiesFor(next).every((c) => c.name !== data.city)) {
+                                                setData('city', '');
+                                            }
+                                        }}
+                                        options={[{ value: 'none', label: '— Select state —' }, ...states.map((st) => ({ value: st, label: st }))]}
+                                    />
+                                </div>
                                 <div className="grid gap-1.5">
                                     <Label htmlFor="city">City</Label>
                                     <AppSelect
                                         id="city"
                                         value={data.city || 'none'}
                                         onChange={(v) => setData('city', v === 'none' ? '' : v)}
-                                        options={[{ value: 'none', label: '— Select city —' }, ...cities.map((c) => ({ value: c.name, label: c.name }))]}
+                                        options={[
+                                            { value: 'none', label: stateValue ? '— Select city —' : '— Select a state first —' },
+                                            ...citiesFor(stateValue).map((c) => ({ value: c.name, label: c.name })),
+                                        ]}
                                     />
                                     <p className="text-xs text-muted-foreground">Used for search &amp; the city landing pages.</p>
                                 </div>

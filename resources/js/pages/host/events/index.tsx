@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ShareEventButton } from '@/components/share-event-button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,
@@ -27,6 +28,8 @@ interface HostEvent {
     orders_count: number;
     mine?: boolean;
     owner_name?: string | null;
+    /** Public registration link, built server-side (canonical host + slash). */
+    public_url?: string | null;
 }
 
 /** Appeal an admin cancellation — reason + proof attachments, both required. */
@@ -176,6 +179,12 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                             e.appeal_status === 'pending'
                                                 ? <Badge variant="secondary" className="shrink-0">Appeal pending</Badge>
                                                 : <Button variant="outline" size="sm" onClick={() => setAppealEvent(e)}><Gavel className="size-3.5" /> <span className="hidden sm:inline">Appeal</span></Button>
+                                        )}
+                                        {/* Only a published event has a link worth
+                                            sharing — a draft would 404 for whoever
+                                            the organizer sent it to. */}
+                                        {e.status === 'published' && e.public_url && (
+                                            <ShareEventButton url={e.public_url} title={e.title} />
                                         )}
                                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/attendees`}><Users className="size-3.5" /> <span className="hidden sm:inline">Attendees</span></Link></Button>
                                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${e.slug}/edit`}><Pencil className="size-3.5" /> <span className="hidden sm:inline">Edit</span></Link></Button>

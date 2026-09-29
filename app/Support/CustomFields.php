@@ -98,6 +98,14 @@ class CustomFields
         $clean = [];
 
         foreach (array_values($fields ?? []) as $field) {
+            // Anything but an array here is corrupt data — a hand-edited JSON
+            // column, a half-written import. Indexing a string with a string key
+            // is a TypeError in PHP 8, which would 500 every page that reads the
+            // event, so skip rather than trust the column's shape.
+            if (! is_array($field)) {
+                continue;
+            }
+
             $label = trim((string) ($field['label'] ?? ''));
             $type = $field['type'] ?? self::TEXT;
 
@@ -118,7 +126,11 @@ class CustomFields
                 $entry['multiple'] = (bool) ($field['multiple'] ?? false);
                 $entry['options'] = [];
 
-                foreach (array_values($field['options'] ?? []) as $option) {
+                foreach (array_values((array) ($field['options'] ?? [])) as $option) {
+                    if (! is_array($option)) {
+                        continue;
+                    }
+
                     $optionLabel = trim((string) ($option['label'] ?? ''));
 
                     if ($optionLabel === '') {
@@ -235,7 +247,7 @@ class CustomFields
      *
      * @return array<string,string>
      */
-    public static function readable(Event $event, ?array $answers): array
+    public static function readable(Event $event, ?array $answers, ?array $fields = null): array
     {
         if (! $answers) {
             return [];
@@ -243,7 +255,9 @@ class CustomFields
 
         $out = [];
 
-        foreach (self::forEvent($event) as $field) {
+        // $fields lets a caller resolve the definitions once for a whole page
+        // of rows instead of re-parsing them per row.
+        foreach ($fields ?? self::forEvent($event) as $field) {
             $value = $answers[$field['id']] ?? null;
 
             if ($value === null || $value === '' || $value === []) {

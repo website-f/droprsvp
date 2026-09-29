@@ -3,6 +3,7 @@ import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, 
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
+import { EventBanner } from '@/components/event-banner';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { SeatMap   } from '@/components/seat-map';
 import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
@@ -207,10 +208,13 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     </div>
                 )}
 
+                {/* Shown at the shape it was uploaded in — see EventBanner. The
+                    old fixed 3:1 crop cut the text off a story-format poster.
+                    Constrained to the content width now that it is no longer a
+                    full-bleed strip. */}
                 {event.banner_image && (
-                    <div className="relative w-full overflow-hidden">
-                        <img src={event.banner_image} alt={event.title} className="aspect-[3/1] w-full object-cover sm:aspect-[4/1]" />
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/70 via-background/10 to-transparent" />
+                    <div className="mx-auto max-w-6xl px-6 pt-6">
+                        <EventBanner src={event.banner_image} alt={event.title} />
                     </div>
                 )}
 

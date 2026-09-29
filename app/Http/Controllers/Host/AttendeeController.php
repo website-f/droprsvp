@@ -23,12 +23,16 @@ class AttendeeController extends Controller
 
         $filters = $this->filters($request);
 
+        // Resolved once, not per row: readable() re-parses the event's field
+        // definitions on every call, and this page renders 25 rows.
+        $fields = CustomFields::forEvent($event);
+
         $tickets = $this->query($event, $filters)
             ->with(['ticketType:id,name', 'order:id,reference,buyer_name,buyer_email,buyer_phone,paid_at', 'seatingTable:id,name'])
             ->orderByDesc('id')
             ->paginate(25)
             ->withQueryString()
-            ->through(fn (Ticket $t) => $this->row($t, $event));
+            ->through(fn (Ticket $t) => $this->row($t, $event, $fields));
 
         return inertia('host/events/attendees', [
             'event' => ['title' => $event->title, 'slug' => $event->slug, 'mode' => $event->ticketing_mode],
@@ -59,7 +63,8 @@ class AttendeeController extends Controller
             // One extra column per booking question, in the order the organizer
             // defined them — a caterer wants the meal choices as a column they
             // can sort, not buried in a notes field.
-            $questions = array_column(CustomFields::forEvent($event), 'label');
+            $fields = CustomFields::forEvent($event);
+            $questions = array_column($fields, 'label');
 
             fputcsv($out, array_merge(
                 ['Name', 'Email', 'Phone', 'Ticket type', 'Seat / Table', 'Order', 'Purchased', 'Status', 'Checked in at', 'Token'],
@@ -67,7 +72,7 @@ class AttendeeController extends Controller
             ));
 
             foreach ($tickets as $t) {
-                $r = $this->row($t, $event);
+                $r = $this->row($t, $event, $fields);
                 fputcsv($out, array_merge(
                     [$r['name'], $r['email'], $r['phone'], $r['type'], $r['seat'], $r['order_ref'], $r['purchased_at'], $r['status'], $r['checked_in_at'], $r['token']],
                     array_map(fn (string $q) => $r['answers'][$q] ?? '', $questions),
@@ -187,7 +192,11 @@ class AttendeeController extends Controller
             });
     }
 
-    private function row(Ticket $t, Event $event): array
+    /**
+     * @param  array<int,array<string,mixed>>|null  $fields  the event's booking
+     *         fields, resolved once by the caller so 25 rows don't re-parse them
+     */
+    private function row(Ticket $t, Event $event, ?array $fields = null): array
     {
         return [
             'id' => $t->id,
@@ -205,7 +214,7 @@ class AttendeeController extends Controller
             // readable label => answer pairs. Resolved against the event's CURRENT
             // definitions, so a renamed question shows its new wording and a
             // deleted one drops out rather than showing a bare id.
-            'answers' => CustomFields::readable($event, $t->custom_answers),
+            'answers' => CustomFields::readable($event, $t->custom_answers, $fields),
         ];
     }
 
