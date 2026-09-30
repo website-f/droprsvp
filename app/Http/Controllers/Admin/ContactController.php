@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -27,7 +28,7 @@ class ContactController extends Controller
                 'category' => $m->category,
                 'message' => $m->message,
                 'handled' => (bool) $m->handled_at,
-                'at' => $m->created_at->format('j M Y · g:i A'),
+                'at' => Dates::display($m->created_at, 'j M Y · g:i A'),
             ]);
 
         return inertia('admin/contact/index', [
@@ -64,7 +65,7 @@ class ContactController extends Controller
                 ->chunk(500, function ($rows) use ($out) {
                     foreach ($rows as $m) {
                         fputcsv($out, [
-                            $m->created_at->format('Y-m-d H:i'),
+                            Dates::display($m->created_at, 'Y-m-d H:i'),
                             $m->name,
                             $m->email,
                             $m->phone,

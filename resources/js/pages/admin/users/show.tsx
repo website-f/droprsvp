@@ -1,11 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, Ban, CalendarDays, Heart, Mail, MapPin, Percent, Phone, Power, ShieldCheck, SlidersHorizontal, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Ban, Building2, CalendarDays, ExternalLink, Globe, Heart, Mail, MapPin, Percent, Phone, Power, ShieldCheck, SlidersHorizontal, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import {  OrganizerFeeDialog } from '@/components/admin/organizer-fee-dialog';
 import type {FeeRate} from '@/components/admin/organizer-fee-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { prettyUrl, safeHref } from '@/lib/pretty-url';
 
 interface UserDetail {
     id: number; name: string; email: string; phone: string | null;
@@ -16,6 +17,11 @@ interface UserDetail {
     email_verified: boolean; joined: string | null; is_organizer: boolean;
 }
 interface Activity { events: number; orders: number; tickets: number; spent: number; followers: number; following: number }
+interface OrganizerProfile {
+    id: number;
+    business_name: string | null; website: string | null; phone: string | null;
+    bio: string | null; status: string | null; submitted_at: string | null;
+}
 
 const AGE_LABEL: Record<string, string> = { 'under-18': 'Under 18', '18-24': '18–24', '25-34': '25–34', '35-44': '35–44', '45-54': '45–54', '55+': '55+' };
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -44,7 +50,10 @@ function Row({ icon: Icon, label, children }: { icon: typeof Mail; label: string
     );
 }
 
-export default function UserShow({ user, activity, fee, globalFee, canManageFees }: { user: UserDetail; activity: Activity; fee: FeeRate; globalFee: FeeRate; canManageFees: boolean }) {
+export default function UserShow({ user, activity, fee, globalFee, canManageFees, organizerProfile = null }: {
+    user: UserDetail; activity: Activity; fee: FeeRate; globalFee: FeeRate; canManageFees: boolean;
+    organizerProfile?: OrganizerProfile | null;
+}) {
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
     const confirm = useConfirm();
     const [editingFee, setEditingFee] = useState(false);
@@ -185,6 +194,48 @@ export default function UserShow({ user, activity, fee, globalFee, canManageFees
                         </div>
                     </section>
                 </div>
+
+                {/* What they told us on their organizer application. It used to
+                    live only on the applications screen, so this page showed
+                    blanks for details the platform plainly held. */}
+                {organizerProfile && (
+                    <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <h2 className="text-sm font-semibold">Organizer application</h2>
+                            {organizerProfile.status && (
+                                <Badge variant={organizerProfile.status === 'approved' ? 'default' : 'secondary'} className="capitalize">
+                                    {organizerProfile.status}
+                                </Badge>
+                            )}
+                            <Link href={`/admin/organizers/${organizerProfile.id}`} className="ml-auto text-xs text-muted-foreground hover:text-foreground hover:underline">
+                                View application →
+                            </Link>
+                        </div>
+                        <div className="divide-y divide-border">
+                            <Row icon={Building2} label="Business name">{organizerProfile.business_name || '—'}</Row>
+                            <Row icon={Phone} label="Phone on application">
+                                {organizerProfile.phone
+                                    ? <a href={`tel:${organizerProfile.phone}`} className="hover:underline">{organizerProfile.phone}</a>
+                                    : '—'}
+                            </Row>
+                            <Row icon={Globe} label="Website">
+                                {safeHref(organizerProfile.website) ? (
+                                    <a
+                                        href={safeHref(organizerProfile.website)!}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title={organizerProfile.website ?? undefined}
+                                        className="inline-flex max-w-full items-center gap-1 hover:underline"
+                                    >
+                                        <span className="truncate">{prettyUrl(organizerProfile.website)}</span>
+                                        <ExternalLink className="size-3 shrink-0" />
+                                    </a>
+                                ) : '—'}
+                            </Row>
+                            <Row icon={CalendarDays} label="Applied">{organizerProfile.submitted_at ?? '—'}</Row>
+                        </div>
+                    </section>
+                )}
             </div>
 
             <OrganizerFeeDialog

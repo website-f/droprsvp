@@ -24,7 +24,7 @@ class Receipt
             'kind' => 'order',
             'title' => 'Receipt',
             'number' => $order->reference,
-            'date' => optional($order->paid_at ?? $order->created_at)->format('j M Y'),
+            'date' => Dates::display($order->paid_at ?? $order->created_at, 'j M Y'),
             'status' => $order->status,
             'seller' => [
                 'name' => $profile?->business_name ?: ($organizer?->name ?? config('app.name')),
@@ -69,7 +69,7 @@ class Receipt
             'kind' => 'payout',
             'title' => 'Payout receipt',
             'number' => $payout->reference,
-            'date' => optional($payout->paid_at ?? $payout->created_at)->format('j M Y'),
+            'date' => Dates::display($payout->paid_at ?? $payout->created_at, 'j M Y'),
             'status' => $payout->status,
             'seller' => [
                 'name' => config('app.name'),

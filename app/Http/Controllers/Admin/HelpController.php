@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HelpArticle;
+use App\Support\Dates;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -14,7 +16,7 @@ class HelpController extends Controller
     {
         return inertia('admin/cms/help/index', [
             'articles' => HelpArticle::orderBy('category')->orderBy('sort')->get()
-                ->map(fn ($a) => ['id' => $a->id, 'slug' => $a->slug, 'title' => $a->title, 'category' => $a->category, 'status' => $a->status, 'updated_at' => $a->updated_at->format('j M Y')]),
+                ->map(fn ($a) => ['id' => $a->id, 'slug' => $a->slug, 'title' => $a->title, 'category' => $a->category, 'status' => $a->status, 'updated_at' => Dates::display($a->updated_at, 'j M Y')]),
         ]);
     }
 
@@ -77,7 +79,7 @@ class HelpController extends Controller
             'title' => $data['title'],
             'category' => $data['category'],
             'excerpt' => $data['excerpt'] ?? null,
-            'body' => \App\Support\HtmlSanitizer::clean($data['body'] ?? null),
+            'body' => HtmlSanitizer::clean($data['body'] ?? null),
             'sort' => $data['sort'] ?? 0,
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
             'published_at' => ($data['publish'] ?? false) ? now() : null,

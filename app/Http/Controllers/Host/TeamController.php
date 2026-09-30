@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Host;
 use App\Http\Controllers\Controller;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -21,7 +22,7 @@ class TeamController extends Controller
                 'name' => $m->member?->name,
                 'email' => $m->member?->email,
                 'role' => $m->role,
-                'added' => optional($m->created_at)->format('j M Y'),
+                'added' => Dates::display($m->created_at, 'j M Y'),
             ]),
         ]);
     }

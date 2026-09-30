@@ -46,13 +46,20 @@ function SheetContent({
   className,
   children,
   side = "right",
+  overlayProps,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
+  /**
+   * Handlers for the dimmed backdrop. Radix already dismisses on a pointerdown
+   * outside the content, but that is one code path and it was not firing
+   * reliably on touch — so a caller can bind the backdrop directly.
+   */
+  overlayProps?: React.ComponentProps<typeof SheetPrimitive.Overlay>
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay {...overlayProps} />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(

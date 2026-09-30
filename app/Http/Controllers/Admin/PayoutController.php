@@ -7,6 +7,7 @@ use App\Models\Payout;
 use App\Services\Payments\ChipSendGateway;
 use App\Services\PayoutService;
 use App\Support\Banks;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -37,8 +38,8 @@ class PayoutController extends Controller
                         'account' => $p->user->payout_bank_account_number,
                         'holder' => $p->user->payout_bank_account_name,
                     ] : null,
-                    'requested_at' => optional($p->requested_at)->format('j M Y'),
-                    'paid_at' => optional($p->paid_at)->format('j M Y'),
+                    'requested_at' => Dates::display($p->requested_at, 'j M Y'),
+                    'paid_at' => Dates::display($p->paid_at, 'j M Y'),
                 ]),
         ]);
     }

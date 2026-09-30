@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\AccountStatusMail;
+use App\Models\Order;
+use App\Models\Ticket;
 use App\Models\User;
+use App\Support\Dates;
+use App\Support\PlatformFee;
 use App\Support\Profile;
+use App\Support\RolePermissions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
@@ -21,7 +27,7 @@ class UserController extends Controller
 
         $users = $this->query($filters)
             ->withCount('events')
-            ->with('roles:id,name')
+            ->with(['roles:id,name', 'organizerProfile:id,user_id,phone'])
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString()
@@ -38,15 +44,20 @@ class UserController extends Controller
     /** Full profile + activity for one user. */
     public function show(Request $request, User $user)
     {
-        $user->load('roles:id,name');
-        $paidIds = \App\Models\Order::where('user_id', $user->id)->where('status', 'paid')->pluck('id');
+        $user->load('roles:id,name', 'organizerProfile');
+        $paidIds = Order::where('user_id', $user->id)->where('status', 'paid')->pluck('id');
 
         return inertia('admin/users/show', [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'phone' => $user->phone,
+                // Fall back to the application: organizers give a number there
+                // and are never sent through the attendee profile, so the
+                // account column can legitimately be empty while we plainly
+                // hold one. (A migration backfills the existing ones; this
+                // covers anything created between then and now.)
+                'phone' => $user->phone ?: $user->organizerProfile?->phone,
                 'gender' => $user->gender,
                 'age_band' => $user->age_band,
                 // The year they gave; the band above is derived from it.
@@ -56,28 +67,43 @@ class UserController extends Controller
                 'roles' => $user->roles->pluck('name'),
                 'is_superadmin' => $user->hasRole('superadmin'),
                 'disabled' => $user->isDisabled(),
-                'disabled_at' => optional($user->disabled_at)->format('j M Y'),
+                'disabled_at' => Dates::display($user->disabled_at, 'j M Y'),
                 'profile_complete' => (bool) $user->profile_completed_at,
-                'profile_completed_at' => optional($user->profile_completed_at)->format('j M Y'),
+                'profile_completed_at' => Dates::display($user->profile_completed_at, 'j M Y'),
                 'email_verified' => (bool) $user->email_verified_at,
-                'joined' => optional($user->created_at)->format('j M Y'),
+                'joined' => Dates::display($user->created_at, 'j M Y'),
                 // "2 years on DropRSVP" — tells an admin at a glance whether this
                 // is a regular or somebody who signed up this morning.
-                'membership' => \App\Support\Profile::membershipLabel($user->created_at),
+                'membership' => Profile::membershipLabel($user->created_at),
                 // Hosts can be moved off the global booking fee from this page.
                 'is_organizer' => $user->hasRole('organizer') || $user->events()->exists(),
             ],
+            // What they told us on their organizer application.
+            //
+            // It lived only on the applications screen, so an admin looking at
+            // a user saw blank contact details for someone who had plainly
+            // filled them in — just on a different page. The two now agree.
+            'organizerProfile' => $user->organizerProfile ? [
+                // The admin application route binds to the PROFILE, not the user.
+                'id' => $user->organizerProfile->id,
+                'business_name' => $user->organizerProfile->business_name,
+                'website' => $user->organizerProfile->website,
+                'phone' => $user->organizerProfile->phone,
+                'bio' => $user->organizerProfile->bio,
+                'status' => $user->organizerProfile->status,
+                'submitted_at' => Dates::display($user->organizerProfile->submitted_at, 'j M Y, g:i A'),
+            ] : null,
             // The booking fee this host is charged, plus the platform-wide rate to
             // compare it against. Editing is gated on the Settings section, which is
             // where the global fee lives (the endpoint enforces this too).
-            'fee' => \App\Support\PlatformFee::toArray($user),
-            'globalFee' => \App\Support\PlatformFee::toArray(),
-            'canManageFees' => \App\Support\RolePermissions::can($request->user(), 'settings'),
+            'fee' => PlatformFee::toArray($user),
+            'globalFee' => PlatformFee::toArray(),
+            'canManageFees' => RolePermissions::can($request->user(), 'settings'),
             'activity' => [
                 'events' => $user->events()->count(),
                 'orders' => $paidIds->count(),
-                'tickets' => \App\Models\Ticket::whereIn('order_id', $paidIds)->count(),
-                'spent' => (float) \App\Models\Order::whereKey($paidIds)->sum('total'),
+                'tickets' => Ticket::whereIn('order_id', $paidIds)->count(),
+                'spent' => (float) Order::whereKey($paidIds)->sum('total'),
                 'followers' => $user->followers()->count(),
                 'following' => $user->following()->count(),
             ],
@@ -88,14 +114,14 @@ class UserController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $filters = $this->filters($request);
-        $users = $this->query($filters)->with('roles:id,name')->orderBy('name')->get();
+        $users = $this->query($filters)->with(['roles:id,name', 'organizerProfile:id,user_id,phone'])->orderBy('name')->get();
 
         return response()->streamDownload(function () use ($users) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Name', 'Email', 'Phone', 'Gender', 'Age band', 'Birth year', 'City', 'Country', 'Roles', 'Profile complete', 'Joined']);
             foreach ($users as $u) {
                 fputcsv($out, [
-                    $u->name, $u->email, $u->phone, $u->gender, $u->age_band, $u->birth_year, $u->city, $u->country,
+                    $u->name, $u->email, $u->phone ?: $u->organizerProfile?->phone, $u->gender, $u->age_band, $u->birth_year, $u->city, $u->country,
                     $u->roles->pluck('name')->join(', '),
                     $u->profile_completed_at ? 'yes' : 'no',
                     optional($u->created_at)->toDateString(),
@@ -135,7 +161,7 @@ class UserController extends Controller
         $user->save();
 
         if ($data['role'] !== 'normal') {
-            \Spatie\Permission\Models\Role::findOrCreate($data['role'], 'web');
+            Role::findOrCreate($data['role'], 'web');
             $user->assignRole($data['role']);
         }
 
@@ -164,7 +190,7 @@ class UserController extends Controller
         }
 
         if ($data['role'] !== 'normal') {
-            \Spatie\Permission\Models\Role::findOrCreate($data['role'], 'web');
+            Role::findOrCreate($data['role'], 'web');
         }
         $user->syncRoles($data['role'] === 'normal' ? [] : [$data['role']]);
 
@@ -261,7 +287,7 @@ class UserController extends Controller
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
-            'phone' => $u->phone,
+            'phone' => $u->phone ?: $u->organizerProfile?->phone,
             'gender' => $u->gender,
             'age_band' => $u->age_band,
             'city' => $u->city,

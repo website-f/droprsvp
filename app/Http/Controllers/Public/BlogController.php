@@ -7,6 +7,7 @@ use App\Models\CmsCategory;
 use App\Models\CmsPost;
 use App\Models\Event;
 use App\Support\Cities;
+use App\Support\Dates;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use App\Support\TableOfContents;
@@ -125,7 +126,7 @@ class BlogController extends Controller
                 'cover_image' => $post->cover_image,
                 'category' => $post->category?->name,
                 'author' => $post->author?->name,
-                'date' => optional($post->published_at)->format('j M Y'),
+                'date' => Dates::display($post->published_at, 'j M Y'),
                 'reading_minutes' => max(1, (int) ceil($wordCount / 200)),
             ],
             // Sticky contents rail — the same headings the inline block lists.
@@ -240,7 +241,7 @@ class BlogController extends Controller
             'cover_image' => $p->cover_image,
             'category' => $p->category?->name,
             'category_slug' => $p->category?->slug,
-            'date' => optional($p->published_at)->format('j M Y'),
+            'date' => Dates::display($p->published_at, 'j M Y'),
         ];
     }
 

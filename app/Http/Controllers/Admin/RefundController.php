@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\RefundRequest;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 
 /**
@@ -34,8 +35,8 @@ class RefundController extends Controller
                 'event' => $r->order?->event?->title,
                 'organizer' => $r->order?->event?->user?->name,
                 'requester' => $r->requester?->name ?? 'Guest',
-                'when' => optional($r->created_at)->format('j M Y'),
-                'decided' => optional($r->decided_at)->format('j M Y'),
+                'when' => Dates::display($r->created_at, 'j M Y'),
+                'decided' => Dates::display($r->decided_at, 'j M Y'),
             ]);
 
         return inertia('admin/refunds', [

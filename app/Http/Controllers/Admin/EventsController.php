@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppNotification;
 use App\Models\Event;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 
 class EventsController extends Controller
@@ -52,7 +54,7 @@ class EventsController extends Controller
                     'status' => $event->appeal_status,
                     'reason' => $event->appeal_reason,
                     'attachments' => $event->appeal_attachments ?? [],
-                    'when' => $event->appealed_at?->format('j M Y, g:i A'),
+                    'when' => Dates::display($event->appealed_at, 'j M Y, g:i A'),
                 ] : null,
                 'visibility' => $event->visibility,
                 'category' => $event->category?->name,
@@ -89,7 +91,7 @@ class EventsController extends Controller
             'appeal_status' => null, 'appeal_reason' => null, 'appeal_attachments' => null, 'appealed_at' => null,
         ]);
 
-        \App\Models\AppNotification::notify($event->user_id, [
+        AppNotification::notify($event->user_id, [
             'type' => 'event',
             'title' => 'Your event was restored',
             'body' => "“{$event->title}” has been restored to draft. Review and republish it.",
@@ -105,7 +107,7 @@ class EventsController extends Controller
     {
         $event->update(['appeal_status' => 'dismissed']);
 
-        \App\Models\AppNotification::notify($event->user_id, [
+        AppNotification::notify($event->user_id, [
             'type' => 'event',
             'title' => 'Appeal reviewed',
             'body' => "Your appeal for “{$event->title}” was not approved — it remains cancelled.",

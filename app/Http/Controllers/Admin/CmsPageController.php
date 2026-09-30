@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CmsPage;
 use App\Models\MenuItem;
+use App\Support\Dates;
+use App\Support\HtmlSanitizer;
+use App\Support\PostCards;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -19,7 +22,7 @@ class CmsPageController extends Controller
         return inertia('admin/cms/pages/index', [
             'pages' => CmsPage::whereNotIn('slug', self::SYSTEM_SLUGS)->latest()->get()->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
-                'updated_at' => $p->updated_at->format('j M Y'),
+                'updated_at' => Dates::display($p->updated_at, 'j M Y'),
             ]),
         ]);
     }
@@ -93,7 +96,7 @@ class CmsPageController extends Controller
                 'slug' => $page->slug,
                 'status' => $page->status,
                 'data' => $page->puck_data,
-                'posts' => \App\Support\PostCards::recent(),
+                'posts' => PostCards::recent(),
             ],
         ]);
     }
@@ -108,7 +111,7 @@ class CmsPageController extends Controller
 
         // Strip active-content (scripts, event handlers, js: URLs) from any HTML
         // an author placed in the builder before it's stored/rendered raw.
-        $clean = \App\Support\HtmlSanitizer::cleanTree($data['data']);
+        $clean = HtmlSanitizer::cleanTree($data['data']);
 
         $page->update([
             'puck_data' => $clean,
@@ -135,7 +138,7 @@ class CmsPageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
                 'puck' => $page->puck_data,
-                'posts' => \App\Support\PostCards::recent(),
+                'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $page->title],
             'preview' => true,
@@ -254,7 +257,7 @@ class CmsPageController extends Controller
             'title' => $page->title,
             'slug' => $page->slug,
             'puck' => $page->puck_data,
-            'posts' => \App\Support\PostCards::recent(),
+            'posts' => PostCards::recent(),
             'layout' => $page->layout,
             'status' => $page->status,
             'builder_edited_at' => optional($page->builder_edited_at)->diffForHumans(),

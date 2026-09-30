@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\User;
+use App\Support\Dates;
 use App\Support\PaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -155,7 +156,7 @@ class FinanceController extends Controller
             'events' => $events->take(self::OPTION_LIMIT)->map(fn ($e) => [
                 'value' => (string) $e->id,
                 'label' => $e->title,
-                'hint' => collect([$e->starts_at?->format('j M Y'), $e->city])->filter()->implode(' · ') ?: null,
+                'hint' => collect([Dates::display($e->starts_at, 'j M Y'), $e->city])->filter()->implode(' · ') ?: null,
             ])->values()->all(),
 
             'organizers' => $organizers->take(self::OPTION_LIMIT)->map(fn ($u) => [
@@ -502,7 +503,7 @@ class FinanceController extends Controller
             'amount' => (float) $t->amount,
             'direction' => $t->direction,
             'status' => $t->status,
-            'date' => optional(Carbon::parse($t->occurred_at))->format('j M Y'),
+            'date' => Dates::display(Carbon::parse($t->occurred_at), 'j M Y'),
             'receipt' => $receipt,
             'payment' => $showMethod ? PaymentMethod::describe($t->payment_method, $t->payment_brand) : null,
         ];

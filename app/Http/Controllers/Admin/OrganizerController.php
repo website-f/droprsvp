@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\OrganizerApplicationMail;
 use App\Models\OrganizerProfile;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -38,7 +39,7 @@ class OrganizerController extends Controller
                 'status' => $p->status,
                 'is_appeal' => $p->status === 'pending' && $p->reviewed_at !== null,
                 'reason' => $p->review_reason,
-                'submitted_at' => optional($p->submitted_at)->format('j M Y'),
+                'submitted_at' => Dates::display($p->submitted_at, 'j M Y'),
             ]);
 
         return inertia('admin/organizers/index', [
@@ -68,7 +69,7 @@ class OrganizerController extends Controller
                 'id' => $organizer->id,
                 'name' => $organizer->user?->name,
                 'email' => $organizer->user?->email,
-                'member_since' => optional($organizer->user?->created_at)->format('j M Y'),
+                'member_since' => Dates::display($organizer->user?->created_at, 'j M Y'),
                 'business_name' => $organizer->business_name,
                 'website' => $organizer->website,
                 'phone' => $organizer->phone,
@@ -77,9 +78,9 @@ class OrganizerController extends Controller
                 'gallery' => $organizer->gallery ?? [],
                 'status' => $organizer->status,
                 'reason' => $organizer->review_reason,
-                'submitted_at' => optional($organizer->submitted_at)->format('j M Y, g:i A'),
-                'reviewed_at' => optional($organizer->reviewed_at)->format('j M Y, g:i A'),
-                'review_opened_at' => optional($organizer->review_opened_at)->format('j M Y, g:i A'),
+                'submitted_at' => Dates::display($organizer->submitted_at, 'j M Y, g:i A'),
+                'reviewed_at' => Dates::display($organizer->reviewed_at, 'j M Y, g:i A'),
+                'review_opened_at' => Dates::display($organizer->review_opened_at, 'j M Y, g:i A'),
             ],
         ]);
     }

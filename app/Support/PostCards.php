@@ -21,7 +21,7 @@ class PostCards
                 'excerpt' => $p->excerpt ?: Str::limit(trim(strip_tags((string) $p->body)), 140),
                 'cover_image' => $p->cover_image,
                 'category' => $p->category?->name,
-                'date' => optional($p->published_at)->format('j M Y'),
+                'date' => Dates::display($p->published_at, 'j M Y'),
             ])
             ->all();
     }

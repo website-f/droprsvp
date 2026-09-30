@@ -2,6 +2,7 @@ import { Slot } from "@radix-ui/react-slot"
 import type { VariantProps} from "class-variance-authority";
 import { cva } from "class-variance-authority"
 import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
+import { router } from "@inertiajs/react"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
@@ -91,6 +92,20 @@ function SidebarProvider({
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
   }, [isMobile, setOpen, setOpenMobile])
 
+  // Close the mobile sheet whenever we navigate.
+  //
+  // Nothing did this, so on a phone tapping a nav item loaded the new page and
+  // left the sidebar sitting open on top of it — which reads as "the sidebar
+  // will not close". Doing it here rather than on each link means every nav
+  // item, present and future, gets it without having to remember.
+  React.useEffect(() => {
+    if (!isMobile) {
+      return
+    }
+
+    return router.on("navigate", () => setOpenMobile(false))
+  }, [isMobile])
+
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -179,10 +194,6 @@ function Sidebar({
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetHeader className="sr-only">
-          <SheetTitle>Sidebar</SheetTitle>
-          <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-        </SheetHeader>
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
@@ -194,7 +205,20 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          // Tapping the backdrop closes it. Radix dismisses on a pointerdown
+          // outside the content, but that is a single code path and it was not
+          // firing on touch here, so bind the backdrop's click as well — two
+          // independent routes to the same close.
+          overlayProps={{ onClick: () => setOpenMobile(false) }}
+          onInteractOutside={() => setOpenMobile(false)}
         >
+          {/* Inside the content, where Radix expects it: a Dialog.Title
+              elsewhere in the tree is not wired to the dialog, leaving it with
+              no accessible name. */}
+          <SheetHeader className="sr-only">
+            <SheetTitle>Sidebar</SheetTitle>
+            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+          </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>

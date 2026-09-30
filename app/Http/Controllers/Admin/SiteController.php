@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Support\Cities;
+use App\Support\Dates;
 use App\Support\HtmlSanitizer;
 use App\Support\ReceiptTemplate;
 use App\Support\SiteContent;
@@ -313,7 +314,7 @@ class SiteController extends Controller
     {
         $receipt = [
             'seller' => ['name' => config('app.name', 'DropRSVP'), 'detail' => 'Sample organizer · Kuala Lumpur'],
-            'title' => 'Receipt', 'number' => 'DRSVP-SAMPLE', 'date' => now()->format('j M Y'), 'status' => 'paid',
+            'title' => 'Receipt', 'number' => 'DRSVP-SAMPLE', 'date' => Dates::display(now(), 'j M Y'), 'status' => 'paid',
             'party_label' => 'Billed to', 'party' => ['name' => 'Jane Doe', 'detail' => 'jane@example.com'],
             'context' => 'Sample Event 2026',
             'items' => [

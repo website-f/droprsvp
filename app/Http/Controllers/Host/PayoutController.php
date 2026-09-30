@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payout;
 use App\Services\PayoutService;
 use App\Support\Banks;
+use App\Support\Dates;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -35,8 +36,8 @@ class PayoutController extends Controller
                 'amount' => (float) $p->amount,
                 'currency' => $p->currency,
                 'status' => $p->status,
-                'requested_at' => optional($p->requested_at)->format('j M Y'),
-                'paid_at' => optional($p->paid_at)->format('j M Y'),
+                'requested_at' => Dates::display($p->requested_at, 'j M Y'),
+                'paid_at' => Dates::display($p->paid_at, 'j M Y'),
             ]),
         ]);
     }

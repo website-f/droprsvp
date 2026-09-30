@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CmsCategory;
 use App\Models\CmsPost;
+use App\Support\Dates;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -16,8 +19,8 @@ class CmsPostController extends Controller
         return inertia('admin/cms/posts/index', [
             'posts' => CmsPost::with('category:id,name')->latest()->get()->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
-                'category' => $p->category?->name, 'updated_at' => $p->updated_at->format('j M Y'),
-                'published_at' => $p->published_at?->format('j M Y, g:i A'),
+                'category' => $p->category?->name, 'updated_at' => Dates::display($p->updated_at, 'j M Y'),
+                'published_at' => Dates::display($p->published_at, 'j M Y, g:i A'),
             ]),
         ]);
     }
@@ -108,7 +111,7 @@ class CmsPostController extends Controller
         return [
             'title' => $data['title'],
             'excerpt' => $data['excerpt'] ?? null,
-            'body' => \App\Support\HtmlSanitizer::clean($data['body'] ?? null),
+            'body' => HtmlSanitizer::clean($data['body'] ?? null),
             'cover_image' => $data['cover_image'] ?? null,
             'status' => $status,
             'published_at' => $publishedAt,
@@ -123,12 +126,12 @@ class CmsPostController extends Controller
      * past, which never arrives. Editing a live post preserves its original
      * date so its URL, ordering and "published on" line don't shift.
      *
-     * @return array{0: string, 1: \Illuminate\Support\Carbon|null}
+     * @return array{0: string, 1: Carbon|null}
      */
     private function publishState(array $data, ?CmsPost $existing): array
     {
         $status = $data['status'];
-        $when = ! empty($data['published_at']) ? \Illuminate\Support\Carbon::parse($data['published_at']) : null;
+        $when = ! empty($data['published_at']) ? Carbon::parse($data['published_at']) : null;
 
         if ($status === 'draft') {
             return ['draft', null];

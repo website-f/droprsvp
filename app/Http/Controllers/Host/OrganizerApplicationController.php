@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
 use App\Mail\OrganizerApplicationReceivedMail;
+use App\Support\Dates;
 use App\Support\PlatformAlert;
 use App\Support\WebsiteUrl;
 use Illuminate\Http\Request;
@@ -75,6 +76,20 @@ class OrganizerApplicationController extends Controller
             'gallery.*' => ['string', 'max:2048'],
         ]);
 
+        // The phone belongs on the ACCOUNT too, not only on the application.
+        //
+        // These were two separate stores that never spoke: an organizer typed
+        // their number into the application, and their user profile — which is
+        // what the admin user page, the CSV export and the admin search all
+        // read — stayed empty. So the admin saw "Phone —" for someone who had
+        // plainly given one.
+        //
+        // The application does not overwrite a number they have already set on
+        // their account; it only fills a gap.
+        if (! $request->user()->phone && ! empty($data['phone'])) {
+            $request->user()->forceFill(['phone' => $data['phone']])->save();
+        }
+
         $profile = $request->user()->organizerProfile()->updateOrCreate(
             ['user_id' => $request->user()->id],
             // A fresh submission/appeal starts a new review cycle → unlock edits again
@@ -118,7 +133,7 @@ class OrganizerApplicationController extends Controller
         }
 
         return inertia('host/pending', [
-            'submitted_at' => optional($profile->submitted_at)->format('j M Y'),
+            'submitted_at' => Dates::display($profile->submitted_at, 'j M Y'),
             // Drives whether the "Edit application" button shows or the locked notice.
             'editable' => $profile->isEditableByApplicant(),
         ]);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\WaitlistInvite;
 use App\Models\Event;
 use App\Models\WaitlistEntry;
+use App\Support\Dates;
 use App\Support\Mailer;
 use Illuminate\Http\Request;
 
@@ -25,8 +26,8 @@ class WaitlistController extends Controller
                 'name' => $e->name,
                 'email' => $e->email,
                 'status' => $e->status,
-                'joined' => optional($e->created_at)->format('j M Y'),
-                'notified_at' => optional($e->notified_at)->format('j M Y'),
+                'joined' => Dates::display($e->created_at, 'j M Y'),
+                'notified_at' => Dates::display($e->notified_at, 'j M Y'),
             ]),
             'waiting' => $entries->where('status', 'waiting')->count(),
         ]);

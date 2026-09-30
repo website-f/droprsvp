@@ -4,9 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Mail\TicketsIssued;
 use App\Mail\TicketTransferred;
+use App\Models\AppNotification;
 use App\Models\Order;
+use App\Models\RefundRequest;
 use App\Models\Ticket;
 use App\Models\TicketTransfer;
+use App\Services\CheckoutService;
+use App\Support\Dates;
+use App\Support\Ics;
+use App\Support\Mailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -52,7 +58,7 @@ class AccountController extends Controller
                 'refunded_amount' => (float) $o->refunded_amount,
                 'currency' => $o->currency,
                 'status' => $o->status,
-                'date' => optional($o->paid_at ?? $o->created_at)->format('j M Y'),
+                'date' => Dates::display($o->paid_at ?? $o->created_at, 'j M Y'),
                 'can_refund' => $o->status === 'paid' && $o->event && $o->event->allowsRefundRequest()
                     && $o->pending_refunds === 0 && $o->remainingRefundable() > 0,
                 'refund_pending' => $o->pending_refunds > 0,
@@ -68,7 +74,7 @@ class AccountController extends Controller
         abort_unless($order->status === 'paid', 422);
 
         $email = $order->buyer_email ?: $request->user()->email;
-        \App\Support\Mailer::defer($email, new TicketsIssued($order));
+        Mailer::defer($email, new TicketsIssued($order));
 
         return back()->with('success', "Tickets re-sent to {$email}.");
     }
@@ -87,13 +93,13 @@ class AccountController extends Controller
         // Only before the event starts (an undated event stays cancellable).
         abort_if($order->event && $order->event->starts_at && $order->event->starts_at->isPast(), 422);
 
-        if (! app(\App\Services\CheckoutService::class)->cancelFree($order)) {
+        if (! app(CheckoutService::class)->cancelFree($order)) {
             return back()->with('flash_error', 'This registration can no longer be cancelled.');
         }
 
         // Let the organizer know a seat opened back up.
         if ($order->event && $order->event->user_id) {
-            \App\Models\AppNotification::notify($order->event->user_id, [
+            AppNotification::notify($order->event->user_id, [
                 'type' => 'order',
                 'title' => 'Registration cancelled',
                 'body' => "{$request->user()->name} cancelled their registration for “{$order->event->title}” ({$order->reference}).",
@@ -120,7 +126,7 @@ class AccountController extends Controller
 
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
 
-        \App\Models\RefundRequest::create([
+        RefundRequest::create([
             'order_id' => $order->id,
             'user_id' => $request->user()->id,
             'amount' => $order->remainingRefundable(),
@@ -130,7 +136,7 @@ class AccountController extends Controller
 
         // Ping the event's organizer.
         if ($order->event->user_id) {
-            \App\Models\AppNotification::notify($order->event->user_id, [
+            AppNotification::notify($order->event->user_id, [
                 'type' => 'refund',
                 'title' => 'New refund request',
                 'body' => "{$request->user()->name} requested a refund for “{$order->event->title}” ({$order->reference}).",
@@ -180,7 +186,7 @@ class AccountController extends Controller
             'to_email' => $data['to_email'],
         ]);
 
-        \App\Support\Mailer::defer($data['to_email'], new TicketTransferred($ticket->fresh()->load('event', 'ticketType'), $request->user()->name));
+        Mailer::defer($data['to_email'], new TicketTransferred($ticket->fresh()->load('event', 'ticketType'), $request->user()->name));
 
         return back()->with('flash_success', "Ticket transferred to {$data['to_name']}. We’ve emailed them their pass.");
     }
@@ -211,7 +217,7 @@ class AccountController extends Controller
             'status' => $order->status,
             'total' => (float) $order->total,
             'currency' => $order->currency,
-            'placed_on' => optional($order->created_at)->format('j M Y'),
+            'placed_on' => Dates::display($order->created_at, 'j M Y'),
             // Free registrations can be self-cancelled up until the event starts.
             'can_cancel' => $order->status === 'paid' && (float) $order->total <= 0
                 && (! $event || ! $event->starts_at || $event->starts_at->isFuture()),
@@ -226,7 +232,7 @@ class AccountController extends Controller
                 'venue_name' => $event->venue_name,
                 'is_online' => (bool) $event->is_online,
                 'cover_image' => $event->cover_image,
-                'google_url' => $event->status === 'published' ? \App\Support\Ics::googleUrl($event) : null,
+                'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
                 'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
             ] : null,
             'tickets' => $order->tickets->map(fn ($t) => [

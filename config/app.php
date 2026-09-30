@@ -68,6 +68,14 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | The timezone the INTERFACE renders in. Storage stays UTC above — that is
+    | the only way one instant means the same thing everywhere — but a
+    | Malaysian organizer should not read their own 11am application as 3am.
+    | See App\Support\Dates.
+    */
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'Asia/Kuala_Lumpur'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
