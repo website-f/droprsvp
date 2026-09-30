@@ -17,6 +17,68 @@ class Profile
         'United Kingdom', 'United States', 'Canada', 'United Arab Emirates', 'Saudi Arabia', 'Other',
     ];
 
+    /** The oldest birth year the form will accept — a sane floor, not a rule. */
+    public const EARLIEST_BIRTH_YEAR = 1920;
+
+    /**
+     * The age band someone born in $year falls into today.
+     *
+     * The band is still what analytics and the admin filters group by; it is now
+     * derived rather than asked for, so it can never drift out of date the way a
+     * self-selected band does after a birthday.
+     */
+    public static function bandFor(?int $year): ?string
+    {
+        if (! $year || $year < self::EARLIEST_BIRTH_YEAR || $year > (int) date('Y')) {
+            return null;
+        }
+
+        $age = (int) date('Y') - $year;
+
+        return match (true) {
+            $age < 18 => 'under-18',
+            $age < 25 => '18-24',
+            $age < 35 => '25-34',
+            $age < 45 => '35-44',
+            $age < 55 => '45-54',
+            default => '55+',
+        };
+    }
+
+    /** Selectable birth years, newest first. */
+    public static function birthYears(): array
+    {
+        return range((int) date('Y'), self::EARLIEST_BIRTH_YEAR);
+    }
+
+    /**
+     * How long someone has been on the platform, as a phrase.
+     *
+     * Shown beside their details so an admin can see at a glance whether they
+     * are a regular or signed up this morning.
+     */
+    public static function membershipLabel(?\DateTimeInterface $joined): ?string
+    {
+        if (! $joined) {
+            return null;
+        }
+
+        // A real calendar diff, not seconds over an average month length: at
+        // 30.44 days a month, a full year came out as "11 months".
+        $diff = (new \DateTimeImmutable())->diff($joined);
+        $months = ($diff->y * 12) + $diff->m;
+
+        if ($months < 1) {
+            return 'Joined this month';
+        }
+
+        if ($months < 12) {
+            return $months.' month'.($months === 1 ? '' : 's').' on DropRSVP';
+        }
+
+        return $diff->y.' year'.($diff->y === 1 ? '' : 's').' on DropRSVP';
+    }
+
     /** Everything the "about you" form insists on before a profile counts as done. */
     private const REQUIRED = ['phone', 'gender', 'age_band', 'country'];
 
@@ -76,6 +138,9 @@ class Profile
         $candidates = [
             'phone' => $order->buyer_phone,
             'gender' => $order->buyer_gender,
+            // Both: the year is what the buyer gave, the band is derived from it
+            // and is what reporting groups by.
+            'birth_year' => $order->buyer_birth_year,
             'age_band' => $order->buyer_age_band,
             'city' => $order->buyer_city,
         ];

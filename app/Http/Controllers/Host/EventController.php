@@ -30,7 +30,15 @@ class EventController extends Controller
 
         $events = Event::whereIn('user_id', $user->manageableOwnerIds())
             ->with('user:id,name')
-            ->withCount(['ticketTypes', 'sessions', 'orders'])
+            // PAID orders only. Counting every row included abandoned carts — an
+            // order is created the moment someone opens checkout — so an event
+            // with one sale reported "3 orders" and the organizer could not
+            // reconcile it against a single ticket.
+            ->withCount([
+                'ticketTypes',
+                'sessions',
+                'orders as orders_count' => fn ($q) => $q->where('status', 'paid'),
+            ])
             ->latest()
             ->get()
             ->map(function (Event $e) use ($user) {

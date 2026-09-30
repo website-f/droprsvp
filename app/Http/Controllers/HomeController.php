@@ -195,6 +195,9 @@ class HomeController extends Controller
 
         return User::query()
             ->whereHas('events', fn ($q) => $q->published())
+            // Eager-loaded, not fetched per row: this runs for six organizers on
+            // every landing-page render.
+            ->with('organizerProfile:id,user_id,business_name,poster')
             ->withCount(['events as events_count' => fn ($q) => $q->published()])
             ->withCount('followers')
             ->orderByDesc('events_count')
@@ -206,10 +209,16 @@ class HomeController extends Controller
                     ->orderByRaw('starts_at is null, starts_at asc')
                     ->first(['slug']);
 
+                $profile = $u->organizerProfile;
+
                 return [
                     'id' => $u->id,
                     'slug' => $u->ensureSlug(),
-                    'name' => $u->name,
+                    // Business name and logo, matching the organizer's own public
+                    // page. This carried neither, so every card fell back to
+                    // initials of a personal name even when a logo was uploaded.
+                    'name' => $profile?->business_name ?: $u->name,
+                    'avatar' => $profile?->poster ?: $u->avatar,
                     'events_count' => $u->events_count,
                     'followers' => (int) $u->followers_count,
                     'next_slug' => $next?->slug,

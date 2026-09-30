@@ -45,7 +45,7 @@ return 'Free';
     return null;
 }
 
-interface Organizer { id: number; slug: string; name: string; events_count: number; followers: number; next_slug: string | null; is_following: boolean; is_self: boolean }
+interface Organizer { id: number; slug: string; name: string; avatar?: string | null; events_count: number; followers: number; next_slug: string | null; is_following: boolean; is_self: boolean }
 
 interface BlogPost { title: string; slug: string; excerpt: string | null; cover_image: string | null; category: string | null; date: string | null }
 
@@ -407,13 +407,26 @@ export default function Welcome() {
                                 return (
                                     <Reveal key={o.id} delay={i * 60}>
                                         <div className="group flex h-full flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                                            <Link href={href} className="flex flex-col items-center gap-3">
-                                                <span className="flex size-14 items-center justify-center rounded-full text-lg font-bold text-white transition-transform duration-300 group-hover:scale-105" style={{ backgroundColor: tint }}>
-                                                    {initials(o.name)}
-                                                </span>
-                                                <span className="min-w-0">
-                                                    <span className="block truncate text-sm font-semibold group-hover:underline">{o.name}</span>
-                                                    <span className="mt-0.5 block text-xs text-muted-foreground">{o.events_count} event{o.events_count === 1 ? '' : 's'}{o.followers > 0 ? ` · ${o.followers} follower${o.followers === 1 ? '' : 's'}` : ''}</span>
+                                            <Link href={href} className="flex w-full min-w-0 flex-col items-center gap-3">
+                                                {/* The uploaded company logo, with initials only as a
+                                                    fallback — this card always drew initials because the
+                                                    payload carried no image at all. */}
+                                                {o.avatar ? (
+                                                    <img
+                                                        src={o.avatar}
+                                                        alt=""
+                                                        className="size-14 rounded-full object-cover ring-1 ring-border transition-transform duration-300 group-hover:scale-105"
+                                                    />
+                                                ) : (
+                                                    <span className="flex size-14 items-center justify-center rounded-full text-lg font-bold text-white transition-transform duration-300 group-hover:scale-105" style={{ backgroundColor: tint }}>
+                                                        {initials(o.name)}
+                                                    </span>
+                                                )}
+                                                {/* min-w-0 on every level, or a long business name refuses
+                                                    to truncate and pushes the card wider than its column. */}
+                                                <span className="block w-full min-w-0">
+                                                    <span className="block truncate text-sm font-semibold group-hover:underline" title={o.name}>{o.name}</span>
+                                                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{o.events_count} event{o.events_count === 1 ? '' : 's'}{o.followers > 0 ? ` · ${o.followers} follower${o.followers === 1 ? '' : 's'}` : ''}</span>
                                                 </span>
                                             </Link>
                                             {!o.is_self && (signedIn ? (

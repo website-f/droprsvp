@@ -32,7 +32,7 @@ class UserProfileTest extends TestCase
         $u = User::factory()->needsProfile()->create();
 
         $this->actingAs($u)->post('/profile/about-you', [
-            'phone' => '0123456789', 'gender' => 'female', 'age_band' => '25-34', 'city' => 'Kuala Lumpur', 'country' => 'Malaysia',
+            'phone' => '0123456789', 'gender' => 'female', 'birth_year' => (int) date('Y') - 30, 'city' => 'Kuala Lumpur', 'country' => 'Malaysia',
         ])->assertRedirect();
 
         $u->refresh();

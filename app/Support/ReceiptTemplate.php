@@ -39,13 +39,23 @@ class ReceiptTemplate
         return $out;
     }
 
-    /** get() with the logo inlined as a data URI — dompdf can't fetch remote images on shared hosting. */
-    public static function resolved(): array
+    /**
+     * get() with the logo inlined as a data URI — dompdf cannot fetch remote
+     * images on shared hosting.
+     *
+     * $fallbackLogo is the seller's own logo. The template logo is an optional
+     * admin override that defaults to OFF, so without this the downloaded PDF
+     * came out unbranded while the on-screen receipt — which reads the seller's
+     * logo directly — showed it. Two views of one document disagreeing.
+     */
+    public static function resolved(?string $fallbackLogo = null): array
     {
         $t = self::get();
 
-        if ($t['show_logo'] && $t['logo'] !== '') {
-            $uri = self::logoDataUri($t['logo']);
+        $source = $t['show_logo'] && $t['logo'] !== '' ? $t['logo'] : $fallbackLogo;
+
+        if ($source) {
+            $uri = self::logoDataUri($source);
             $t['logo'] = $uri ?? '';
             $t['show_logo'] = $uri !== null;
         }

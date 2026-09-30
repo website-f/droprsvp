@@ -53,7 +53,7 @@ class ReceiptController extends Controller
 
     private function pdf(array $receipt)
     {
-        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved()])
+        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved($receipt['seller']['logo'] ?? null)])
             ->download("receipt-{$receipt['number']}.pdf");
     }
 

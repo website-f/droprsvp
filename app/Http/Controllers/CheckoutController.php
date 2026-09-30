@@ -81,7 +81,7 @@ class CheckoutController extends Controller
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'gender' => $user->gender,
-                'age_band' => $user->age_band,
+                'birth_year' => $user->birth_year,
                 'city' => $user->city,
             ] : null,
         ]);
@@ -182,7 +182,9 @@ class CheckoutController extends Controller
             'buyer_phone' => [$need('phone'), 'string', 'max:40'],
             // Demographics — power the organizer's audience analytics.
             'buyer_gender' => [$need('gender'), 'in:female,male,other,na'],
-            'buyer_age_band' => [$need('age_band'), 'in:under-18,18-24,25-34,35-44,45-54,55+'],
+            // Birth year rather than a band; the band is derived below so the
+            // organizer's audience analytics are unaffected.
+            'buyer_birth_year' => [$need('age_band'), 'integer', 'min:'.\App\Support\Profile::EARLIEST_BIRTH_YEAR, 'max:'.date('Y')],
             'buyer_city' => [$need('city'), 'string', 'max:80'],
             'buyer_source' => [$need('source'), 'in:instagram,facebook,tiktok,friend,search,email,other'],
             // Free-text notes / remarks for the organizer (dietary needs, questions…).
@@ -213,6 +215,10 @@ class CheckoutController extends Controller
         if ($answerErrors) {
             throw \Illuminate\Validation\ValidationException::withMessages($answerErrors);
         }
+
+        $data['buyer_age_band'] = \App\Support\Profile::bandFor(
+            isset($data['buyer_birth_year']) ? (int) $data['buyer_birth_year'] : null,
+        );
 
         $data['custom_answers'] = $answers;
 

@@ -21,10 +21,15 @@ const CONSENT_TEXT = 'By submitting this form, you agree to let Drop RSVP use yo
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 const GENDERS = [{ value: 'na', label: 'Prefer not to say' }, { value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'other', label: 'Other' }];
-const AGE_BANDS = [{ value: '', label: '—' }, { value: 'under-18', label: 'Under 18' }, { value: '18-24', label: '18–24' }, { value: '25-34', label: '25–34' }, { value: '35-44', label: '35–44' }, { value: '45-54', label: '45–54' }, { value: '55+', label: '55+' }];
+/** Birth years, newest first — a fact people know, unlike a band they have to place themselves in. */
+const BIRTH_YEARS = [{ value: '', label: '—' }, ...Array.from({ length: new Date().getFullYear() - 1920 + 1 }, (_, i) => {
+    const y = String(new Date().getFullYear() - i);
+
+    return { value: y, label: y };
+})];
 const SOURCES = [{ value: '', label: '—' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'tiktok', label: 'TikTok' }, { value: 'friend', label: 'A friend' }, { value: 'search', label: 'Search' }, { value: 'email', label: 'Email' }, { value: 'other', label: 'Other' }];
 
-interface Buyer { name: string | null; email: string | null; phone: string | null; gender: string | null; age_band: string | null; city: string | null }
+interface Buyer { name: string | null; email: string | null; phone: string | null; gender: string | null; birth_year: number | null; city: string | null }
 
 interface Account { name: string; email: string }
 
@@ -38,7 +43,7 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
         buyer_email: buyer?.email ?? '',
         buyer_phone: buyer?.phone ?? '',
         buyer_gender: buyer?.gender ?? 'na',
-        buyer_age_band: buyer?.age_band ?? '',
+        buyer_birth_year: buyer?.birth_year != null ? String(buyer.birth_year) : '',
         buyer_city: buyer?.city ?? '',
         buyer_source: '',
         notes: '',
@@ -75,7 +80,7 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
     const missing =
         !form.data.buyer_name.trim() || !form.data.buyer_email.trim() ||
         (required.phone && !form.data.buyer_phone.trim()) ||
-        (required.age_band && !form.data.buyer_age_band) ||
+        (required.age_band && !form.data.buyer_birth_year) ||
         (required.city && !form.data.buyer_city.trim()) ||
         (required.source && !form.data.buyer_source) ||
         (required.notes && !form.data.notes.trim());
@@ -153,9 +158,9 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
                                         <AppSelect value={form.data.buyer_gender} onChange={(v) => form.setData('buyer_gender', v)} options={GENDERS} />
                                     </div>
                                     <div className="grid gap-1.5">
-                                        <Label>{req('Age', required.age_band)}</Label>
-                                        <AppSelect value={form.data.buyer_age_band || ''} onChange={(v) => form.setData('buyer_age_band', v)} options={AGE_BANDS} />
-                                        {form.errors.buyer_age_band && <p className="text-xs text-destructive">{form.errors.buyer_age_band}</p>}
+                                        <Label>{req('Year you were born', required.age_band)}</Label>
+                                        <AppSelect value={form.data.buyer_birth_year || ''} onChange={(v) => form.setData('buyer_birth_year', v)} options={BIRTH_YEARS} />
+                                        {form.errors.buyer_birth_year && <p className="text-xs text-destructive">{form.errors.buyer_birth_year}</p>}
                                     </div>
                                     <div className="grid gap-1.5">
                                         <Label htmlFor="buyer_city">{req('City', required.city)}</Label>

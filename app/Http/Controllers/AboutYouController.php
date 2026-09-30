@@ -19,11 +19,12 @@ class AboutYouController extends Controller
             'profile' => [
                 'phone' => $u->phone,
                 'gender' => $u->gender ?: 'na',
-                'age_band' => $u->age_band,
+                'birth_year' => $u->birth_year,
                 'city' => $u->city,
                 'country' => $u->country,
             ],
             'countries' => Profile::COUNTRIES,
+            'birthYears' => Profile::birthYears(),
             'done' => (bool) $u->profile_completed_at,
         ]);
     }
@@ -33,12 +34,19 @@ class AboutYouController extends Controller
         $data = $request->validate([
             'phone' => ['required', 'string', 'max:40'],
             'gender' => ['required', 'in:female,male,other,na'],
-            'age_band' => ['required', 'in:under-18,18-24,25-34,35-44,45-54,55+'],
+            // A year, not a band: a band goes stale on the next birthday and
+            // asks people to place themselves. Profile::bandFor derives the band
+            // so analytics and the admin filters keep working unchanged.
+            'birth_year' => ['required', 'integer', 'min:'.Profile::EARLIEST_BIRTH_YEAR, 'max:'.date('Y')],
             'city' => ['nullable', 'string', 'max:80'],
             'country' => ['required', 'string', 'max:60'],
         ]);
 
-        $request->user()->update([...$data, 'profile_completed_at' => now()]);
+        $request->user()->update([
+            ...$data,
+            'age_band' => Profile::bandFor((int) $data['birth_year']),
+            'profile_completed_at' => now(),
+        ]);
 
         return redirect()->intended(route('dashboard'))->with('success', 'Thanks — your profile is complete.');
     }

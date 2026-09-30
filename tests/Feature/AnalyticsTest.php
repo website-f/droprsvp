@@ -69,13 +69,16 @@ class AnalyticsTest extends TestCase
         $order = Order::first();
         $this->post("/checkout/{$order->reference}/pay", [
             'buyer_name' => 'Jane Doe', 'buyer_email' => 'jane@example.com', 'buyer_phone' => '0123456789',
-            'buyer_gender' => 'female', 'buyer_age_band' => '25-34', 'buyer_city' => 'Kuala Lumpur', 'buyer_source' => 'instagram',
+            'buyer_gender' => 'female', 'buyer_birth_year' => (int) date('Y') - 30, 'buyer_city' => 'Kuala Lumpur', 'buyer_source' => 'instagram',
             'consent' => true,
         ])->assertRedirect();
 
         $order->refresh();
         $this->assertSame('female', $order->buyer_gender);
+        // The band is derived from the year the buyer gave; reporting still
+        // groups by the band.
         $this->assertSame('25-34', $order->buyer_age_band);
+        $this->assertSame((int) date('Y') - 30, $order->buyer_birth_year);
         $this->assertSame('instagram', $order->buyer_source);
     }
 

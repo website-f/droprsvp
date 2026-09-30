@@ -5,18 +5,23 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
-interface Profile { phone: string | null; gender: string; age_band: string | null; city: string | null; country: string | null }
+interface Profile { phone: string | null; gender: string; birth_year: number | null; city: string | null; country: string | null }
 interface Props { profile: Profile; countries: string[]; done: boolean }
 
 const field = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const GENDERS = [{ value: 'na', label: 'Prefer not to say' }, { value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'other', label: 'Other' }];
-const AGE_BANDS = [{ value: 'under-18', label: 'Under 18' }, { value: '18-24', label: '18–24' }, { value: '25-34', label: '25–34' }, { value: '35-44', label: '35–44' }, { value: '45-54', label: '45–54' }, { value: '55+', label: '55+' }];
+/** Newest first. A year is a fact; a band goes stale on the next birthday. */
+const BIRTH_YEARS = Array.from({ length: new Date().getFullYear() - 1920 + 1 }, (_, i) => {
+    const y = String(new Date().getFullYear() - i);
+
+    return { value: y, label: y };
+});
 
 export default function AboutYou({ profile, countries, done }: Props) {
     const form = useForm({
         phone: profile.phone ?? '',
         gender: profile.gender ?? 'na',
-        age_band: profile.age_band ?? '',
+        birth_year: profile.birth_year != null ? String(profile.birth_year) : '',
         city: profile.city ?? '',
         country: profile.country ?? 'Malaysia',
     });
@@ -52,9 +57,9 @@ export default function AboutYou({ profile, countries, done }: Props) {
                                 <AppSelect value={data.gender} onChange={(v) => setData('gender', v)} options={GENDERS} />
                             </div>
                             <div className="grid gap-1.5">
-                                <Label>Age</Label>
-                                <AppSelect value={data.age_band || ''} onChange={(v) => setData('age_band', v)} options={AGE_BANDS} />
-                                {errors.age_band && <p className="text-xs text-destructive">{errors.age_band}</p>}
+                                <Label>Year you were born</Label>
+                                <AppSelect value={data.birth_year || ''} onChange={(v) => setData('birth_year', v)} options={[{ value: '', label: '—' }, ...BIRTH_YEARS]} />
+                                {errors.birth_year && <p className="text-xs text-destructive">{errors.birth_year}</p>}
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="city">City</Label>

@@ -36,9 +36,21 @@ class OrganizerController extends Controller
 
         $eventIds = $organizer->events()->pluck('id');
         $user = $request->user();
-        // Members, photos and discussion are behind an auth wall (About + Events stay
-        // public). Counts are always exposed so the tabs still show their totals.
         $authed = (bool) $user;
+
+        /**
+         * Photos are PUBLIC. They are an organizer's shop window — the reason
+         * someone decides this is worth going to — and hiding them behind a
+         * login turned the most persuasive tab on the page into a dead end.
+         *
+         * Members are previewed instead of hidden: a guest sees the first few
+         * and is told how many more there are, which is an invitation rather
+         * than a wall. Names are all a member row carries, so nothing private
+         * leaks either way.
+         *
+         * The discussion stays gated — it is a conversation, not a showcase.
+         */
+        $preview = 4;
 
         // Members split: people who've attended (paid) vs people who follow.
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid')->whereNotNull('buyer_email');
@@ -46,14 +58,12 @@ class OrganizerController extends Controller
         $followersCount = (int) $organizer->followers()->count();
         $photosCount = (int) \App\Models\EventPhoto::whereIn('event_id', $eventIds)->count();
 
-        $attendees = $authed
-            ? (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
-                ->unique('buyer_email')->take(60)->map(fn ($o) => ['name' => $o->buyer_name ?: 'Guest'])->values()
-            : collect();
-        $followers = $authed
-            ? $organizer->followers()->orderByPivot('created_at', 'desc')->limit(60)->get(['users.id', 'name'])
-                ->map(fn ($u) => ['name' => $u->name])->values()
-            : collect();
+        $attendees = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
+            ->unique('buyer_email')->take($authed ? 60 : $preview)
+            ->map(fn ($o) => ['name' => $o->buyer_name ?: 'Guest'])->values();
+        $followers = $organizer->followers()->orderByPivot('created_at', 'desc')
+            ->limit($authed ? 60 : $preview)->get(['users.id', 'name'])
+            ->map(fn ($u) => ['name' => $u->name])->values();
 
         // Canonical must be the locale, trailing-slash URL this page is actually
         // served at. It used to be url("/o/{slug}") — the LEGACY path, which 301s
@@ -95,11 +105,15 @@ class OrganizerController extends Controller
             ],
             'upcoming' => $upcoming->values(),
             'past' => $past->values(),
-            'members' => ['attendees' => $attendees, 'followers' => $followers],
-            'photos' => $authed
-                ? \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
-                    ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values()
-                : collect(),
+            'members' => [
+                'attendees' => $attendees,
+                'followers' => $followers,
+                // How many a guest is not being shown, so the prompt can say a
+                // number instead of a vague "and more".
+                'hidden' => $authed ? 0 : max(0, ($membersCount + $followersCount) - $attendees->count() - $followers->count()),
+            ],
+            'photos' => \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
+                ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
             'similar' => $this->similarEvents($organizer, $eventIds),
             'discussion' => $this->discussion($organizer, $request, $authed),
             'viewer' => [

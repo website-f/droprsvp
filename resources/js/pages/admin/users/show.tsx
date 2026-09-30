@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button';
 
 interface UserDetail {
     id: number; name: string; email: string; phone: string | null;
-    gender: string | null; age_band: string | null; city: string | null; country: string | null;
+    gender: string | null; age_band: string | null; birth_year: number | null; city: string | null; country: string | null;
+    /** e.g. "2 years on DropRSVP" — derived from created_at. */
+    membership?: string | null;
     roles: string[]; is_superadmin: boolean; disabled: boolean; disabled_at: string | null; profile_complete: boolean; profile_completed_at: string | null;
     email_verified: boolean; joined: string | null; is_organizer: boolean;
 }
@@ -165,9 +167,21 @@ export default function UserShow({ user, activity, fee, globalFee, canManageFees
                         <h2 className="mb-1 text-sm font-semibold">About &amp; account</h2>
                         <div className="divide-y divide-border">
                             <Row icon={UsersIcon} label="Gender">{cap(user.gender)}</Row>
-                            <Row icon={CalendarDays} label="Age band">{user.age_band ? (AGE_LABEL[user.age_band] ?? user.age_band) : '—'}</Row>
+                            {/* The year they actually gave, with the derived band
+                                and current age beside it — the band alone made it
+                                impossible to tell a fresh answer from a stale one. */}
+                            <Row icon={CalendarDays} label="Born">
+                                {user.birth_year
+                                    ? `${user.birth_year} · ${new Date().getFullYear() - user.birth_year} years old`
+                                    : user.age_band
+                                      ? (AGE_LABEL[user.age_band] ?? user.age_band)
+                                      : '—'}
+                            </Row>
                             <Row icon={BadgeCheck} label="Profile">{user.profile_complete ? `Completed${user.profile_completed_at ? ` · ${user.profile_completed_at}` : ''}` : 'Incomplete'}</Row>
-                            <Row icon={CalendarDays} label="Joined">{user.joined ?? '—'}</Row>
+                            <Row icon={CalendarDays} label="Joined">
+                                {user.joined ?? '—'}
+                                {user.membership && <span className="ml-1 text-muted-foreground">· {user.membership}</span>}
+                            </Row>
                         </div>
                     </section>
                 </div>

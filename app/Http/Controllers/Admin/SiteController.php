@@ -293,6 +293,6 @@ class SiteController extends Controller
             'currency' => 'MYR', 'subtotal' => 250.0, 'tax' => 15.0, 'total' => 265.0,
         ];
 
-        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved()])->stream('receipt-preview.pdf');
+        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved($receipt['seller']['logo'] ?? null)])->stream('receipt-preview.pdf');
     }
 }

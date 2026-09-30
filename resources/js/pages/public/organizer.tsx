@@ -14,7 +14,7 @@ interface Organizer {
     id: number; slug: string; name: string; avatar: string | null; bio: string | null; website: string | null;
     location: string | null; event_types: string[]; followers: number; members: number; photos_count: number; events_count: number; joined: string | null;
 }
-interface Members { attendees: { name: string }[]; followers: { name: string }[] }
+interface Members { attendees: { name: string }[]; followers: { name: string }[]; hidden?: number }
 interface Photo { path: string; caption: string | null }
 interface Post { id: number; author: string; body: string; when: string | null; is_organizer: boolean; replies: Post[] }
 interface DiscussionData { posts: Post[]; pagination: { page: number; per_page: number; total: number; has_more: boolean } }
@@ -90,6 +90,21 @@ function LoginWall({ feature }: { feature: string }) {
             <div className="mt-5 flex gap-2">
                 <Button asChild><Link href="/login">Log in</Link></Button>
                 <Button asChild variant="outline"><Link href="/signup">Sign up</Link></Button>
+            </div>
+        </div>
+    );
+}
+
+/** Shown under a previewed list: how many more there are, and how to see them. */
+function MorePrompt({ count }: { count: number }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-10 text-center">
+            <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground"><Lock className="size-5" /></span>
+            <h3 className="mt-3 text-sm font-semibold">{count} more {count === 1 ? 'person' : 'people'}</h3>
+            <p className="mt-1 max-w-xs text-sm text-muted-foreground">Log in to see everyone who joins events by this organizer.</p>
+            <div className="mt-4 flex gap-2">
+                <Button asChild size="sm"><Link href="/login">Log in</Link></Button>
+                <Button asChild size="sm" variant="outline"><Link href="/signup">Sign up</Link></Button>
             </div>
         </div>
     );
@@ -350,8 +365,10 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                         )
                     )}
 
+                    {/* A guest sees the first few and is told how many more there
+                        are — an invitation rather than a wall. A member row is
+                        only a name, so nothing private is being previewed. */}
                     {tab === 'members' && (
-                        !viewer.authed ? <LoginWall feature="members" /> : (
                         <div className="grid gap-10">
                             <section>
                                 <h2 className="mb-1 text-lg font-bold tracking-tight">Attendees</h2>
@@ -363,12 +380,16 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                 <p className="mb-4 text-sm text-muted-foreground">People following {organizer.name} for updates.</p>
                                 <MemberGrid people={members.followers} empty="No followers yet." />
                             </section>
+                            {!viewer.authed && (members.hidden ?? 0) > 0 && (
+                                <MorePrompt count={members.hidden ?? 0} />
+                            )}
                         </div>
-                        )
                     )}
 
+                    {/* Photos are public — they are the reason someone decides an
+                        organizer is worth going to, so a login wall here closed the
+                        most persuasive tab on the page. */}
                     {tab === 'photos' && (
-                        !viewer.authed ? <LoginWall feature="photos" /> :
                         photos.length === 0 ? (
                             <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No photos yet — {organizer.name} hasn’t shared any event photos.</p>
                         ) : (

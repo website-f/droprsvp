@@ -49,6 +49,8 @@ class UserController extends Controller
                 'phone' => $user->phone,
                 'gender' => $user->gender,
                 'age_band' => $user->age_band,
+                // The year they gave; the band above is derived from it.
+                'birth_year' => $user->birth_year,
                 'city' => $user->city,
                 'country' => $user->country,
                 'roles' => $user->roles->pluck('name'),
@@ -59,6 +61,9 @@ class UserController extends Controller
                 'profile_completed_at' => optional($user->profile_completed_at)->format('j M Y'),
                 'email_verified' => (bool) $user->email_verified_at,
                 'joined' => optional($user->created_at)->format('j M Y'),
+                // "2 years on DropRSVP" — tells an admin at a glance whether this
+                // is a regular or somebody who signed up this morning.
+                'membership' => \App\Support\Profile::membershipLabel($user->created_at),
                 // Hosts can be moved off the global booking fee from this page.
                 'is_organizer' => $user->hasRole('organizer') || $user->events()->exists(),
             ],
@@ -87,10 +92,10 @@ class UserController extends Controller
 
         return response()->streamDownload(function () use ($users) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Name', 'Email', 'Phone', 'Gender', 'Age band', 'City', 'Country', 'Roles', 'Profile complete', 'Joined']);
+            fputcsv($out, ['Name', 'Email', 'Phone', 'Gender', 'Age band', 'Birth year', 'City', 'Country', 'Roles', 'Profile complete', 'Joined']);
             foreach ($users as $u) {
                 fputcsv($out, [
-                    $u->name, $u->email, $u->phone, $u->gender, $u->age_band, $u->city, $u->country,
+                    $u->name, $u->email, $u->phone, $u->gender, $u->age_band, $u->birth_year, $u->city, $u->country,
                     $u->roles->pluck('name')->join(', '),
                     $u->profile_completed_at ? 'yes' : 'no',
                     optional($u->created_at)->toDateString(),

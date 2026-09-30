@@ -158,7 +158,11 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                     <div className="grid gap-3">
                         {events.map((e) => (
                             <div key={e.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-foreground/20">
-                                <div className="flex items-start gap-3">
+                                {/* Stacked on a phone. The actions used to sit
+                                    beside a flex-1 block with no room left, so they
+                                    overflowed the card and the last buttons could
+                                    not be reached at all. */}
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Link href={`/host/events/${e.slug}/edit`} className="truncate text-base font-semibold hover:underline">{e.title}</Link>
@@ -173,8 +177,10 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                         </div>
                                     </div>
 
-                                    {/* Actions: primary Edit + a tidy "More" dropdown */}
-                                    <div className="flex shrink-0 items-center gap-2">
+                                    {/* Actions: primary Edit + a tidy "More" dropdown.
+                                        Wraps rather than overflowing, and takes the
+                                        full width on mobile where it has its own row. */}
+                                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                                         {e.status === 'cancelled' && (
                                             e.appeal_status === 'pending'
                                                 ? <Badge variant="secondary" className="shrink-0">Appeal pending</Badge>

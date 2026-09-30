@@ -29,7 +29,12 @@ class Receipt
             'seller' => [
                 'name' => $profile?->business_name ?: ($organizer?->name ?? config('app.name')),
                 'detail' => $organizer?->email,
-                'logo' => $organizer?->avatar ?: $profile?->poster,
+                // Company logo first, personal photo only as a fallback — a
+                // receipt is from a business. (Same precedence as the public
+                // organizer page; it used to be the other way round, so an
+                // organizer who signed up with Google got their Google selfie
+                // on every invoice.)
+                'logo' => $profile?->poster ?: $organizer?->avatar,
                 'address' => $profile?->business_address,
                 'tax_number' => $profile?->tax_number,
             ],

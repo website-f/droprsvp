@@ -52,17 +52,19 @@ class EventPhotoTest extends TestCase
                 ->where('organizer.photos_count', 1));
     }
 
-    public function test_photos_are_hidden_from_logged_out_visitors(): void
+    public function test_photos_are_visible_to_logged_out_visitors(): void
     {
         $host = $this->organizer();
         $event = $this->ownedEvent($host);
         EventPhoto::create(['event_id' => $event->id, 'path' => '/storage/live.jpg']);
         $host->ensureSlug();
 
-        // Guests get no photo data (auth wall) but the count is still exposed.
+        // Photos used to sit behind a login. They are an organizer's shop
+        // window — the reason someone decides an event is worth going to — so
+        // gating them closed the most persuasive tab on the page.
         $this->get("/en-my/o/{$host->slug}")->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/organizer')
-                ->has('photos', 0)
+                ->has('photos', 1)
                 ->where('organizer.photos_count', 1));
     }
 }
