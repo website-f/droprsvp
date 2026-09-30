@@ -1,11 +1,34 @@
-import { router, usePage } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { Eye, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Impersonating {
     actor: string | null;
     viewing: string | null;
     viewing_email: string | null;
     role: string;
+}
+
+interface PageProps { impersonating?: Impersonating | null }
+
+/**
+ * The impersonation prop from the page Inertia mounted with.
+ *
+ * Read during render rather than in an effect: doing it in an effect means a
+ * first paint without the banner and an immediate second render, which is what
+ * react-hooks/set-state-in-effect objects to — and on a borrowed session the
+ * banner is the one thing that should never flicker in late.
+ */
+function initialImpersonation(): Impersonating | null {
+    try {
+        const el = document.getElementById('app');
+
+        return el?.dataset.page
+            ? ((JSON.parse(el.dataset.page).props as PageProps).impersonating ?? null)
+            : null;
+    } catch {
+        return null; // malformed payload — the banner simply stays hidden
+    }
 }
 
 /**
@@ -17,11 +40,24 @@ interface Impersonating {
  * else. Bottom rather than top so it never collides with the sticky public
  * header or the panel's own toolbar on a phone.
  *
- * Renders nothing at all for an ordinary session, so it costs a null check on
- * every page and nothing more.
+ * Mounted once at the app root, OUTSIDE the Inertia page tree, so it reads
+ * props via the global router rather than usePage() — which throws
+ * "usePage must be used within the Inertia component" out here. Same approach
+ * as FlashWatcher, for the same reason: this has to survive every layout,
+ * including the public and focused-wizard pages that render no layout at all.
+ *
+ * Renders nothing for an ordinary session.
  */
 export function ImpersonationBanner() {
-    const impersonating = usePage().props.impersonating as Impersonating | null | undefined;
+    const [impersonating, setImpersonating] = useState<Impersonating | null>(initialImpersonation);
+
+    useEffect(() => {
+        // Every navigation afterwards, including the ones that start and end
+        // the impersonation.
+        return router.on('navigate', (event) => {
+            setImpersonating((event.detail.page.props as PageProps).impersonating ?? null);
+        });
+    }, []);
 
     if (!impersonating) {
         return null;

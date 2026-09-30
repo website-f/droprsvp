@@ -9,7 +9,7 @@ import { useEffect } from 'react';
  * built entirely from ecommerce events, so every one of them had no data to
  * draw from.
  *
- * The payloads are built on the server (App\Support\GoogleAnalytics) from the
+ * The payloads are built on the server (App\Support\Tracking) from the
  * order that was actually settled, so what GA reports is what the database
  * holds rather than something reassembled from the DOM.
  *

@@ -5,13 +5,15 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        {{-- Google tag (gtag.js) — PUBLIC pages only.
-             It used to render on every page, so the property was measuring the
-             back office: the admin user list, host screens, staff browsing.
-             App\Support\GoogleAnalytics decides; it also skips local/testing so
-             dev traffic and the test suite never reach the property. --}}
-        @php($gaId = \App\Support\GoogleAnalytics::shouldTrack(request()) ? \App\Support\GoogleAnalytics::measurementId() : null)
-        @if($gaId)
+        {{-- Third-party analytics — PUBLIC pages only.
+             These used to render on every page, so the GA property was measuring
+             the back office: the admin user list, host screens, staff browsing.
+             App\Support\Tracking decides; it also skips local/testing so dev
+             traffic and the test suite never reach either service. --}}
+        @php($track = \App\Support\Tracking::shouldTrack(request()))
+
+        {{-- Google Analytics 4 (gtag.js). --}}
+        @if($track && ($gaId = \App\Support\Tracking::measurementId()))
             <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
             <script>
                 window.dataLayer = window.dataLayer || [];
@@ -19,6 +21,20 @@
                 gtag('js', new Date());
 
                 gtag('config', @json($gaId));
+            </script>
+        @endif
+
+        {{-- Microsoft Clarity (heatmaps + session replay).
+             Same public-only scope as GA, and for a stronger reason: Clarity
+             records the screen, so on an admin or host page it would be sending
+             other people's names, emails and order history to a third party. --}}
+        @if($track && ($clarityId = \App\Support\Tracking::clarityId()))
+            <script type="text/javascript">
+                (function(c,l,a,r,i,t,y){
+                    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+                })(window, document, "clarity", "script", @json($clarityId));
             </script>
         @endif
 

@@ -9,8 +9,8 @@ use App\Models\Order;
 use App\Models\TicketType;
 use App\Models\User;
 use App\Services\CheckoutService;
-use App\Support\GoogleAnalytics;
 use App\Support\Impersonation;
+use App\Support\Tracking;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
@@ -102,17 +102,56 @@ class AdjustmentsTest extends TestCase
 
         foreach ($public as $path) {
             $this->assertTrue(
-                GoogleAnalytics::shouldTrack(Request::create($path)),
+                Tracking::shouldTrack(Request::create($path)),
                 "{$path} is a public page and should be measured.",
             );
         }
 
         foreach ($private as $path) {
             $this->assertFalse(
-                GoogleAnalytics::shouldTrack(Request::create($path)),
+                Tracking::shouldTrack(Request::create($path)),
                 "{$path} is the back office and must not reach the GA property.",
             );
         }
+    }
+
+    public function test_clarity_renders_on_public_pages_and_never_on_the_panel(): void
+    {
+        config([
+            'services.clarity.project_id' => 'yq9ifva1wn',
+            'services.ga.measurement_id' => '',
+        ]);
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->eventWithTwoSessions();
+
+        // Session replay on a public page: fine, that is what it is for.
+        $this->get('/en-my/e/botc')
+            ->assertOk()
+            ->assertSee('clarity.ms/tag/', false)
+            ->assertSee('yq9ifva1wn', false);
+
+        // On an admin screen it would be recording other people's names, emails
+        // and order history. It must not be there at all.
+        $admin = User::factory()->create();
+        Role::findOrCreate('superadmin', 'web');
+        $admin->assignRole('superadmin');
+
+        $this->actingAs($admin)->get('/admin/overview')
+            ->assertOk()
+            ->assertDontSee('clarity.ms', false);
+    }
+
+    public function test_each_tracker_can_be_switched_off_on_its_own(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->eventWithTwoSessions();
+
+        config(['services.clarity.project_id' => '', 'services.ga.measurement_id' => 'G-TEST']);
+        $this->get('/en-my/e/botc')->assertDontSee('clarity.ms', false)->assertSee('G-TEST', false);
+
+        config(['services.clarity.project_id' => 'abc123', 'services.ga.measurement_id' => '']);
+        $this->get('/en-my/e/botc')->assertSee('clarity.ms', false)->assertDontSee('googletagmanager', false);
     }
 
     public function test_the_checkout_funnel_still_reports_because_a_purchase_happens_there(): void
@@ -121,7 +160,7 @@ class AdjustmentsTest extends TestCase
         $this->app->detectEnvironment(fn () => 'production');
 
         foreach (['/checkout/DRSVP-ABC', '/orders/DRSVP-ABC'] as $path) {
-            $this->assertTrue(GoogleAnalytics::shouldTrack(Request::create($path)));
+            $this->assertTrue(Tracking::shouldTrack(Request::create($path)));
         }
     }
 
@@ -130,7 +169,7 @@ class AdjustmentsTest extends TestCase
         $event = $this->eventWithTwoSessions();
         $order = $this->buy($event, $event->ticketTypes()->first(), 2);
 
-        $payload = GoogleAnalytics::purchasePayload($order);
+        $payload = Tracking::purchasePayload($order);
 
         $this->assertSame($order->reference, $payload['transaction_id']);
         $this->assertSame(40.0, $payload['value']);
@@ -145,8 +184,8 @@ class AdjustmentsTest extends TestCase
         $event = $this->eventWithTwoSessions();
         $order = app(CheckoutService::class)->start($event, [['ticket_type_id' => $event->ticketTypes()->first()->id, 'quantity' => 1]]);
 
-        $this->assertNull(GoogleAnalytics::purchasePayload($order));
-        $this->assertNotNull(GoogleAnalytics::checkoutPayload($order));
+        $this->assertNull(Tracking::purchasePayload($order));
+        $this->assertNotNull(Tracking::checkoutPayload($order));
     }
 
     public function test_the_confirmation_page_hands_the_purchase_event_to_the_browser(): void

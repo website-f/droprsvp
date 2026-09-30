@@ -53,6 +53,14 @@ return [
         'measurement_id' => env('GA_MEASUREMENT_ID', 'G-Q80TSQSFQ1'),
     ],
 
+    /*
+     | Microsoft Clarity (heatmaps + session replay). Blank turns the tag off.
+     | Rendered on public pages only — see App\Support\Tracking.
+     */
+    'clarity' => [
+        'project_id' => env('CLARITY_PROJECT_ID', 'yq9ifva1wn'),
+    ],
+
     'chip' => [
         // CHIP Collect (https://docs.chip-in.asia). driver: 'chip' (real API) or
         // 'fake' (dev — instantly settles, no keys). Test vs live is decided by the
