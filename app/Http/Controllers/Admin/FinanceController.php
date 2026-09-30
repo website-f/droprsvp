@@ -35,6 +35,12 @@ class FinanceController extends Controller
     /** Every row type the ledger can produce. */
     private const TYPES = ['ticket', 'fee', 'boost', 'subscription', 'payout', 'refund'];
 
+    /** How many options a filter dropdown carries before it says it is truncated. */
+    private const OPTION_LIMIT = 500;
+
+    /** Per-request cache of kpis(), keyed by the filter set. @var array<string,array> */
+    private array $totals = [];
+
     public function index(Request $request)
     {
         $f = $this->filters($request);
@@ -123,6 +129,10 @@ class FinanceController extends Controller
      * a name and getting an empty table. And listing "all organizers" by role
      * meant asking Spatie for a role that throws if it has not been seeded,
      * which turned a missing role into a 500 on the whole finance page.
+     *
+     * Each option carries a hint (an event's date, an organizer's email) so two
+     * events with the same title are still tellable apart in a list of
+     * hundreds, and the lists are capped — the client says so when they are.
      */
     private function options(): array
     {
@@ -131,20 +141,33 @@ class FinanceController extends Controller
             ->distinct()
             ->pluck($column);
 
-        return [
-            'events' => Event::whereIn('id', $distinct('event_id'))
-                ->orderByDesc('starts_at')
-                ->limit(500)
-                ->get(['id', 'title'])
-                ->map(fn ($e) => ['value' => (string) $e->id, 'label' => $e->title])
-                ->all(),
+        $events = Event::whereIn('id', $distinct('event_id'))
+            ->orderByDesc('starts_at')
+            ->limit(self::OPTION_LIMIT + 1)
+            ->get(['id', 'title', 'starts_at', 'city']);
 
-            'organizers' => User::whereIn('id', $distinct('organizer_id'))
-                ->orderBy('name')
-                ->limit(500)
-                ->get(['id', 'name'])
-                ->map(fn ($u) => ['value' => (string) $u->id, 'label' => $u->name])
-                ->all(),
+        $organizers = User::whereIn('id', $distinct('organizer_id'))
+            ->orderBy('name')
+            ->limit(self::OPTION_LIMIT + 1)
+            ->get(['id', 'name', 'email']);
+
+        return [
+            'events' => $events->take(self::OPTION_LIMIT)->map(fn ($e) => [
+                'value' => (string) $e->id,
+                'label' => $e->title,
+                'hint' => collect([$e->starts_at?->format('j M Y'), $e->city])->filter()->implode(' · ') ?: null,
+            ])->values()->all(),
+
+            'organizers' => $organizers->take(self::OPTION_LIMIT)->map(fn ($u) => [
+                'value' => (string) $u->id,
+                'label' => $u->name,
+                'hint' => $u->email,
+            ])->values()->all(),
+
+            // Fetching one more than the cap is how we know there were more,
+            // without a second COUNT over the same union.
+            'eventsTruncated' => $events->count() > self::OPTION_LIMIT,
+            'organizersTruncated' => $organizers->count() > self::OPTION_LIMIT,
 
             'methods' => collect(PaymentMethod::methods())
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
@@ -165,6 +188,18 @@ class FinanceController extends Controller
      */
     private function kpis(array $f): array
     {
+        // Memoised: breakdown() wants the same numbers, and re-running a
+        // six-branch UNION over every order on the platform to get them twice
+        // is the kind of thing that only hurts once there is real data in it.
+        //
+        // An instance property, not a static: the controller is built fresh per
+        // request, so this cannot outlive the data it summarises.
+        $key = md5(serialize($f));
+
+        if (isset($this->totals[$key])) {
+            return $this->totals[$key];
+        }
+
         $byType = DB::query()->fromSub($this->allUnion(), 't')
             ->tap(fn ($q) => $this->applyScope($q, $f))
             ->selectRaw('type, sum(amount) as total')
@@ -180,7 +215,7 @@ class FinanceController extends Controller
         $refunds = $sum('refund');
         $payouts = $sum('payout');
 
-        return [
+        return $this->totals[$key] = [
             // What we processed on organizers' behalf. Not our money.
             'ticket_sales' => $tickets,
             // What we kept out of it. This IS our money.

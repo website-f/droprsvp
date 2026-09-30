@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Event;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -35,6 +37,16 @@ class SiteSettingsTest extends TestCase
             'event_time' => ['enabled' => true, 'heading' => 'When', 'items' => [['label' => 'Today', 'value' => 'today']]],
             'nearby_cities' => ['enabled' => true, 'heading' => 'Near', 'cities' => ['Penang']],
         ])->assertRedirect();
+
+        // A curated city only earns a chip if it has upcoming events — an empty
+        // one led to an empty browse page. So give Penang something to show.
+        Event::create([
+            'user_id' => User::factory()->create()->id,
+            'title' => 'Penang Night Market', 'slug' => 'penang-night-market',
+            'status' => 'published', 'visibility' => 'public',
+            'timezone' => 'Asia/Kuala_Lumpur', 'city' => 'Penang',
+            'starts_at' => now()->addWeek(),
+        ]);
 
         $this->get('/en-my')->assertInertia(fn (Assert $p) => $p
             ->component('welcome')
@@ -90,11 +102,11 @@ class SiteSettingsTest extends TestCase
     {
         // Freeze the clock at midday so "starts_at = now()+2h" can't spill across a
         // day boundary (the when=today window is bounded by the app-tz calendar day).
-        $this->travelTo(\Illuminate\Support\Carbon::create(2026, 6, 15, 12, 0, 0));
+        $this->travelTo(Carbon::create(2026, 6, 15, 12, 0, 0));
 
         $host = User::factory()->create();
-        $today = \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Today Ev', 'slug' => 'today-ev', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addHours(2)]);
-        \App\Models\Event::create(['user_id' => $host->id, 'title' => 'Next Month', 'slug' => 'next-month', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addMonths(1)->addDays(2)]);
+        $today = Event::create(['user_id' => $host->id, 'title' => 'Today Ev', 'slug' => 'today-ev', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addHours(2)]);
+        Event::create(['user_id' => $host->id, 'title' => 'Next Month', 'slug' => 'next-month', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addMonths(1)->addDays(2)]);
 
         $this->get('/en-my/all?when=today')->assertInertia(fn (Assert $p) => $p
             ->component('public/events/index')
@@ -121,13 +133,13 @@ class SiteSettingsTest extends TestCase
     public function test_organizer_event_banner_becomes_a_featured_slide(): void
     {
         $host = User::factory()->create();
-        \App\Models\Event::create([
+        Event::create([
             'user_id' => $host->id, 'title' => 'Banner Ev', 'slug' => 'banner-ev', 'status' => 'published',
             'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(3),
             'banner_image' => '/uploads/banner.jpg',
         ]);
         // An event without a banner must NOT appear in the featured hero.
-        \App\Models\Event::create([
+        Event::create([
             'user_id' => $host->id, 'title' => 'No Banner', 'slug' => 'no-banner', 'status' => 'published',
             'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addDays(4),
         ]);

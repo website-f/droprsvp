@@ -4,18 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Models\Order;
 use App\Models\User;
 use App\Support\Cities;
 use App\Support\EventFaces;
+use App\Support\PostCards;
 use App\Support\SeoManager;
-use App\Support\Url;
 use App\Support\SiteContent;
+use App\Support\Url;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 
 class HomeController extends Controller
 {
     /** The marketing landing page — featured upcoming events + category tiles. */
-    public function index(\Illuminate\Http\Request $request)
+    public function index(Request $request)
     {
         $featuredEvents = $this->upcoming()->limit(3)->get();
         $featuredFaces = EventFaces::for($featuredEvents->pluck('id'));
@@ -50,13 +54,19 @@ class HomeController extends Controller
             // version and never see this.
             ->crawlable($this->crawlableHome($home, $featured));
 
-        // Enrich the nearby-cities section with coordinates so the client can show
-        // "~N km away" from the visitor's location.
+        // Nearby cities: only ones that actually have something to show.
+        //
+        // This was a fixed list an admin typed in, so the chips advertised
+        // Ipoh, George Town and Johor Bahru whether or not a single event was
+        // running there — and every one of those led to an empty page. The
+        // curated list now acts as an ORDER, not as the contents: a city keeps
+        // its place if it has upcoming events, and is dropped if it does not.
         $sections = SiteContent::landing();
-        if (! empty($sections['nearby_cities']['cities'])) {
-            $sections['nearby_cities']['cities'] = collect($sections['nearby_cities']['cities'])
-                ->map(fn ($name) => ['name' => $name, 'slug' => Cities::slugForName($name), ...(Cities::coordsForName($name) ?? ['lat' => null, 'lng' => null])])
-                ->all();
+
+        if (! empty($sections['nearby_cities']['enabled'])) {
+            $sections['nearby_cities']['cities'] = $this->citiesWithEvents(
+                (array) ($sections['nearby_cities']['cities'] ?? []),
+            );
         }
 
         return Inertia::render('welcome', [
@@ -68,7 +78,7 @@ class HomeController extends Controller
             'sections' => $sections,
             'organizers' => $this->featuredOrganizers(),
             // Three latest posts for the blog strip above the contact section.
-            'posts' => \App\Support\PostCards::recent(3),
+            'posts' => PostCards::recent(3),
             // Personalized feeds for signed-in visitors.
             'cityEvents' => $this->cityEvents($request),
             'forYou' => $this->forYou(),
@@ -80,7 +90,7 @@ class HomeController extends Controller
      * copy, the featured events, and links into the main browse pages so there
      * is a crawlable path deeper into the site.
      */
-    private function crawlableHome(array $home, \Illuminate\Support\Collection $featured): string
+    private function crawlableHome(array $home, Collection $featured): string
     {
         $html = '<h1>'.e($home['title'] ?: config('seo.site_name', 'DropRSVP')).'</h1>';
 
@@ -134,7 +144,7 @@ class HomeController extends Controller
      * (?near=<city-slug>) if allowed, else their profile city. Null if we don't
      * know their city or there's nothing on there.
      */
-    private function cityEvents(\Illuminate\Http\Request $request): ?array
+    private function cityEvents(Request $request): ?array
     {
         $user = auth()->user();
         if (! $user) {
@@ -158,14 +168,14 @@ class HomeController extends Controller
     }
 
     /** "For you" — upcoming events in the categories the user has attended before. */
-    private function forYou(): ?\Illuminate\Support\Collection
+    private function forYou(): ?Collection
     {
         $user = auth()->user();
         if (! $user) {
             return null;
         }
 
-        $attendedIds = \App\Models\Order::where('user_id', $user->id)->where('status', 'paid')->pluck('event_id')->unique();
+        $attendedIds = Order::where('user_id', $user->id)->where('status', 'paid')->pluck('event_id')->unique();
         if ($attendedIds->isEmpty()) {
             return null;
         }
@@ -188,7 +198,7 @@ class HomeController extends Controller
     }
 
     /** Top organizers by number of published events, with their soonest event. */
-    private function featuredOrganizers(): \Illuminate\Support\Collection
+    private function featuredOrganizers(): Collection
     {
         $viewer = auth()->user();
         $followingIds = $viewer ? $viewer->following()->pluck('users.id') : collect();
@@ -249,5 +259,51 @@ class HomeController extends Controller
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
             'rating_count' => (int) ($event->reviews_count ?? 0),
         ];
+    }
+
+    /**
+     * The nearby-city chips: cities with upcoming published events, in the
+     * admin's curated order, with anything they missed appended.
+     *
+     * Every chip here is a promise that there is something to see. A city with
+     * no events leads to an empty browse page, which is a worse first
+     * impression than one fewer chip — so the admin's list decides the ORDER
+     * and cities without events simply do not appear.
+     *
+     * @param  array<int,string>  $curated  City names from Admin -> Landing.
+     * @return array<int,array{name:string,slug:string,events:int,lat:?float,lng:?float}>
+     */
+    private function citiesWithEvents(array $curated): array
+    {
+        $counts = Event::published()
+            ->whereNotNull('city')
+            ->where('city', '!=', '')
+            ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '>=', now()))
+            ->selectRaw('city, count(*) as total')
+            ->groupBy('city')
+            ->pluck('total', 'city');
+
+        if ($counts->isEmpty()) {
+            return [];
+        }
+
+        // Curated first, in their order; then anything else that has events,
+        // busiest first, so a new city appears on its own without an admin
+        // having to remember to add it.
+        $ordered = collect($curated)
+            ->filter(fn ($name) => $counts->has($name))
+            ->merge($counts->sortDesc()->keys()->reject(fn ($name) => in_array($name, $curated, true)))
+            ->unique()
+            ->take(8);
+
+        return $ordered
+            ->map(fn ($name) => [
+                'name' => $name,
+                'slug' => Cities::slugForName($name),
+                'events' => (int) $counts[$name],
+                ...(Cities::coordsForName($name) ?? ['lat' => null, 'lng' => null]),
+            ])
+            ->values()
+            ->all();
     }
 }

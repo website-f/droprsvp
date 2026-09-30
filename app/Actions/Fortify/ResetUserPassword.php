@@ -24,6 +24,16 @@ class ResetUserPassword implements ResetsUserPasswords
 
         $user->forceFill([
             'password' => $input['password'],
+            // They have just chosen their own password, so the "set your
+            // password" gate has nothing left to ask for.
+            //
+            // This flag is raised for accounts we create FOR someone — at
+            // checkout, or by an admin — who then sign in with a password they
+            // did not choose. It was only ever cleared by the set-password
+            // screen itself and by Google sign-in, so anyone who used "forgot
+            // password" instead reset it successfully, signed in, and was still
+            // sent straight back to "Set your password".
+            'must_set_password' => false,
         ])->save();
     }
 }

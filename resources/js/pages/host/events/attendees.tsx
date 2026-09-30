@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Download, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { useConfirm } from '@/components/confirm-dialog';
 import { QrScanner  } from '@/components/qr-scanner';
 import type {ScanFeedback} from '@/components/qr-scanner';
 import { AppSelect } from '@/components/ui/app-select';
@@ -59,6 +61,7 @@ export default function Attendees({ event, tickets, filters, ticketTypes, stats,
     const [auto, setAuto] = useState(true);
     const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
     const [pending, setPending] = useState<Row | null>(null); // valid ticket awaiting manual confirm
+    const confirm = useConfirm();
     const [working, setWorking] = useState(false);
 
     const base = `/host/events/${event.slug}/attendees`;
@@ -152,6 +155,13 @@ p.set('type', filters.type);
         }
     };
 
+    /** The server's message on a 4xx, or a usable fallback. */
+    const reason = (err: unknown, fallback: string) => {
+        const data = (err as { data?: { message?: string } } | undefined)?.data;
+
+        return data?.message || fallback;
+    };
+
     const checkIn = async (id: number, fromScanner = false) => {
         setWorking(true);
 
@@ -163,17 +173,50 @@ p.set('type', filters.type);
                 setFeedback({ tone: 'ok', title: 'Checked in', subtitle: [res.ticket.name, res.ticket.type].filter(Boolean).join(' · ') });
                 setPending(null);
             }
+        } catch (err) {
+            // A void or refunded ticket answers 422. This was unhandled, so the
+            // rejection went nowhere and the door staff saw the button do
+            // nothing at all.
+            const message = reason(err, 'Could not check this ticket in.');
+
+            if (fromScanner) {
+                setFeedback({ tone: 'error', title: 'Not checked in', subtitle: message });
+                setPending(null);
+            } else {
+                toast.error(message);
+            }
         } finally {
             setWorking(false);
         }
     };
 
-    const undo = async (id: number) => {
+    /**
+     * Undo, behind a confirmation.
+     *
+     * At a door this button sits next to the one everybody is tapping, and a
+     * mis-tap lets the same ticket through twice. The prompt names the person,
+     * so confirming is a decision rather than a reflex.
+     */
+    const undo = async (id: number, name: string) => {
+        const ok = await confirm({
+            title: 'Undo check-in?',
+            description: `${name} will be marked as not arrived, and can be checked in again. The original check-in stays on record.`,
+            confirmText: 'Undo check-in',
+            destructive: true,
+        });
+
+        if (!ok) {
+            return;
+        }
+
         setWorking(true);
 
         try {
             const res = await postJson<{ ticket: Row; stats: Stats }>(`${base}/${id}/undo`);
             mergeTicket(res.ticket, res.stats);
+            toast.success(`${name} is no longer checked in.`);
+        } catch (err) {
+            toast.error(reason(err, 'Could not undo this check-in.'));
         } finally {
             setWorking(false);
         }
@@ -272,7 +315,7 @@ p.set('type', filters.type);
                                         </td>
                                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                                             {r.status === 'valid' && <Button size="sm" variant="outline" disabled={working} onClick={() => checkIn(r.id)}>Check in</Button>}
-                                            {r.status === 'checked_in' && <Button size="sm" variant="ghost" disabled={working} onClick={() => undo(r.id)}><RotateCcw className="size-3.5" /> Undo</Button>}
+                                            {r.status === 'checked_in' && <Button size="sm" variant="ghost" disabled={working} onClick={() => undo(r.id, r.name)}><RotateCcw className="size-3.5" /> Undo</Button>}
                                             {(r.status === 'void' || r.status === 'refunded') && <span className="text-xs text-muted-foreground">—</span>}
                                         </td>
                                     </tr>
@@ -315,7 +358,7 @@ p.set('type', filters.type);
                             <Field label="Code" value={detail.token} mono />
                             <div className="mt-1 flex gap-2">
                                 {detail.status === 'valid' && <Button className="flex-1" disabled={working} onClick={() => checkIn(detail.id)}><CheckCircle2 className="size-4" /> Check in</Button>}
-                                {detail.status === 'checked_in' && <Button variant="outline" className="flex-1" disabled={working} onClick={() => undo(detail.id)}><RotateCcw className="size-4" /> Undo check-in</Button>}
+                                {detail.status === 'checked_in' && <Button variant="outline" className="flex-1" disabled={working} onClick={() => undo(detail.id, detail.name)}><RotateCcw className="size-4" /> Undo check-in</Button>}
                             </div>
                         </div>
                     )}

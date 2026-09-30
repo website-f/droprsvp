@@ -143,23 +143,74 @@ class AttendeeController extends Controller
         }
 
         if ($model->status !== 'checked_in') {
-            $model->update(['status' => 'checked_in', 'checked_in_at' => now(), 'checked_in_by' => $request->user()->id]);
+            $model->update([
+                'status' => 'checked_in',
+                'checked_in_at' => now(),
+                'checked_in_by' => $request->user()->id,
+                'check_in_log' => $this->appendLog($model, 'in', $request->user()->id),
+            ]);
         }
 
         return response()->json(['ticket' => $this->row($model->refresh(), $event), 'stats' => $this->stats($event)]);
     }
 
-    /** Reverse an accidental check-in. */
+    /**
+     * Reverse an accidental check-in.
+     *
+     * Guarded, because at a door this is one tap next to the tap everybody is
+     * making, and getting it wrong lets someone through twice.
+     *
+     *  - It must be an undo of something. Reversing a ticket that is not
+     *    checked in is a mistake, not a no-op, so it says so rather than
+     *    returning 200 and letting the tapper believe they did something.
+     *  - A void or refunded ticket is not reinstated here. That is a refund
+     *    decision, not a door decision.
+     *  - The check-in is RECORDED, not erased. This used to null out
+     *    checked_in_at and checked_in_by, which destroyed the only evidence
+     *    that the ticket had ever been scanned and by whom.
+     */
     public function undo(Request $request, Event $event, int $ticket)
     {
         $this->authorize('update', $event);
         $model = $event->tickets()->findOrFail($ticket);
 
-        if ($model->status === 'checked_in') {
-            $model->update(['status' => 'valid', 'checked_in_at' => null, 'checked_in_by' => null]);
+        if (in_array($model->status, ['void', 'refunded'], true)) {
+            return response()->json(['result' => 'invalid', 'message' => 'This ticket is '.$model->status.'.'], 422);
         }
 
+        if ($model->status !== 'checked_in') {
+            return response()->json([
+                'result' => 'invalid',
+                'message' => 'This ticket is not checked in, so there is nothing to undo.',
+            ], 422);
+        }
+
+        $model->update([
+            'status' => 'valid',
+            'checked_in_at' => null,
+            'checked_in_by' => null,
+            'check_in_log' => $this->appendLog($model, 'undo', $request->user()->id),
+        ]);
+
         return response()->json(['ticket' => $this->row($model->refresh(), $event), 'stats' => $this->stats($event)]);
+    }
+
+    /**
+     * Append one entry to a ticket's check-in history.
+     *
+     * Capped, because a ticket toggled back and forth at a busy door should not
+     * be able to grow its own row without bound. The oldest entries go first —
+     * the first check-in and the most recent reversal are what anyone asks
+     * about, and both survive a trim of the middle.
+     *
+     * @return array<int,array{action:string,at:string,by:int}>
+     */
+    private function appendLog(Ticket $ticket, string $action, int $userId): array
+    {
+        $log = $ticket->check_in_log ?? [];
+        $log[] = ['action' => $action, 'at' => now()->toIso8601String(), 'by' => $userId];
+
+        return array_slice($log, -20);
     }
 
     /** @return array{q: string, status: string, type: string} */
@@ -194,7 +245,7 @@ class AttendeeController extends Controller
 
     /**
      * @param  array<int,array<string,mixed>>|null  $fields  the event's booking
-     *         fields, resolved once by the caller so 25 rows don't re-parse them
+     *                                                       fields, resolved once by the caller so 25 rows don't re-parse them
      */
     private function row(Ticket $t, Event $event, ?array $fields = null): array
     {

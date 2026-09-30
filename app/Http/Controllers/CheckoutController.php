@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Services\CheckoutService;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Support\Cities;
 use App\Support\CustomFields;
 use App\Support\Profile;
 use Illuminate\Http\Request;
@@ -72,6 +73,10 @@ class CheckoutController extends Controller
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
             'required' => SettingsController::checkoutRequired(),
+            // For the state -> city picker. A free-text city gave us "KL",
+            // "kuala lumpur" and "K.L." for one place, and the city is what the
+            // browse pages and the organizer's audience breakdown key on.
+            'cities' => Cities::all(),
             // Drives the "signed in as…" line vs the "log in" button.
             'account' => $user ? ['name' => $user->name, 'email' => $user->email] : null,
             'loginUrl' => route('checkout.login', $order, false),

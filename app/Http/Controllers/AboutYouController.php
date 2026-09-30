@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Cities;
 use App\Support\Profile;
 use Illuminate\Http\Request;
 
@@ -24,6 +25,9 @@ class AboutYouController extends Controller
                 'country' => $u->country,
             ],
             'countries' => Profile::COUNTRIES,
+            // Grouped by state so the picker can narrow a 66-city list to
+            // the dozen that belong to whichever state they choose.
+            'cities' => Cities::all(),
             'birthYears' => Profile::birthYears(),
             'done' => (bool) $u->profile_completed_at,
         ]);

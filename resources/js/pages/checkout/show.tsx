@@ -3,6 +3,7 @@ import { Loader2, Lock, Tag, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
 import { CustomFieldsSection, type CustomAnswers, type CustomField } from '@/components/custom-fields';
+import { StateCityPicker, type CityOption } from '@/components/state-city-picker';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -33,8 +34,9 @@ interface Buyer { name: string | null; email: string | null; phone: string | nul
 
 interface Account { name: string; email: string }
 
-export default function CheckoutShow({ order, required, buyer, customFields = [], ticketCount = 0, account = null, loginUrl }: {
+export default function CheckoutShow({ order, required, buyer, cities = [], customFields = [], ticketCount = 0, account = null, loginUrl }: {
     order: OrderView; required: Required; buyer: Buyer | null;
+    cities?: CityOption[];
     customFields?: CustomField[]; ticketCount?: number;
     account?: Account | null; loginUrl?: string;
 }) {
@@ -162,11 +164,14 @@ export default function CheckoutShow({ order, required, buyer, customFields = []
                                         <AppSelect value={form.data.buyer_birth_year || ''} onChange={(v) => form.setData('buyer_birth_year', v)} options={BIRTH_YEARS} />
                                         {form.errors.buyer_birth_year && <p className="text-xs text-destructive">{form.errors.buyer_birth_year}</p>}
                                     </div>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="buyer_city">{req('City', required.city)}</Label>
-                                        <input id="buyer_city" className={field} value={form.data.buyer_city} onChange={(e) => form.setData('buyer_city', e.target.value)} placeholder="e.g. Kuala Lumpur" />
-                                        {form.errors.buyer_city && <p className="text-xs text-destructive">{form.errors.buyer_city}</p>}
-                                    </div>
+                                    <StateCityPicker
+                                        idPrefix="buyer_city"
+                                        cities={cities}
+                                        value={form.data.buyer_city}
+                                        onChange={(v) => form.setData('buyer_city', v)}
+                                        required={required.city}
+                                        error={form.errors.buyer_city}
+                                    />
                                     <div className="grid gap-1.5">
                                         <Label>{req('How did you hear about it?', required.source)}</Label>
                                         <AppSelect value={form.data.buyer_source || ''} onChange={(v) => form.setData('buyer_source', v)} options={SOURCES} />

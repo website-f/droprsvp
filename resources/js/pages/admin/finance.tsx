@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DonutChart, RevenueBars } from '@/components/charts';
 import { PaymentBadge, type PaymentInfo } from '@/components/payment-badge';
 import { AppSelect } from '@/components/ui/app-select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Button } from '@/components/ui/button';
 
 interface Txn {
@@ -18,7 +19,7 @@ interface Txn {
     payment: PaymentInfo | null;
 }
 interface Paginated { data: Txn[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
-interface Option { value: string; label: string }
+interface Option { value: string; label: string; hint?: string }
 interface Filters { q: string; type: string; direction: string; event: string; organizer: string; method: string; from: string; to: string }
 
 interface Props {
@@ -36,7 +37,14 @@ interface Props {
     breakdown: { label: string; value: number; direction: 'in' | 'out' }[];
     transactions: Paginated;
     filters: Filters;
-    options: { events: Option[]; organizers: Option[]; methods: Option[]; types: Option[] };
+    options: {
+        events: Option[];
+        organizers: Option[];
+        methods: Option[];
+        types: Option[];
+        eventsTruncated: boolean;
+        organizersTruncated: boolean;
+    };
     showMethod: boolean;
     currency: string;
     exportUrl: string;
@@ -185,12 +193,24 @@ export default function Finance({ kpis, trend, breakdown, transactions, filters,
                     </div>
 
                     <div className="flex flex-wrap items-end gap-3">
-                        <div className="w-full sm:w-64">
-                            <AppSelect value={filters.event} onChange={(v) => apply({ event: v })} options={[{ value: 'all', label: 'All events' }, ...options.events]} />
-                        </div>
-                        <div className="w-full sm:w-56">
-                            <AppSelect value={filters.organizer} onChange={(v) => apply({ organizer: v })} options={[{ value: 'all', label: 'All organizers & members' }, ...options.organizers]} />
-                        </div>
+                        <SearchableSelect
+                            className="w-full sm:w-64"
+                            aria-label="Filter by event"
+                            value={filters.event}
+                            onChange={(v) => apply({ event: v })}
+                            options={[{ value: 'all', label: 'All events' }, ...options.events]}
+                            searchPlaceholder="Search events…"
+                            truncated={options.eventsTruncated}
+                        />
+                        <SearchableSelect
+                            className="w-full sm:w-56"
+                            aria-label="Filter by organizer or member"
+                            value={filters.organizer}
+                            onChange={(v) => apply({ organizer: v })}
+                            options={[{ value: 'all', label: 'All organizers & members' }, ...options.organizers]}
+                            searchPlaceholder="Search by name or email…"
+                            truncated={options.organizersTruncated}
+                        />
                         {showMethod && (
                             <div className="w-full sm:w-52">
                                 <AppSelect value={filters.method} onChange={(v) => apply({ method: v })} options={[{ value: 'all', label: 'Any payment method' }, ...options.methods]} />

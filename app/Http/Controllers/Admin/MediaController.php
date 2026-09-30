@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\ImageOptimizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -52,6 +53,15 @@ class MediaController extends Controller
         // ops, and this still respects Storage::fake() in tests.
         $disk = Storage::disk('public');
         $file->move($disk->path('cms'), $name);
+
+        // Shrink oversized uploads in place. A phone photo is 4000px wide and
+        // several megabytes; the largest slot we ever render it into is a
+        // fraction of that, so everything above ImageOptimizer::MAX_EDGE was
+        // pure download cost — which is why galleries of them load slowly.
+        //
+        // Best effort by design: if GD is missing or the file defeats it, the
+        // original stays and the upload still succeeds.
+        ImageOptimizer::optimise($disk->path('cms/'.$name));
 
         return response()->json(['url' => $disk->url('cms/'.$name)]);
     }

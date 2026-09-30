@@ -53,7 +53,7 @@ interface LandingSections {
     hero: { style: 'classic' | 'banners'; autoplay: boolean; interval: number; banners: Banner[] };
     organizer: { enabled: boolean; heading: string; body: string; cta_label: string; cta_url: string; image: string };
     event_time: { enabled: boolean; heading: string; items: { label: string; value: string }[] };
-    nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; lat: number | null; lng: number | null }> };
+    nearby_cities: { enabled: boolean; heading: string; cities: Array<{ name: string; slug: string | null; events: number; lat: number | null; lng: number | null }> };
     featured_organizers: { enabled: boolean; heading: string; subheading: string };
     blog?: { enabled: boolean; heading: string; subheading: string; cta_label: string };
     contact: { enabled: boolean; heading: string; subheading: string };
@@ -361,7 +361,14 @@ export default function Welcome() {
                                 {nearbyCities.map((c) => (
                                     <Link key={c.name} href={`/en-my/${c.slug ?? citySlug(c.name)}/`} className="rounded-xl border border-border bg-card px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-foreground/40 hover:shadow-sm">
                                         <span className="block text-sm font-medium">{c.name}</span>
-                                        {c.km != null && <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="size-3" /> {c.km < 1 ? 'under 1 km away' : `~${Math.round(c.km)} km away`}</span>}
+                                        {/* Every chip now leads somewhere with events in it, so saying
+                                            how many is a promise the page can keep. Distance wins the
+                                            line when we know it — it is the more useful of the two. */}
+                                        {c.km != null ? (
+                                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="size-3" /> {c.km < 1 ? 'under 1 km away' : `~${Math.round(c.km)} km away`}</span>
+                                        ) : (
+                                            <span className="block text-[11px] text-muted-foreground">{c.events} event{c.events === 1 ? '' : 's'}</span>
+                                        )}
                                     </Link>
                                 ))}
                             </div>
