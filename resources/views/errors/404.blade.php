@@ -20,6 +20,16 @@
     $help = Url::to('help');
     // Never the raw query string: it can carry whatever was in the link.
     $requested = '/'.ltrim(request()->path(), '/');
+
+    // The hero photo. A PHOTOGRAPH, not og-default.png — that is the social
+    // share card with "Find your people. Fill your events." set into it, and
+    // using it here printed that headline through the 404 copy.
+    //
+    // Hardcoded on purpose: an error page should not need the database to
+    // render, least of all when the thing that broke might be the database. If
+    // the file is ever removed the layered background falls through to the
+    // gradient underneath it, which stands on its own.
+    $heroImage = asset('storage/cms/ZEr1wBEmpjVFWZkhF9MK7THDTQuv2u2HK0AtxbfZ.jpg');
 @endphp
 <!DOCTYPE html>
 <html lang="en-MY">
@@ -81,7 +91,7 @@
             display: flex; align-items: center; color: #fff; overflow: hidden;
             background:
                 linear-gradient(90deg, rgba(17,10,40,.88) 0%, rgba(17,10,40,.6) 45%, rgba(17,10,40,.15) 100%),
-                url("{{ asset('og-default.png') }}") center/cover no-repeat,
+                url("{{ $heroImage }}") center/cover no-repeat,
                 linear-gradient(135deg, #2e1065 0%, #6d28d9 55%, #f97316 100%);
         }
         .hero-deco { position: absolute; inset: 0; pointer-events: none; }
@@ -109,12 +119,12 @@
         .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
         /* ───────── Cards ───────── */
-        .cards { padding: 56px 0; }
+        .cards { padding: 24px 0 56px; }
         .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
         .card { display: flex; flex-direction: column; }
         .card-media {
             height: 216px; border-radius: var(--radius); background: var(--panel);
-            display: grid; place-items: center; overflow: hidden; margin-bottom: 28px;
+            display: grid; place-items: center; overflow: hidden; margin-bottom: 36px;
             transition: transform .25s ease, box-shadow .25s ease;
         }
         .card:hover .card-media { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(17,24,39,.1); }
@@ -137,7 +147,7 @@
             .hero { min-height: 440px; }
             .hero-content { padding: 56px 0; }
             .card-grid { grid-template-columns: 1fr; gap: 36px; }
-            .card-media { height: 180px; margin-bottom: 20px; }
+            .card-media { margin-bottom: 24px; }
         }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
     </style>

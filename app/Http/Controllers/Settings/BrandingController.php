@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Support\WebsiteUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,6 +25,18 @@ class BrandingController extends Controller
     {
         $user = $request->user();
         $isOrganizer = $user->hasAnyRole(['organizer', 'superadmin']);
+
+        // Accept a website written the way people write one ("instagram.com/x",
+        // "www.example.com"). The `url` rule below rejects both for want of a
+        // scheme, which turned an OPTIONAL field into one that could not be
+        // filled in without knowing to type "https://" first.
+        //
+        // Only when the key is actually present: forcing it in as null would
+        // make the `url` rule run on a field that was never submitted (the
+        // non-organizer branch has no `nullable` in front of it).
+        if ($request->has('website')) {
+            $request->merge(['website' => WebsiteUrl::normalise($request->input('website'))]);
+        }
 
         $data = $request->validate([
             // Uploaded via the shared /uploads endpoint, so what arrives is a URL.

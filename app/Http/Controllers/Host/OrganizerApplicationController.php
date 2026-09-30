@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
 use App\Mail\OrganizerApplicationReceivedMail;
+use App\Support\PlatformAlert;
+use App\Support\WebsiteUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -52,6 +54,17 @@ class OrganizerApplicationController extends Controller
             return redirect()->route('host.pending')->with('warning', 'Your application is being reviewed and can no longer be edited.');
         }
 
+        // Same normalisation as the branding form: the website is optional, and
+        // "instagram.com/x" should be accepted rather than rejected for want of
+        // a scheme.
+        //
+        // Only when the key is actually present: forcing it in as null would
+        // make the `url` rule run on a field that was never submitted (the
+        // non-organizer branch has no `nullable` in front of it).
+        if ($request->has('website')) {
+            $request->merge(['website' => WebsiteUrl::normalise($request->input('website'))]);
+        }
+
         $data = $request->validate([
             'business_name' => ['required', 'string', 'max:120'],
             'phone' => ['required', 'string', 'max:40'],
@@ -78,7 +91,7 @@ class OrganizerApplicationController extends Controller
 
         // An application sits waiting for a superadmin, so it is the one that
         // most needs surfacing — it used to email only the applicant.
-        \App\Support\PlatformAlert::raise(
+        PlatformAlert::raise(
             type: 'organizer',
             title: 'New organizer application',
             body: $data['business_name'].' applied to host events.',

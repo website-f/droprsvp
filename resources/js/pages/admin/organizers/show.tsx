@@ -1,8 +1,9 @@
-import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Check, ExternalLink, Globe, Mail, Phone, X } from 'lucide-react';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Head, Link, router } from '@inertiajs/react';
+import { prettyUrl, safeHref } from '@/lib/pretty-url';
+import { useState } from 'react';
 
 interface Application {
     id: number; name: string | null; email: string | null; member_since: string | null;
@@ -15,9 +16,12 @@ const STATUS_TONE: Record<string, 'default' | 'secondary' | 'destructive' | 'out
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
-        <div>
+        // min-w-0: a grid item defaults to min-width:auto, so without this a
+        // long unbroken value (a share URL) widens the column instead of
+        // truncating inside it.
+        <div className="min-w-0">
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-            <div className="mt-1 text-sm">{children}</div>
+            <div className="mt-1 min-w-0 text-sm">{children}</div>
         </div>
     );
 }
@@ -71,7 +75,27 @@ export default function OrganizerShow({ application: app }: { application: Appli
                     <Field label="Contact person">{app.name}</Field>
                     <Field label="Email"><a href={`mailto:${app.email}`} className="inline-flex items-center gap-1.5 hover:underline"><Mail className="size-3.5" /> {app.email}</a></Field>
                     <Field label="Phone">{app.phone ? <a href={`tel:${app.phone}`} className="inline-flex items-center gap-1.5 hover:underline"><Phone className="size-3.5" /> {app.phone}</a> : <span className="text-muted-foreground">—</span>}</Field>
-                    <Field label="Website">{app.website ? <a href={app.website} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 hover:underline"><Globe className="size-3.5" /> {app.website} <ExternalLink className="size-3" /></a> : <span className="text-muted-foreground">—</span>}</Field>
+                    <Field label="Website">
+                        {/* The label is the readable form; the link keeps the URL
+                            exactly as they entered it, tracking and all. Raw, an
+                            Instagram share link runs past the column and off the
+                            card. */}
+                        {safeHref(app.website) ? (
+                            <a
+                                href={safeHref(app.website)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={app.website ?? undefined}
+                                className="inline-flex max-w-full items-center gap-1.5 hover:underline"
+                            >
+                                <Globe className="size-3.5 shrink-0" />
+                                <span className="truncate">{prettyUrl(app.website)}</span>
+                                <ExternalLink className="size-3 shrink-0" />
+                            </a>
+                        ) : (
+                            <span className="text-muted-foreground">—</span>
+                        )}
+                    </Field>
                     <Field label="Member since"><span className="inline-flex items-center gap-1.5"><Calendar className="size-3.5" /> {app.member_since ?? '—'}</span></Field>
                     {app.reviewed_at && <Field label="Last reviewed">{app.reviewed_at}</Field>}
                 </div>

@@ -84,13 +84,22 @@ export function BrandingSettings({ branding, isOrganizer }: { branding: Branding
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="website">Website</Label>
+                        <Label htmlFor="website">
+                            Website <span className="font-normal text-muted-foreground">(optional)</span>
+                        </Label>
+                        {/* Not type="url": the browser's own check rejects
+                            "instagram.com/3dexpress" for want of a scheme and
+                            blocks the submit before the server ever sees it.
+                            The server adds the https:// and rejects anything
+                            that is not a web address. */}
                         <Input
                             id="website"
-                            type="url"
+                            type="text"
+                            inputMode="url"
+                            autoComplete="url"
                             value={form.data.website}
                             onChange={(e) => form.setData('website', e.target.value)}
-                            placeholder="https://"
+                            placeholder="instagram.com/yourbrand"
                         />
                         <InputError message={form.errors.website} />
                     </div>

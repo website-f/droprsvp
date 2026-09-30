@@ -116,7 +116,7 @@ export default function OrganizerApply({ application }: { application: Applicati
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="website">Website (optional)</Label>
-                                <input id="website" className={field} value={data.website} onChange={(e) => setData('website', e.target.value)} placeholder="https://…" />
+                                <input id="website" className={field} inputMode="url" value={data.website} onChange={(e) => setData('website', e.target.value)} placeholder="instagram.com/yourbrand" />
                                 {errors.website && <p className="text-xs text-destructive">{errors.website}</p>}
                             </div>
                         </div>
