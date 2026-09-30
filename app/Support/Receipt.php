@@ -52,7 +52,16 @@ class Receipt
             ])->values()->all(),
             'subtotal' => (float) $order->subtotal,
             'discount' => (float) $order->discount,
-            'fees' => (float) $order->fees,
+            // No platform fee line, deliberately. The commission is charged to
+            // the ORGANIZER — PayoutService settles `total - fees` — and was
+            // never added to what the buyer paid. Printing it on their receipt
+            // showed them a number they were not charged, one that did not add
+            // up against the total (subtotal - discount + tax), and that is
+            // the platform's revenue rather than anything to do with them.
+            // Admins see it in Admin -> Finance, which separates GMV from the
+            // commission kept; the organizer sees it in their own payout
+            // balance. It is not in this payload at all, so it does not reach
+            // the buyer's browser either.
             'tax' => (float) $order->tax,
             'total' => (float) $order->total,
             'currency' => $order->currency,
@@ -90,7 +99,6 @@ class Receipt
             ]],
             'subtotal' => (float) $payout->amount,
             'discount' => 0.0,
-            'fees' => 0.0,
             'tax' => 0.0,
             'total' => (float) $payout->amount,
             'currency' => $payout->currency,

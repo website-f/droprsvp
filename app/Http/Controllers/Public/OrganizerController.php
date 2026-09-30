@@ -62,7 +62,8 @@ class OrganizerController extends Controller
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid')->whereNotNull('buyer_email');
         $membersCount = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
         $followersCount = (int) $organizer->followers()->count();
-        $photosCount = (int) EventPhoto::whereIn('event_id', $eventIds)->count();
+        $photos = $this->photos($eventIds);
+        $photosCount = $photos->count();
 
         $attendees = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
             ->unique('buyer_email')->take($authed ? 60 : $preview)
@@ -129,8 +130,7 @@ class OrganizerController extends Controller
                 // number instead of a vague "and more".
                 'hidden' => $authed ? 0 : max(0, ($membersCount + $followersCount) - $attendees->count() - $followers->count()),
             ],
-            'photos' => EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
-                ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
+            'photos' => $photos->take(60)->values(),
             'similar' => $this->similarEvents($organizer, $eventIds),
             'discussion' => $this->discussion($organizer, $request, $authed),
             'viewer' => [
@@ -149,6 +149,59 @@ class OrganizerController extends Controller
      * tree). The total is always returned (for the tab badge), but the posts
      * themselves are only exposed to signed-in viewers (auth wall).
      */
+    /**
+     * Every photo this organizer has published, from both places they end up.
+     *
+     * An organizer uploads pictures in two different contexts and thinks of
+     * them as one body of work:
+     *
+     *   * the event GALLERY, set while building the event — the promo shots;
+     *   * the event ALBUM (event_photos), added afterwards — the photos from
+     *     the night itself.
+     *
+     * The profile used to show only the second, which meant an organizer with
+     * a full gallery on every event had an empty Photos tab and no idea why.
+     * There was a button to copy gallery images across one by one; that is a
+     * chore to keep up with, and forgetting it looks identical to having no
+     * photos. Both sources are simply merged here instead, so the tab fills
+     * itself as events are published.
+     *
+     * De-duplicated by path, because an image copied across by the old button
+     * exists in both places and must not appear twice.
+     *
+     * @param  Collection<int, int>  $eventIds
+     * @return Collection<int, array{path: string, caption: string|null}>
+     */
+    private function photos($eventIds): Collection
+    {
+        if ($eventIds->isEmpty()) {
+            return collect();
+        }
+
+        // The album: newest first, and each already carries its own caption.
+        $album = EventPhoto::whereIn('event_id', $eventIds)
+            ->latest()
+            ->limit(120)
+            ->get(['path', 'caption'])
+            ->map(fn (EventPhoto $p) => ['path' => $p->path, 'caption' => $p->caption]);
+
+        // The galleries, newest event first so a recent event's shots lead.
+        $gallery = Event::whereIn('id', $eventIds)
+            ->whereNotNull('gallery')
+            ->orderByRaw('starts_at is null, starts_at desc')
+            ->limit(60)
+            ->get(['id', 'title', 'gallery'])
+            ->flatMap(fn (Event $event) => collect($event->gallery ?? [])
+                // The event's name is the only caption a promo image has, and
+                // on a profile page it is the useful one.
+                ->map(fn ($path) => ['path' => (string) $path, 'caption' => $event->title]));
+
+        return $album->concat($gallery)
+            ->filter(fn (array $photo) => $photo['path'] !== '')
+            ->unique('path')
+            ->values();
+    }
+
     private function discussion(User $organizer, Request $request, bool $authed): array
     {
         $perPage = 10;

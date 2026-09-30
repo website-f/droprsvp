@@ -389,7 +389,10 @@ class CheckoutController extends Controller
             'subtotal' => (float) $order->subtotal,
             'discount' => (float) $order->discount,
             'discount_code' => $order->discount_code_id ? $order->discountCode?->code : null,
-            'fees' => (float) $order->fees,
+            // The platform commission is the organizer's cost, not a line on
+            // the buyer's bill — see Receipt::forOrder. Nothing renders it, but
+            // it was still being serialised into the page props where anyone
+            // could read it, so it is not sent at all.
             'tax' => (float) $order->tax,
             'total' => (float) $order->total,
             'buyer_name' => $order->buyer_name,

@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 
 interface OrderView {
     reference: string; currency: string; total: number;
-    subtotal: number; discount: number; discount_code?: string | null; fees: number; tax: number;
+    subtotal: number; discount: number; discount_code?: string | null; tax: number;
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
     items: Array<{ name: string; quantity: number; unit_price: number; line_total: number }>;
 }

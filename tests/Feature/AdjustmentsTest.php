@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Event;
 use App\Models\EventCategory;
-use App\Models\EventPhoto;
 use App\Models\Order;
 use App\Models\TicketType;
 use App\Models\User;
@@ -284,47 +283,6 @@ class AdjustmentsTest extends TestCase
 
         $this->actingAs($user)->post(route('impersonate.stop'))->assertRedirect(route('login'));
         $this->assertGuest();
-    }
-
-    // ---- 5. Gallery photos onto the organizer profile -----------------------
-
-    public function test_an_organizer_can_push_gallery_images_into_their_profile_album(): void
-    {
-        $event = $this->eventWithTwoSessions();
-        $event->update(['gallery' => ['/storage/cms/one.jpg', '/storage/cms/two.jpg', '/storage/cms/three.jpg']]);
-
-        $this->actingAs($event->user)
-            ->get(route('host.events.photos', $event))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('galleryOptions', 3));
-
-        $this->actingAs($event->user)->post(route('host.events.photos.from-gallery', $event), [
-            'paths' => ['/storage/cms/one.jpg', '/storage/cms/two.jpg'],
-        ]);
-
-        $this->assertSame(2, EventPhoto::where('event_id', $event->id)->count());
-
-        // Already-added images drop out of the picker rather than being offered twice.
-        $this->actingAs($event->user)
-            ->get(route('host.events.photos', $event))
-            ->assertInertia(fn ($page) => $page->has('galleryOptions', 1));
-
-        // …and they now show on the public organizer profile.
-        $this->get('/en-my/o/'.$event->user->ensureSlug())
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('photos', 2));
-    }
-
-    public function test_only_images_on_that_event_can_be_pushed_into_the_album(): void
-    {
-        $event = $this->eventWithTwoSessions();
-        $event->update(['gallery' => ['/storage/cms/mine.jpg']]);
-
-        $this->actingAs($event->user)->post(route('host.events.photos.from-gallery', $event), [
-            'paths' => ['https://evil.example/tracker.png'],
-        ]);
-
-        $this->assertSame(0, EventPhoto::where('event_id', $event->id)->count());
     }
 
     // ---- 6. A compulsory contact email on the application -------------------

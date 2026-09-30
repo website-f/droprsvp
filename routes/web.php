@@ -298,7 +298,6 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         // Event photo album (organizer uploads; shown on their public profile).
         Route::get('events/{event}/photos', [EventPhotoController::class, 'index'])->name('events.photos');
         Route::post('events/{event}/photos', [EventPhotoController::class, 'store'])->name('events.photos.store');
-        Route::post('events/{event}/photos/from-gallery', [EventPhotoController::class, 'fromGallery'])->name('events.photos.from-gallery');
         Route::delete('events/{event}/photos/{photo}', [EventPhotoController::class, 'destroy'])->name('events.photos.destroy');
 
         // Promo / discount codes + their redemption analytics.
