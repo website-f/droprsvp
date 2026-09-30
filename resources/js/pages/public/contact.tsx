@@ -1,6 +1,7 @@
-import { Head, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import { CheckCircle2, Headset, Mail, MessageSquare, Phone, Send, Tag, User } from 'lucide-react';
 import { useState } from 'react';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ interface Seo { title: string }
 
 const field = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-export default function Contact({ categories, seo }: { categories: Category[]; seo: Seo }) {
+export default function Contact({ categories }: { categories: Category[]; seo: Seo }) {
     const [sent, setSent] = useState(false);
     // `website` is a honeypot — hidden from users, bots fill it and get silently dropped.
     const form = useForm({ name: '', email: '', phone: '', category: 'enquiry', message: '', website: '' });
@@ -26,7 +27,7 @@ export default function Contact({ categories, seo }: { categories: Category[]; s
 
     return (
         <>
-            <Head title={seo.title} />
+            <PageTitle />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

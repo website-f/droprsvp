@@ -8,6 +8,7 @@ use App\Models\MenuItem;
 use App\Support\Cities;
 use App\Support\Impersonation;
 use App\Support\RolePermissions;
+use App\Support\SeoManager;
 use App\Support\SiteContent;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -58,6 +59,16 @@ class HandleInertiaRequests extends Middleware
                     ? AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
                     : 0,
             ],
+            // The title the SERVER put in <title>, so an in-app navigation sets
+            // document.title to the same string instead of a bare record name.
+            // share() runs after the controller, so the SeoManager it reads has
+            // already been populated by whichever page is responding.
+            // A CLOSURE, not a value: Inertia's middleware shares before the
+            // controller runs, so reading SeoManager here eagerly would always
+            // find it empty and hand every page the bare site name. Inertia
+            // resolves closures when the response is built, which is after the
+            // controller has populated it.
+            'pageTitle' => fn () => app(SeoManager::class)->displayTitle(),
             // Non-null only during a superadmin "view as" session; drives the
             // banner that says whose account this is and how to get out.
             'impersonating' => Impersonation::share($request),

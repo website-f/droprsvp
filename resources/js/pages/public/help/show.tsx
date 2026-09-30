@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 
@@ -9,7 +10,7 @@ interface Related { title: string; slug: string }
 export default function HelpShow({ article, related }: { article: Article; related: Related[] }) {
     return (
         <>
-            <Head title={`${article.title} · Help`} />
+            <PageTitle />
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />
 

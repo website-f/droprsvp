@@ -1,6 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import {   BlogSidebar, categoryUrl, postUrl } from '@/components/blog-sidebar';
 import type {BlogPostCard, BlogSidebarData} from '@/components/blog-sidebar';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 interface Paginated { data: BlogPostCard[]; prev_page_url: string | null; next_page_url: string | null }
 interface Seo { title: string }
 
-export default function BlogIndex({ posts, sidebar, activeCategory, seo }: {
+export default function BlogIndex({ posts, sidebar, activeCategory }: {
     posts: Paginated;
     sidebar: BlogSidebarData;
     activeCategory: string | null;
@@ -19,7 +20,7 @@ export default function BlogIndex({ posts, sidebar, activeCategory, seo }: {
     return (
         <>
             {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
-            <Head title={seo.title} />
+            <PageTitle />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

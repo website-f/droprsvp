@@ -1,7 +1,8 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, CornerDownRight, Globe, Images, Info, Lock, MapPin, MessageCircle, Send, Shield, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Framed, SmartImage } from '@/components/smart-image';
 import { Badge } from '@/components/ui/badge';
@@ -267,7 +268,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 
     return (
         <>
-            <Head title={`${organizer.name} — DropRSVP`} />
+            <PageTitle />
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />
 

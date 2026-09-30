@@ -1,10 +1,11 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Tag, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
 import { EventBanner } from '@/components/event-banner';
 import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { SeatMap   } from '@/components/seat-map';
@@ -89,7 +90,7 @@ interface Offer {
     remaining: number | null;
 }
 
-export default function PublicEvent({ event, seo, participants, discussion, reviews, viewer, offers = [] }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer; offers?: Offer[] }) {
+export default function PublicEvent({ event, participants, discussion, reviews, viewer, offers = [] }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer; offers?: Offer[] }) {
     const [qty, setQty] = useState<Record<number, number>>({});
     const [submitting, setSubmitting] = useState(false);
     const [tab, setTab] = useState<Tab>('about');
@@ -216,7 +217,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
     return (
         <>
-            <Head title={seo.title} />
+            <PageTitle />
 
             <div className="min-h-screen overflow-x-clip bg-background text-foreground">
                 <PublicHeader />

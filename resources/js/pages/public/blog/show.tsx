@@ -1,7 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { ArrowLeft, CalendarDays, Clock, User } from 'lucide-react';
 import { BlogSidebar, categoryUrl, hasContents, TableOfContentsCard } from '@/components/blog-sidebar';
 import type { BlogSidebarData, TocItem } from '@/components/blog-sidebar';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,7 @@ interface PostView {
 }
 interface Seo { title: string }
 
-export default function BlogShow({ post, toc, hasInlineToc, sidebar, seo }: { post: PostView; toc: TocItem[]; hasInlineToc: boolean; sidebar: BlogSidebarData; seo: Seo }) {
+export default function BlogShow({ post, toc, hasInlineToc, sidebar }: { post: PostView; toc: TocItem[]; hasInlineToc: boolean; sidebar: BlogSidebarData; seo: Seo }) {
     const meta = [
         post.author && { icon: User, text: post.author },
         post.date && { icon: CalendarDays, text: post.date },
@@ -28,7 +29,7 @@ export default function BlogShow({ post, toc, hasInlineToc, sidebar, seo }: { po
     return (
         <>
             {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
-            <Head title={seo.title} />
+            <PageTitle />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

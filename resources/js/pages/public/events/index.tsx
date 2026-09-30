@@ -1,6 +1,7 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { CalendarDays, ChevronRight, MapPin, Rocket, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { SearchAutocomplete } from '@/components/search-autocomplete';
@@ -199,7 +200,7 @@ export default function Discover({ events, categories, cities, active, filters, 
     return (
         <>
             {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
-            <Head title={seo.title} />
+            <PageTitle />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

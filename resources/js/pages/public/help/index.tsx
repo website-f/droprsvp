@@ -1,6 +1,7 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { ChevronRight, LifeBuoy, Search } from 'lucide-react';
 import { useState } from 'react';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Button } from '@/components/ui/button';
 
@@ -12,7 +13,7 @@ export default function HelpIndex({ categories, filters }: { categories: Categor
 
     return (
         <>
-            <Head title="Help center" />
+            <PageTitle />
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />
 

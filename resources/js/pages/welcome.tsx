@@ -1,10 +1,11 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowDown, ArrowRight, CalendarDays, CalendarPlus, CheckCircle2, Compass, Headset, MapPin, MessageSquare, Newspaper, Send, Sparkles, Star, Tag, Ticket, UserCheck, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CategoryGrid } from '@/components/landing/category-grid';
 import { HeroArt } from '@/components/landing/hero-art';
 import {  HeroBanners } from '@/components/landing/hero-banners';
 import type {Banner} from '@/components/landing/hero-banners';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
 import { contentClass } from '@/components/rich-editor';
@@ -132,7 +133,7 @@ function EventCard({ e }: { e: FeaturedEvent }) {
 }
 
 export default function Welcome() {
-    const { auth, seo, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null, posts = [] } = usePage().props as unknown as {
+    const { auth, featured = [], categories = [], sections, organizers = [], cityEvents = null, forYou = null, posts = [] } = usePage().props as unknown as {
         auth?: { user?: unknown };
         seo?: { title?: string };
         featured?: FeaturedEvent[];
@@ -255,7 +256,7 @@ export default function Welcome() {
     return (
         <>
             {/* The admin's saved SEO title (the title callback won't double-brand it). */}
-            <Head title={seo?.title ?? 'Find your people — DropRSVP'} />
+            <PageTitle fallback="Find your people — DropRSVP" />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />

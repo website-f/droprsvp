@@ -48,6 +48,55 @@ class Tracking
         'premium', 'premium/*',
     ];
 
+    /**
+     * The private paths as ONE JavaScript regular expression.
+     *
+     * The server refusing to render the tag is only half the job. Inertia is a
+     * SPA: a visitor who lands on a public page has the tag loaded, and every
+     * click after that is a history change, not a new document. GA4's enhanced
+     * measurement turns each of those into a page_view on its own — which is
+     * why /dashboard kept appearing in the reports even after the tag stopped
+     * rendering on it. Nothing server-side can prevent that; the browser has
+     * to be told to stop.
+     *
+     * Generated from PRIVATE_PATHS rather than hand-written, so the two can't
+     * drift: one list decides, in both places.
+     */
+    public static function privatePathPattern(): string
+    {
+        $parts = [];
+
+        foreach (self::PRIVATE_PATHS as $path) {
+            // 'admin/*' -> 'admin/.*' ; 'admin' -> 'admin'
+            $escaped = preg_quote(rtrim($path, '/*'), '/');
+            $parts[] = str_ends_with($path, '/*') ? $escaped.'\\/.*' : $escaped;
+        }
+
+        // Anchored, and tolerant of a trailing slash on the bare forms.
+        return '^\\/(?:'.implode('|', array_unique($parts)).')\\/?$';
+    }
+
+    /** Everything the browser needs to police itself, or null when tracking is off. */
+    public static function clientConfig(Request $request): ?array
+    {
+        if (! self::shouldTrack($request)) {
+            return null;
+        }
+
+        $ga = self::measurementId();
+        $clarity = self::clarityId();
+
+        if ($ga === null && $clarity === null) {
+            return null;
+        }
+
+        return [
+            'ga' => $ga,
+            'clarity' => $clarity,
+            'private' => self::privatePathPattern(),
+        ];
+    }
+
     /** The GA4 measurement id, or null when analytics is switched off. */
     public static function measurementId(): ?string
     {

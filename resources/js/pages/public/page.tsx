@@ -1,23 +1,24 @@
-import { Head } from '@inertiajs/react';
+
 import { Render  } from '@measured/puck';
 import type {Data} from '@measured/puck';
 import { PageSections, hasSections  } from '@/components/cms/page-sections';
 import type {PageSection} from '@/components/cms/page-sections';
 import { renderConfig } from '@/components/cms/puck-render';
 import type {PostCard} from '@/components/cms/puck-render';
+import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 
 interface Seo { title: string }
 interface Page { title: string; body: string | null; layout: PageSection[] | null; puck: Data | null; posts?: PostCard[] }
 
-export default function PublicPage({ page, seo, preview }: { page: Page; seo: Seo; preview?: boolean }) {
+export default function PublicPage({ page, preview }: { page: Page; seo: Seo; preview?: boolean }) {
     const built = !!(page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
 
     return (
         <>
             {/* SEO is server-rendered by Laravel; keep only the tab <title>. */}
-            <Head title={seo.title} />
+            <PageTitle />
 
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 {preview && (

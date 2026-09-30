@@ -11,6 +11,17 @@
              App\Support\Tracking decides; it also skips local/testing so dev
              traffic and the test suite never reach either service. --}}
         @php($track = \App\Support\Tracking::shouldTrack(request()))
+        @php($trackingConfig = \App\Support\Tracking::clientConfig(request()))
+
+        {{-- What the browser needs to switch the tags off again.
+             The server not rendering them on /admin is only half the job: this
+             is a SPA, so a visitor who arrives on a public page keeps the tag
+             loaded and GA counts every later history change as a page view —
+             panel screens included. TrackingGuard reads this and flips GA's
+             own opt-out flag (and stops Clarity) before each navigation. --}}
+        @if($trackingConfig)
+            <script>window.__tracking = @json($trackingConfig);</script>
+        @endif
 
         {{-- Google Analytics 4 (gtag.js). --}}
         @if($track && ($gaId = \App\Support\Tracking::measurementId()))

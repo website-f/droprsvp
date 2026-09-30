@@ -220,6 +220,35 @@ class SeoManager
 
     // ---- rendering ---------------------------------------------------------
 
+    /**
+     * The exact string that goes in <title>.
+     *
+     * Public, and used by more than render(), because the SERVER is not the
+     * only thing that sets the title. Inertia is a SPA: on every in-app
+     * navigation the browser sets document.title from the page's <Head>, and
+     * those were passing the bare record title. So a visitor who arrived on the
+     * home page and clicked through to an event saw — and Google Analytics
+     * recorded — "Some Event · DropRSVP" instead of the templated
+     * "Some Event – Kajang, 10 Oct 2026 | DropRSVP" the server had rendered.
+     *
+     * Sharing this one value with the frontend (HandleInertiaRequests) is what
+     * keeps the two in step.
+     */
+    public function displayTitle(): string
+    {
+        $site = config('seo.site_name', 'DropRSVP');
+        $separator = config('seo.title_separator', '·');
+
+        if (! $this->title) {
+            return $site;
+        }
+
+        // A templated title already ends in "| DropRSVP"; don't brand it twice.
+        return $this->appendSiteName && ! Str::contains($this->title, $site)
+            ? "{$this->title} {$separator} {$site}"
+            : $this->title;
+    }
+
     public function render(): string
     {
         // The admin panel must never be indexed or its links followed, regardless of
@@ -230,12 +259,8 @@ class SeoManager
         }
 
         $site = config('seo.site_name', 'DropRSVP');
-        $sep = config('seo.title_separator', '·');
 
-        $displayTitle = $this->title ?: $site;
-        if ($this->title && $this->appendSiteName && ! Str::contains($this->title, $site)) {
-            $displayTitle = "{$this->title} {$sep} {$site}";
-        }
+        $displayTitle = $this->displayTitle();
 
         $canonical = $this->trailingSlash($this->canonical ?: url()->current());
         $image = $this->image ?: ($this->absolute(config('seo.default_image')) ?: null);
