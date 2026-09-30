@@ -6,6 +6,7 @@ use App\Mail\PayoutPaidMail;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Payments\ChipSendGateway;
 use App\Support\PlatformFee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -102,7 +103,7 @@ class PayoutService
      * send instruction; marks the payout paid if CHIP settles instantly,
      * otherwise "processing" until the status webhook / sync confirms it.
      */
-    public function sendViaChip(Payout $payout, \App\Services\Payments\ChipSendGateway $send): void
+    public function sendViaChip(Payout $payout, ChipSendGateway $send): void
     {
         if ($payout->status === 'paid') {
             return;
@@ -116,7 +117,7 @@ class PayoutService
         }
 
         $result = $send->send($payout);
-        $completed = $result['state'] === \App\Services\Payments\ChipSendGateway::DONE;
+        $completed = $result['state'] === ChipSendGateway::DONE;
 
         $payout->update([
             'method' => 'CHIP Send',
@@ -132,7 +133,7 @@ class PayoutService
     }
 
     /** Re-check a CHIP Send payout's status and settle/revert it. Idempotent. */
-    public function syncChipStatus(Payout $payout, \App\Services\Payments\ChipSendGateway $send): void
+    public function syncChipStatus(Payout $payout, ChipSendGateway $send): void
     {
         if (! $payout->chip_send_id || $payout->status === 'paid') {
             return;
@@ -145,10 +146,10 @@ class PayoutService
 
         $wasPaid = $payout->status === 'paid';
         $payout->chip_send_state = $state;
-        if ($state === \App\Services\Payments\ChipSendGateway::DONE) {
+        if ($state === ChipSendGateway::DONE) {
             $payout->status = 'paid';
             $payout->paid_at = now();
-        } elseif (in_array($state, \App\Services\Payments\ChipSendGateway::FAILED, true)) {
+        } elseif (in_array($state, ChipSendGateway::FAILED, true)) {
             // The transfer failed — put it back in the queue so it can be retried or paid manually.
             $payout->status = 'pending';
             $payout->note = 'CHIP Send '.$state;

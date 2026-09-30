@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 export interface CalendarEvent {
     id: number | string;
@@ -20,13 +20,21 @@ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 /** Responsive month calendar. Desktop: 6×7 grid with event chips. Mobile: same
  *  grid (compact) + a tap-to-view agenda for the selected day below. */
 export function EventCalendar({ events }: { events: CalendarEvent[] }) {
-    const [cursor, setCursor] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
+    const [cursor, setCursor] = useState(() => {
+ const n = new Date();
+
+ return new Date(n.getFullYear(), n.getMonth(), 1); 
+});
     const [selected, setSelected] = useState<string | null>(null);
     const todayKey = ymd(new Date());
 
     const byDay = useMemo(() => {
         const map: Record<string, CalendarEvent[]> = {};
-        for (const e of events) { const k = e.date.slice(0, 10); (map[k] ||= []).push(e); }
+
+        for (const e of events) {
+ const k = e.date.slice(0, 10); (map[k] ||= []).push(e); 
+}
+
         return map;
     }, [events]);
 
@@ -34,11 +42,20 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
         const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
         const start = new Date(first);
         start.setDate(1 - first.getDay()); // rewind to the Sunday on/just before the 1st
-        return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+
+        return Array.from({ length: 42 }, (_, i) => {
+ const d = new Date(start); d.setDate(start.getDate() + i);
+
+ return d; 
+});
     }, [cursor]);
 
-    const move = (delta: number) => { setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1)); setSelected(null); };
-    const goToday = () => { const n = new Date(); setCursor(new Date(n.getFullYear(), n.getMonth(), 1)); setSelected(ymd(n)); };
+    const move = (delta: number) => {
+ setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1)); setSelected(null); 
+};
+    const goToday = () => {
+ const n = new Date(); setCursor(new Date(n.getFullYear(), n.getMonth(), 1)); setSelected(ymd(n)); 
+};
 
     const selectedEvents = selected ? (byDay[selected] ?? []) : [];
 
@@ -67,6 +84,7 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                     const dayEvents = byDay[key] ?? [];
                     const isToday = key === todayKey;
                     const isSelected = key === selected;
+
                     return (
                         <button
                             key={i}
@@ -113,6 +131,7 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                                         </div>
                                     </div>
                                 );
+
                                 return <li key={e.id}>{e.url ? <Link href={e.url}>{body}</Link> : body}</li>;
                             })}
                         </ul>

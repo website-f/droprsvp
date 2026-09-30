@@ -1,9 +1,12 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Loader2, Lock, Tag, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
+import { BeginCheckoutEvent } from '@/components/analytics-events';
 import { Wordmark } from '@/components/brand';
-import { CustomFieldsSection, type CustomAnswers, type CustomField } from '@/components/custom-fields';
-import { StateCityPicker, type CityOption } from '@/components/state-city-picker';
+import { CustomFieldsSection   } from '@/components/custom-fields';
+import type {CustomAnswers, CustomField} from '@/components/custom-fields';
+import { StateCityPicker  } from '@/components/state-city-picker';
+import type {CityOption} from '@/components/state-city-picker';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -34,11 +37,12 @@ interface Buyer { name: string | null; email: string | null; phone: string | nul
 
 interface Account { name: string; email: string }
 
-export default function CheckoutShow({ order, required, buyer, cities = [], customFields = [], ticketCount = 0, account = null, loginUrl }: {
+export default function CheckoutShow({ order, required, buyer, cities = [], customFields = [], ticketCount = 0, account = null, loginUrl, analytics = null }: {
     order: OrderView; required: Required; buyer: Buyer | null;
     cities?: CityOption[];
     customFields?: CustomField[]; ticketCount?: number;
     account?: Account | null; loginUrl?: string;
+    analytics?: Record<string, unknown> | null;
 }) {
     const form = useForm({
         buyer_name: buyer?.name ?? '',
@@ -90,6 +94,7 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
 
     return (
         <>
+            <BeginCheckoutEvent payload={analytics} />
             <Head title={`Checkout · ${order.event.title}`} />
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
@@ -98,7 +103,7 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
                     </div>
                 </header>
 
-                <main className="mx-auto grid max-w-3xl gap-8 px-6 py-10 md:grid-cols-[1fr_300px]">
+                <main className="mx-auto grid max-w-3xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[minmax(0,1fr)_300px]">
                     {/* Buyer details */}
                     <form onSubmit={submit}>
                         <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>

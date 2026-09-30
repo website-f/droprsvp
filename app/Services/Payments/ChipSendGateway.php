@@ -20,6 +20,7 @@ class ChipSendGateway
 {
     /** Terminal success/failure states of a send instruction. */
     public const DONE = 'completed';
+
     public const FAILED = ['rejected', 'deleted'];
 
     public function configured(): bool

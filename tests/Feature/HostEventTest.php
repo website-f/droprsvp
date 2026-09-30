@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class HostEventTest extends TestCase
@@ -83,7 +83,7 @@ class HostEventTest extends TestCase
         $this->assertSame(['/uploads/one.jpg', '/uploads/two.jpg'], $event->gallery);
 
         // Public event page receives the gallery (absolute URLs).
-        $this->get('/en-my/e/'.$event->slug)->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+        $this->get('/en-my/e/'.$event->slug)->assertInertia(fn (AssertableInertia $page) => $page
             ->component('public/event')
             ->has('event.gallery', 2));
     }
@@ -91,14 +91,14 @@ class HostEventTest extends TestCase
     public function test_host_can_view_their_events_index(): void
     {
         $user = $this->organizer();
-        \App\Models\Event::create([
+        Event::create([
             'user_id' => $user->id, 'title' => 'Mine', 'slug' => 'mine',
             'status' => 'draft', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
         ]);
 
         $this->actingAs($user)->get(route('host.events.index'))
             ->assertOk()
-            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('host/events/index')
                 ->has('events', 1));
     }

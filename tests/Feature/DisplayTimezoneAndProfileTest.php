@@ -167,6 +167,7 @@ class DisplayTimezoneAndProfileTest extends TestCase
 
         $this->actingAs($user)->post('/host/apply', [
             'business_name' => 'BoardLah Entertainment',
+            'email' => 'bookings@boardlah.test',
             'phone' => '01129278984',
             'website' => '',
             'bio' => 'We run board game nights.',
@@ -185,6 +186,7 @@ class DisplayTimezoneAndProfileTest extends TestCase
 
         $this->actingAs($user)->post('/host/apply', [
             'business_name' => 'BoardLah Entertainment',
+            'email' => 'bookings@boardlah.test',
             'phone' => '01129278984',
             'bio' => 'We run board game nights.',
         ])->assertSessionHasNoErrors();

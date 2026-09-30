@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { uploadImageWithToast } from '@/lib/upload';
 
 interface Application {
-    business_name: string; website: string | null; phone: string | null; bio: string | null;
+    business_name: string; email: string | null; website: string | null; phone: string | null; bio: string | null;
     poster: string | null; gallery: string[]; status: string | null; reason: string | null;
 }
 
@@ -18,6 +18,7 @@ const area = 'w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-s
 export default function OrganizerApply({ application }: { application: Application }) {
     const form = useForm({
         business_name: application.business_name ?? '',
+        email: application.email ?? '',
         phone: application.phone ?? '',
         website: application.website ?? '',
         bio: application.bio ?? '',
@@ -104,16 +105,23 @@ export default function OrganizerApply({ application }: { application: Applicati
 
                     <form onSubmit={submit} className="mt-7 grid gap-4">
                         <div className="grid gap-1.5">
-                            <Label htmlFor="business_name">Business / organizer name</Label>
-                            <input id="business_name" className={field} value={data.business_name} onChange={(e) => setData('business_name', e.target.value)} />
+                            <Label htmlFor="business_name">Business / organizer name <span aria-hidden className="text-destructive">*</span></Label>
+                            <input id="business_name" required className={field} value={data.business_name} onChange={(e) => setData('business_name', e.target.value)} />
                             {errors.business_name && <p className="text-xs text-destructive">{errors.business_name}</p>}
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
-                                <Label htmlFor="phone">Contact phone</Label>
-                                <input id="phone" className={field} value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="+60 12-345 6789" />
+                                <Label htmlFor="email">Contact email <span aria-hidden className="text-destructive">*</span></Label>
+                                <input id="email" type="email" required className={field} inputMode="email" value={data.email} onChange={(e) => setData('email', e.target.value)} placeholder="bookings@yourbrand.com" />
+                                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="phone">Contact phone <span aria-hidden className="text-destructive">*</span></Label>
+                                <input id="phone" required className={field} inputMode="tel" value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="+60 12-345 6789" />
                                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                             </div>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="website">Website (optional)</Label>
                                 <input id="website" className={field} inputMode="url" value={data.website} onChange={(e) => setData('website', e.target.value)} placeholder="instagram.com/yourbrand" />

@@ -8,6 +8,7 @@ import type {Banner} from '@/components/landing/hero-banners';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Reveal } from '@/components/reveal';
 import { contentClass } from '@/components/rich-editor';
+import { Framed, SmartImage } from '@/components/smart-image';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,11 +95,9 @@ function readGeoCache(): { lat: number; lng: number } | null {
 function EventCard({ e }: { e: FeaturedEvent }) {
     return (
         <Link href={`/en-my/e/${e.slug}/`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <div className="aspect-[16/10] overflow-hidden bg-muted">
-                {e.cover_image
-                    ? <img src={e.cover_image} alt={e.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    : <div className="flex size-full items-center justify-center text-muted-foreground"><CalendarDays className="size-8" /></div>}
-            </div>
+            {e.cover_image
+                ? <Framed src={e.cover_image} alt={e.title} ratio="aspect-[16/10]" className="transition-transform duration-500 group-hover:scale-105" />
+                : <div className="flex aspect-[16/10] items-center justify-center bg-muted text-muted-foreground"><CalendarDays className="size-8" /></div>}
             <div className="flex flex-1 flex-col p-5">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                     {e.category && <Badge variant="secondary">{e.category}</Badge>}
@@ -621,7 +620,7 @@ export default function Welcome() {
                                         className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md"
                                     >
                                         {p.cover_image
-                                            ? <img src={p.cover_image} alt={p.title} className="aspect-[16/9] w-full object-cover" loading="lazy" />
+                                            ? <SmartImage src={p.cover_image} alt={p.title} className="aspect-[16/9] w-full object-cover" />
                                             : <span className="aspect-[16/9] w-full bg-muted" />}
                                         <div className="flex flex-1 flex-col p-5">
                                             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -647,7 +646,7 @@ export default function Welcome() {
                 {/* ----------------------------------------------- Contact us */}
                 {(contact?.enabled ?? true) && (
                     <section id="contact" className="border-t border-border bg-muted/30">
-                        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-6 py-16 sm:py-20 lg:grid-cols-[1fr_1.15fr]">
+                        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
                             <Reveal>
                                 <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"><Headset className="size-3.5" /> We’re here to help</span>
                                 <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">{contact?.heading ?? 'Get in touch'}</h2>

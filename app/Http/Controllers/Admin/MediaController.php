@@ -63,6 +63,12 @@ class MediaController extends Controller
         // original stays and the upload still succeeds.
         ImageOptimizer::optimise($disk->path('cms/'.$name));
 
+        // …then a grid-sized copy in cms/thumbs/. Galleries and event cards load
+        // that instead of the full image, which is what made them slow to
+        // appear: a dozen 2000px tiles is megabytes before anything is visible.
+        // Also best effort — the frontend falls back to the original on error.
+        ImageOptimizer::thumbnail($disk->path('cms/'.$name));
+
         return response()->json(['url' => $disk->url('cms/'.$name)]);
     }
 }

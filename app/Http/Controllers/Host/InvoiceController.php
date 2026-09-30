@@ -59,6 +59,12 @@ class InvoiceController extends Controller
         $orders = $event->orders()
             ->whereIn('status', ['paid', 'refunded'])
             ->withCount('tickets')
+            // WHICH ticket was bought, not just how many. An event with a
+            // "Session A" and a "Session B" showed an amount and a count here,
+            // so there was no way to tell from the revenue page which session
+            // the money was for. Eager-loaded: one query for the page, not one
+            // per invoice.
+            ->with('items:id,order_id,name,quantity,unit_price')
             ->latest('paid_at')
             ->paginate(20)
             ->withQueryString()
@@ -67,10 +73,36 @@ class InvoiceController extends Controller
                 'buyer' => $o->buyer_name ?: 'Guest',
                 'email' => $o->buyer_email,
                 'tickets' => $o->tickets_count,
+                // The name is the snapshot taken at purchase, so renaming a
+                // ticket type later never rewrites what an old invoice says.
+                'types' => $o->items->map(fn ($i) => [
+                    'name' => $i->name,
+                    'quantity' => (int) $i->quantity,
+                    'unit_price' => (float) $i->unit_price,
+                ])->values(),
                 'total' => (float) $o->total,
                 'currency' => $o->currency,
                 'status' => $o->status,
                 'date' => $o->paid_at?->setTimezone($event->timezone)->format('j M Y, g:i A'),
+            ]);
+
+        // Revenue split by ticket type, so the page answers "which session sold?"
+        // at a glance rather than only per invoice. Refunds are netted off the
+        // order, not the line, so this is gross per type — labelled as such.
+        $byType = $event->orders()
+            ->where('orders.status', 'paid')
+            ->join('order_items', 'order_items.order_id', '=', 'orders.id')
+            ->groupBy('order_items.name')
+            ->orderByDesc('gross')
+            ->get([
+                'order_items.name',
+                \DB::raw('SUM(order_items.quantity) as sold'),
+                \DB::raw('SUM(order_items.line_total) as gross'),
+            ])
+            ->map(fn ($row) => [
+                'name' => $row->name,
+                'sold' => (int) $row->sold,
+                'gross' => round((float) $row->gross, 2),
             ]);
 
         $gross = (float) $event->orders()->where('status', 'paid')->sum(\DB::raw('total - fees - refunded_amount'));
@@ -78,6 +110,7 @@ class InvoiceController extends Controller
         return inertia('host/invoices/event', [
             'event' => ['slug' => $event->slug, 'title' => $event->title, 'gross' => round($gross, 2)],
             'orders' => $orders,
+            'byType' => $byType,
         ]);
     }
 }

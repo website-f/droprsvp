@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Models\EventCategory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -31,8 +32,8 @@ class DatabaseSeeder extends Seeder
             ['Wellness', 'heart-pulse', 'Yoga & retreats', '#22c55e'],
         ];
         foreach ($categories as $i => [$name, $icon, $blurb, $color]) {
-            \App\Models\EventCategory::firstOrCreate(
-                ['slug' => \Illuminate\Support\Str::slug($name)],
+            EventCategory::firstOrCreate(
+                ['slug' => Str::slug($name)],
                 ['name' => $name, 'sort_order' => $i, 'icon' => $icon, 'blurb' => $blurb, 'color' => $color],
             );
         }

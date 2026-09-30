@@ -1,12 +1,21 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountActive;
+use App\Http\Middleware\EnsurePasswordSet;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\ThrottleAuthEndpoints;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
+use Sentry\Laravel\Integration;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -22,19 +31,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Spatie role/permission middleware aliases (used to gate the CMS to superadmin).
         $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
 
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\ThrottleAuthEndpoints::class,
-            \App\Http\Middleware\EnsureAccountActive::class,
-            \App\Http\Middleware\EnsurePasswordSet::class,
+            SecurityHeaders::class,
+            ThrottleAuthEndpoints::class,
+            EnsureAccountActive::class,
+            EnsurePasswordSet::class,
         ]);
 
         // When a session times out, protected routes bounce guests to /login.
@@ -50,7 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Report unhandled exceptions to Sentry (no-op until SENTRY_LARAVEL_DSN is set).
-        \Sentry\Laravel\Integration::handles($exceptions);
+        Integration::handles($exceptions);
 
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
@@ -58,7 +67,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // A stale CSRF token (419) after the session expires — send the user to
         // log in again with the same friendly notice rather than a blank error page.
-        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, Request $request) {
+        $exceptions->render(function (TokenMismatchException $e, Request $request) {
             if ($request->expectsJson()) {
                 return null;
             }

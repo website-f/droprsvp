@@ -52,7 +52,10 @@ class SeoAndMediaTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['url']);
 
-        $this->assertCount(1, Storage::disk('public')->allFiles('cms'));
+        // One original plus its grid thumbnail.
+        $stored = Storage::disk('public')->allFiles('cms');
+        $this->assertCount(1, collect($stored)->reject(fn ($p) => str_contains($p, '/thumbs/')));
+        $this->assertCount(1, collect($stored)->filter(fn ($p) => str_contains($p, '/thumbs/')));
     }
 
     public function test_guests_cannot_upload(): void

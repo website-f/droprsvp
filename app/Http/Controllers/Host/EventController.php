@@ -15,11 +15,13 @@ use App\Models\User;
 use App\Services\EventDuplicator;
 use App\Support\Cities;
 use App\Support\CustomFields;
+use App\Support\HtmlSanitizer;
 use App\Support\PlatformFee;
 use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class EventController extends Controller
 {
@@ -454,7 +456,7 @@ class EventController extends Controller
         }
 
         if ($errors) {
-            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+            throw ValidationException::withMessages($errors);
         }
     }
 
@@ -465,7 +467,12 @@ class EventController extends Controller
             'title' => $data['title'],
             'subtitle' => $data['subtitle'] ?? null,
             'category_id' => $data['category_id'] ?? null,
-            'description' => $data['description'] ?? null,
+            // The description is authored in a rich editor, so it arrives as
+            // HTML from an organizer — a less trusted author than the superadmin
+            // writing CMS pages. Same sanitiser, applied here for the same
+            // reason: strip scripts, inline handlers and javascript: URLs while
+            // leaving the formatting they actually wrote.
+            'description' => HtmlSanitizer::clean($data['description'] ?? null) ?: null,
             'cover_image' => $data['cover_image'] ?? null,
             'banner_image' => $data['banner_image'] ?? null,
             'gallery' => $data['gallery'] ?? [],

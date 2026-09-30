@@ -6,8 +6,10 @@ import { AddToCalendar } from '@/components/add-to-calendar';
 import { EventBanner } from '@/components/event-banner';
 import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { contentClass } from '@/components/rich-editor';
 import { SeatMap   } from '@/components/seat-map';
 import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
+import { SmartImage } from '@/components/smart-image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -202,11 +204,11 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
         <>
             <Head title={seo.title} />
 
-            <div className="min-h-screen bg-background text-foreground">
+            <div className="min-h-screen overflow-x-clip bg-background text-foreground">
                 <PublicHeader />
 
                 {event.status !== 'published' && (
-                    <div className="bg-foreground px-6 py-2 text-center text-xs font-medium text-background">
+                    <div className="bg-foreground px-4 py-2 text-center text-xs font-medium text-background sm:px-6">
                         Draft preview — only you can see this. Publish it to make it public.
                     </div>
                 )}
@@ -216,7 +218,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     Constrained to the content width now that it is no longer a
                     full-bleed strip. */}
                 {event.banner_image && (
-                    <div className="mx-auto max-w-6xl px-6 pt-6">
+                    <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
                         <EventBanner src={event.banner_image} alt={event.title} />
                     </div>
                 )}
@@ -225,15 +227,15 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     its cover here, so cropping this one to 16/6 just moved the
                     problem rather than fixing it. */}
                 {event.cover_image && (
-                    <div className="mx-auto max-w-6xl px-6 pt-6">
+                    <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
                         <EventBanner src={event.cover_image} alt={event.title} />
                     </div>
                 )}
 
-                <main className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[1fr_360px]">
-                    <div>
+                <main className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="min-w-0">
                         {event.category && <Badge variant="secondary" className="mb-3">{event.category}</Badge>}
-                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{event.title}</h1>
+                        <h1 className="text-2xl font-bold tracking-tight break-words sm:text-4xl">{event.title}</h1>
                         {event.subtitle && <p className="mt-2 text-lg text-muted-foreground">{event.subtitle}</p>}
 
                         <div className="mt-6 grid gap-3 text-sm">
@@ -248,7 +250,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                             {event.is_online ? (
                                 <div className="flex items-center gap-3"><Video className="size-5 text-muted-foreground" /><span>Online event</span></div>
                             ) : (event.venue_name || event.venue_address) && (
-                                <div className="flex items-start gap-3"><MapPin className="size-5 shrink-0 text-muted-foreground" /><span>{[event.venue_name, event.venue_address].filter(Boolean).join(' · ')}</span></div>
+                                <div className="flex items-start gap-3"><MapPin className="size-5 shrink-0 text-muted-foreground" /><span className="min-w-0 break-words">{[event.venue_name, event.venue_address].filter(Boolean).join(' · ')}</span></div>
                             )}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <span className="text-muted-foreground">Hosted by</span>
@@ -285,13 +287,19 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
                         {/* Tabs */}
                         <div className="mt-8">
-                            <div className="flex flex-wrap gap-1 border-b border-border">
+                            {/* One scrollable row on phones. Wrapping five tabs
+                                into two ragged lines read as a broken layout;
+                                a swipeable strip is the familiar pattern and
+                                keeps the content start where the eye expects.
+                                Bleeds into the page gutter so the first and
+                                last tab sit flush with the text above. */}
+                            <div className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
                                 {TABS.map((t) => {
                                     const active = tab === t.key;
 
                                     return (
                                         <button key={t.key} type="button" onClick={() => setTab(t.key)}
-                                            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${active ? 'text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                                            className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors sm:px-4 ${active ? 'text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
                                             style={active ? { borderColor: t.tint } : undefined}>
                                             <t.icon className="size-4" style={{ color: t.tint }} /> {t.label}
                                             {t.badge ? <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">{t.badge}</span> : null}
@@ -305,7 +313,20 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                 {tab === 'about' && (
                                     <div className="grid gap-8">
                                         {event.description
-                                            ? <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/80">{event.description}</p>
+                                            ? (
+                                                // Descriptions are authored in the rich editor now, so
+                                                // they arrive as HTML. Anything written before that is
+                                                // plain text with newlines, which `whitespace-pre-line`
+                                                // still renders correctly — one branch handles both.
+                                                // The server sanitises on save (HtmlSanitizer).
+                                                <div
+                                                    // whitespace-pre-line ONLY for legacy plain text. Applying
+                                                    // it to real HTML would turn the newlines between block
+                                                    // tags into visible blank lines.
+                                                    className={`${contentClass} ${/<[a-z][\s\S]*>/i.test(event.description) ? '' : 'whitespace-pre-line'}`}
+                                                    dangerouslySetInnerHTML={{ __html: event.description }}
+                                                />
+                                            )
                                             : <p className="text-sm text-muted-foreground">No description yet.</p>}
                                         {event.sessions.length > 1 && (
                                             <div>
@@ -371,7 +392,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                                     aria-label={`View photo ${i + 1} of ${event.gallery.length}`}
                                                     className="cursor-zoom-in overflow-hidden rounded-xl border border-border transition-opacity hover:opacity-90"
                                                 >
-                                                    <img src={src} alt={`${event.title} photo ${i + 1}`} className="aspect-square w-full object-cover" loading="lazy" />
+                                                    <SmartImage src={src} alt={`${event.title} photo ${i + 1}`} className="aspect-square w-full object-cover" eager={i < 6} />
                                                 </button>
                                             ))}
                                         </div>
@@ -533,7 +554,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     </div>
 
                     {/* Ticket selector */}
-                    <aside id="tickets" className="lg:sticky lg:top-6 lg:self-start">
+                    <aside id="tickets" className="min-w-0 lg:sticky lg:top-6 lg:self-start">
                         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                             <h2 className="mb-4 font-semibold">{event.seating_enabled ? 'Choose your seats' : 'Tickets'}</h2>
 
@@ -548,7 +569,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                                     {event.ticket_types.map((t) => (
                                         <div key={t.id} className="rounded-xl border border-border p-4">
                                             <div className="flex items-start justify-between gap-3">
-                                                <div>
+                                                <div className="min-w-0 break-words">
                                                     <div className="font-medium">{t.name}</div>
                                                     {t.description && <div className="text-xs text-muted-foreground">{t.description}</div>}
                                                     <div className="mt-1 flex items-baseline gap-2">

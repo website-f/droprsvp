@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Support\Ics;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 
 class CalendarController extends Controller
 {
@@ -13,7 +14,7 @@ class CalendarController extends Controller
     {
         abort_unless($event->status === 'published', 404);
 
-        $filename = \Illuminate\Support\Str::slug($event->title ?: 'event').'.ics';
+        $filename = Str::slug($event->title ?: 'event').'.ics';
 
         return response(Ics::forEvent($event), 200, [
             'Content-Type' => 'text/calendar; charset=utf-8',

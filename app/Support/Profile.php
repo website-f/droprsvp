@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Order;
+use App\Models\User;
 
 /** Shared demographic option lists for the "about you" profile + admin filters. */
 class Profile
@@ -65,7 +66,7 @@ class Profile
 
         // A real calendar diff, not seconds over an average month length: at
         // 30.44 days a month, a full year came out as "11 months".
-        $diff = (new \DateTimeImmutable())->diff($joined);
+        $diff = (new \DateTimeImmutable)->diff($joined);
         $months = ($diff->y * 12) + $diff->m;
 
         if ($months < 1) {
@@ -125,7 +126,7 @@ class Profile
      * Split out so `profiles:backfill --dry-run` can report the change set
      * without touching the database — a dry run that saves is not a dry run.
      *
-     * @return array<string,string>  column => value, blank columns only
+     * @return array<string,string> column => value, blank columns only
      */
     public static function changesFromOrder(Order $order): array
     {
@@ -164,7 +165,7 @@ class Profile
     }
 
     /** Are all the required profile columns populated on this user? */
-    public static function isComplete(\App\Models\User $user): bool
+    public static function isComplete(User $user): bool
     {
         foreach (self::REQUIRED as $column) {
             if (blank($user->{$column})) {

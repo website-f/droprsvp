@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Support\Url;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\Setting;
 use App\Support\Cities;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 

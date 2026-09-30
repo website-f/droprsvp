@@ -17,7 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
 class ThrottleAuthEndpoints
 {
     private const LIMITED = ['register', 'password.email', 'password.update', 'password.confirm.store'];
+
     private const MAX = 8;         // attempts...
+
     private const DECAY = 60;      // ...per this many seconds, per IP + route
 
     public function handle(Request $request, Closure $next): Response

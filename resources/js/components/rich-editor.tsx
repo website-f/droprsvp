@@ -108,7 +108,24 @@ gutterRef.current.scrollTop = taRef.current.scrollTop;
  * by an intermediate model. A line-numbered Code view edits the same raw HTML, and
  * either view can go full-screen. Output HTML is styled by `contentClass`.
  */
-export function RichEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
+export function RichEditor({ value, onChange, placeholder, compact = false, minHeight = 'min-h-80' }: {
+    value: string;
+    onChange: (html: string) => void;
+    placeholder?: string;
+    /**
+     * Cut the toolbar down to the formatting an event description actually
+     * needs — bold/italic/underline, lists, a link and a divider.
+     *
+     * The full bar (headings, tables, YouTube, code blocks, table of contents,
+     * a raw-HTML mode) belongs to the CMS, where a superadmin is writing a page.
+     * Handing all of it to an organizer writing three paragraphs about their
+     * board-game night is noise, and the HTML tab is a way to paste markup that
+     * the sanitiser then has to defend against for no benefit.
+     */
+    compact?: boolean;
+    /** Tailwind min-height for the writing surface. */
+    minHeight?: string;
+}) {
     'use no memo';
 
     const prompt = usePrompt();
@@ -299,7 +316,22 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
             {/* Toolbar — sticks to the top of the editor while writing, and scrolls
                 sideways on narrow screens rather than stacking into a tall block. */}
             <div className="sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b border-input bg-muted/60 px-2 py-1.5 backdrop-blur [scrollbar-width:thin] md:flex-wrap md:overflow-visible">
-                {mode === 'visual' && (
+                {mode === 'visual' && compact && (
+                    <>
+                        <Btn onClick={() => exec('bold')} title="Bold" active={active.bold}><Bold className="size-4" /></Btn>
+                        <Btn onClick={() => exec('italic')} title="Italic" active={active.italic}><Italic className="size-4" /></Btn>
+                        <Btn onClick={() => exec('underline')} title="Underline" active={active.underline}><Underline className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={() => exec('insertUnorderedList')} title="Bulleted list" active={active.insertUnorderedList}><List className="size-4" /></Btn>
+                        <Btn onClick={() => exec('insertOrderedList')} title="Numbered list" active={active.insertOrderedList}><ListOrdered className="size-4" /></Btn>
+                        <Sep />
+                        <Btn onClick={link} title="Link"><Link2 className="size-4" /></Btn>
+                        <Btn onClick={() => exec('insertHorizontalRule')} title="Divider"><Minus className="size-4" /></Btn>
+                        <Btn onClick={() => exec('removeFormat')} title="Clear formatting"><RemoveFormatting className="size-4" /></Btn>
+                    </>
+                )}
+
+                {mode === 'visual' && !compact && (
                     <>
                         {/* Paragraph / heading level (P + H1–H6) — reflects the caret's block */}
                         <select
@@ -343,10 +375,12 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
                 )}
 
                 <div className="ml-auto flex shrink-0 items-center gap-0.5">
-                    <button type="button" onClick={mode === 'visual' ? toCode : toVisual}
-                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                        {mode === 'visual' ? <><Code2 className="size-3.5" /> HTML</> : <><Eye className="size-3.5" /> Visual</>}
-                    </button>
+                    {!compact && (
+                        <button type="button" onClick={mode === 'visual' ? toCode : toVisual}
+                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                            {mode === 'visual' ? <><Code2 className="size-3.5" /> HTML</> : <><Eye className="size-3.5" /> Visual</>}
+                        </button>
+                    )}
                     <Btn onClick={() => setFull((f) => !f)} title={full ? 'Exit full screen' : 'Full screen'}>
                         {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                     </Btn>
@@ -365,7 +399,7 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
                     onFocus={onFocus}
                     onInput={emit}
                     onBlur={emit}
-                    className={`min-h-80 w-full px-4 py-3 outline-none ${contentClass} ${full ? 'min-h-[calc(100vh-3rem)]' : ''}`}
+                    className={`w-full px-4 py-3 outline-none ${minHeight} ${contentClass} ${full ? 'min-h-[calc(100vh-3rem)]' : ''}`}
                 />
             </div>
 
@@ -379,8 +413,8 @@ export function RichEditor({ value, onChange, placeholder }: { value: string; on
                 <span>{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>
                 <span aria-hidden>·</span>
                 <span>{Math.max(1, Math.ceil(words / 200))} min read</span>
-                {hasToc && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1"><ListTree className="size-3.5" /> Contents block</span></>}
-                <span className="ml-auto hidden sm:inline">{mode === 'visual' ? 'Visual' : 'HTML'}</span>
+                {hasToc && !compact && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1"><ListTree className="size-3.5" /> Contents block</span></>}
+                {!compact && <span className="ml-auto hidden sm:inline">{mode === 'visual' ? 'Visual' : 'HTML'}</span>}
             </div>
         </div>
     );

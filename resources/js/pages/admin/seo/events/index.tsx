@@ -1,9 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCircle2, Pencil, Search } from 'lucide-react';
 import { useState } from 'react';
+import { SeoTemplateEditor   } from '@/components/seo-template-editor';
+import type {SeoTemplates, Token} from '@/components/seo-template-editor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { SeoTemplateEditor, type SeoTemplates, type Token } from '@/components/seo-template-editor';
 
 interface Row { slug: string; title: string; status: string; customised: boolean; preview_title: string; preview_desc: string }
 interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }

@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Mail\OrderRefundedMail;
+use App\Mail\OrganizerApplicationReceivedMail;
 use App\Mail\PayoutPaidMail;
 use App\Mail\RegistrationCodeMail;
 use App\Mail\WelcomeMail;
 use App\Models\Event;
 use App\Models\Order;
+use App\Models\OrganizerProfile;
 use App\Models\Payout;
 use App\Models\User;
 use App\Services\CheckoutService;
@@ -37,8 +39,8 @@ class EmailTemplatesTest extends TestCase
         $payout = Payout::create(['user_id' => $host->id, 'reference' => 'PO-XYZ', 'amount' => 90, 'currency' => 'MYR', 'status' => 'paid', 'method' => 'CHIP Send']);
         $this->assertStringContainsString('PO-XYZ', (new PayoutPaidMail($payout))->render());
 
-        $profile = \App\Models\OrganizerProfile::create(['user_id' => $host->id, 'business_name' => 'Gala Co', 'status' => 'pending']);
-        $received = (new \App\Mail\OrganizerApplicationReceivedMail($profile->load('user')))->render();
+        $profile = OrganizerProfile::create(['user_id' => $host->id, 'business_name' => 'Gala Co', 'status' => 'pending']);
+        $received = (new OrganizerApplicationReceivedMail($profile->load('user')))->render();
         $this->assertStringContainsString('Application received', $received);
         $this->assertStringContainsString('Gala Co', $received);
     }
@@ -58,9 +60,9 @@ class EmailTemplatesTest extends TestCase
         // Submitting the application confirms receipt by email.
         $vendor = User::whereEmail($email)->first();
         $this->actingAs($vendor)->post(route('host.apply.submit'), [
-            'business_name' => 'Vee Events', 'phone' => '+60123456789',
+            'business_name' => 'Vee Events', 'email' => 'hello@vee.test', 'phone' => '+60123456789',
         ])->assertRedirect(route('host.pending'));
-        Mail::assertSent(\App\Mail\OrganizerApplicationReceivedMail::class, fn ($m) => $m->hasTo($email));
+        Mail::assertSent(OrganizerApplicationReceivedMail::class, fn ($m) => $m->hasTo($email));
     }
 
     public function test_registering_sends_a_welcome_email(): void

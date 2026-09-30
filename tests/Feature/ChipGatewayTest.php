@@ -28,7 +28,7 @@ class ChipGatewayTest extends TestCase
     {
         Http::fake(['gate.chip-in.asia/*' => Http::response(['id' => 'pur_1', 'checkout_url' => 'https://gate.chip-in.asia/p/pur_1/', 'status' => 'created'], 200)]);
 
-        $res = (new ChipGateway())->createRequest([
+        $res = (new ChipGateway)->createRequest([
             'reference_number' => 'DRSVP-ABC', 'amount' => 49.5, 'currency' => 'MYR',
             'email' => 'buyer@example.com', 'name' => 'Buyer One', 'description' => 'Tickets',
             'redirect_url' => 'https://app.test/return', 'webhook' => 'https://app.test/webhooks/chip',
@@ -58,7 +58,7 @@ class ChipGatewayTest extends TestCase
         $body = json_encode(['id' => 'pur_9', 'reference' => 'DRSVP-XYZ', 'status' => 'paid']);
         openssl_sign($body, $sig, $priv, OPENSSL_ALGO_SHA256);
 
-        $parsed = (new ChipGateway())->parseWebhook($this->signedRequest($body, base64_encode($sig)));
+        $parsed = (new ChipGateway)->parseWebhook($this->signedRequest($body, base64_encode($sig)));
 
         $this->assertNotNull($parsed);
         $this->assertTrue($parsed['paid']);
@@ -75,7 +75,7 @@ class ChipGatewayTest extends TestCase
         openssl_sign($body, $sig, $priv, OPENSSL_ALGO_SHA256);
         $tampered = json_encode(['id' => 'pur_9', 'reference' => 'DRSVP-XYZ', 'status' => 'paid', 'extra' => 'evil']);
 
-        $this->assertNull((new ChipGateway())->parseWebhook($this->signedRequest($tampered, base64_encode($sig))));
+        $this->assertNull((new ChipGateway)->parseWebhook($this->signedRequest($tampered, base64_encode($sig))));
     }
 
     public function test_missing_signature_is_rejected(): void
@@ -83,7 +83,7 @@ class ChipGatewayTest extends TestCase
         [, $pub] = $this->keypair();
         Config::set('services.chip.public_key', $pub);
 
-        $this->assertNull((new ChipGateway())->parseWebhook($this->signedRequest('{"status":"paid"}', '')));
+        $this->assertNull((new ChipGateway)->parseWebhook($this->signedRequest('{"status":"paid"}', '')));
     }
 
     public function test_refund_calls_the_chip_refund_endpoint_in_cents(): void
@@ -93,7 +93,7 @@ class ChipGatewayTest extends TestCase
         $event = Event::create(['user_id' => $host->id, 'title' => 'E', 'slug' => 'e-'.uniqid(), 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur']);
         $order = Order::create(['reference' => 'DRSVP-R', 'event_id' => $event->id, 'status' => 'paid', 'total' => 30.00, 'currency' => 'MYR', 'payment_ref' => 'pur_5']);
 
-        $this->assertTrue((new ChipGateway())->refund($order));
+        $this->assertTrue((new ChipGateway)->refund($order));
         Http::assertSent(fn ($r) => str_ends_with($r->url(), '/purchases/pur_5/refund/') && $r->data()['amount'] === 3000);
     }
 

@@ -7,6 +7,8 @@ use App\Mail\RegistrationCodeMail;
 use App\Mail\WelcomeMail;
 use App\Models\RegistrationCode;
 use App\Models\User;
+use App\Support\Mailer;
+use App\Support\PlatformAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -121,11 +123,11 @@ class OrganizerSignupController extends Controller
         $request->session()->forget(self::SESSION_KEY);
 
         // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
-        \App\Support\Mailer::defer($user->email, new WelcomeMail($user));
+        Mailer::defer($user->email, new WelcomeMail($user));
 
         // ...and tell our side. A vendor registering is the start of an
         // application, so it is worth knowing before the details arrive.
-        \App\Support\PlatformAlert::raise(
+        PlatformAlert::raise(
             type: 'organizer',
             title: 'New vendor registered',
             body: $user->name.' registered as a vendor and can now apply to host.',

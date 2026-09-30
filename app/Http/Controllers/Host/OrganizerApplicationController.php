@@ -34,6 +34,9 @@ class OrganizerApplicationController extends Controller
         return inertia('host/apply', [
             'application' => [
                 'business_name' => $profile?->business_name ?: $user->name,
+                // Prefilled from the account, which is the address we already
+                // reach them at — they can change it to a business one.
+                'email' => $profile?->email ?: $user->email,
                 'website' => $profile?->website,
                 'phone' => $profile?->phone,
                 'bio' => $profile?->bio,
@@ -68,6 +71,12 @@ class OrganizerApplicationController extends Controller
 
         $data = $request->validate([
             'business_name' => ['required', 'string', 'max:120'],
+            // Phone AND email are both required. An application used to be
+            // submittable with neither a reachable address nor a usable
+            // number — the reviewer then had to guess, or fall back to the
+            // sign-in address, which for a business is usually somebody's
+            // personal inbox.
+            'email' => ['required', 'email', 'max:180'],
             'phone' => ['required', 'string', 'max:40'],
             'website' => ['nullable', 'url', 'max:2048'],
             'bio' => ['nullable', 'string', 'max:2000'],
@@ -114,7 +123,8 @@ class OrganizerApplicationController extends Controller
             details: array_filter([
                 'Business' => $data['business_name'],
                 'Applicant' => $request->user()->name,
-                'Email' => $request->user()->email,
+                'Email' => $data['email'] ?? $request->user()->email,
+                'Account email' => $request->user()->email,
                 'Phone' => $data['phone'] ?? null,
                 'Website' => $data['website'] ?? null,
             ]),

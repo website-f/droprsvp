@@ -11,7 +11,9 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnalyticsController extends Controller
 {
@@ -100,7 +102,7 @@ class AnalyticsController extends Controller
     }
 
     /** Stream the (filtered) events table as CSV. */
-    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function export(Request $request): StreamedResponse
     {
         $rows = $this->eventsQuery($request, AnalyticsWindow::fromRequest($request))->get();
 
@@ -119,7 +121,7 @@ class AnalyticsController extends Controller
      * Shared query for the table + export: the row aggregates constrained to the
      * selected window, plus search / status / category filters and sort.
      */
-    private function eventsQuery(Request $request, array $w): \Illuminate\Database\Eloquent\Builder
+    private function eventsQuery(Request $request, array $w): Builder
     {
         $q = trim((string) $request->query('q', ''));
         $status = $this->statusFilter($request);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\BrandingController;
 use App\Http\Controllers\Settings\NotificationController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -14,7 +15,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Profile photo + (for organizers) company branding. Separate from the
     // application form so changing a logo never re-opens an approval review.
-    Route::patch('settings/branding', [\App\Http\Controllers\Settings\BrandingController::class, 'update'])->name('branding.update');
+    Route::patch('settings/branding', [BrandingController::class, 'update'])->name('branding.update');
 
     Route::get('settings/notifications', [NotificationController::class, 'edit'])->name('notifications.edit');
     Route::patch('settings/notifications', [NotificationController::class, 'update'])->name('notifications.update');

@@ -1,11 +1,11 @@
 import { GripVertical, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import type { CustomField, CustomFieldOption, CustomFieldType } from '@/components/custom-fields';
 import { AppSelect } from '@/components/ui/app-select';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { uploadImageWithToast } from '@/lib/upload';
-import type { CustomField, CustomFieldOption, CustomFieldType } from '@/components/custom-fields';
 
 /**
  * The organizer's form builder: the additional fields a buyer fills in for each
@@ -184,11 +184,14 @@ function FieldImage({ image, onChange }: { image: string | null; onChange: (imag
         if (!file) {
             return;
         }
+
         setUploading(true);
         const url = await uploadImageWithToast(file);
+
         if (url) {
             onChange(url);
         }
+
         setUploading(false);
     };
 
@@ -263,13 +266,16 @@ function OptionList({
         if (!file) {
             return;
         }
+
         setUploading(optionIndex);
         // uploadImageWithToast validates, uploads, and toasts on failure —
         // returning null rather than throwing, so the picker just stays empty.
         const url = await uploadImageWithToast(file);
+
         if (url) {
             onPatch(optionIndex, { image: url });
         }
+
         setUploading(null);
     };
 

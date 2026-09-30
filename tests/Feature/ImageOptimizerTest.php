@@ -168,10 +168,21 @@ class ImageOptimizerTest extends TestCase
 
         $response->assertOk();
 
+        // Two files now: the optimised original, and the grid thumbnail that
+        // galleries load instead of it.
         $stored = Storage::disk('public')->allFiles('cms');
-        $this->assertCount(1, $stored);
+        $full = collect($stored)->reject(fn ($path) => str_contains($path, '/thumbs/'))->values();
+        $thumbs = collect($stored)->filter(fn ($path) => str_contains($path, '/thumbs/'))->values();
 
-        [$width] = getimagesize(Storage::disk('public')->path($stored[0]));
+        $this->assertCount(1, $full);
+        $this->assertCount(1, $thumbs, 'The upload should also produce a thumbnail.');
+
+        [$width] = getimagesize(Storage::disk('public')->path($full[0]));
         $this->assertSame(ImageOptimizer::MAX_EDGE, $width);
+
+        // The thumbnail is the point: it must actually be small.
+        [$thumbWidth] = getimagesize(Storage::disk('public')->path($thumbs[0]));
+        $this->assertSame(ImageOptimizer::THUMB_EDGE, $thumbWidth);
+        $this->assertSame(basename($full[0]), basename($thumbs[0]), 'The thumbnail keeps the original filename.');
     }
 }

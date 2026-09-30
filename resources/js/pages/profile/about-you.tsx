@@ -1,7 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import { UserRound } from 'lucide-react';
 import { Wordmark } from '@/components/brand';
-import { StateCityPicker, type CityOption } from '@/components/state-city-picker';
+import { StateCityPicker  } from '@/components/state-city-picker';
+import type {CityOption} from '@/components/state-city-picker';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';

@@ -42,6 +42,17 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    /*
+     | Google Analytics 4.
+     |
+     | The measurement id used to be hard-coded in app.blade.php, which meant a
+     | staging copy of the app reported into the live property. It is env now,
+     | and blank simply turns the tag off.
+     */
+    'ga' => [
+        'measurement_id' => env('GA_MEASUREMENT_ID', 'G-Q80TSQSFQ1'),
+    ],
+
     'chip' => [
         // CHIP Collect (https://docs.chip-in.asia). driver: 'chip' (real API) or
         // 'fake' (dev — instantly settles, no keys). Test vs live is decided by the

@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, Ban, Building2, CalendarDays, ExternalLink, Globe, Heart, Mail, MapPin, Percent, Phone, Power, ShieldCheck, SlidersHorizontal, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Ban, Building2, CalendarDays, ExternalLink, Eye, Globe, Heart, Mail, MapPin, Percent, Phone, Power, ShieldCheck, SlidersHorizontal, Ticket, Trash2, Users as UsersIcon, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import {  OrganizerFeeDialog } from '@/components/admin/organizer-fee-dialog';
 import type {FeeRate} from '@/components/admin/organizer-fee-dialog';
@@ -19,7 +19,7 @@ interface UserDetail {
 interface Activity { events: number; orders: number; tickets: number; spent: number; followers: number; following: number }
 interface OrganizerProfile {
     id: number;
-    business_name: string | null; website: string | null; phone: string | null;
+    business_name: string | null; email: string | null; website: string | null; phone: string | null;
     bio: string | null; status: string | null; submitted_at: string | null;
 }
 
@@ -66,6 +66,23 @@ export default function UserShow({ user, activity, fee, globalFee, canManageFees
         }
     };
 
+    const viewer = usePage().props.auth as { is_superadmin?: boolean };
+
+    /**
+     * Borrow this account's point of view. Confirmed first: it swaps who the
+     * session is, and doing that by accident from a list of users would be
+     * genuinely disorienting.
+     */
+    const viewAs = async () => {
+        if (await confirm({
+            title: `View DropRSVP as ${user.name}?`,
+            description: 'You will be signed in as them until you choose “Back to my account” in the banner. Anything you do will be recorded as them.',
+            confirmText: 'View as',
+        })) {
+            router.post(`/admin/users/${user.id}/impersonate`);
+        }
+    };
+
     const setDisabled = async () => {
         const verb = user.disabled ? 'Reactivate' : 'Disable';
         const description = user.disabled
@@ -108,6 +125,14 @@ export default function UserShow({ user, activity, fee, globalFee, canManageFees
                         </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
+                        {/* Only ever offered for a non-superadmin, active account —
+                            the same rule the server enforces, mirrored here so the
+                            button is absent rather than present-and-refused. */}
+                        {viewer.is_superadmin && !user.is_superadmin && !user.disabled && (
+                            <Button variant="outline" onClick={viewAs}>
+                                <Eye className="size-4" /> View as
+                            </Button>
+                        )}
                         <Button variant={user.is_superadmin ? 'outline' : 'default'} onClick={toggle}>
                             <ShieldCheck className="size-4" /> {user.is_superadmin ? 'Revoke admin' : 'Make admin'}
                         </Button>
@@ -213,6 +238,11 @@ export default function UserShow({ user, activity, fee, globalFee, canManageFees
                         </div>
                         <div className="divide-y divide-border">
                             <Row icon={Building2} label="Business name">{organizerProfile.business_name || '—'}</Row>
+                            <Row icon={Mail} label="Email on application">
+                                {organizerProfile.email
+                                    ? <a href={`mailto:${organizerProfile.email}`} className="break-all hover:underline">{organizerProfile.email}</a>
+                                    : '—'}
+                            </Row>
                             <Row icon={Phone} label="Phone on application">
                                 {organizerProfile.phone
                                     ? <a href={`tel:${organizerProfile.phone}`} className="hover:underline">{organizerProfile.phone}</a>

@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Dates;
+use App\Support\Impersonation;
 use App\Support\PlatformFee;
 use App\Support\Profile;
 use App\Support\RolePermissions;
@@ -87,6 +88,7 @@ class UserController extends Controller
                 // The admin application route binds to the PROFILE, not the user.
                 'id' => $user->organizerProfile->id,
                 'business_name' => $user->organizerProfile->business_name,
+                'email' => $user->organizerProfile->email,
                 'website' => $user->organizerProfile->website,
                 'phone' => $user->organizerProfile->phone,
                 'bio' => $user->organizerProfile->bio,
@@ -239,6 +241,30 @@ class UserController extends Controller
      * be disabled first (so active users aren't removed by accident), and you can't
      * delete yourself or another superadmin.
      */
+    /**
+     * "View as" this user — see the site through their account.
+     *
+     * Superadmin only, and never onto another superadmin. All of the rules live
+     * in App\Support\Impersonation so there is one place that decides; this is
+     * just the HTTP end of it.
+     */
+    public function impersonate(Request $request, User $user)
+    {
+        $refusal = Impersonation::refusalFor($request->user(), $user);
+
+        if ($refusal !== null) {
+            return back()->with('flash_error', $refusal);
+        }
+
+        Impersonation::start($request, $request->user(), $user);
+
+        // Their home, not ours: an organizer's is the host panel, a buyer's is
+        // the dashboard. Landing on /admin would defeat the point.
+        return redirect()
+            ->route($user->hasRole('organizer') ? 'host.events.index' : 'dashboard')
+            ->with('flash_success', "You are now viewing DropRSVP as {$user->name}.");
+    }
+
     public function destroy(Request $request, User $user)
     {
         if ($user->id === $request->user()->id) {

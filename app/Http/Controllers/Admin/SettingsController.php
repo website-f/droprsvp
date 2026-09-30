@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Support\PlatformFee;
+use App\Support\RolePermissions;
 use App\Support\SiteContent;
 use Illuminate\Http\Request;
 
@@ -17,8 +19,8 @@ class SettingsController extends Controller
     {
         return inertia('admin/settings', [
             'settings' => [
-                'fee_percent' => \App\Support\PlatformFee::percent(),
-                'fee_flat' => \App\Support\PlatformFee::flat(),
+                'fee_percent' => PlatformFee::percent(),
+                'fee_flat' => PlatformFee::flat(),
                 'boost_price' => (float) Setting::get('boost_price', config('droprsvp.boost_price')),
                 'boost_days' => (int) Setting::get('boost_days', config('droprsvp.boost_days')),
                 'premium_price' => (float) Setting::get('premium_price', config('droprsvp.premium_price')),
@@ -33,8 +35,8 @@ class SettingsController extends Controller
                 'trending_keywords' => (string) Setting::get('trending_keywords', ''),
             ],
             // Role → admin-section permission matrix (superadmin edits this).
-            'rolePermissions' => \App\Support\RolePermissions::matrix(),
-            'permissionSections' => \App\Support\RolePermissions::sectionList(),
+            'rolePermissions' => RolePermissions::matrix(),
+            'permissionSections' => RolePermissions::sectionList(),
         ]);
     }
 
@@ -49,7 +51,7 @@ class SettingsController extends Controller
             'permissions.staff.*' => ['string'],
         ]);
 
-        \App\Support\RolePermissions::save($data['permissions'] ?? []);
+        RolePermissions::save($data['permissions'] ?? []);
 
         return back()->with('flash_success', 'User permissions updated.');
     }

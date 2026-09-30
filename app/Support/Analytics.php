@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
+
 /**
  * Aggregation helpers shared by the organizer + superadmin analytics pages.
  * Column names passed in are fixed constants (never user input).
@@ -9,7 +12,9 @@ namespace App\Support;
 class Analytics
 {
     public const GENDER_LABELS = ['female' => 'Female', 'male' => 'Male', 'other' => 'Other', 'na' => 'Prefer not to say'];
+
     public const SOURCE_LABELS = ['instagram' => 'Instagram', 'facebook' => 'Facebook', 'tiktok' => 'TikTok', 'friend' => 'Friend', 'search' => 'Search', 'email' => 'Email', 'other' => 'Other'];
+
     public const AGE_ORDER = ['under-18' => 'Under 18', '18-24' => '18–24', '25-34' => '25–34', '35-44' => '35–44', '45-54' => '45–54', '55+' => '55+'];
 
     /**
@@ -22,9 +27,9 @@ class Analytics
         $rows = (clone $query)->whereBetween('stat_date', [$w['from_date'], $w['to_date']])
             ->selectRaw('stat_date, SUM(impressions) as impressions, SUM(clicks) as clicks')
             ->groupBy('stat_date')->get()
-            ->keyBy(fn ($r) => \Illuminate\Support\Carbon::parse((string) $r->stat_date)->toDateString());
+            ->keyBy(fn ($r) => Carbon::parse((string) $r->stat_date)->toDateString());
 
-        return self::bucketed($w, fn (\Carbon\CarbonInterface $d) => [
+        return self::bucketed($w, fn (CarbonInterface $d) => [
             'impressions' => (int) (optional($rows->get($d->toDateString()))->impressions ?? 0),
             'clicks' => (int) (optional($rows->get($d->toDateString()))->clicks ?? 0),
         ], ['impressions' => 0, 'clicks' => 0]);
@@ -37,7 +42,7 @@ class Analytics
             ->whereBetween('paid_at', [$w['from'], $w['to']])
             ->selectRaw('DATE(paid_at) as d, SUM(total) as t')->groupBy('d')->pluck('t', 'd');
 
-        return self::bucketed($w, fn (\Carbon\CarbonInterface $d) => ['revenue' => round((float) ($rows[$d->toDateString()] ?? 0), 2)], ['revenue' => 0.0]);
+        return self::bucketed($w, fn (CarbonInterface $d) => ['revenue' => round((float) ($rows[$d->toDateString()] ?? 0), 2)], ['revenue' => 0.0]);
     }
 
     /**

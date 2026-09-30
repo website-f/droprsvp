@@ -65,7 +65,7 @@ class VendorApplicationEditLockTest extends TestCase
         $profile->update(['review_opened_at' => now()]);
 
         $this->actingAs($user)->post('/host/apply', [
-            'business_name' => 'Renamed Co', 'phone' => '0100000000',
+            'business_name' => 'Renamed Co', 'email' => 'hi@renamed.test', 'phone' => '0100000000',
         ])->assertRedirect(route('host.pending'));
 
         // The application was NOT changed.
@@ -82,7 +82,7 @@ class VendorApplicationEditLockTest extends TestCase
         ]);
 
         $this->actingAs($user)->post('/host/apply', [
-            'business_name' => 'Fresh Co', 'phone' => '0198887777',
+            'business_name' => 'Fresh Co', 'email' => 'hi@fresh.test', 'phone' => '0198887777',
         ])->assertRedirect(route('host.pending'));
 
         $profile = $user->organizerProfile()->first();

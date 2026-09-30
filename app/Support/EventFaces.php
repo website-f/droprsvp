@@ -26,7 +26,7 @@ class EventFaces
 
     /**
      * @param  iterable<int|string>  $eventIds
-     * @return array<int|string, list<string>>  event id => up to 3 buyer names
+     * @return array<int|string, list<string>> event id => up to 3 buyer names
      */
     public static function for(iterable $eventIds): array
     {

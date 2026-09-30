@@ -35,6 +35,7 @@ export function ImageLightbox({
             if (index === null || count === 0) {
                 return;
             }
+
             // Wrap, so the last image's "next" is the first rather than a dead end.
             onIndexChange((index + delta + count) % count);
         },
@@ -50,9 +51,11 @@ export function ImageLightbox({
             if (e.key === 'Escape') {
                 onClose();
             }
+
             if (e.key === 'ArrowRight') {
                 go(1);
             }
+
             if (e.key === 'ArrowLeft') {
                 go(-1);
             }

@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock, Ticket } from 'lucide-react';
+import { PurchaseEvent } from '@/components/analytics-events';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 
@@ -11,12 +12,13 @@ interface OrderView {
     tickets?: Array<{ qr_token: string; attendee_name: string | null; status: string }>;
 }
 
-export default function CheckoutConfirmation({ order }: { order: OrderView }) {
+export default function CheckoutConfirmation({ order, analytics }: { order: OrderView; analytics: Record<string, unknown> | null }) {
     const paid = order.status === 'paid';
     const { auth, branding } = usePage().props;
 
     return (
         <>
+            <PurchaseEvent payload={analytics} />
             <Head title={paid ? 'You’re going!' : 'Order received'} />
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">

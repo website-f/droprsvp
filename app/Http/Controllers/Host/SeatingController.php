@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Services\TableAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -60,7 +61,7 @@ class SeatingController extends Controller
     }
 
     /** Auto-seat every unassigned admission across the tables (respecting capacity). */
-    public function autoAssign(Request $request, Event $event, \App\Services\TableAssignmentService $svc)
+    public function autoAssign(Request $request, Event $event, TableAssignmentService $svc)
     {
         $this->authorize('update', $event);
 

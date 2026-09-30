@@ -5,12 +5,14 @@ namespace App\Providers;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\FakePaymentGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Support\SeoManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -23,11 +25,11 @@ class AppServiceProvider extends ServiceProvider
     {
         // Payment driver: real CHIP when configured, the fake gateway otherwise.
         $this->app->bind(PaymentGateway::class, fn () => config('services.chip.driver') === 'chip'
-            ? new ChipGateway()
-            : new FakePaymentGateway());
+            ? new ChipGateway
+            : new FakePaymentGateway);
 
         // Request-scoped server-side SEO (rendered into the <head> by Laravel).
-        $this->app->scoped(\App\Support\SeoManager::class);
+        $this->app->scoped(SeoManager::class);
     }
 
     /**
@@ -86,7 +88,7 @@ class AppServiceProvider extends ServiceProvider
         // Production transport hardening — force HTTPS links + secure cookies
         // regardless of whether the deploy .env sets SESSION_SECURE_COOKIE.
         if (app()->isProduction()) {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
+            URL::forceScheme('https');
             config([
                 'session.secure' => true,
                 'session.http_only' => true,

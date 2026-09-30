@@ -3,6 +3,7 @@ import { CalendarDays, CornerDownRight, Globe, Images, Info, Lock, MapPin, Messa
 import { useState } from 'react';
 import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { Framed, SmartImage } from '@/components/smart-image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -54,10 +55,10 @@ function EventGrid({ events }: { events: EventCard[] }) {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((e) => (
                 <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
-                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+                    <div className="relative w-full">
                         {e.cover_image
-                            ? <img src={e.cover_image} alt={e.title} loading="lazy" className={`size-full object-cover ${e.is_past ? 'opacity-70 grayscale' : ''}`} />
-                            : <div className="flex size-full items-center justify-center text-muted-foreground"><CalendarDays className="size-8" /></div>}
+                            ? <Framed src={e.cover_image} alt={e.title} className={e.is_past ? 'opacity-70 grayscale' : ''} />
+                            : <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted text-muted-foreground"><CalendarDays className="size-8" /></div>}
                         {e.is_past && <span className="absolute left-2 top-2 rounded-full bg-foreground/80 px-2 py-0.5 text-[11px] font-semibold text-background">Past</span>}
                     </div>
                     <div className="p-4">
@@ -402,7 +403,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                         aria-label={`View photo ${i + 1} of ${photos.length}`}
                                         className="block w-full cursor-zoom-in break-inside-avoid overflow-hidden rounded-xl border border-border transition-opacity hover:opacity-90"
                                     >
-                                        <img src={ph.path} alt={ph.caption ?? ''} loading="lazy" className="w-full object-cover" />
+                                        <SmartImage src={ph.path} alt={ph.caption ?? ''} className="w-full object-cover" eager={i < 6} />
                                     </button>
                                 ))}
                             </div>

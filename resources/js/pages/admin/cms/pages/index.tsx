@@ -1,8 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useConfirm } from '@/components/confirm-dialog';
 import { ExternalLink, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface PageRow { id: number; title: string; slug: string; status: string; updated_at: string }
 

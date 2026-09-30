@@ -15,7 +15,7 @@ class Qr
 {
     public static function svg(string $data, int $size = 240): string
     {
-        $writer = new Writer(new ImageRenderer(new RendererStyle($size, 1), new SvgImageBackEnd()));
+        $writer = new Writer(new ImageRenderer(new RendererStyle($size, 1), new SvgImageBackEnd));
 
         return $writer->writeString($data);
     }

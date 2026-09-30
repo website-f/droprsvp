@@ -7,6 +7,7 @@ use App\Models\HelpArticle;
 use App\Support\SeoManager;
 use App\Support\Url;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -93,7 +94,7 @@ class HelpController extends Controller
     }
 
     /** The help centre index as plain HTML for crawlers, grouped by category. */
-    private function crawlableIndex(\Illuminate\Support\Collection $categories): string
+    private function crawlableIndex(Collection $categories): string
     {
         $html = '<h1>Help center</h1>';
 

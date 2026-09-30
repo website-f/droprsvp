@@ -2,7 +2,12 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AppNotification;
+use App\Models\CmsPost;
 use App\Models\MenuItem;
+use App\Support\Cities;
+use App\Support\Impersonation;
+use App\Support\RolePermissions;
 use App\Support\SiteContent;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -46,20 +51,23 @@ class HandleInertiaRequests extends Middleware
                 'is_organizer' => (bool) $request->user()?->hasAnyRole(['organizer', 'superadmin']),
                 'is_premium' => (bool) $request->user()?->isPremium(),
                 // Admin nav visibility: staff see only their granted sections; superadmin all.
-                'is_admin' => \App\Support\RolePermissions::isAdmin($request->user()),
-                'admin_sections' => \App\Support\RolePermissions::allowedSections($request->user()),
+                'is_admin' => RolePermissions::isAdmin($request->user()),
+                'admin_sections' => RolePermissions::allowedSections($request->user()),
                 'must_set_password' => (bool) $request->user()?->must_set_password,
                 'unread_notifications' => $request->user()
-                    ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
+                    ? AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
                     : 0,
             ],
+            // Non-null only during a superadmin "view as" session; drives the
+            // banner that says whose account this is and how to get out.
+            'impersonating' => Impersonation::share($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Public site navigation (cached; edited under Admin → Menu).
             'nav' => MenuItem::header(),
             // Footer config (cached; edited under Admin → Footer).
             'footer' => SiteContent::footer(),
             // Latest posts for the footer's "From the blog" column (cached).
-            'footerPosts' => \App\Models\CmsPost::forFooter(),
+            'footerPosts' => CmsPost::forFooter(),
             // Brand logos + sizing (cached; edited under Admin → Branding).
             'branding' => SiteContent::branding(),
             // Site-wide announcement (banner / modal on public pages; cached).
@@ -72,7 +80,7 @@ class HandleInertiaRequests extends Middleware
             // Whether "Continue with Google" is available (keys configured).
             'googleAuth' => (bool) config('services.google.client_id') && (bool) config('services.google.client_secret'),
             // Cities for the header location selector (curated, small).
-            'cities' => \App\Support\Cities::all(),
+            'cities' => Cities::all(),
         ];
     }
 }

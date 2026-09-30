@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 
 /**
  * Full-screen, WordPress-style editing surface: a sticky action bar on top,

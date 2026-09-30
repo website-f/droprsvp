@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\Host\EventController;
 use App\Models\Event;
 use Illuminate\Support\Str;
 
@@ -33,8 +35,8 @@ use Illuminate\Support\Str;
  *   "text"            => string
  *   "choice"          => option id  (or list of option ids when multiple)
  *
- * @see \App\Http\Controllers\Host\EventController  where definitions are saved
- * @see \App\Http\Controllers\CheckoutController    where answers are captured
+ * @see EventController  where definitions are saved
+ * @see CheckoutController    where answers are captured
  */
 class CustomFields
 {
@@ -181,7 +183,7 @@ class CustomFields
      * shape, with unknown fields dropped and choices resolved to option ids.
      *
      * @param  list<array<string,mixed>>  $answers
-     * @return array{0: list<array<string,mixed>>, 1: array<string,string>}  [normalised, errors]
+     * @return array{0: list<array<string,mixed>>, 1: array<string,string>} [normalised, errors]
      */
     public static function normalise(Event $event, array $answers, int $ticketCount): array
     {

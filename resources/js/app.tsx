@@ -1,6 +1,7 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { FlashWatcher } from '@/components/flash-watcher';
+import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -59,6 +60,10 @@ createInertiaApp({
                     <PromptProvider>
                         {app}
                         <FlashWatcher />
+                        {/* Rendered at the app root, not in a layout: a "view as"
+                            session reaches public pages and the focused sign-up
+                            screens too, which carry their own chrome. */}
+                        <ImpersonationBanner />
                         <Toaster />
                     </PromptProvider>
                 </ConfirmProvider>

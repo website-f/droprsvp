@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\Payout;
+use App\Models\Promotion;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Support\PlatformFee;
@@ -21,7 +22,7 @@ class OverviewController extends Controller
         return inertia('admin/overview', [
             'fee_percent' => PlatformFee::percent(),
             'fee_label' => PlatformFee::label(),
-            'boost_revenue' => (float) \App\Models\Promotion::where('status', 'paid')->sum('amount'),
+            'boost_revenue' => (float) Promotion::where('status', 'paid')->sum('amount'),
             'stats' => [
                 'organizers' => User::has('events')->count(),
                 'events' => Event::count(),

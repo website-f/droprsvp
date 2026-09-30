@@ -151,6 +151,7 @@ class BrandingAndAlertsTest extends TestCase
 
         $this->actingAs($host)->post('/host/apply', [
             'business_name' => 'BoardLah Entertainment',
+            'email' => 'bookings@boardlah.test',
             'phone' => '0123456789',
         ]);
 

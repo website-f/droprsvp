@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\TicketType;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -76,7 +77,7 @@ class QueryBudgetTest extends TestCase
 
         $this->get($path)->assertOk();
 
-        DB::getEventDispatcher()->forget(\Illuminate\Database\Events\QueryExecuted::class);
+        DB::getEventDispatcher()->forget(QueryExecuted::class);
         arsort($tables);
 
         return [$count, $tables];

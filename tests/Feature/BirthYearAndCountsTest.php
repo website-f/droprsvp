@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\CheckoutService;
 use App\Support\Profile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -62,7 +63,7 @@ class BirthYearAndCountsTest extends TestCase
     public function test_the_admin_page_shows_the_year_and_how_long_they_have_been_a_member(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(\Spatie\Permission\Models\Role::findOrCreate('superadmin', 'web'));
+        $admin->assignRole(Role::findOrCreate('superadmin', 'web'));
 
         $user = User::factory()->create(['birth_year' => 1995, 'city' => 'Kajang']);
         $user->forceFill(['created_at' => now()->subYears(2)])->save();

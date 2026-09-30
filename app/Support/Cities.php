@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Http\Controllers\Public\DiscoverController;
 use Illuminate\Support\Str;
 
 /**
@@ -20,7 +21,7 @@ use Illuminate\Support\Str;
  * /en-my/kuala-lumpur/ has to keep resolving. Adding a city is safe; renaming
  * one silently 404s a page that was ranking, so add a redirect if you ever must.
  *
- * @see \App\Http\Controllers\Public\DiscoverController  resolves {city} from a slug
+ * @see DiscoverController  resolves {city} from a slug
  */
 class Cities
 {

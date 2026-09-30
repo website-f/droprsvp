@@ -25,6 +25,19 @@ class ImageOptimizer
     private const QUALITY = 82;
 
     /**
+     * Longest edge of the grid thumbnail.
+     *
+     * Galleries render into tiles a few hundred pixels wide, but were handed the
+     * full MAX_EDGE image — a 2000px, several-hundred-kilobyte file per tile, a
+     * dozen tiles to a page. 640 covers the largest tile we draw at 2x DPR and
+     * costs roughly a tenth of the bytes.
+     */
+    public const THUMB_EDGE = 640;
+
+    /** Sub-directory, under the image's own folder, where thumbnails are written. */
+    public const THUMB_DIR = 'thumbs';
+
+    /**
      * Optimise the file at $path in place.
      *
      * @return bool True when the file was rewritten smaller.
@@ -80,8 +93,103 @@ class ImageOptimizer
         }
     }
 
-    private static function resize(string $path, int $type, int $width, int $height, int $targetWidth, int $targetHeight): bool
+    /**
+     * Write a small copy of $path into its `thumbs/` sub-folder, for grids.
+     *
+     * Separate from optimise(), which only ever rewrites the original in place.
+     * A gallery tile does not need the 2000px version, and sending it is the
+     * single reason galleries were slow to appear: twelve tiles at ~300KB each
+     * is 3.6MB before the first photo is visible.
+     *
+     * Best effort, exactly like optimise(): when GD is missing, the source is a
+     * GIF, or anything at all fails, no thumbnail is written and callers fall
+     * back to the original (the frontend does this on the img's error event).
+     *
+     * @return bool True when a thumbnail now exists on disk.
+     */
+    public static function thumbnail(string $path, int $maxEdge = self::THUMB_EDGE): bool
     {
+        if (! self::available() || ! is_file($path)) {
+            return false;
+        }
+
+        $info = @getimagesize($path);
+
+        if ($info === false) {
+            return false;
+        }
+
+        [$width, $height, $type] = $info;
+
+        // Animated GIFs flatten to one frame — same reasoning as optimise().
+        if ($type === IMAGETYPE_GIF) {
+            return false;
+        }
+
+        $destination = self::thumbPath($path);
+
+        if (is_file($destination)) {
+            return true; // already generated
+        }
+
+        $longest = max($width, $height);
+
+        // Already thumbnail-sized. Copy rather than skip, so the thumb URL is
+        // always valid once an upload has been through here and the frontend
+        // never has to guess which images got one.
+        if ($longest <= $maxEdge) {
+            return self::ensureThumbDir($destination) && @copy($path, $destination);
+        }
+
+        $scale = $maxEdge / $longest;
+        $targetWidth = max(1, (int) round($width * $scale));
+        $targetHeight = max(1, (int) round($height * $scale));
+
+        if (! self::ensureThumbDir($destination)) {
+            return false;
+        }
+
+        $restoreLimit = self::raiseMemoryLimit($width, $height, $targetWidth, $targetHeight);
+
+        try {
+            if (! self::hasHeadroom($width, $height, $targetWidth, $targetHeight)) {
+                return false;
+            }
+
+            return self::resize($path, $type, $width, $height, $targetWidth, $targetHeight, $destination);
+        } finally {
+            if ($restoreLimit !== null) {
+                @ini_set('memory_limit', $restoreLimit);
+            }
+        }
+    }
+
+    /** Where the thumbnail for an absolute image path lives. */
+    public static function thumbPath(string $path): string
+    {
+        return dirname($path).DIRECTORY_SEPARATOR.self::THUMB_DIR.DIRECTORY_SEPARATOR.basename($path);
+    }
+
+    private static function ensureThumbDir(string $destination): bool
+    {
+        $dir = dirname($destination);
+
+        return is_dir($dir) || @mkdir($dir, 0o755, true) || is_dir($dir);
+    }
+
+    /**
+     * Resize $path into $destination (defaulting to $path itself, i.e. in place).
+     *
+     * The "only keep it if it got smaller" guard applies to the in-place case
+     * only: a thumbnail that happens not to be smaller than its source is still
+     * the file the grid needs, and discarding it would leave the tile loading
+     * the full image forever.
+     */
+    private static function resize(string $path, int $type, int $width, int $height, int $targetWidth, int $targetHeight, ?string $destination = null): bool
+    {
+        $inPlace = $destination === null;
+        $destination ??= $path;
+
         $source = self::read($path, $type);
 
         if (! $source) {
@@ -101,9 +209,9 @@ class ImageOptimizer
 
             imagecopyresampled($canvas, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
 
-            // Write beside the original and swap, so a failure part-way through
-            // cannot leave a truncated file where a valid one used to be.
-            $temp = $path.'.opt';
+            // Write beside the destination and swap, so a failure part-way
+            // through cannot leave a truncated file where a valid one used to be.
+            $temp = $destination.'.opt';
             $written = self::write($canvas, $temp, $type);
 
             if (! $written || ! is_file($temp)) {
@@ -113,16 +221,17 @@ class ImageOptimizer
             }
 
             // Only keep the result if it is actually smaller. Re-encoding an
-            // already-optimised image can grow it.
-            if (filesize($temp) >= filesize($path)) {
+            // already-optimised image can grow it. Thumbnails are exempt — see
+            // the docblock.
+            if ($inPlace && filesize($temp) >= filesize($path)) {
                 @unlink($temp);
 
                 return false;
             }
 
-            return @rename($temp, $path);
+            return @rename($temp, $destination);
         } catch (\Throwable) {
-            @unlink($path.'.opt');
+            @unlink($destination.'.opt');
 
             return false;
         } finally {

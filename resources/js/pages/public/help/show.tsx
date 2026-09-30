@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
-import { contentClass } from '@/components/rich-editor';
-import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { PublicFooter, PublicHeader } from '@/components/public-header';
+import { contentClass } from '@/components/rich-editor';
 
 interface Article { title: string; category: string; body: string | null }
 interface Related { title: string; slug: string }

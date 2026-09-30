@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { SearchAutocomplete } from '@/components/search-autocomplete';
+import { Framed } from '@/components/smart-image';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -256,10 +257,10 @@ export default function Discover({ events, categories, cities, active, filters, 
                         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {events.data.map((e) => (
                                 <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
-                                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+                                    <div className="relative w-full">
                                         {e.cover_image
-                                            ? <img src={e.cover_image} alt={e.title} className="size-full object-cover" />
-                                            : <div className="flex size-full items-center justify-center text-muted-foreground"><CalendarDays className="size-8" /></div>}
+                                            ? <Framed src={e.cover_image} alt={e.title} />
+                                            : <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted text-muted-foreground"><CalendarDays className="size-8" /></div>}
                                         {e.boosted && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[#6c63ff] px-2 py-0.5 text-[11px] font-semibold text-white shadow"><Rocket className="size-3" /> Promoted</span>}
                                     </div>
                                     <div className="p-4">

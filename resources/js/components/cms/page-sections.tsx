@@ -51,18 +51,36 @@ const SPACER: Record<'sm' | 'md' | 'lg' | 'xl', string> = { sm: 'h-4', md: 'h-8'
 
 function colTemplate(s: SectionSettings): string {
     const n = Math.max(1, s.cols);
-    if (n === 1) return '1fr';
-    if (s.colWidths && s.colWidths.length === n) return s.colWidths.map((w) => `${w}fr`).join(' ');
+
+    if (n === 1) {
+return '1fr';
+}
+
+    if (s.colWidths && s.colWidths.length === n) {
+return s.colWidths.map((w) => `${w}fr`).join(' ');
+}
+
     return `repeat(${n}, 1fr)`;
 }
 
 /** Turn a YouTube/Vimeo/any URL into an embeddable src. */
 function embedSrc(url: string): string | null {
-    if (!url) return null;
+    if (!url) {
+return null;
+}
+
     const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/);
-    if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+
+    if (yt) {
+return `https://www.youtube.com/embed/${yt[1]}`;
+}
+
     const vim = url.match(/vimeo\.com\/(\d+)/);
-    if (vim) return `https://player.vimeo.com/video/${vim[1]}`;
+
+    if (vim) {
+return `https://player.vimeo.com/video/${vim[1]}`;
+}
+
     return url; // assume already an embed URL
 }
 
@@ -72,8 +90,15 @@ function BlockView({ block, align }: { block: PageBlock; align: Align }) {
     switch (block.type) {
         case 'heading': {
             const cls = `${ALIGN[block.align]} font-bold tracking-tight ${block.level === 2 ? 'text-2xl sm:text-3xl' : block.level === 3 ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`;
-            if (block.level === 2) return <h2 className={cls}>{block.text}</h2>;
-            if (block.level === 3) return <h3 className={cls}>{block.text}</h3>;
+
+            if (block.level === 2) {
+return <h2 className={cls}>{block.text}</h2>;
+}
+
+            if (block.level === 3) {
+return <h3 className={cls}>{block.text}</h3>;
+}
+
             return <h4 className={cls}>{block.text}</h4>;
         }
         case 'richtext':
@@ -100,6 +125,7 @@ function BlockView({ block, align }: { block: PageBlock; align: Align }) {
             return <div className={SPACER[block.size]} aria-hidden />;
         case 'video': {
             const src = embedSrc(block.url);
+
             return src
                 ? <div className="aspect-video w-full overflow-hidden rounded-xl border border-border"><iframe src={src} title="Video" className="size-full" allowFullScreen loading="lazy" /></div>
                 : null;
@@ -107,6 +133,7 @@ function BlockView({ block, align }: { block: PageBlock; align: Align }) {
         default:
             return null;
     }
+
     void align;
 }
 
@@ -126,6 +153,7 @@ export function PageSections({ sections }: { sections: PageSection[] }) {
                     borderRadius: set.radius ? `${set.radius}px` : undefined,
                 };
                 const gridStyle = { '--drsvp-cols': colTemplate(set) } as CSSProperties;
+
                 return (
                     <section key={s.id} className={PAD_Y[set.padY]} style={outerStyle}>
                         <div className={`mx-auto w-full px-4 sm:px-6 ${WIDTH[set.width]} ${ALIGN[set.align]}`}>

@@ -41,6 +41,13 @@ export function SeoTemplateEditor({
     const form = useForm<SeoTemplates>({ ...templates });
     const refs = useRef<Partial<Record<Slot, HTMLInputElement | HTMLTextAreaElement | null>>>({});
 
+    // Handed to each Field instead of the ref object itself. A child assigning
+    // into a ref it received as a prop reads as mutating a prop, so the write
+    // stays here where the ref is owned.
+    const register = (slot: Slot, el: HTMLInputElement | HTMLTextAreaElement | null) => {
+        refs.current[slot] = el;
+    };
+
     const insert = (slot: Slot, token: string) => {
         const el = refs.current[slot];
         const value = form.data[slot] ?? '';
@@ -84,7 +91,7 @@ export function SeoTemplateEditor({
                     label="Event page title"
                     hint="Aim for under 60 characters once the tokens are filled in."
                     form={form}
-                    refs={refs}
+                    register={register}
                     tokens={tokens}
                     onInsert={insert}
                     example={EVENT_EXAMPLE}
@@ -96,7 +103,7 @@ export function SeoTemplateEditor({
                     hint="Aim for 120–160 characters."
                     multiline
                     form={form}
-                    refs={refs}
+                    register={register}
                     tokens={tokens}
                     onInsert={insert}
                     example={EVENT_EXAMPLE}
@@ -106,7 +113,7 @@ export function SeoTemplateEditor({
                     slot="organizer_title"
                     label="Organizer page title"
                     form={form}
-                    refs={refs}
+                    register={register}
                     tokens={organizerTokens}
                     onInsert={insert}
                     example={ORGANIZER_EXAMPLE}
@@ -117,7 +124,7 @@ export function SeoTemplateEditor({
                     label="Organizer meta description"
                     multiline
                     form={form}
-                    refs={refs}
+                    register={register}
                     tokens={organizerTokens}
                     onInsert={insert}
                     example={ORGANIZER_EXAMPLE}
@@ -181,6 +188,7 @@ function preview(template: string, values: Record<string, string>): string {
     const pattern = new RegExp(`${glue}?${MARK}`, 'u');
 
     let previous: string;
+
     do {
         previous = out;
         out = out.replace(new RegExp(pattern.source, 'gu'), '');
@@ -202,7 +210,7 @@ function Field({
     hint,
     multiline,
     form,
-    refs,
+    register,
     tokens,
     onInsert,
     example,
@@ -212,9 +220,9 @@ function Field({
     label: string;
     hint?: string;
     multiline?: boolean;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     form: any;
-    refs: React.MutableRefObject<Partial<Record<Slot, HTMLInputElement | HTMLTextAreaElement | null>>>;
+    register: (slot: Slot, el: HTMLInputElement | HTMLTextAreaElement | null) => void;
     tokens: Token[];
     onInsert: (slot: Slot, token: string) => void;
     example: Record<string, string>;
@@ -237,7 +245,7 @@ function Field({
 
             {multiline ? (
                 <textarea
-                    ref={(el) => { refs.current[slot] = el; }}
+                    ref={(el) => register(slot, el)}
                     rows={3}
                     className={area}
                     value={value}
@@ -246,7 +254,7 @@ function Field({
                 />
             ) : (
                 <input
-                    ref={(el) => { refs.current[slot] = el; }}
+                    ref={(el) => register(slot, el)}
                     className={input}
                     value={value}
                     onChange={(e) => form.setData(slot, e.target.value)}

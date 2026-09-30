@@ -153,11 +153,14 @@ function ImageField({
         if (!file) {
             return;
         }
+
         setUploading(true);
         const url = await uploadImageWithToast(file);
+
         if (url) {
             onChange(url);
         }
+
         setUploading(false);
     };
 

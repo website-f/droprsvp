@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\CheckoutService;
 use App\Support\Profile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -19,7 +20,7 @@ use Tests\TestCase;
  * profile and was told it was incomplete. Phone was the one field that showed up,
  * and only for guests, because provisionBuyerAccount() happened to copy it.
  *
- * @see \App\Support\Profile::syncFromOrder()
+ * @see Profile::syncFromOrder()
  */
 class ProfileSyncFromCheckoutTest extends TestCase
 {
@@ -191,7 +192,7 @@ class ProfileSyncFromCheckoutTest extends TestCase
         // Straight to the table. Going through $user would write nothing: that
         // instance was loaded before markPaid ran the live sync, so its in-memory
         // columns are still null and Eloquent would see no change to save.
-        \Illuminate\Support\Facades\DB::table('users')->where('id', $user->id)->update([
+        DB::table('users')->where('id', $user->id)->update([
             'phone' => null, 'gender' => null, 'age_band' => null, 'city' => null,
         ]);
         $this->assertNull($user->fresh()->gender, 'precondition: the simulated pre-fix state did not stick');

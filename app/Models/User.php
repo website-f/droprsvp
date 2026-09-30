@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -147,7 +149,7 @@ class User extends Authenticatable implements PasskeyUser
     /** A URL-safe organizer handle derived from the name, de-duplicated with a count. */
     public static function uniqueSlug(string $name): string
     {
-        $base = \Illuminate\Support\Str::slug($name) ?: 'organizer';
+        $base = Str::slug($name) ?: 'organizer';
         $slug = $base;
         $i = 2;
         while (static::where('slug', $slug)->exists()) {
@@ -180,7 +182,7 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(AppNotification::class)->latest();
     }
 
-    public function organizerProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function organizerProfile(): HasOne
     {
         return $this->hasOne(OrganizerProfile::class);
     }

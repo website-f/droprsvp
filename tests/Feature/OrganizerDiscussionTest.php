@@ -7,6 +7,7 @@ use App\Models\OrganizerPost;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class OrganizerDiscussionTest extends TestCase
@@ -52,7 +53,7 @@ class OrganizerDiscussionTest extends TestCase
         $host = $this->organizerWithEvent();
         $post = OrganizerPost::create(['organizer_id' => $host->id, 'user_id' => User::factory()->create()->id, 'body' => 'Question?']);
         $admin = User::factory()->create();
-        \Spatie\Permission\Models\Role::findOrCreate('superadmin', 'web');
+        Role::findOrCreate('superadmin', 'web');
         $admin->assignRole('superadmin');
 
         $this->actingAs($admin)->post("/o/{$host->slug}/discussion", ['body' => 'On behalf', 'parent_id' => $post->id, 'as_organizer' => true])->assertRedirect();

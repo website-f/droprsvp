@@ -61,8 +61,10 @@ export function CustomFieldSet({
     const toggle = (field: CustomField, optionId: string) => {
         if (!field.multiple) {
             set(field.id, answers[field.id] === optionId ? '' : optionId);
+
             return;
         }
+
         const current = Array.isArray(answers[field.id]) ? (answers[field.id] as string[]) : [];
         set(field.id, current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId]);
     };

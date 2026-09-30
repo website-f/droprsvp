@@ -8,7 +8,9 @@ use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class MembershipTest extends TestCase
@@ -28,7 +30,7 @@ class MembershipTest extends TestCase
     private function paidOrder(Event $event, string $email): void
     {
         Order::create([
-            'reference' => 'M-'.\Illuminate\Support\Str::random(6), 'event_id' => $event->id, 'status' => 'paid',
+            'reference' => 'M-'.Str::random(6), 'event_id' => $event->id, 'status' => 'paid',
             'buyer_name' => 'Buyer '.$email, 'buyer_email' => $email, 'total' => 10, 'currency' => 'MYR', 'paid_at' => now(),
         ]);
     }
@@ -107,7 +109,7 @@ class MembershipTest extends TestCase
 
     public function test_superadmin_cannot_subscribe_and_has_full_access(): void
     {
-        \Spatie\Permission\Models\Role::findOrCreate('superadmin', 'web');
+        Role::findOrCreate('superadmin', 'web');
         $admin = User::factory()->create();
         $admin->assignRole('superadmin');
 

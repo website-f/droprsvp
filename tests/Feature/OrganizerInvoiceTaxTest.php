@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Event;
 use App\Models\Order;
-use App\Models\User;
 use App\Support\Receipt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\WelcomeMail;
 use App\Models\User;
+use App\Support\Mailer;
+use App\Support\PlatformAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -18,7 +21,9 @@ use Spatie\Permission\Models\Role;
 class GoogleController extends Controller
 {
     private const AUTH = 'https://accounts.google.com/o/oauth2/v2/auth';
+
     private const TOKEN = 'https://oauth2.googleapis.com/token';
+
     private const USERINFO = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
     public function redirect(Request $request)
@@ -133,10 +138,10 @@ class GoogleController extends Controller
         $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
         // Deferred + non-fatal, exactly like the password sign-up path.
-        \App\Support\Mailer::defer($user->email, new \App\Mail\WelcomeMail($user));
+        Mailer::defer($user->email, new WelcomeMail($user));
 
         // ...and the same alert, so a Google sign-up is as visible as any other.
-        \App\Support\PlatformAlert::raise(
+        PlatformAlert::raise(
             type: 'user',
             title: 'New attendee signed up',
             body: $user->name.' created an account with Google.',

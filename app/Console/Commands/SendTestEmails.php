@@ -57,7 +57,7 @@ class SendTestEmails extends Command
         // ---- build in-memory sample data (never persisted) -------------------
         $user = new User(['name' => 'Alex Tan', 'email' => $to]);
 
-        $event = new Event();
+        $event = new Event;
         $event->forceFill([
             'title' => 'Neon Nights: Rooftop Live',
             'timezone' => 'Asia/Kuala_Lumpur',
@@ -66,13 +66,13 @@ class SendTestEmails extends Command
             'starts_at' => now()->addDays(12)->setTime(20, 0),
         ]);
 
-        $order = new Order();
+        $order = new Order;
         $order->forceFill(['reference' => 'DRSVP-TEST01', 'buyer_name' => 'Alex Tan', 'buyer_email' => $to, 'total' => 240.00, 'currency' => 'MYR']);
         $order->setRelation('event', $event);
 
         $tt = new TicketType(['name' => 'VIP Standing']);
         $mkTicket = function (string $seat) use ($tt) {
-            $t = new Ticket();
+            $t = new Ticket;
             $t->forceFill(['attendee_name' => 'Alex Tan', 'seat_label' => $seat, 'qr_token' => (string) Str::ulid()]);
             $t->setRelation('ticketType', $tt);
 
@@ -80,14 +80,14 @@ class SendTestEmails extends Command
         };
         $order->setRelation('tickets', collect([$mkTicket('VIP · A1'), $mkTicket('VIP · A2')]));
 
-        $payout = new Payout();
+        $payout = new Payout;
         $payout->forceFill(['reference' => 'PO-TEST01', 'amount' => 318.00, 'currency' => 'MYR', 'method' => 'CHIP Send']);
 
-        $profile = new OrganizerProfile();
+        $profile = new OrganizerProfile;
         $profile->forceFill(['review_reason' => 'Please add a clearer business logo and a short bio.']);
         $profile->setRelation('user', new User(['name' => 'Aisyah Rahman']));
 
-        $contact = new ContactMessage();
+        $contact = new ContactMessage;
         $contact->forceFill([
             'name' => 'Jamie Lee', 'email' => 'jamie@example.com', 'phone' => '+60 12-345 6789',
             'category' => 'support', 'message' => 'Hi, I bought two tickets but only received one email — can you help?',

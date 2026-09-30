@@ -1,9 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { RichEditor } from '@/components/rich-editor';
 import { ArrowLeft } from 'lucide-react';
+import { RichEditor } from '@/components/rich-editor';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 interface ArticleProp { id: number; title: string; slug: string; category: string; excerpt: string | null; body: string | null; status: string; sort: number }
 
@@ -26,7 +26,12 @@ export default function HelpForm({ article, categories }: { article: ArticleProp
 
     const save = (publish: boolean) => {
         form.transform((d) => ({ ...d, publish }));
-        isEdit ? form.put(`/admin/cms/help/${article!.id}`) : form.post('/admin/cms/help');
+
+        if (isEdit) {
+            form.put(`/admin/cms/help/${article!.id}`);
+        } else {
+            form.post('/admin/cms/help');
+        }
     };
 
     return (

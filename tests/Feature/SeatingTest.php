@@ -6,7 +6,6 @@ use App\Models\Event;
 use App\Models\Order;
 use App\Models\Seat;
 use App\Models\SeatTemplate;
-use App\Models\User;
 use App\Services\CheckoutService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

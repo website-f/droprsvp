@@ -1,13 +1,13 @@
+import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Check, ExternalLink, Globe, Mail, Phone, X } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Head, Link, router } from '@inertiajs/react';
 import { prettyUrl, safeHref } from '@/lib/pretty-url';
-import { useState } from 'react';
 
 interface Application {
     id: number; name: string | null; email: string | null; member_since: string | null;
-    business_name: string | null; website: string | null; phone: string | null; bio: string | null;
+    business_name: string | null; account_email: string | null; website: string | null; phone: string | null; bio: string | null;
     poster: string | null; gallery: string[]; status: string; reason: string | null;
     submitted_at: string | null; reviewed_at: string | null;
 }
@@ -73,8 +73,11 @@ export default function OrganizerShow({ application: app }: { application: Appli
                 {/* Contact + business */}
                 <div className="mt-6 grid gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
                     <Field label="Contact person">{app.name}</Field>
-                    <Field label="Email"><a href={`mailto:${app.email}`} className="inline-flex items-center gap-1.5 hover:underline"><Mail className="size-3.5" /> {app.email}</a></Field>
+                    <Field label="Email on application"><a href={`mailto:${app.email}`} className="inline-flex items-center gap-1.5 break-all hover:underline"><Mail className="size-3.5 shrink-0" /> {app.email}</a></Field>
                     <Field label="Phone">{app.phone ? <a href={`tel:${app.phone}`} className="inline-flex items-center gap-1.5 hover:underline"><Phone className="size-3.5" /> {app.phone}</a> : <span className="text-muted-foreground">—</span>}</Field>
+                    {app.account_email && app.account_email !== app.email && (
+                        <Field label="Account email"><a href={`mailto:${app.account_email}`} className="inline-flex items-center gap-1.5 break-all hover:underline"><Mail className="size-3.5 shrink-0" /> {app.account_email}</a></Field>
+                    )}
                     <Field label="Website">
                         {/* The label is the readable form; the link keeps the URL
                             exactly as they entered it, tracking and all. Raw, an

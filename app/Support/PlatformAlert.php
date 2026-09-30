@@ -27,8 +27,8 @@ use Illuminate\Support\Facades\Mail;
 class PlatformAlert
 {
     /**
-     * @param  string  $type   groups it in the bell inbox: user, organizer, event…
-     * @param  string  $url    admin-relative link to the thing it is about
+     * @param  string  $type  groups it in the bell inbox: user, organizer, event…
+     * @param  string  $url  admin-relative link to the thing it is about
      * @param  array<string,string>  $details  label => value rows for the email
      */
     public static function raise(

@@ -38,7 +38,11 @@ class OrganizerSignupTest extends TestCase
         $this->post('/get-started/code', ['email' => 'ann@example.com'])->assertSessionHasNoErrors();
 
         $code = null;
-        Mail::assertSent(RegistrationCodeMail::class, function ($m) use (&$code) { $code = $m->code; return true; });
+        Mail::assertSent(RegistrationCodeMail::class, function ($m) use (&$code) {
+            $code = $m->code;
+
+            return true;
+        });
 
         $this->post('/get-started/verify', ['email' => 'ann@example.com', 'code' => $code])->assertSessionHasNoErrors();
 

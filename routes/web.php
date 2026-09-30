@@ -47,6 +47,7 @@ use App\Http\Controllers\Host\RefundController;
 use App\Http\Controllers\Host\SeatingController;
 use App\Http\Controllers\Host\SeatTemplateController;
 use App\Http\Controllers\Host\TeamController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Public\BlogController;
@@ -190,6 +191,11 @@ Route::middleware('auth')->group(function () {
     Route::get('set-password', [SetPasswordController::class, 'show'])->name('password.set');
     Route::post('set-password', [SetPasswordController::class, 'update'])->name('password.set.save');
 
+    // Leave a superadmin "view as" session. Lives outside the admin group on
+    // purpose: the request is authenticated as the impersonated user, who has
+    // no admin access, so an admin-gated route would strand them.
+    Route::post('stop-impersonating', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
+
     // In-app notifications (bell inbox) — available to any signed-in user.
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
@@ -292,6 +298,7 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         // Event photo album (organizer uploads; shown on their public profile).
         Route::get('events/{event}/photos', [EventPhotoController::class, 'index'])->name('events.photos');
         Route::post('events/{event}/photos', [EventPhotoController::class, 'store'])->name('events.photos.store');
+        Route::post('events/{event}/photos/from-gallery', [EventPhotoController::class, 'fromGallery'])->name('events.photos.from-gallery');
         Route::delete('events/{event}/photos/{photo}', [EventPhotoController::class, 'destroy'])->name('events.photos.destroy');
 
         // Promo / discount codes + their redemption analytics.
@@ -427,6 +434,7 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::post('users/{user}/role', [AdminUserController::class, 'setRole'])->name('users.role');
         Route::post('users/{user}/superadmin', [AdminUserController::class, 'toggleSuperadmin'])->name('users.superadmin');
         Route::post('users/{user}/disabled', [AdminUserController::class, 'toggleDisabled'])->name('users.disabled');
+        Route::post('users/{user}/impersonate', [AdminUserController::class, 'impersonate'])->name('users.impersonate');
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         // Finance — every transaction (tickets/boosts/subscriptions/payouts).

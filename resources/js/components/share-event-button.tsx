@@ -39,6 +39,7 @@ export function ShareEventButton({
         if (!copied) {
             return;
         }
+
         const t = setTimeout(() => setCopied(false), 2000);
 
         return () => clearTimeout(t);

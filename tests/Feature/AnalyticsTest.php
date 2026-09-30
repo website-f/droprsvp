@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use App\Models\EventCategory;
 use App\Models\Order;
 use App\Models\TicketType;
 use App\Models\User;
@@ -183,7 +184,7 @@ class AnalyticsTest extends TestCase
     public function test_category_filter_narrows_the_events_table(): void
     {
         $admin = $this->superadmin();
-        $cat = \App\Models\EventCategory::create(['name' => 'Music', 'slug' => 'music', 'sort_order' => 0]);
+        $cat = EventCategory::create(['name' => 'Music', 'slug' => 'music', 'sort_order' => 0]);
         $this->publishedEvent(null, ['title' => 'Cat One', 'slug' => 'cat-one', 'category_id' => $cat->id]);
         $this->publishedEvent(null, ['title' => 'No Cat', 'slug' => 'no-cat']);
 
@@ -199,7 +200,7 @@ class AnalyticsTest extends TestCase
     {
         $admin = $this->superadmin();
         $event = $this->publishedEvent();
-        \App\Models\Order::create([
+        Order::create([
             'reference' => 'DRSVP-'.strtoupper(uniqid()), 'event_id' => $event->id, 'status' => 'paid',
             'total' => 50, 'paid_at' => now(), 'buyer_city' => 'Kuala Lumpur', 'buyer_source' => 'instagram',
         ]);

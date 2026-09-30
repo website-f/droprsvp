@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -18,7 +19,7 @@ class DiscoverTest extends TestCase
         $user = User::factory()->create();
 
         return Event::create(array_merge([
-            'user_id' => $user->id, 'title' => $title, 'slug' => \Illuminate\Support\Str::slug($title),
+            'user_id' => $user->id, 'title' => $title, 'slug' => Str::slug($title),
             'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
             'starts_at' => now()->addDays(7),
         ], $overrides));

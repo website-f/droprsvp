@@ -12,6 +12,7 @@ use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
 use App\Support\Cities;
 use App\Support\CustomFields;
+use App\Support\GoogleAnalytics;
 use App\Support\Profile;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -83,6 +84,9 @@ class CheckoutController extends Controller
             // The organizer's own questions, asked once per ticket in the order.
             'customFields' => CustomFields::forEvent($order->event),
             'ticketCount' => (int) $order->items->sum('quantity'),
+            // GA4 funnel entry. Same payload shape as the purchase event, so
+            // begin_checkout and purchase are comparable line for line.
+            'analytics' => GoogleAnalytics::checkoutPayload($order),
             'buyer' => $user ? [
                 'name' => $user->name,
                 'email' => $user->email,
@@ -322,6 +326,9 @@ class CheckoutController extends Controller
 
         return Inertia::render('checkout/confirmation', [
             'order' => $this->orderPayload($order, withTickets: true),
+            // The GA4 `purchase` event. Nothing ever sent one, which is why the
+            // property reported RM0 revenue against real ticket sales.
+            'analytics' => GoogleAnalytics::purchasePayload($order),
         ]);
     }
 

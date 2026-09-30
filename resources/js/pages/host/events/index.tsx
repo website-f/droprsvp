@@ -2,9 +2,9 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, CalendarDays, ChartColumn, Copy, Gavel, ImagePlus, MoreHorizontal, Paperclip, Pencil, Plus, Receipt, Rocket, ScanLine, Tag, Ticket, Trash2, Users, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
+import { ShareEventButton } from '@/components/share-event-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ShareEventButton } from '@/components/share-event-button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,

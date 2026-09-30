@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -31,7 +32,7 @@ class OrderPlacedAdminMail extends Mailable
             subject: 'New order · '.$event.' · '.$this->order->currency.' '.number_format((float) $this->order->total, 2),
             // Replying to the notification should reach the buyer, not the robot.
             replyTo: $this->order->buyer_email
-                ? [new \Illuminate\Mail\Mailables\Address($this->order->buyer_email, $this->order->buyer_name ?: 'Buyer')]
+                ? [new Address($this->order->buyer_email, $this->order->buyer_name ?: 'Buyer')]
                 : [],
         );
     }

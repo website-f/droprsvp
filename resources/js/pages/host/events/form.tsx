@@ -3,8 +3,11 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import type { CustomField } from '@/components/custom-fields';
+import { CustomFieldsBuilder } from '@/components/custom-fields-builder';
 import { LayoutEditorOverlay, LayoutPreview } from '@/components/layout-editor-overlay';
 import { usePrompt } from '@/components/prompt-dialog';
+import { RichEditor } from '@/components/rich-editor';
 import {  newSection } from '@/components/seat-layout-editor';
 import type {LayoutSectionRow} from '@/components/seat-layout-editor';
 import { newTable } from '@/components/table-layout-editor';
@@ -16,8 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Switch, SwitchField } from '@/components/ui/switch';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { imageError, uploadImage, uploadImageWithToast } from '@/lib/upload';
-import { CustomFieldsBuilder } from '@/components/custom-fields-builder';
-import type { CustomField } from '@/components/custom-fields';
 
 interface Category { id: number; name: string }
 interface City { name: string; slug: string; state: string }
@@ -420,7 +421,19 @@ form.post('/host/events', options);
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="description">Description</Label>
-                            <textarea id="description" rows={4} className={field + ' h-auto py-2'} value={data.description} onChange={(e) => setData('description', e.target.value)} placeholder="Tell attendees what to expect…" />
+                            {/* A rich editor rather than a plain textarea: organizers were
+                                asking for bold text and lists, and a wall of unformatted
+                                prose is the hardest version of an event page to read.
+                                Compact mode — no headings/tables/HTML tab; see RichEditor. */}
+                            <div id="description">
+                                <RichEditor
+                                    compact
+                                    minHeight="min-h-44"
+                                    value={data.description}
+                                    onChange={(html) => setData('description', html)}
+                                    placeholder="Tell attendees what to expect…"
+                                />
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -485,6 +498,7 @@ form.post('/host/events', options);
                                         onChange={(v) => {
                                             const next = v === 'none' ? '' : v;
                                             setStateValue(next);
+
                                             // The chosen city almost certainly isn't in
                                             // the new state, so don't leave a mismatch.
                                             if (data.city && citiesFor(next).every((c) => c.name !== data.city)) {

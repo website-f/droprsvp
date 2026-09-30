@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState   } from 'react';
+import type {CSSProperties, ReactNode} from 'react';
 
 /**
  * Fades/slides its children in the first time they scroll into view. SSR-safe:
@@ -15,15 +16,19 @@ export function Reveal({
     className?: string;
 }) {
     const ref = useRef<HTMLDivElement>(null);
-    const [visible, setVisible] = useState(false);
+    // Without IntersectionObserver there is nothing to wait for, so start
+    // visible rather than flipping the state from inside the effect — which
+    // costs a second render and is what react-hooks/set-state-in-effect is
+    // warning about.
+    const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
 
     useEffect(() => {
         const el = ref.current;
-        if (!el) return;
-        if (typeof IntersectionObserver === 'undefined') {
-            setVisible(true);
+
+        if (!el || typeof IntersectionObserver === 'undefined') {
             return;
         }
+
         const io = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -34,6 +39,7 @@ export function Reveal({
             { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
         );
         io.observe(el);
+
         return () => io.disconnect();
     }, []);
 

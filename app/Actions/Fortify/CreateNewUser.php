@@ -6,6 +6,8 @@ use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Mail\WelcomeMail;
 use App\Models\User;
+use App\Support\Mailer;
+use App\Support\PlatformAlert;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -43,10 +45,10 @@ class CreateNewUser implements CreatesNewUsers
         $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
         // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
-        \App\Support\Mailer::defer($user->email, new WelcomeMail($user));
+        Mailer::defer($user->email, new WelcomeMail($user));
 
         // ...and tell our side. Previously only the new user heard about it.
-        \App\Support\PlatformAlert::raise(
+        PlatformAlert::raise(
             type: 'user',
             title: 'New attendee signed up',
             body: $user->name.' created an account.',

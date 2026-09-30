@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { createContext, useCallback, useContext, useRef, useState  } from 'react';
+import type {ReactNode} from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export interface ConfirmOptions {
     title?: string;
@@ -26,7 +27,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     const confirm = useCallback<ConfirmFn>((o = {}) => {
         setOpts(o);
         setOpen(true);
-        return new Promise<boolean>((resolve) => { resolver.current = resolve; });
+
+        return new Promise<boolean>((resolve) => {
+ resolver.current = resolve; 
+});
     }, []);
 
     const settle = (value: boolean) => {
@@ -38,7 +42,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     return (
         <ConfirmContext.Provider value={confirm}>
             {children}
-            <Dialog open={open} onOpenChange={(o) => { if (!o) settle(false); }}>
+            <Dialog open={open} onOpenChange={(o) => {
+ if (!o) {
+settle(false);
+} 
+}}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{opts.title ?? 'Are you sure?'}</DialogTitle>
@@ -58,6 +66,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
 export function useConfirm(): ConfirmFn {
     const ctx = useContext(ConfirmContext);
-    if (!ctx) throw new Error('useConfirm must be used within <ConfirmProvider>');
+
+    if (!ctx) {
+throw new Error('useConfirm must be used within <ConfirmProvider>');
+}
+
     return ctx;
 }

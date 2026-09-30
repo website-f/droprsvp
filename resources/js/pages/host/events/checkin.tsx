@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Camera, CheckCircle2, ScanLine, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Camera, CheckCircle2, ScanLine, XCircle } from 'lucide-react';
 
 interface ScanResult { ok: boolean; already?: boolean; name?: string | null; message: string }
 interface Props {
@@ -22,40 +22,67 @@ export default function CheckIn({ event, stats, recent, scan }: Props) {
 
     const check = (raw: string) => {
         const val = raw.trim();
-        if (!val || busy) return;
+
+        if (!val || busy) {
+return;
+}
+
         setBusy(true);
         router.post(`/host/events/${event.slug}/checkin`, { token: val }, {
             preserveScroll: true,
-            onFinish: () => { setBusy(false); setToken(''); inputRef.current?.focus(); },
+            onFinish: () => {
+ setBusy(false); setToken(''); inputRef.current?.focus(); 
+},
         });
     };
 
     // Keep the field focused so USB/Bluetooth scanners (which type + Enter) just work.
-    useEffect(() => { inputRef.current?.focus(); }, [scan]);
+    useEffect(() => {
+ inputRef.current?.focus(); 
+}, [scan]);
 
     // Progressive camera scanning via the native BarcodeDetector (Chromium/Android).
     const cameraSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window && !!navigator.mediaDevices;
     useEffect(() => {
-        if (!camera) return;
+        if (!camera) {
+return;
+}
+
         let stream: MediaStream | undefined;
         let raf = 0;
         let stopped = false;
         (async () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             
             const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
+
+            if (videoRef.current) {
+ videoRef.current.srcObject = stream; await videoRef.current.play(); 
+}
+
             const tick = async () => {
-                if (stopped || !videoRef.current) return;
+                if (stopped || !videoRef.current) {
+return;
+}
+
                 try {
                     const codes = await detector.detect(videoRef.current);
-                    if (codes.length) { setCamera(false); check(codes[0].rawValue); return; }
+
+                    if (codes.length) {
+ setCamera(false); check(codes[0].rawValue);
+
+ return; 
+}
                 } catch { /* keep trying */ }
+
                 raf = requestAnimationFrame(tick);
             };
             raf = requestAnimationFrame(tick);
         })().catch(() => setCamera(false));
-        return () => { stopped = true; cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); };
+
+        return () => {
+ stopped = true; cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); 
+};
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [camera]);
 
@@ -94,7 +121,9 @@ export default function CheckIn({ event, stats, recent, scan }: Props) {
                 )}
 
                 {/* Scan input */}
-                <form onSubmit={(e) => { e.preventDefault(); check(token); }} className="mb-3 flex gap-2">
+                <form onSubmit={(e) => {
+ e.preventDefault(); check(token); 
+}} className="mb-3 flex gap-2">
                     <input ref={inputRef} className={field} value={token} onChange={(e) => setToken(e.target.value)} placeholder="Scan or type ticket code…" autoComplete="off" />
                     <Button type="submit" size="lg" className="h-12 shrink-0" disabled={busy || !token.trim()}><ScanLine className="size-4" /> Check in</Button>
                 </form>

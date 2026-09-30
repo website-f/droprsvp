@@ -29,8 +29,11 @@ class OrganizerController extends Controller
             ->through(fn (OrganizerProfile $p) => [
                 'id' => $p->id,
                 'name' => $p->user?->name,
-                'email' => $p->user?->email,
+                'account_email' => $p->user?->email,
                 'business_name' => $p->business_name,
+                // The contact address from the application, falling back to the
+                // account's for applications submitted before the field existed.
+                'email' => $p->email ?: $p->user?->email,
                 'website' => $p->website,
                 'phone' => $p->phone,
                 'bio' => $p->bio,
@@ -68,9 +71,13 @@ class OrganizerController extends Controller
             'application' => [
                 'id' => $organizer->id,
                 'name' => $organizer->user?->name,
-                'email' => $organizer->user?->email,
+                // Two different addresses, deliberately both shown: the account
+                // they sign in with, and the business address they gave on the
+                // application (which is where they asked to be contacted).
+                'account_email' => $organizer->user?->email,
                 'member_since' => Dates::display($organizer->user?->created_at, 'j M Y'),
                 'business_name' => $organizer->business_name,
+                'email' => $organizer->email ?: $organizer->user?->email,
                 'website' => $organizer->website,
                 'phone' => $organizer->phone,
                 'bio' => $organizer->bio,

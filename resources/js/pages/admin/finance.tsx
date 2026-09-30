@@ -2,10 +2,11 @@ import { Head, Link, router } from '@inertiajs/react';
 import { ArrowDownRight, ArrowUpRight, Banknote, Coins, Crown, Download, Landmark, Megaphone, Percent, Receipt, RotateCcw, Search, Ticket, Wallet, X } from 'lucide-react';
 import { useState } from 'react';
 import { DonutChart, RevenueBars } from '@/components/charts';
-import { PaymentBadge, type PaymentInfo } from '@/components/payment-badge';
+import { PaymentBadge  } from '@/components/payment-badge';
+import type {PaymentInfo} from '@/components/payment-badge';
 import { AppSelect } from '@/components/ui/app-select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface Txn {
     type: string;

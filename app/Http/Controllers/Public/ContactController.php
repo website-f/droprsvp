@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Mail\ContactMessageMail;
 use App\Models\ContactMessage;
 use App\Models\Setting;
+use App\Support\Mailer;
 use App\Support\SeoManager;
 use App\Support\Url;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 
 class ContactController extends Controller
 {
@@ -69,7 +69,7 @@ class ContactController extends Controller
         // (Admin → Settings) + real MAIL_* creds to deliver for real.
         $to = Setting::get('support_email') ?: config('mail.from.address');
         if ($to) {
-            \App\Support\Mailer::defer($to, new ContactMessageMail($message));
+            Mailer::defer($to, new ContactMessageMail($message));
         }
 
         return back(303)->with('success', "Thanks — your message has been sent. We'll be in touch soon.");

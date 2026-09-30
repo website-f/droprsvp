@@ -3,13 +3,15 @@ import { ArrowLeft, Download, Receipt } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-interface OrderRow { reference: string; buyer: string; email: string | null; tickets: number; total: number; currency: string; status: string; date: string | null }
+interface TypeLine { name: string; quantity: number; unit_price: number }
+interface OrderRow { reference: string; buyer: string; email: string | null; tickets: number; types: TypeLine[]; total: number; currency: string; status: string; date: string | null }
+interface TypeTotal { name: string; sold: number; gross: number }
 interface Paginated { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
-interface Props { event: { slug: string; title: string; gross: number }; orders: Paginated }
+interface Props { event: { slug: string; title: string; gross: number }; orders: Paginated; byType: TypeTotal[] }
 
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function EventInvoices({ event, orders }: Props) {
+export default function EventInvoices({ event, orders, byType }: Props) {
     return (
         <>
             <Head title={`Invoices · ${event.title}`} />
@@ -27,6 +29,25 @@ export default function EventInvoices({ event, orders }: Props) {
                     </div>
                 </div>
 
+                {byType.length > 0 && (
+                    <div className="mb-6 overflow-hidden rounded-2xl border border-border">
+                        <div className="border-b border-border bg-muted/50 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Revenue by ticket type
+                        </div>
+                        <ul className="divide-y divide-border">
+                            {byType.map((t) => (
+                                <li key={t.name} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                                    <span className="font-medium">{t.name}</span>
+                                    <span className="flex items-center gap-4 text-muted-foreground">
+                                        <span className="tabular-nums">{t.sold} sold</span>
+                                        <span className="font-semibold tabular-nums text-foreground">{rm(t.gross)}</span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 {orders.data.length === 0 ? (
                     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
                         <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"><Receipt className="size-5" /></span>
@@ -36,11 +57,12 @@ export default function EventInvoices({ event, orders }: Props) {
                 ) : (
                     <>
                         <div className="overflow-x-auto rounded-2xl border border-border">
-                            <table className="w-full min-w-[680px] text-sm">
+                            <table className="w-full min-w-[840px] text-sm">
                                 <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                     <tr>
                                         <th className="px-4 py-3 font-medium">Invoice</th>
                                         <th className="px-4 py-3 font-medium">Attendee</th>
+                                        <th className="px-4 py-3 font-medium">Ticket type</th>
                                         <th className="px-4 py-3 text-right font-medium">Tickets</th>
                                         <th className="px-4 py-3 text-right font-medium">Amount</th>
                                         <th className="px-4 py-3 font-medium">Status</th>
@@ -57,6 +79,20 @@ export default function EventInvoices({ event, orders }: Props) {
                                             <td className="px-4 py-3">
                                                 <div className="font-medium">{o.buyer}</div>
                                                 {o.email && <div className="text-xs text-muted-foreground">{o.email}</div>}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {o.types.length === 0 ? (
+                                                    <span className="text-muted-foreground">—</span>
+                                                ) : (
+                                                    <div className="grid gap-0.5">
+                                                        {o.types.map((t, i) => (
+                                                            <div key={i} className="flex items-baseline gap-1.5">
+                                                                <span className="font-medium">{t.name}</span>
+                                                                {t.quantity > 1 && <span className="text-xs text-muted-foreground">×{t.quantity}</span>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-right tabular-nums">{o.tickets}</td>
                                             <td className="px-4 py-3 text-right font-medium tabular-nums">{rm(o.total)}</td>

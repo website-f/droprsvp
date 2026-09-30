@@ -56,7 +56,7 @@ class ChipSendTest extends TestCase
     {
         Http::fake(['*/send/bank_accounts' => Http::response(['id' => 77], 201), '*/send/send_instructions' => Http::response(['id' => 5, 'state' => 'received'], 201)]);
 
-        (new ChipSendGateway())->send($this->pendingPayout($this->organizerWithBank()));
+        (new ChipSendGateway)->send($this->pendingPayout($this->organizerWithBank()));
 
         Http::assertSent(function ($request) {
             $epoch = $request->header('epoch')[0] ?? '';
@@ -73,7 +73,7 @@ class ChipSendTest extends TestCase
         Http::fake(['*/send/bank_accounts' => Http::response(['id' => 77], 201), '*/send/send_instructions' => Http::response(['id' => 5, 'state' => 'received'], 201)]);
         $user = $this->organizerWithBank();
 
-        $gateway = new ChipSendGateway();
+        $gateway = new ChipSendGateway;
         $this->assertSame(77, $gateway->ensureBankAccount($user));
         $this->assertSame(77, (int) $user->fresh()->chip_bank_account_id);
         $gateway->ensureBankAccount($user->fresh()); // cached — no second call
@@ -85,7 +85,7 @@ class ChipSendTest extends TestCase
     {
         Http::fake(['*/send/bank_accounts' => Http::response(['id' => 77], 201), '*/send/send_instructions' => Http::response(['id' => 5, 'state' => 'received'], 201)]);
 
-        $res = (new ChipSendGateway())->send($this->pendingPayout($this->organizerWithBank(), 90.5));
+        $res = (new ChipSendGateway)->send($this->pendingPayout($this->organizerWithBank(), 90.5));
 
         $this->assertSame(5, $res['id']);
         Http::assertSent(fn ($r) => str_ends_with($r->url(), '/send/send_instructions') && $r->data()['amount'] === '90.50' && $r->data()['bank_account_id'] === 77);

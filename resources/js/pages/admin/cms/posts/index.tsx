@@ -1,8 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useConfirm } from '@/components/confirm-dialog';
 import { ExternalLink, Newspaper, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface PostRow { id: number; title: string; slug: string; status: string; category: string | null; updated_at: string; published_at: string | null }
 

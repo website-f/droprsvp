@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Event;
+use App\Models\Ticket;
 use Illuminate\Support\Collection;
 
 class TableAssignmentService
@@ -26,7 +27,7 @@ class TableAssignmentService
      * Place the given tickets at tables with remaining capacity. Used both by the
      * organizer's "auto-assign" button and, when the event opts in, at purchase time.
      *
-     * @param  Collection<int, \App\Models\Ticket>  $tickets
+     * @param  Collection<int, Ticket>  $tickets
      */
     public function assign(Event $event, Collection $tickets): int
     {
