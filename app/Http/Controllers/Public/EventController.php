@@ -30,7 +30,9 @@ class EventController extends Controller
 
         $event->load([
             'category',
-            'user',
+            // The profile comes with the user: the SEO templates credit the
+            // event to the BUSINESS name, so it is needed on every render.
+            'user.organizerProfile',
             'seo',
             'sessions',
             // Only manual (general-admission) ticket types in the normal selector —

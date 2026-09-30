@@ -95,6 +95,13 @@ class OrganizerController extends Controller
     public function approve(OrganizerProfile $organizer)
     {
         $organizer->update(['status' => 'approved', 'review_reason' => null, 'reviewed_at' => now()]);
+
+        // Mint their public handle now rather than lazily. Slugs were only
+        // generated the first time something happened to render a link to
+        // them, so an approved organizer with no published event yet had no
+        // profile URL at all: /en-my/o/ 404s without a slug, and they were
+        // missing from the sitemap. Approval is the moment they become public.
+        $organizer->user?->ensureSlug();
         $this->notify($organizer, true);
 
         return redirect()->route('admin.organizers.index')->with('flash_success', "{$organizer->user?->name} approved.");

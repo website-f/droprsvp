@@ -125,7 +125,14 @@ class SeoTemplate
             '{short_date}' => $starts?->format('j M Y') ?? '',
             '{day_date}' => $starts?->format('D, j M Y') ?? '',
             '{start_time}' => $starts ? self::time($starts) : '',
-            '{organizer}' => (string) ($event->user?->name ?? config('seo.site_name', 'DropRSVP')),
+            // The BUSINESS name, falling back to the account holder's own.
+            // This used to read $event->user->name only, so an event by a
+            // company trading as "BoardLah Entertainment" whose account was
+            // opened in a person's name went out as "event by Sophia Kuek".
+            // The organizer page already preferred the business name, so one
+            // organizer had two different names across the site — and the
+            // personal one is not what anybody searches for.
+            '{organizer}' => self::organizerName($event->user),
             '{site}' => (string) config('seo.site_name', 'DropRSVP'),
         ];
     }
@@ -140,11 +147,33 @@ class SeoTemplate
         return [
             // The business name is what they trade as, so prefer it — it is what
             // someone would actually search for.
-            '{organizer}' => (string) ($profile?->business_name ?: $organizer->name),
+            '{organizer}' => self::organizerName($organizer),
             // OrganizerProfile has no city of its own; the account does.
             '{city}' => (string) ($organizer->city ?? ''),
             '{site}' => (string) config('seo.site_name', 'DropRSVP'),
         ];
+    }
+
+    /**
+     * What to call an organizer in a title or description.
+     *
+     * Their business name when they gave one on their application, otherwise
+     * the name on the account. One definition, used by both page types.
+     */
+    private static function organizerName(?User $organizer): string
+    {
+        if (! $organizer) {
+            return (string) config('seo.site_name', 'DropRSVP');
+        }
+
+        // loadMissing, not ->first(): values() is called several times while
+        // rendering one page (title, description, keywords, and again for the
+        // house fallbacks), and a fresh query each time is an N+1 that
+        // QueryBudgetTest rightly fails. This caches on the instance, so it
+        // costs one query at most however many times it is asked.
+        $organizer->loadMissing('organizerProfile');
+
+        return (string) ($organizer->organizerProfile?->business_name ?: $organizer->name);
     }
 
     /** Substitute all tokens in a template string (null-safe). */
