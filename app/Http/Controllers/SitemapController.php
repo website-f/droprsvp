@@ -13,61 +13,198 @@ use App\Support\Url;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
+/**
+ * XML sitemaps, split by content type behind an index — the shape Yoast
+ * produces, and the shape Search Console reports against.
+ *
+ * One flat file listing everything still works, but it makes two things hard.
+ * You cannot see at a glance whether the problem is "events aren't indexed" or
+ * "blog posts aren't", because coverage is reported for the file as a whole.
+ * And a single <lastmod> for a file containing every URL on the site tells a
+ * crawler nothing about what actually changed.
+ *
+ * So: /sitemap.xml is an index, and each type gets its own file whose lastmod
+ * is the newest record in it. Nothing is cached — these are cheap queries, and
+ * a sitemap that lags behind is exactly the complaint this replaces.
+ */
 class SitemapController extends Controller
 {
-    /** XML sitemap (with image entries) of every public, indexable URL. */
+    /** The sub-sitemaps, in the order they appear in the index. */
+    private const SECTIONS = ['page', 'event', 'organizer', 'post', 'category', 'city', 'help'];
+
+    /** The index: one entry per sub-sitemap that currently has URLs. */
     public function index(): Response
     {
-        $urls = [
-            ['loc' => Url::to(), 'lastmod' => null, 'image' => null],               // home
-            ['loc' => Url::to(Cities::ANY), 'lastmod' => null, 'image' => null],    // browse all
-            ['loc' => Url::to('blog'), 'lastmod' => null, 'image' => null],
-            ['loc' => Url::to('help'), 'lastmod' => null, 'image' => null],
-            ['loc' => Url::to('contact'), 'lastmod' => null, 'image' => null],
-        ];
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+        $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
 
-        // City + category discovery landing pages (only cities that actually have events).
-        $cityNames = Event::published()->whereNotNull('city')->distinct()->pluck('city');
-        $categories = EventCategory::orderBy('name')->get(['slug']);
-        foreach ($cityNames as $name) {
-            $urls[] = ['loc' => Url::to(Cities::slugForName($name)), 'lastmod' => null, 'image' => null];
-        }
-        foreach ($categories as $cat) {
-            $urls[] = ['loc' => Url::to(Cities::ANY, $cat->slug), 'lastmod' => null, 'image' => null];
+        foreach (self::SECTIONS as $section) {
+            $urls = $this->urlsFor($section);
+
+            // An empty sub-sitemap is a warning in Search Console, so a section
+            // with nothing in it simply is not listed.
+            if ($urls === []) {
+                continue;
+            }
+
+            $xml .= '  <sitemap><loc>'.htmlspecialchars(url("/{$section}-sitemap.xml"), ENT_XML1).'</loc>';
+
+            if ($lastmod = $this->newest($urls)) {
+                $xml .= '<lastmod>'.$lastmod.'</lastmod>';
+            }
+
+            $xml .= "</sitemap>\n";
         }
 
-        foreach (Event::published()->get(['slug', 'cover_image', 'updated_at']) as $e) {
-            $urls[] = ['loc' => Url::to('e', $e->slug), 'lastmod' => $e->updated_at?->toDateString(), 'image' => $this->abs($e->cover_image)];
-        }
-        foreach (CmsPage::published()->get(['slug', 'updated_at']) as $p) {
-            $urls[] = ['loc' => Url::to($p->slug), 'lastmod' => $p->updated_at?->toDateString(), 'image' => null];
-        }
-        foreach (CmsPost::published()->get(['slug', 'cover_image', 'updated_at']) as $p) {
-            $urls[] = ['loc' => Url::to('blog', $p->slug), 'lastmod' => $p->updated_at?->toDateString(), 'image' => $this->abs($p->cover_image)];
-        }
-        foreach (HelpArticle::where('status', 'published')->get(['slug', 'updated_at']) as $a) {
-            $urls[] = ['loc' => Url::to('help', $a->slug), 'lastmod' => $a->updated_at?->toDateString(), 'image' => null];
-        }
-        // Organizer profiles that actually have something to show.
-        foreach (User::has('events')->whereNotNull('slug')->get(['slug', 'updated_at']) as $o) {
-            $urls[] = ['loc' => Url::to('o', $o->slug), 'lastmod' => $o->updated_at?->toDateString(), 'image' => null];
-        }
+        $xml .= '</sitemapindex>';
+
+        return $this->xml($xml);
+    }
+
+    /** One sub-sitemap. */
+    public function section(string $section): Response
+    {
+        abort_unless(in_array($section, self::SECTIONS, true), 404);
+
+        $urls = $this->urlsFor($section);
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">'."\n";
+
         foreach ($urls as $u) {
             $xml .= '  <url><loc>'.htmlspecialchars(Url::slash($u['loc']), ENT_XML1).'</loc>';
-            if ($u['lastmod']) {
+
+            if (! empty($u['lastmod'])) {
                 $xml .= '<lastmod>'.$u['lastmod'].'</lastmod>';
             }
-            if ($u['image']) {
+            if (! empty($u['image'])) {
                 $xml .= '<image:image><image:loc>'.htmlspecialchars($u['image'], ENT_XML1).'</image:loc></image:image>';
             }
+
             $xml .= "</url>\n";
         }
+
         $xml .= '</urlset>';
 
-        return response($xml, 200)->header('Content-Type', 'application/xml');
+        return $this->xml($xml);
+    }
+
+    /**
+     * @return list<array{loc:string,lastmod:?string,image:?string}>
+     */
+    private function urlsFor(string $section): array
+    {
+        return match ($section) {
+            'page' => $this->pages(),
+            'event' => $this->events(),
+            'organizer' => $this->organizers(),
+            'post' => $this->posts(),
+            'category' => $this->categories(),
+            'city' => $this->cities(),
+            'help' => $this->help(),
+            default => [],
+        };
+    }
+
+    /** The fixed landing pages, plus anything built in the page builder. */
+    private function pages(): array
+    {
+        $urls = [
+            $this->url(Url::to()),
+            $this->url(Url::to(Cities::ANY)),
+            $this->url(Url::to('blog')),
+            $this->url(Url::to('help')),
+            $this->url(Url::to('contact')),
+        ];
+
+        foreach (CmsPage::published()->get(['slug', 'updated_at']) as $p) {
+            $urls[] = $this->url(Url::to($p->slug), $p->updated_at);
+        }
+
+        return $urls;
+    }
+
+    private function events(): array
+    {
+        return Event::published()
+            ->orderByDesc('updated_at')
+            ->get(['slug', 'cover_image', 'banner_image', 'updated_at'])
+            ->map(fn ($e) => $this->url(Url::to('e', $e->slug), $e->updated_at, $e->cover_image ?: $e->banner_image))
+            ->all();
+    }
+
+    /**
+     * Organizer profiles.
+     *
+     * Requires a PUBLISHED event, not merely any event. An organizer whose only
+     * events are drafts has a profile page with nothing on it, and submitting
+     * empty pages is how a site earns a "crawled — currently not indexed" pile
+     * in Search Console.
+     */
+    private function organizers(): array
+    {
+        return User::whereNotNull('slug')
+            ->whereHas('events', fn ($q) => $q->published())
+            ->orderByDesc('updated_at')
+            ->get(['slug', 'updated_at'])
+            ->map(fn ($o) => $this->url(Url::to('o', $o->slug), $o->updated_at))
+            ->all();
+    }
+
+    private function posts(): array
+    {
+        return CmsPost::published()
+            ->orderByDesc('updated_at')
+            ->get(['slug', 'cover_image', 'updated_at'])
+            ->map(fn ($p) => $this->url(Url::to('blog', $p->slug), $p->updated_at, $p->cover_image))
+            ->all();
+    }
+
+    private function categories(): array
+    {
+        return EventCategory::orderBy('name')->get(['slug', 'updated_at'])
+            ->map(fn ($c) => $this->url(Url::to(Cities::ANY, $c->slug), $c->updated_at))
+            ->all();
+    }
+
+    /** Only cities that actually have a published event to show. */
+    private function cities(): array
+    {
+        return Event::published()->whereNotNull('city')->distinct()->pluck('city')
+            ->map(fn ($name) => $this->url(Url::to(Cities::slugForName($name))))
+            ->all();
+    }
+
+    private function help(): array
+    {
+        return HelpArticle::where('status', 'published')
+            ->orderByDesc('updated_at')
+            ->get(['slug', 'updated_at'])
+            ->map(fn ($a) => $this->url(Url::to('help', $a->slug), $a->updated_at))
+            ->all();
+    }
+
+    /** @return array{loc:string,lastmod:?string,image:?string} */
+    private function url(string $loc, ?\DateTimeInterface $lastmod = null, ?string $image = null): array
+    {
+        return [
+            'loc' => $loc,
+            'lastmod' => $lastmod?->format('Y-m-d'),
+            'image' => $this->abs($image),
+        ];
+    }
+
+    /** The newest lastmod in a set, for the index entry. */
+    private function newest(array $urls): ?string
+    {
+        $dates = array_filter(array_column($urls, 'lastmod'));
+
+        return $dates ? max($dates) : null;
+    }
+
+    private function xml(string $body): Response
+    {
+        return response($body, 200)->header('Content-Type', 'application/xml');
     }
 
     private function abs(?string $path): ?string

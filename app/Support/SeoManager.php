@@ -163,6 +163,16 @@ class SeoManager
         return $this;
     }
 
+    /** Add several JSON-LD nodes at once (a profile page contributes three). */
+    public function schemas(array $nodes): static
+    {
+        foreach ($nodes as $node) {
+            $this->schema($node);
+        }
+
+        return $this;
+    }
+
     public function meta(string $key, string $content, bool $property = false): static
     {
         $this->extra[] = [$property ? 'property' : 'name' => $key, 'content' => $content];

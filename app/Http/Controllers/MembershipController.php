@@ -63,7 +63,7 @@ class MembershipController extends Controller
         $sub = Subscription::where('user_id', $user->id)->latest()->first();
 
         if ($sub && $sub->status !== 'paid' && $gateway instanceof ChipGateway && $gateway->purchaseIsPaid($sub->payment_ref)) {
-            $this->membership->settle($sub);
+            $this->membership->settle($sub, null, $gateway->paymentDetails($sub->payment_ref));
             $user->refresh();
         }
 

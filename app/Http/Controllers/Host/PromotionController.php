@@ -71,7 +71,7 @@ class PromotionController extends Controller
         $promo = Promotion::where('event_id', $event->id)->latest()->first();
 
         if ($promo && $promo->status !== 'paid' && $gateway instanceof ChipGateway && $gateway->purchaseIsPaid($promo->payment_ref)) {
-            $this->promotions->settle($promo);
+            $this->promotions->settle($promo, null, $gateway->paymentDetails($promo->payment_ref));
             $event->refresh();
         }
 

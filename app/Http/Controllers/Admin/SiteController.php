@@ -128,6 +128,36 @@ class SiteController extends Controller
         return back()->with('success', 'Homepage SEO saved.');
     }
 
+    public function blogSeo()
+    {
+        return inertia('admin/site/home-seo', [
+            'seo' => SiteContent::blogSeo(),
+            'defaultImage' => url((string) config('seo.default_image')),
+            // Same editor, different target — the fields are identical and one
+            // screen is easier to keep consistent than two copies of it.
+            'page' => [
+                'title' => 'Blog SEO',
+                'description' => 'Title, description and share image for the blog index at /en-my/blog/.',
+                'action' => '/admin/site/blog-seo',
+                'previewUrl' => url('/en-my/blog/'),
+            ],
+        ]);
+    }
+
+    public function saveBlogSeo(Request $request)
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:70'],
+            'description' => ['nullable', 'string', 'max:320'],
+            'keywords' => ['nullable', 'string', 'max:500'],
+            'image' => ['nullable', 'string', 'max:2048'],
+        ]);
+
+        Setting::putArray('blog_seo', $data);
+
+        return back()->with('success', 'Blog SEO saved.');
+    }
+
     /** Dedicated rich-text editor for the home-page SEO text block. */
     public function seoText()
     {

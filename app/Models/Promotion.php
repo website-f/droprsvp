@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Promotion extends Model
 {
-    protected $fillable = ['reference', 'event_id', 'user_id', 'amount', 'days', 'status', 'payment_ref', 'paid_at'];
+    protected $fillable = ['reference', 'event_id', 'user_id', 'amount', 'days', 'status', 'payment_ref', 'payment_method', 'payment_brand', 'paid_at'];
 
     protected function casts(): array
     {

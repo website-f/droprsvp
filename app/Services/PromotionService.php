@@ -72,13 +72,21 @@ class PromotionService
     }
 
     /** Mark a promotion paid and extend the event's boost window. Idempotent. */
-    public function settle(Promotion $promo, ?string $ref = null): void
+    public function settle(Promotion $promo, ?string $ref = null, array $payment = []): void
     {
         if ($promo->status === 'paid') {
             return;
         }
 
-        $promo->update(['status' => 'paid', 'paid_at' => now(), 'payment_ref' => $ref ?: $promo->payment_ref]);
+        $promo->update([
+            'status' => 'paid',
+            'paid_at' => now(),
+            'payment_ref' => $ref ?: $promo->payment_ref,
+            // Only ever overwrite with something: a gateway that did not tell us
+            // the instrument must not erase one we already recorded.
+            'payment_method' => $payment['method'] ?? $promo->payment_method,
+            'payment_brand' => $payment['brand'] ?? $promo->payment_brand,
+        ]);
 
         $event = $promo->event;
         $base = $event->isBoosted() ? $event->boosted_until : now();

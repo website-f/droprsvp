@@ -2,10 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\CmsPage;
+use App\Models\CmsPost;
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Models\HelpArticle;
 use App\Models\TicketType;
 use App\Models\User;
+use App\Support\SeoManager;
+use App\Support\Url;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,7 +27,7 @@ use Tests\TestCase;
  * The content mirrors what React renders for real visitors — same events, same
  * facts — so this is one page in two formats, not a crawler-only variant.
  *
- * @see \App\Support\SeoManager::crawlable()
+ * @see SeoManager::crawlable()
  */
 class CrawlableContentTest extends TestCase
 {
@@ -70,8 +75,8 @@ class CrawlableContentTest extends TestCase
         $response->assertSee('Featured events', false);
 
         // A crawlable path deeper into the site.
-        $response->assertSee(\App\Support\Url::path('e', 'neon-nights'), false);
-        $response->assertSee(\App\Support\Url::path('all'), false);
+        $response->assertSee(Url::path('e', 'neon-nights'), false);
+        $response->assertSee(Url::path('all'), false);
     }
 
     public function test_the_discover_listing_serves_its_events_as_text(): void
@@ -82,7 +87,7 @@ class CrawlableContentTest extends TestCase
 
         $response->assertSee('Neon Nights', false);
         $response->assertSee('Skydeck KL', false);
-        $response->assertSee(\App\Support\Url::path('e', 'neon-nights'), false);
+        $response->assertSee(Url::path('e', 'neon-nights'), false);
     }
 
     public function test_a_city_page_serves_only_that_city_and_says_so_when_empty(): void
@@ -108,7 +113,7 @@ class CrawlableContentTest extends TestCase
         $response->assertSee('Neon Collective', false);
 
         // Links out to the organizer profile — another crawlable path.
-        $response->assertSee(\App\Support\Url::path('o', 'neon-collective'), false);
+        $response->assertSee(Url::path('o', 'neon-collective'), false);
     }
 
     public function test_an_organizer_profile_serves_its_events_as_text(): void
@@ -131,7 +136,7 @@ class CrawlableContentTest extends TestCase
     {
         $this->publishedEvent();
 
-        $expected = \App\Support\Url::to('o', 'neon-collective');
+        $expected = Url::to('o', 'neon-collective');
 
         $response = $this->get('/en-my/o/neon-collective/')->assertOk();
 
@@ -156,19 +161,19 @@ class CrawlableContentTest extends TestCase
     {
         $this->publishedEvent();
 
-        $post = \App\Models\CmsPost::create([
+        $post = CmsPost::create([
             'title' => 'Cost of hosting', 'slug' => 'cost-of-hosting',
             'body' => '<p>What it actually costs to host an event in Malaysia, '
                 .'venue by venue.</p>',
             'status' => 'published', 'published_at' => now()->subDay(),
         ]);
-        \App\Models\CmsPage::create([
+        CmsPage::create([
             'title' => 'Terms', 'slug' => 'terms',
             'body' => '<p>These terms of service govern your use of DropRSVP, '
                 .'including buying tickets and hosting events.</p>',
             'status' => 'published',
         ]);
-        \App\Models\HelpArticle::create([
+        HelpArticle::create([
             'title' => 'What is DropRSVP', 'slug' => 'what-is-droprsvp',
             'category' => 'Basics', 'excerpt' => 'An intro.',
             'body' => '<p>DropRSVP lists events across Malaysia and lets anyone '
@@ -176,9 +181,22 @@ class CrawlableContentTest extends TestCase
             'status' => 'published',
         ]);
 
-        $sitemap = $this->get('/sitemap.xml')->assertOk()->getContent();
-        preg_match_all('~<loc>([^<]+)</loc>~', $sitemap, $m);
-        $urls = $m[1];
+        // /sitemap.xml is an INDEX of per-type sitemaps, so walk it one level
+        // down to reach the actual page URLs. Reading the index alone would
+        // sweep seven XML files and assert nothing about a single page.
+        $index = $this->get('/sitemap.xml')->assertOk()->getContent();
+        preg_match_all('~<loc>([^<]+)</loc>~', $index, $m);
+        $sections = $m[1];
+
+        $this->assertNotEmpty($sections, 'the sitemap index advertised no sitemaps');
+
+        $urls = [];
+
+        foreach ($sections as $section) {
+            $body = $this->get(parse_url($section, PHP_URL_PATH))->assertOk()->getContent();
+            preg_match_all('~<loc>([^<]+)</loc>~', $body, $inner);
+            $urls = array_merge($urls, $inner[1]);
+        }
 
         $this->assertNotEmpty($urls, 'the sitemap advertised no URLs');
 

@@ -3,12 +3,21 @@ import { CheckCircle2, Pencil, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SeoTemplateEditor, type SeoTemplates, type Token } from '@/components/seo-template-editor';
 
 interface Row { slug: string; title: string; status: string; customised: boolean; preview_title: string; preview_desc: string }
 interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
-interface Props { events: Paginated; filters: { q: string }; baseUrl: string }
+interface Props {
+    events: Paginated;
+    filters: { q: string };
+    baseUrl: string;
+    templates: SeoTemplates;
+    defaults: SeoTemplates;
+    tokens: Token[];
+    organizerTokens: Token[];
+}
 
-export default function EventsSeoIndex({ events, filters, baseUrl }: Props) {
+export default function EventsSeoIndex({ events, filters, baseUrl, templates, defaults, tokens, organizerTokens }: Props) {
     const [q, setQ] = useState(filters.q);
     const search = (e: React.FormEvent) => {
         e.preventDefault();
@@ -21,7 +30,11 @@ export default function EventsSeoIndex({ events, filters, baseUrl }: Props) {
             <div className="mx-auto w-full max-w-4xl flex-1 p-4">
                 <div className="mb-2">
                     <h1 className="text-2xl font-bold tracking-tight">Events SEO</h1>
-                    <p className="text-sm text-muted-foreground">Tune the search snippet — title, description, keywords and social meta — for every event.</p>
+                    <p className="text-sm text-muted-foreground">Set the house template every page follows, then override it for individual events that need something different.</p>
+                </div>
+
+                <div className="mt-5">
+                    <SeoTemplateEditor templates={templates} defaults={defaults} tokens={tokens} organizerTokens={organizerTokens} />
                 </div>
 
                 <form onSubmit={search} className="my-5 flex gap-2">

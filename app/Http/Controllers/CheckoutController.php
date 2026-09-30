@@ -7,11 +7,13 @@ use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\Order;
-use App\Support\CustomFields;
 use App\Services\CheckoutService;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Support\CustomFields;
+use App\Support\Profile;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CheckoutController extends Controller
@@ -184,7 +186,7 @@ class CheckoutController extends Controller
             'buyer_gender' => [$need('gender'), 'in:female,male,other,na'],
             // Birth year rather than a band; the band is derived below so the
             // organizer's audience analytics are unaffected.
-            'buyer_birth_year' => [$need('age_band'), 'integer', 'min:'.\App\Support\Profile::EARLIEST_BIRTH_YEAR, 'max:'.date('Y')],
+            'buyer_birth_year' => [$need('age_band'), 'integer', 'min:'.Profile::EARLIEST_BIRTH_YEAR, 'max:'.date('Y')],
             'buyer_city' => [$need('city'), 'string', 'max:80'],
             'buyer_source' => [$need('source'), 'in:instagram,facebook,tiktok,friend,search,email,other'],
             // Free-text notes / remarks for the organizer (dietary needs, questions…).
@@ -213,10 +215,10 @@ class CheckoutController extends Controller
         );
 
         if ($answerErrors) {
-            throw \Illuminate\Validation\ValidationException::withMessages($answerErrors);
+            throw ValidationException::withMessages($answerErrors);
         }
 
-        $data['buyer_age_band'] = \App\Support\Profile::bandFor(
+        $data['buyer_age_band'] = Profile::bandFor(
             isset($data['buyer_birth_year']) ? (int) $data['buyer_birth_year'] : null,
         );
 
@@ -271,7 +273,9 @@ class CheckoutController extends Controller
         $this->authorizeOrderAccess($order, $request);
 
         if ($order->status === 'pending') {
-            $this->checkout->markPaid($order, $order->payment_ref);
+            // A made-up instrument, so dev and test data render through the same
+            // path as a real FPX payment instead of leaving the column blank.
+            $this->checkout->markPaid($order, $order->payment_ref, ['method' => 'fpx', 'brand' => 'maybank2u']);
         }
 
         return redirect()->route('checkout.confirmation', $order);
@@ -286,7 +290,7 @@ class CheckoutController extends Controller
         // The webhook is the source of truth, but it can lag the redirect — so if
         // the order is still pending, confirm directly with the gateway.
         if ($order && $order->status === 'pending' && $gateway instanceof ChipGateway && $gateway->isPaid($order)) {
-            $this->checkout->markPaid($order, $order->payment_ref);
+            $this->checkout->markPaid($order, $order->payment_ref, $gateway->paymentDetails($order->payment_ref));
         }
 
         if (! $order) {

@@ -4,11 +4,17 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\EventPhoto;
 use App\Models\Order;
+use App\Models\OrganizerPost;
 use App\Models\User;
+use App\Support\Cities;
 use App\Support\SeoManager;
+use App\Support\SeoTemplate;
 use App\Support\Url;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class OrganizerController extends Controller
 {
@@ -56,7 +62,7 @@ class OrganizerController extends Controller
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid')->whereNotNull('buyer_email');
         $membersCount = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
         $followersCount = (int) $organizer->followers()->count();
-        $photosCount = (int) \App\Models\EventPhoto::whereIn('event_id', $eventIds)->count();
+        $photosCount = (int) EventPhoto::whereIn('event_id', $eventIds)->count();
 
         $attendees = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
             ->unique('buyer_email')->take($authed ? 60 : $preview)
@@ -71,14 +77,25 @@ class OrganizerController extends Controller
         // somewhere else and the page named no valid canonical of its own.
         $canonical = Url::to('o', $organizer->slug);
 
+        // One house template for every organizer page, so each carries the same
+        // shape of title and description instead of a name and a bio that may
+        // be empty, three words long, or a wall of text.
+        $displayName = $profile?->business_name ?: $organizer->name;
+        $logo = $profile?->poster ?: $organizer->avatar;
+
         app(SeoManager::class)
-            ->title("{$organizer->name} — events on ".config('seo.site_name', 'DropRSVP'))
-            ->description($profile?->bio ?: "See every event hosted by {$organizer->name} and follow for updates.")
+            ->title(SeoTemplate::forOrganizer('organizer_title', $organizer) ?: $displayName)
+            ->description(SeoTemplate::forOrganizer('organizer_description', $organizer))
             ->canonical($canonical)
             ->type('profile')
+            ->image($logo)
+            ->schemas($this->organizerSchema($organizer, $profile, $canonical, $displayName, $logo, $upcoming))
+            // Home -> this profile. There is no organizers index page to sit in
+            // between, and pointing that crumb at the events browse page would
+            // claim a level of the site that does not exist.
             ->breadcrumb([
                 ['name' => 'Home', 'url' => Url::to()],
-                ['name' => $organizer->name, 'url' => $canonical],
+                ['name' => $displayName, 'url' => $canonical],
             ])
             // The profile as text, for crawlers that don't run JavaScript.
             ->crawlable($this->crawlableProfile($organizer, $profile, $upcoming, $past));
@@ -112,7 +129,7 @@ class OrganizerController extends Controller
                 // number instead of a vague "and more".
                 'hidden' => $authed ? 0 : max(0, ($membersCount + $followersCount) - $attendees->count() - $followers->count()),
             ],
-            'photos' => \App\Models\EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
+            'photos' => EventPhoto::whereIn('event_id', $eventIds)->latest()->limit(60)
                 ->get(['path', 'caption'])->map(fn ($p) => ['path' => $p->path, 'caption' => $p->caption])->values(),
             'similar' => $this->similarEvents($organizer, $eventIds),
             'discussion' => $this->discussion($organizer, $request, $authed),
@@ -137,7 +154,7 @@ class OrganizerController extends Controller
         $perPage = 10;
         $page = max(1, (int) $request->query('discuss_page', 1));
 
-        $base = \App\Models\OrganizerPost::where('organizer_id', $organizer->id)->whereNull('parent_id');
+        $base = OrganizerPost::where('organizer_id', $organizer->id)->whereNull('parent_id');
         $total = (clone $base)->count();
 
         $posts = $authed
@@ -158,7 +175,7 @@ class OrganizerController extends Controller
     }
 
     /** Recursively shape a post and its nested replies for the client. */
-    private function mapPost(\App\Models\OrganizerPost $post, User $organizer): array
+    private function mapPost(OrganizerPost $post, User $organizer): array
     {
         return [
             'id' => $post->id,
@@ -200,7 +217,7 @@ class OrganizerController extends Controller
 
         // A reply must target an existing post on THIS wall (any depth — chains are allowed).
         if (! empty($data['parent_id'])) {
-            $parent = \App\Models\OrganizerPost::where('id', $data['parent_id'])
+            $parent = OrganizerPost::where('id', $data['parent_id'])
                 ->where('organizer_id', $organizer->id)->first();
             abort_unless($parent, 422);
         }
@@ -208,7 +225,7 @@ class OrganizerController extends Controller
         // Moderators can post as the organizer; everyone else always posts as themselves.
         $asOrganizer = $canModerate && ! empty($data['as_organizer']);
 
-        \App\Models\OrganizerPost::create([
+        OrganizerPost::create([
             'organizer_id' => $organizer->id,
             'user_id' => $asOrganizer ? $organizer->id : $user->id,
             'parent_id' => $data['parent_id'] ?? null,
@@ -243,7 +260,7 @@ class OrganizerController extends Controller
      * their upcoming and past events. Only the publicly visible parts — members,
      * photos and the discussion wall sit behind an auth wall and stay out.
      */
-    private function crawlableProfile(User $organizer, mixed $profile, \Illuminate\Support\Collection $upcoming, \Illuminate\Support\Collection $past): string
+    private function crawlableProfile(User $organizer, mixed $profile, Collection $upcoming, Collection $past): string
     {
         $html = '<h1>'.e($profile?->business_name ?: $organizer->name).'</h1>';
 
@@ -272,6 +289,11 @@ class OrganizerController extends Controller
         return $html;
     }
 
+    private function absolute(?string $path): ?string
+    {
+        return $path ? (Str::startsWith($path, ['http://', 'https://']) ? $path : asset($path)) : null;
+    }
+
     private function card(Event $event): array
     {
         $active = $event->ticketTypes->where('is_active', true);
@@ -289,5 +311,74 @@ class OrganizerController extends Controller
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
             'is_past' => $event->starts_at !== null && $event->starts_at->isPast(),
         ];
+    }
+
+    /**
+     * The organizer profile as structured data.
+     *
+     * Three nodes that reference each other, which is how Google reads a
+     * profile page: the page itself, the Organization it is about, and the
+     * events they are running. The event list is what makes this page eligible
+     * to show sitelinks to individual events rather than just a name.
+     *
+     * @param  Collection<int,array>  $upcoming
+     */
+    private function organizerSchema(User $organizer, $profile, string $canonical, string $displayName, ?string $logo, $upcoming): array
+    {
+        $url = Url::slash($canonical);
+        $orgId = $url.'#organizer';
+
+        $organization = array_filter([
+            '@type' => 'Organization',
+            '@id' => $orgId,
+            'name' => $displayName,
+            'url' => $url,
+            'description' => $profile?->bio ? Str::limit(trim(strip_tags($profile->bio)), 300) : null,
+            'logo' => $logo ? ['@type' => 'ImageObject', 'url' => $this->absolute($logo)] : null,
+            'image' => $logo ? $this->absolute($logo) : null,
+            'address' => $organizer->city ? array_filter([
+                '@type' => 'PostalAddress',
+                'addressLocality' => $organizer->city,
+                'addressRegion' => Cities::stateForCity($organizer->city),
+                'addressCountry' => 'MY',
+            ]) : null,
+            // Only their own site — never the phone or email, which are on the
+            // profile for attendees to use, not for scrapers to harvest.
+            'sameAs' => $profile?->website ? [$profile->website] : null,
+        ], fn ($v) => $v !== null && $v !== []);
+
+        $page = array_filter([
+            '@type' => 'ProfilePage',
+            '@id' => $url.'#profilepage',
+            'url' => $url,
+            'name' => $displayName,
+            'mainEntity' => ['@id' => $orgId],
+        ]);
+
+        $nodes = [$page, $organization];
+
+        // Their upcoming events, in order, each pointing at its own page.
+        $items = collect($upcoming)->take(20)->values()
+            ->map(fn ($e, $i) => array_filter([
+                '@type' => 'ListItem',
+                'position' => $i + 1,
+                'name' => $e['title'] ?? null,
+                'url' => isset($e['slug']) ? Url::slash(Url::to('e', $e['slug'])) : null,
+            ]))
+            ->filter(fn ($item) => ! empty($item['url']))
+            ->values()
+            ->all();
+
+        if ($items) {
+            $nodes[] = [
+                '@type' => 'ItemList',
+                '@id' => $url.'#events',
+                'name' => "Upcoming events by {$displayName}",
+                'numberOfItems' => count($items),
+                'itemListElement' => $items,
+            ];
+        }
+
+        return $nodes;
     }
 }

@@ -2,18 +2,27 @@
 
 namespace App\Services;
 
+use App\Mail\GuestAccountMail;
+use App\Mail\OrderPlacedAdminMail;
 use App\Mail\OrderRefundedMail;
 use App\Mail\TicketsIssued;
+use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\Seat;
 use App\Models\SeatSection;
+use App\Models\Setting;
 use App\Models\TicketType;
+use App\Models\User;
 use App\Services\Payments\PaymentGateway;
+use App\Support\PlatformFee;
+use App\Support\Profile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class CheckoutService
 {
@@ -119,8 +128,8 @@ class CheckoutService
             // else the global rate. A discount applied later re-prices via
             // reprice(); the fee is frozen on the order from here, so a later
             // rate change never moves an order that already exists.
-            $fees = \App\Support\PlatformFee::on($subtotal, $event->user);
-            $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
+            $fees = PlatformFee::on($subtotal, $event->user);
+            $taxPercent = (float) Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
             $tax = round($subtotal * $taxPercent / 100, 2);
 
             $order = Order::create([
@@ -155,7 +164,7 @@ class CheckoutService
     {
         abort_unless($order->status === 'pending', 410);
 
-        $discount = \App\Models\DiscountCode::where('event_id', $order->event_id)
+        $discount = DiscountCode::where('event_id', $order->event_id)
             ->whereRaw('LOWER(code) = ?', [mb_strtolower(trim($code))])
             ->first();
 
@@ -185,8 +194,8 @@ class CheckoutService
         // Commission + tax follow the discounted ticket spend, at the same rate
         // the order opened on (the event owner's, custom or global). The
         // commission still does not reach the buyer's total — see start().
-        $fees = \App\Support\PlatformFee::on($taxable, $order->event?->user);
-        $taxPercent = (float) \App\Models\Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
+        $fees = PlatformFee::on($taxable, $order->event?->user);
+        $taxPercent = (float) Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
         $tax = round($taxable * $taxPercent / 100, 2);
 
         $order->update([
@@ -199,9 +208,9 @@ class CheckoutService
     }
 
     /** Mark an order paid, issue its tickets, and email the buyer. Idempotent + race-safe. */
-    public function markPaid(Order $order, ?string $paymentRef = null): void
+    public function markPaid(Order $order, ?string $paymentRef = null, array $payment = []): void
     {
-        $newlyPaid = DB::transaction(function () use ($order, $paymentRef): bool {
+        $newlyPaid = DB::transaction(function () use ($order, $paymentRef, $payment): bool {
             /** @var Order $locked */
             $locked = Order::whereKey($order->id)->lockForUpdate()->first();
             if ($locked->status === 'paid') {
@@ -212,11 +221,16 @@ class CheckoutService
                 'status' => 'paid',
                 'paid_at' => now(),
                 'payment_ref' => $paymentRef ?: $locked->payment_ref,
+                // How it was paid (bank, card scheme, wallet), for the finance
+                // ledger. Only ever overwrite with something: a gateway that did
+                // not tell us must not erase what we already recorded.
+                'payment_method' => $payment['method'] ?? $locked->payment_method,
+                'payment_brand' => $payment['brand'] ?? $locked->payment_brand,
             ]);
 
             // Count the redemption once the order actually settles.
             if ($locked->discount_code_id) {
-                \App\Models\DiscountCode::whereKey($locked->discount_code_id)->lockForUpdate()->increment('redemptions');
+                DiscountCode::whereKey($locked->discount_code_id)->lockForUpdate()->increment('redemptions');
             }
 
             // The buyer answered the organizer's questions once per ticket, and
@@ -247,7 +261,7 @@ class CheckoutService
 
             // Banquet events can auto-seat each new admission at a table with space.
             if ($locked->event?->auto_assign_tables) {
-                app(\App\Services\TableAssignmentService::class)->assign($locked->event, $locked->tickets()->whereNull('seating_table_id')->get());
+                app(TableAssignmentService::class)->assign($locked->event, $locked->tickets()->whereNull('seating_table_id')->get());
             }
 
             return true;
@@ -261,7 +275,7 @@ class CheckoutService
             // carry them onto the account — whether it already existed (a signed-in
             // purchase) or was just provisioned above for a guest. Blanks only; a
             // profile the user maintained themselves is never overwritten.
-            \App\Support\Profile::syncFromOrder($order->fresh()->load('user'));
+            Profile::syncFromOrder($order->fresh()->load('user'));
 
             $order->load(['event', 'tickets', 'items', 'event.user']);
             // Sent after the HTTP response so slow SMTP never delays checkout.
@@ -275,11 +289,11 @@ class CheckoutService
                 // The internal copy. Previously nobody on the platform side was
                 // told a sale had happened, so it was invisible until someone
                 // opened the admin panel. Same inbox the contact form uses.
-                $inbox = \App\Models\Setting::get('support_email') ?: config('mail.from.address');
+                $inbox = Setting::get('support_email') ?: config('mail.from.address');
 
                 if ($inbox) {
                     try {
-                        Mail::to($inbox)->send(new \App\Mail\OrderPlacedAdminMail($order));
+                        Mail::to($inbox)->send(new OrderPlacedAdminMail($order));
                     } catch (\Throwable $e) {
                         report($e); // a failed notification must never affect the buyer
                     }
@@ -300,7 +314,7 @@ class CheckoutService
             return; // already tied to an account (logged-in purchase)
         }
 
-        $existing = \App\Models\User::where('email', $order->buyer_email)->first();
+        $existing = User::where('email', $order->buyer_email)->first();
         if ($existing) {
             // Matched an account that already belonged to someone. The order is
             // linked so their tickets appear in it, but `account_created` stays
@@ -312,17 +326,17 @@ class CheckoutService
         }
 
         try {
-            $temp = \Illuminate\Support\Str::password(10);
-            $user = new \App\Models\User([
+            $temp = Str::password(10);
+            $user = new User([
                 'name' => $order->buyer_name ?: 'Guest',
                 'email' => $order->buyer_email,
                 'phone' => $order->buyer_phone,
             ]);
-            $user->password = \Illuminate\Support\Facades\Hash::make($temp);
+            $user->password = Hash::make($temp);
             $user->email_verified_at = now(); // they received mail at this address
             $user->must_set_password = true;
             $user->save();
-            $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
+            $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
 
             // Freshly minted for this checkout and nobody else's — the one case
             // where signing the buyer in afterwards is safe.
@@ -331,7 +345,7 @@ class CheckoutService
                 'meta' => [...($order->meta ?? []), 'account_created' => true],
             ]);
 
-            defer(fn () => Mail::to($user->email)->send(new \App\Mail\GuestAccountMail($user, $temp)));
+            defer(fn () => Mail::to($user->email)->send(new GuestAccountMail($user, $temp)));
         } catch (\Throwable $e) {
             report($e); // never block a paid order over account creation
         }

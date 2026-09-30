@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SeoAndMediaTest extends TestCase
@@ -26,11 +25,16 @@ class SeoAndMediaTest extends TestCase
 
         $res = $this->get('/sitemap.xml')->assertOk();
         $this->assertStringContainsString('application/xml', $res->headers->get('Content-Type'));
-        // Every entry is the canonical locale-prefixed, trailing-slash form.
-        $res->assertSee(url('/en-my/e/pub-ev/'), false)
-            ->assertSee(url('/en-my/about/'), false)
-            ->assertSee(url('/en-my/blog/hello/'), false)
+
+        // /sitemap.xml is now an index; the URLs live in the per-type files it
+        // points at. Every entry is the canonical locale-prefixed,
+        // trailing-slash form.
+        $this->get('/event-sitemap.xml')->assertOk()
+            ->assertSee(url('/en-my/e/pub-ev/'), false)
             ->assertDontSee(url('/en-my/e/draft-ev/'), false);
+
+        $this->get('/page-sitemap.xml')->assertOk()->assertSee(url('/en-my/about/'), false);
+        $this->get('/post-sitemap.xml')->assertOk()->assertSee(url('/en-my/blog/hello/'), false);
     }
 
     public function test_robots_points_to_the_sitemap(): void

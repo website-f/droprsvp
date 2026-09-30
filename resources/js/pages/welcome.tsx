@@ -587,22 +587,6 @@ export default function Welcome() {
                     );
                 })()}
 
-                {/* --------------------------------------------- SEO text block */}
-                {seoText?.enabled && seoText.body && (
-                    <section className="border-t border-border bg-muted/20">
-                        <div className="mx-auto w-full max-w-4xl px-6 py-12">
-                            {seoText.heading && <h2 className="text-xl font-bold tracking-tight">{seoText.heading}</h2>}
-                            <div className={`relative mt-3 ${seoExpanded ? '' : 'max-h-28 overflow-hidden'}`}>
-                                <div className={contentClass} dangerouslySetInnerHTML={{ __html: seoText.body }} />
-                                {!seoExpanded && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-muted/20 to-transparent" />}
-                            </div>
-                            <button type="button" onClick={() => setSeoExpanded((v) => !v)} className="mt-2 text-sm font-semibold text-primary hover:underline">
-                                {seoExpanded ? 'Show less' : 'Read more'}
-                            </button>
-                        </div>
-                    </section>
-                )}
-
                 {/* ------------------------------------------- From the blog */}
                 {(blog?.enabled ?? true) && posts.length > 0 && (
                     <section className="border-t border-border">
@@ -673,6 +657,24 @@ export default function Welcome() {
                             <Reveal delay={120}>
                                 <ContactForm />
                             </Reveal>
+                        </div>
+                    </section>
+                )}
+
+                {/* SEO copy last, just above the footer. It is written for search
+                    engines rather than for someone browsing, so it should not sit
+                    between the page's real sections. */}
+                {seoText?.enabled && seoText.body && (
+                    <section className="border-t border-border bg-muted/20">
+                        <div className="mx-auto w-full max-w-4xl px-6 py-12">
+                            {seoText.heading && <h2 className="text-xl font-bold tracking-tight">{seoText.heading}</h2>}
+                            <div className={`relative mt-3 ${seoExpanded ? '' : 'max-h-28 overflow-hidden'}`}>
+                                <div className={contentClass} dangerouslySetInnerHTML={{ __html: seoText.body }} />
+                                {!seoExpanded && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-muted/20 to-transparent" />}
+                            </div>
+                            <button type="button" onClick={() => setSeoExpanded((v) => !v)} className="mt-2 text-sm font-semibold text-primary hover:underline">
+                                {seoExpanded ? 'Show less' : 'Read more'}
+                            </button>
                         </div>
                     </section>
                 )}

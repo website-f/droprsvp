@@ -65,13 +65,19 @@ class MembershipService
     }
 
     /** Mark a subscription paid and extend the user's premium window. Idempotent. */
-    public function settle(Subscription $sub, ?string $ref = null): void
+    public function settle(Subscription $sub, ?string $ref = null, array $payment = []): void
     {
         if ($sub->status === 'paid') {
             return;
         }
 
-        $sub->update(['status' => 'paid', 'paid_at' => now(), 'payment_ref' => $ref ?: $sub->payment_ref]);
+        $sub->update([
+            'status' => 'paid',
+            'paid_at' => now(),
+            'payment_ref' => $ref ?: $sub->payment_ref,
+            'payment_method' => $payment['method'] ?? $sub->payment_method,
+            'payment_brand' => $payment['brand'] ?? $sub->payment_brand,
+        ]);
 
         $user = $sub->user;
         $base = $user->isPremium() ? $user->premium_until : now();

@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\Url;
 use App\Models\Event;
+use App\Models\Setting;
 use App\Support\SeoTemplate;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -30,15 +31,52 @@ class EventSeoController extends Controller
                 'title' => $e->title,
                 'status' => $e->status,
                 'customised' => (bool) ($e->seo && ($e->seo->seo_title || $e->seo->meta_description || $e->seo->meta_keywords)),
-                'preview_title' => SeoTemplate::render($e->seo?->seo_title, $e) ?: $e->title,
-                'preview_desc' => SeoTemplate::render($e->seo?->meta_description, $e) ?: $this->defaultDescription($e),
+                // What the page will ACTUALLY emit: the event's own override if
+                // it has one, otherwise the house template. Showing the bare
+                // title here while the page rendered something else was
+                // misleading — you could not tell from this list what Google
+                // would see.
+                'preview_title' => SeoTemplate::render($e->seo?->seo_title, $e)
+                    ?: (SeoTemplate::forEvent('event_title', $e) ?: $e->title),
+                'preview_desc' => SeoTemplate::render($e->seo?->meta_description, $e)
+                    ?: (SeoTemplate::forEvent('event_description', $e) ?: $this->defaultDescription($e)),
             ]);
 
         return inertia('admin/seo/events/index', [
             'events' => $events,
             'filters' => ['q' => $q],
             'baseUrl' => rtrim(Url::to('e'), '/'),
+            'templates' => SeoTemplate::allHouse(),
+            'defaults' => SeoTemplate::DEFAULTS,
+            'tokens' => SeoTemplate::chips(),
+            'organizerTokens' => SeoTemplate::chips(SeoTemplate::ORGANIZER_TOKENS),
         ]);
+    }
+
+    /**
+     * Save the house templates.
+     *
+     * Blank means "use the shipped default" rather than "no title", so empties
+     * are dropped instead of stored — otherwise clearing a field would leave
+     * every page of that type with nothing.
+     */
+    public function saveTemplates(Request $request)
+    {
+        $data = $request->validate([
+            'event_title' => ['nullable', 'string', 'max:200'],
+            'event_description' => ['nullable', 'string', 'max:400'],
+            'organizer_title' => ['nullable', 'string', 'max:200'],
+            'organizer_description' => ['nullable', 'string', 'max:400'],
+        ]);
+
+        Setting::putArray('seo_templates', array_filter(
+            array_map(fn ($v) => trim((string) $v), $data),
+            fn ($v) => $v !== '',
+        ));
+
+        SeoTemplate::forget();
+
+        return back()->with('success', 'SEO templates saved.');
     }
 
     public function edit(Event $event)

@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Support\PaymentMethod;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -20,6 +21,9 @@ use Illuminate\Support\Str;
 class ChipGateway implements PaymentGateway
 {
     private const BASE = 'https://gate.chip-in.asia/api/v1';
+
+    /** Per-request purchase cache, keyed by CHIP purchase id. @var array<string,?array> */
+    private array $purchases = [];
 
     private function api(): PendingRequest
     {
@@ -98,6 +102,9 @@ class ChipGateway implements PaymentGateway
             'reference' => $data['reference'] ?? null,
             'paid' => ($data['status'] ?? null) === 'paid',
             'payment_ref' => $data['id'] ?? null,
+            // CHIP posts the whole purchase object, so the instrument is right
+            // here — no second API call needed on the webhook path.
+            'payment' => PaymentMethod::fromChip($data),
         ];
     }
 
@@ -114,13 +121,43 @@ class ChipGateway implements PaymentGateway
      */
     public function purchaseIsPaid(?string $paymentRef): bool
     {
+        return ($this->purchase($paymentRef)['status'] ?? null) === 'paid';
+    }
+
+    /**
+     * How a settled purchase was paid: ['method' => ?string, 'brand' => ?string].
+     *
+     * Used on the return-page path, where — unlike the webhook — we do not have
+     * the purchase body already. Callers that just reconciled with
+     * purchaseIsPaid() will hit the per-request cache rather than the API.
+     */
+    public function paymentDetails(?string $paymentRef): array
+    {
+        return PaymentMethod::fromChip($this->purchase($paymentRef));
+    }
+
+    /**
+     * Fetch a purchase, memoised for the request.
+     *
+     * The return page asks twice — once "is it paid?", once "how was it paid?" —
+     * and a buyer coming back from the bank should not wait on two round trips
+     * for one answer.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function purchase(?string $paymentRef): ?array
+    {
         if (! $paymentRef) {
-            return false;
+            return null;
+        }
+
+        if (array_key_exists($paymentRef, $this->purchases)) {
+            return $this->purchases[$paymentRef];
         }
 
         $res = $this->api()->get('/purchases/'.$paymentRef.'/');
 
-        return $res->successful() && ($res->json('status') === 'paid');
+        return $this->purchases[$paymentRef] = $res->successful() ? (array) $res->json() : null;
     }
 
     public function refund(Order $order, ?float $amount = null): bool

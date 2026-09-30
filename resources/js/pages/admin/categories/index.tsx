@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, Check, Newspaper, Plus, Save, Search, Shapes, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, ExternalLink, FileText, Newspaper, Plus, Save, Search, Shapes, Trash2 } from 'lucide-react';
 import { createElement, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,13 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
     const [blurb, setBlurb] = useState(category.blurb ?? '');
     const [color, setColor] = useState(category.color ?? DEFAULT_COLOR);
     const [content, setContent] = useState(category.content ?? '');
+    // Eight categories, each with an appearance panel and a body of copy, is a
+    // very long page to scroll when you came to edit one of them. Collapsed by
+    // default; the summary row says which ones still have no copy.
+    const [open, setOpen] = useState(false);
+    // Rough, and deliberately so — it is a "is there enough here?" signal, not a
+    // metric. Tags are stripped first so markup is not counted as writing.
+    const words = content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
     const dirty = name !== category.name || slug !== category.slug || icon !== category.icon
         || blurb !== (category.blurb ?? '') || color !== (category.color ?? DEFAULT_COLOR) || content !== (category.content ?? '');
 
@@ -58,6 +65,31 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
                 </div>
             </div>
 
+            {/* Summary bar: the state you want at a glance when scanning the list,
+                and the control that opens everything else. */}
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                className="mt-3 flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/50"
+            >
+                <ChevronDown className={`size-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <span className="flex size-5 shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${color}1f`, color }}>
+                    {createElement(categoryIcon(icon), { className: 'size-3' })}
+                </span>
+                <span className="truncate">Appearance &amp; page copy</span>
+                <span
+                    className={`ml-auto flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium ${
+                        content.trim() ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-500'
+                    }`}
+                >
+                    <FileText className="size-3" />
+                    {content.trim() ? `${words} words` : 'No copy yet'}
+                </span>
+            </button>
+
+            {open && (
+            <>
             {/* Homepage appearance — exactly what a visitor sees on the “Browse by category” grid. */}
             <div className="mt-3 grid gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-[1fr_1.4fr]">
                 <div className="grid gap-1.5">
@@ -97,10 +129,44 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
                 </div>
             </div>
 
-            <div className="mt-3 grid gap-1.5">
-                <Label className="text-xs">Content <span className="font-normal text-muted-foreground">— shown (with “See more”) at the bottom of the browse page for this category</span></Label>
-                <textarea rows={3} className={area} value={content} onChange={(e) => setContent(e.target.value)} placeholder="e.g. Discover the best live music events in Malaysia — from intimate gigs to festival nights…" />
+            {/* Page copy. This is the block that sits under “See more” at the
+                bottom of /en-my/all/{slug}. It used to be one shared paragraph
+                repeated across every category, which reads as duplicate content
+                and tells nobody anything about the category they clicked. */}
+            <div className="mt-3 grid gap-2 rounded-lg border border-dashed border-border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-xs">Page copy</Label>
+                    <a
+                        href={`/en-my/all/${slug}/`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                        View page <ExternalLink className="size-3" />
+                    </a>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Shown behind “See more” at the bottom of this category’s browse page. Basic HTML works —
+                    <code className="mx-1 rounded bg-muted px-1 py-0.5 text-[11px]">&lt;h2&gt;</code>
+                    for a heading and
+                    <code className="mx-1 rounded bg-muted px-1 py-0.5 text-[11px]">&lt;p&gt;</code>
+                    for each paragraph. Write it for someone deciding whether this category is worth browsing, not for a search engine.
+                </p>
+                <textarea
+                    rows={10}
+                    className={`${area} font-mono text-xs leading-relaxed`}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder={`<h2>Live music in Malaysia</h2>
+<p>From intimate acoustic sets to festival line-ups…</p>`}
+                />
+                <p className="text-xs text-muted-foreground">
+                    {words} word{words === 1 ? '' : 's'}
+                    {words > 0 && words < 40 && <span className="ml-1 text-amber-600 dark:text-amber-500">— short; 60–150 reads better</span>}
+                </p>
             </div>
+            </>
+            )}
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronDown, Clock, FolderOpen, LayoutList, Newspaper, Ticket } from 'lucide-react';
+import { CalendarDays, ChevronDown, Clock, FolderOpen, LayoutList, Newspaper, Ticket } from 'lucide-react';
 import { useState } from 'react';
 
 export interface BlogPostCard {
@@ -13,7 +13,16 @@ export interface BlogPostCard {
 }
 export interface BlogCategory { name: string; slug: string; count: number }
 export interface BlogAd { enabled: boolean; title: string; image: string; url: string; caption: string }
-export interface BlogSidebarData { categories: BlogCategory[]; recent: BlogPostCard[]; related: BlogPostCard[]; ad: BlogAd }
+export interface ActiveEvent { slug: string; title: string; cover_image: string | null; city: string | null; when: string | null; url: string }
+export interface BlogSidebarData {
+    categories: BlogCategory[];
+    recent: BlogPostCard[];
+    related: BlogPostCard[];
+    /** Events on right now — a reader of an event article is the likeliest buyer. */
+    active_events?: ActiveEvent[];
+    all_events_url?: string;
+    ad: BlogAd;
+}
 export interface TocItem { id: string; text: string; level: number }
 
 export const postUrl = (slug: string) => `/en-my/blog/${slug}/`;
@@ -223,6 +232,35 @@ export function BlogSidebar({ sidebar, activeCategory }: {
                         <ul className="space-y-4">
                             {sidebar.recent.map((p) => <PostRow key={p.slug} post={p} />)}
                         </ul>
+                    </Widget>
+                )}
+
+                {(sidebar.active_events?.length ?? 0) > 0 && (
+                    <Widget icon={CalendarDays} title="Happening now">
+                        <ul className="space-y-4">
+                            {sidebar.active_events!.map((e) => (
+                                <li key={e.slug}>
+                                    <Link href={e.url} className="group flex gap-3">
+                                        {e.cover_image ? (
+                                            <img src={e.cover_image} alt="" className="size-14 shrink-0 rounded-lg object-cover" loading="lazy" />
+                                        ) : (
+                                            <span className="grid size-14 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><CalendarDays className="size-5" /></span>
+                                        )}
+                                        <span className="min-w-0">
+                                            <span className="line-clamp-2 text-sm font-semibold leading-snug group-hover:underline">{e.title}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                                                {[e.when, e.city].filter(Boolean).join(' · ') || 'Upcoming'}
+                                            </span>
+                                        </span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                        {sidebar.all_events_url && (
+                            <Link href={sidebar.all_events_url} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
+                                See more events →
+                            </Link>
+                        )}
                     </Widget>
                 )}
 

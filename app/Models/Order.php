@@ -11,7 +11,7 @@ class Order extends Model
     protected $fillable = [
         'reference', 'user_id', 'event_id', 'status', 'buyer_name', 'buyer_email', 'buyer_phone',
         'buyer_gender', 'buyer_age_band', 'buyer_birth_year', 'buyer_city', 'buyer_source', 'notes',
-        'subtotal', 'discount', 'discount_code_id', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'paid_at', 'refunded_at', 'meta',
+        'subtotal', 'discount', 'discount_code_id', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'payment_method', 'payment_brand', 'paid_at', 'refunded_at', 'meta',
         'custom_answers',
     ];
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CmsCategory;
 use App\Models\EventCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -59,16 +60,30 @@ class EventCategoryTest extends TestCase
             ->assertInertia(fn (Assert $p) => $p->component('admin/categories/index')->has('categories', 1));
     }
 
-    public function test_browse_seo_and_category_content_render_on_the_discover_page(): void
+    public function test_browse_seo_renders_on_the_discover_page(): void
     {
         $this->actingAs($this->superadmin())
             ->post('/admin/categories/browse-seo', ['title' => 'All Events in Malaysia', 'description' => 'Find events near you.'])
             ->assertRedirect();
         EventCategory::create(['name' => 'Music', 'slug' => 'music', 'sort_order' => 1, 'content' => 'The best music events across Malaysia.']);
 
+        // Every category's copy used to render here, on the unfiltered page.
+        // That put the same block on /all, /all/music and /all/tech alike —
+        // duplicate content, and it told a reader nothing about the category
+        // they had just clicked. It belongs on the category's own page.
         $this->get('/en-my/all')->assertInertia(fn (Assert $p) => $p
             ->where('seo.title', 'All Events in Malaysia')
+            ->has('categoryContent', 0));
+    }
+
+    public function test_a_category_page_carries_only_its_own_copy(): void
+    {
+        EventCategory::create(['name' => 'Music', 'slug' => 'music', 'sort_order' => 1, 'content' => 'The best music events across Malaysia.']);
+        EventCategory::create(['name' => 'Tech', 'slug' => 'tech', 'sort_order' => 2, 'content' => 'Meetups, demos and hackathons.']);
+
+        $this->get('/en-my/all/music')->assertInertia(fn (Assert $p) => $p
             ->has('categoryContent', 1)
+            ->where('categoryContent.0.name', 'Music')
             ->where('categoryContent.0.content', 'The best music events across Malaysia.'));
     }
 
@@ -98,7 +113,7 @@ class EventCategoryTest extends TestCase
         $admin = $this->superadmin();
 
         $this->actingAs($admin)->post('/admin/post-categories', ['name' => 'News'])->assertRedirect();
-        $cat = \App\Models\CmsCategory::firstWhere('name', 'News');
+        $cat = CmsCategory::firstWhere('name', 'News');
         $this->assertSame('news', $cat->slug);
 
         $this->actingAs($admin)->put("/admin/post-categories/{$cat->id}", ['name' => 'Updates', 'slug' => 'updates'])->assertRedirect();

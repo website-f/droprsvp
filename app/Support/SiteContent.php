@@ -122,6 +122,21 @@ class SiteContent
     }
 
     /**
+     * SEO for the blog INDEX (/en-my/blog/). Individual posts carry their own
+     * per-entry SeoMeta; the listing had nothing editable at all and fell back
+     * to a hardcoded title.
+     */
+    public static function blogSeo(): array
+    {
+        $saved = array_filter(Setting::getArray('blog_seo', []), fn ($v) => filled($v));
+
+        return array_replace(
+            ['title' => '', 'description' => '', 'keywords' => '', 'image' => ''],
+            $saved,
+        );
+    }
+
+    /**
      * The /en-my/all events page — its admin-set hero banner (a fallback lead slide
      * when there are no featured organizer banners) and a foot-of-page SEO text block.
      */

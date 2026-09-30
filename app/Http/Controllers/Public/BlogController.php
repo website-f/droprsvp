@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\CmsCategory;
 use App\Models\CmsPost;
+use App\Models\Event;
+use App\Support\Cities;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use App\Support\TableOfContents;
 use App\Support\Url;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -34,11 +37,21 @@ class BlogController extends Controller
         $title = $active ? "{$active->name} · Blog" : 'Blog';
         $canonical = $active ? Url::to('blog').'?category='.$active->slug : Url::to('blog');
 
+        // Admin-set SEO for the index, falling back to the generated copy. Only
+        // the unfiltered listing uses it: a category view is a different page
+        // and should not inherit the index's title.
+        $blogSeo = SiteContent::blogSeo();
+        $isBase = ! $active;
+
         app(SeoManager::class)
-            ->title($title)
-            ->description($active
-                ? "{$active->name} articles, guides and stories from {$site}."
-                : "News, guides and stories from {$site}.")
+            ->title($isBase && $blogSeo['title'] !== '' ? $blogSeo['title'] : $title)
+            ->description($isBase && $blogSeo['description'] !== ''
+                ? $blogSeo['description']
+                : ($active
+                    ? "{$active->name} articles, guides and stories from {$site}."
+                    : "News, guides and stories from {$site}."))
+            ->keywords($isBase ? ($blogSeo['keywords'] ?: null) : null)
+            ->image($isBase ? ($blogSeo['image'] ?: null) : null)
             ->canonical($canonical)
             ->type('website')
             ->schema([
@@ -166,17 +179,37 @@ class BlogController extends Controller
                 ->all()
             : [];
 
+        // Events happening now, beside the articles. A reader who has just
+        // finished a piece about an event is the likeliest person on the site to
+        // want a ticket, and the blog had no route onward to one.
+        $activeEvents = Event::published()
+            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->orderByRaw('starts_at is null, starts_at asc')
+            ->limit(3)
+            ->get(['slug', 'title', 'cover_image', 'city', 'starts_at', 'timezone'])
+            ->map(fn (Event $e) => [
+                'slug' => $e->slug,
+                'title' => $e->title,
+                'cover_image' => $e->cover_image,
+                'city' => $e->city,
+                'when' => $e->starts_at?->setTimezone($e->timezone)->format('D, j M'),
+                'url' => Url::path('e', $e->slug),
+            ])
+            ->all();
+
         return [
             'categories' => $categories,
             'recent' => $recent,
             'related' => $related,
+            'active_events' => $activeEvents,
+            'all_events_url' => Url::path(Cities::ANY),
             'ad' => SiteContent::blogAd(),
         ];
     }
 
     /** One post as list/card data. */
     /** The blog listing as plain HTML for crawlers: title, excerpt, date. */
-    private function crawlableIndex(string $heading, \Illuminate\Support\Collection $posts): string
+    private function crawlableIndex(string $heading, Collection $posts): string
     {
         $html = '<h1>'.e($heading).'</h1>';
 

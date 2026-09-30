@@ -7,10 +7,11 @@ use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\EventReview;
 use App\Models\Order;
+use App\Support\Cities;
 use App\Support\Ics;
 use App\Support\SeoManager;
-use App\Support\Url;
 use App\Support\SeoTemplate;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -60,10 +61,17 @@ class EventController extends Controller
         $seoDesc = SeoTemplate::render($seo?->meta_description, $event);
         $seoKeywords = SeoTemplate::render($seo?->meta_keywords, $event);
 
+        // No per-event override? Fall back to the house template rather than the
+        // bare title and a truncated description. Across hundreds of events that
+        // is the difference between every result reading "Some Event Name" and
+        // every result naming the city and the date.
+        $houseTitle = SeoTemplate::forEvent('event_title', $event);
+        $houseDesc = SeoTemplate::forEvent('event_description', $event);
+
         // --- server-rendered SEO (no JS needed) ---
         $manager = app(SeoManager::class)
-            ->title($seoTitle ?: $event->title)
-            ->description($seoDesc ?: $description)
+            ->title($seoTitle ?: ($houseTitle ?: $event->title))
+            ->description($seoDesc ?: ($houseDesc ?: $description))
             ->keywords($seoKeywords)
             ->canonical($seo?->canonical_url ?: $canonical)
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
@@ -359,51 +367,173 @@ class EventController extends Controller
         return $html.'</article>';
     }
 
+    /**
+     * schema.org/Event JSON-LD.
+     *
+     * This is what earns the rich result — the date, the venue with a real
+     * postal address, the price range and whether tickets are still available,
+     * all in the shape Google validates against. It was previously thin: a
+     * free-text address line, no offer validity window, no price range, no
+     * capacity, no geo.
+     */
     private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer, float $ratingAvg = 0.0, int $ratingCount = 0): array
     {
+        $timezone = $event->timezone ?: config('app.timezone');
+        $starts = $event->starts_at?->setTimezone($timezone);
+        $ends = $event->ends_at?->setTimezone($timezone);
+
+        $images = array_values(array_filter(array_merge(
+            [$cover, $event->banner_image ? $this->absolute($event->banner_image) : null],
+            collect($event->gallery ?? [])->take(4)->map(fn ($g) => $this->absolute($g))->all(),
+        )));
+
+        $offers = $this->offerSchema($event, $url);
+        $prices = collect($event->ticketTypes)->map(fn ($t) => (float) $t->price)->filter(fn ($p) => $p > 0);
+
         $schema = [
-            '@context' => 'https://schema.org',
             '@type' => 'Event',
+            '@id' => $url.'#event',
             'name' => $event->title,
             'description' => $description,
             'url' => $url,
-            'startDate' => optional($event->starts_at)->toIso8601String(),
-            'endDate' => optional($event->ends_at)->toIso8601String(),
+            'startDate' => $starts?->toIso8601String(),
+            'endDate' => $ends?->toIso8601String(),
             'eventStatus' => $event->status === 'cancelled'
                 ? 'https://schema.org/EventCancelled'
                 : 'https://schema.org/EventScheduled',
             'eventAttendanceMode' => $event->is_online
                 ? 'https://schema.org/OnlineEventAttendanceMode'
                 : 'https://schema.org/OfflineEventAttendanceMode',
-            'location' => $event->is_online
-                ? ['@type' => 'VirtualLocation', 'url' => $event->online_url]
-                : array_filter([
-                    '@type' => 'Place',
-                    'name' => $event->venue_name,
-                    'address' => $event->venue_address,
-                ]),
-            'image' => $cover ? [$cover] : null,
-            'organizer' => ['@type' => 'Organization', 'name' => $organizer],
-            'offers' => $event->ticketTypes->map(fn ($t) => array_filter([
-                '@type' => 'Offer',
-                'name' => $t->name,
-                'price' => number_format((float) $t->price, 2, '.', ''),
-                'priceCurrency' => $t->currency,
-                'availability' => $t->remaining() === 0
-                    ? 'https://schema.org/SoldOut'
-                    : 'https://schema.org/InStock',
-                'url' => $url,
-            ]))->values()->all(),
+            'location' => $this->locationSchema($event),
+            'image' => $images ?: null,
+            'inLanguage' => str_replace('_', '-', (string) config('seo.locale', 'en_MY')),
+            'organizer' => array_filter([
+                '@type' => 'Organization',
+                'name' => $organizer,
+                'url' => $event->user?->slug ? Url::slash(Url::to('o', $event->user->slug)) : null,
+            ]),
+            // Google treats performer as the act on stage. For a hosted event
+            // the organizer is the closest true answer, and leaving the field
+            // out entirely loses something the rich result can show.
+            'performer' => ['@type' => 'Organization', 'name' => $organizer],
+            'isAccessibleForFree' => $prices->isEmpty(),
+            'offers' => $offers ?: null,
         ];
+
+        if ($event->category?->name) {
+            // Not a schema.org enum, so it goes in as a plain keyword rather
+            // than an invented URL.
+            $schema['keywords'] = $event->category->name;
+            $schema['about'] = ['@type' => 'Thing', 'name' => $event->category->name];
+        }
+
+        if ($event->capacity) {
+            $schema['maximumAttendeeCapacity'] = (int) $event->capacity;
+        }
+
+        if ($prices->isNotEmpty() && $offers) {
+            // An aggregate in front of the individual offers, so a result can
+            // say "from RM25" without reading every ticket type.
+            $schema['offers'] = array_merge([[
+                '@type' => 'AggregateOffer',
+                'priceCurrency' => $event->ticketTypes->first()?->currency ?: 'MYR',
+                'lowPrice' => number_format($prices->min(), 2, '.', ''),
+                'highPrice' => number_format($prices->max(), 2, '.', ''),
+                'offerCount' => count($offers),
+                'availability' => $this->availability($event),
+                'url' => $url,
+            ]], $offers);
+        }
 
         if ($ratingCount > 0) {
             $schema['aggregateRating'] = [
                 '@type' => 'AggregateRating',
                 'ratingValue' => $ratingAvg,
+                'bestRating' => 5,
+                'worstRating' => 1,
                 'reviewCount' => $ratingCount,
             ];
         }
 
         return array_filter($schema, fn ($v) => $v !== null && $v !== []);
+    }
+
+    /** One Offer per ticket type, with its own availability and validity window. */
+    private function offerSchema(Event $event, string $url): array
+    {
+        return $event->ticketTypes
+            ->map(function ($t) use ($event, $url) {
+                $remaining = $t->remaining();
+
+                return array_filter([
+                    '@type' => 'Offer',
+                    'name' => $t->name,
+                    'price' => number_format((float) $t->price, 2, '.', ''),
+                    'priceCurrency' => $t->currency ?: 'MYR',
+                    'availability' => $remaining === 0
+                        ? 'https://schema.org/SoldOut'
+                        : 'https://schema.org/InStock',
+                    // When this offer can be bought. Google warns about offers
+                    // with no validity window, and "from publication until the
+                    // doors open" is the honest answer for an event ticket.
+                    'validFrom' => optional($event->published_at ?: $event->created_at)->toIso8601String(),
+                    'validThrough' => optional($event->starts_at)->toIso8601String(),
+                    'url' => $url,
+                ], fn ($v) => $v !== null && $v !== '');
+            })
+            ->values()
+            ->all();
+    }
+
+    /** Whether any ticket at all is still available. */
+    private function availability(Event $event): string
+    {
+        return $event->ticketTypes->contains(fn ($t) => $t->remaining() !== 0)
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/SoldOut';
+    }
+
+    /**
+     * Where it is, as a Place with a structured PostalAddress.
+     *
+     * A single free-text address line is valid but weak: splitting out the
+     * locality, region and country is what lets a result place the venue
+     * properly. The street line is whatever remains once the city has been
+     * taken off the end of it, so the city is not stated twice in one node.
+     */
+    private function locationSchema(Event $event): array
+    {
+        if ($event->is_online) {
+            return array_filter(['@type' => 'VirtualLocation', 'url' => $event->online_url]);
+        }
+
+        $city = trim((string) ($event->city ?? ''));
+        $street = trim((string) ($event->venue_address ?? ''));
+
+        if ($city !== '' && str_ends_with(mb_strtolower($street), mb_strtolower($city))) {
+            $street = rtrim(mb_substr($street, 0, -mb_strlen($city)), " \t\n,");
+        }
+
+        $place = [
+            '@type' => 'Place',
+            'name' => $event->venue_name ?: ($city ?: null),
+            'address' => array_filter([
+                '@type' => 'PostalAddress',
+                'streetAddress' => $street ?: null,
+                'addressLocality' => $city ?: null,
+                'addressRegion' => $city !== '' ? Cities::stateForCity($city) : null,
+                'addressCountry' => 'MY',
+            ]),
+        ];
+
+        if ($event->latitude && $event->longitude) {
+            $place['geo'] = [
+                '@type' => 'GeoCoordinates',
+                'latitude' => (float) $event->latitude,
+                'longitude' => (float) $event->longitude,
+            ];
+        }
+
+        return array_filter($place, fn ($v) => $v !== null && $v !== [] && $v !== '');
     }
 }

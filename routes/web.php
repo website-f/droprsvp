@@ -1,61 +1,79 @@
 <?php
 
+use App\Http\Controllers\AboutYouController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
-use App\Http\Controllers\Admin\ContactController as AdminContactController;
-use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\ArchiveController;
+use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CmsCategoryController;
+use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
+use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\EventCategoryController;
-use App\Http\Controllers\Admin\FinanceController;
-use App\Http\Controllers\Admin\EventSeoController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
+use App\Http\Controllers\Admin\EventSeoController;
+use App\Http\Controllers\Admin\FinanceController;
+use App\Http\Controllers\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Admin\LegalController as AdminLegalController;
-use App\Http\Controllers\Admin\OrganizerController as AdminOrganizerController;
-use App\Http\Controllers\Admin\OrganizerFeeController;
-use App\Http\Controllers\Host\OrganizerApplicationController;
 use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MenuController;
+use App\Http\Controllers\Admin\OrganizerController as AdminOrganizerController;
+use App\Http\Controllers\Admin\OrganizerFeeController;
 use App\Http\Controllers\Admin\OverviewController as AdminOverviewController;
 use App\Http\Controllers\Admin\PayoutController as AdminPayoutController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SiteController as AdminSiteController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
-use App\Http\Controllers\Host\PayoutController;
-use App\Http\Controllers\AccountController;
-use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\OrganizerSignupController;
+use App\Http\Controllers\Auth\SetPasswordController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\MembershipController;
-use App\Http\Controllers\AboutYouController;
-use App\Http\Controllers\FollowController;
-use App\Http\Controllers\Public\ContactController;
-use App\Http\Controllers\Public\EventCommentController;
-use App\Http\Controllers\Public\EventReviewController;
-use App\Http\Controllers\Public\OrganizerController;
-use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Public\BlogController;
-use App\Http\Controllers\Public\DiscoverController;
-use App\Http\Controllers\Public\HelpController;
-use App\Http\Controllers\Admin\HelpController as AdminHelpController;
-use App\Http\Controllers\Public\PageController as PublicPageController;
-use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\FollowController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Host\AnalyticsController;
+use App\Http\Controllers\Host\AttendeeController;
 use App\Http\Controllers\Host\CheckInController;
+use App\Http\Controllers\Host\DiscountController;
 use App\Http\Controllers\Host\EventController;
+use App\Http\Controllers\Host\EventPhotoController;
+use App\Http\Controllers\Host\InvoiceController;
 use App\Http\Controllers\Host\OrderController;
+use App\Http\Controllers\Host\OrganizerApplicationController;
+use App\Http\Controllers\Host\PayoutController;
 use App\Http\Controllers\Host\PromotionController;
+use App\Http\Controllers\Host\RefundController;
 use App\Http\Controllers\Host\SeatingController;
+use App\Http\Controllers\Host\SeatTemplateController;
+use App\Http\Controllers\Host\TeamController;
+use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Public\BlogController;
+use App\Http\Controllers\Public\ContactController;
+use App\Http\Controllers\Public\DiscoverController;
+use App\Http\Controllers\Public\EventCommentController;
 use App\Http\Controllers\Public\EventController as PublicEventController;
+use App\Http\Controllers\Public\EventReviewController;
+use App\Http\Controllers\Public\HelpController;
+use App\Http\Controllers\Public\OrganizerController;
+use App\Http\Controllers\Public\PageController as PublicPageController;
+use App\Http\Controllers\Public\SearchController;
+use App\Http\Controllers\Public\WaitlistController;
+use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Middleware\EnsureAboutYou;
+use App\Http\Middleware\EnsureOrganizerApproved;
+use App\Http\Middleware\EnsureSectionAccess;
+use App\Support\SiteContent;
+use App\Support\Url;
 use Illuminate\Support\Facades\Route;
 
 // Everything lives under a locale prefix (/en-my) so more locales (/en-sg, …)
 // can be added later. The bare root just redirects to the default locale home.
-Route::get('/', fn () => redirect(\App\Support\Url::to()))->name('home');
+Route::get('/', fn () => redirect(Url::to()))->name('home');
 
 // Global search autocomplete suggestions (JSON).
 Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:suggest')->name('search.suggest');
@@ -67,14 +85,14 @@ Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('
 // the sitemap and in-app links. Order matters: the literal paths are declared
 // before the {city} catch-alls so "blog"/"help"/"contact" win over a city slug.
 // ---------------------------------------------------------------------------
-Route::prefix(\App\Support\Url::LOCALE)->group(function () {
+Route::prefix(Url::LOCALE)->group(function () {
     // Locale home = the marketing landing. Browse/discovery lives one level
     // deeper: /en-my/all/, /en-my/{city}/, /en-my/{city}/{category}/.
     Route::get('/', [HomeController::class, 'index'])->name('home.locale');
 
     // Event page + its calendar file.
     Route::get('e/{event}', [PublicEventController::class, 'show'])->name('events.show');
-    Route::get('e/{event}/calendar.ics', [\App\Http\Controllers\CalendarController::class, 'event'])->name('events.ics');
+    Route::get('e/{event}/calendar.ics', [CalendarController::class, 'event'])->name('events.ics');
 
     // Public organizer profile (all their events + follow) — pretty slug URL.
     Route::get('o/{organizer:slug}', [OrganizerController::class, 'show'])->name('organizers.show');
@@ -105,25 +123,33 @@ Route::prefix(\App\Support\Url::LOCALE)->group(function () {
 // 404. Destinations are absolute on purpose: a relative one is normalised by
 // url()->to(), which strips the trailing slash and would cost a second hop.
 Route::get('events', [DiscoverController::class, 'legacyRedirect'])->name('events.browse');
-Route::get('blog', fn () => redirect(\App\Support\Url::to('blog'), 301));
-Route::get('help', fn () => redirect(\App\Support\Url::to('help'), 301));
-Route::get('contact', fn () => redirect(\App\Support\Url::to('contact'), 301));
-Route::get('e/{event}', fn (string $event) => redirect(\App\Support\Url::to('e', $event), 301))->name('events.show.legacy');
-Route::get('blog/{post}', fn (string $post) => redirect(\App\Support\Url::to('blog', $post), 301));
-Route::get('help/{article}', fn (string $article) => redirect(\App\Support\Url::to('help', $article), 301));
-Route::get('o/{organizer}', fn (string $organizer) => redirect(\App\Support\Url::to('o', $organizer), 301));
+Route::get('blog', fn () => redirect(Url::to('blog'), 301));
+Route::get('help', fn () => redirect(Url::to('help'), 301));
+Route::get('contact', fn () => redirect(Url::to('contact'), 301));
+Route::get('e/{event}', fn (string $event) => redirect(Url::to('e', $event), 301))->name('events.show.legacy');
+Route::get('blog/{post}', fn (string $post) => redirect(Url::to('blog', $post), 301));
+Route::get('help/{article}', fn (string $article) => redirect(Url::to('help', $article), 301));
+Route::get('o/{organizer}', fn (string $organizer) => redirect(Url::to('o', $organizer), 301));
 
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+// The same index under the name Yoast uses, so a link or a Search Console
+// submission copied from a WordPress habit lands somewhere real.
+Route::get('sitemap_index.xml', [SitemapController::class, 'index']);
+// One sub-sitemap per content type: event-sitemap.xml, post-sitemap.xml, and so
+// on. The controller rejects anything not in its own list.
+Route::get('{section}-sitemap.xml', [SitemapController::class, 'section'])
+    ->where('section', '[a-z]+')
+    ->name('sitemap.section');
 Route::get('robots.txt', function () {
-    return response(\App\Support\SiteContent::robotsTxt(), 200)
+    return response(SiteContent::robotsTxt(), 200)
         ->header('Content-Type', 'text/plain');
 })->name('robots');
 
 // Checkout (guest-friendly). `checkout/return` is declared before `checkout/{order}`
 // so the literal path wins over the {order} binding.
 Route::post('e/{event}/checkout', [CheckoutController::class, 'start'])->middleware('throttle:checkout')->name('checkout.start');
-Route::post('e/{event}/waitlist', [\App\Http\Controllers\Public\WaitlistController::class, 'join'])->middleware('throttle:posting')->name('events.waitlist.join');
+Route::post('e/{event}/waitlist', [WaitlistController::class, 'join'])->middleware('throttle:posting')->name('events.waitlist.join');
 Route::get('checkout/return', [CheckoutController::class, 'return'])->name('checkout.return');
 Route::get('checkout/{order}', [CheckoutController::class, 'show'])->name('checkout.show');
 // "Already have an account?" from the checkout page — parks the return URL and
@@ -155,22 +181,22 @@ Route::middleware('guest')->group(function () {
     // "Continue with Google" (OAuth 2.0).
     // Throttled like the other sign-in entry points: the callback creates
     // accounts, so it shouldn't be an unmetered endpoint.
-    Route::get('auth/google/redirect', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->middleware('throttle:oauth')->name('google.redirect');
-    Route::get('auth/google/callback', [\App\Http\Controllers\Auth\GoogleController::class, 'callback'])->middleware('throttle:oauth')->name('google.callback');
+    Route::get('auth/google/redirect', [GoogleController::class, 'redirect'])->middleware('throttle:oauth')->name('google.redirect');
+    Route::get('auth/google/callback', [GoogleController::class, 'callback'])->middleware('throttle:oauth')->name('google.callback');
 });
 
 // First-login password setup for auto-created guest buyer accounts.
 Route::middleware('auth')->group(function () {
-    Route::get('set-password', [\App\Http\Controllers\Auth\SetPasswordController::class, 'show'])->name('password.set');
-    Route::post('set-password', [\App\Http\Controllers\Auth\SetPasswordController::class, 'update'])->name('password.set.save');
+    Route::get('set-password', [SetPasswordController::class, 'show'])->name('password.set');
+    Route::post('set-password', [SetPasswordController::class, 'update'])->name('password.set.save');
 
     // In-app notifications (bell inbox) — available to any signed-in user.
-    Route::get('notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('notifications/read', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.read');
-    Route::post('notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->whereNumber('notification')->name('notifications.read-one');
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->whereNumber('notification')->name('notifications.read-one');
 });
 
-Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::class])->group(function () {
+Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Required "about you" profile for consumer accounts.
@@ -226,7 +252,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     // Host panel — manage your events, ticket types and sessions.
     // Hard-gated to vendors: a free attendee account must upgrade (become a
     // vendor) before it can create or manage events.
-    Route::middleware(['role:organizer|superadmin', \App\Http\Middleware\EnsureOrganizerApproved::class])->prefix('host')->name('host.')->group(function () {
+    Route::middleware(['role:organizer|superadmin', EnsureOrganizerApproved::class])->prefix('host')->name('host.')->group(function () {
         // Analytics across all the organizer's events (links out to each event's own).
         Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics');
 
@@ -241,8 +267,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('events/{event}/reappeal', [EventController::class, 'reappeal'])->name('events.reappeal');
 
         // Reusable seating templates.
-        Route::post('seat-templates', [\App\Http\Controllers\Host\SeatTemplateController::class, 'store'])->name('seat-templates.store');
-        Route::delete('seat-templates/{seatTemplate}', [\App\Http\Controllers\Host\SeatTemplateController::class, 'destroy'])->name('seat-templates.destroy');
+        Route::post('seat-templates', [SeatTemplateController::class, 'store'])->name('seat-templates.store');
+        Route::delete('seat-templates/{seatTemplate}', [SeatTemplateController::class, 'destroy'])->name('seat-templates.destroy');
 
         // Per-event analytics (reach, sales, audience demographics).
         Route::get('events/{event}/analytics', [AnalyticsController::class, 'show'])->name('events.analytics');
@@ -257,41 +283,41 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('events/{event}/checkin', [CheckInController::class, 'scan'])->name('events.checkin.scan');
 
         // Visitor / admission management — list, detail, export + fullscreen scanner.
-        Route::get('events/{event}/attendees', [\App\Http\Controllers\Host\AttendeeController::class, 'index'])->name('events.attendees');
-        Route::get('events/{event}/attendees/export', [\App\Http\Controllers\Host\AttendeeController::class, 'export'])->name('events.attendees.export');
-        Route::post('events/{event}/attendees/scan', [\App\Http\Controllers\Host\AttendeeController::class, 'scan'])->name('events.attendees.scan');
-        Route::post('events/{event}/attendees/{ticket}/check-in', [\App\Http\Controllers\Host\AttendeeController::class, 'checkIn'])->whereNumber('ticket')->name('events.attendees.checkin');
-        Route::post('events/{event}/attendees/{ticket}/undo', [\App\Http\Controllers\Host\AttendeeController::class, 'undo'])->whereNumber('ticket')->name('events.attendees.undo');
+        Route::get('events/{event}/attendees', [AttendeeController::class, 'index'])->name('events.attendees');
+        Route::get('events/{event}/attendees/export', [AttendeeController::class, 'export'])->name('events.attendees.export');
+        Route::post('events/{event}/attendees/scan', [AttendeeController::class, 'scan'])->name('events.attendees.scan');
+        Route::post('events/{event}/attendees/{ticket}/check-in', [AttendeeController::class, 'checkIn'])->whereNumber('ticket')->name('events.attendees.checkin');
+        Route::post('events/{event}/attendees/{ticket}/undo', [AttendeeController::class, 'undo'])->whereNumber('ticket')->name('events.attendees.undo');
 
         // Event photo album (organizer uploads; shown on their public profile).
-        Route::get('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'index'])->name('events.photos');
-        Route::post('events/{event}/photos', [\App\Http\Controllers\Host\EventPhotoController::class, 'store'])->name('events.photos.store');
-        Route::delete('events/{event}/photos/{photo}', [\App\Http\Controllers\Host\EventPhotoController::class, 'destroy'])->name('events.photos.destroy');
+        Route::get('events/{event}/photos', [EventPhotoController::class, 'index'])->name('events.photos');
+        Route::post('events/{event}/photos', [EventPhotoController::class, 'store'])->name('events.photos.store');
+        Route::delete('events/{event}/photos/{photo}', [EventPhotoController::class, 'destroy'])->name('events.photos.destroy');
 
         // Promo / discount codes + their redemption analytics.
-        Route::get('events/{event}/discounts', [\App\Http\Controllers\Host\DiscountController::class, 'index'])->name('events.discounts');
-        Route::post('events/{event}/discounts', [\App\Http\Controllers\Host\DiscountController::class, 'store'])->name('events.discounts.store');
-        Route::put('events/{event}/discounts/{discount}', [\App\Http\Controllers\Host\DiscountController::class, 'update'])->whereNumber('discount')->name('events.discounts.update');
-        Route::delete('events/{event}/discounts/{discount}', [\App\Http\Controllers\Host\DiscountController::class, 'destroy'])->whereNumber('discount')->name('events.discounts.destroy');
+        Route::get('events/{event}/discounts', [DiscountController::class, 'index'])->name('events.discounts');
+        Route::post('events/{event}/discounts', [DiscountController::class, 'store'])->name('events.discounts.store');
+        Route::put('events/{event}/discounts/{discount}', [DiscountController::class, 'update'])->whereNumber('discount')->name('events.discounts.update');
+        Route::delete('events/{event}/discounts/{discount}', [DiscountController::class, 'destroy'])->whereNumber('discount')->name('events.discounts.destroy');
 
         // Waitlist — who's waiting for a sold-out event + invite them back.
-        Route::get('events/{event}/waitlist', [\App\Http\Controllers\Host\WaitlistController::class, 'index'])->name('events.waitlist');
-        Route::post('events/{event}/waitlist/notify-all', [\App\Http\Controllers\Host\WaitlistController::class, 'notifyAll'])->name('events.waitlist.notify-all');
-        Route::post('events/{event}/waitlist/{entry}/notify', [\App\Http\Controllers\Host\WaitlistController::class, 'notify'])->whereNumber('entry')->name('events.waitlist.notify');
+        Route::get('events/{event}/waitlist', [App\Http\Controllers\Host\WaitlistController::class, 'index'])->name('events.waitlist');
+        Route::post('events/{event}/waitlist/notify-all', [App\Http\Controllers\Host\WaitlistController::class, 'notifyAll'])->name('events.waitlist.notify-all');
+        Route::post('events/{event}/waitlist/{entry}/notify', [App\Http\Controllers\Host\WaitlistController::class, 'notify'])->whereNumber('entry')->name('events.waitlist.notify');
 
         // Orders + refunds.
         Route::get('events/{event}/orders', [OrderController::class, 'index'])->name('events.orders');
         Route::post('events/{event}/orders/{order}/refund', [OrderController::class, 'refund'])->name('events.orders.refund');
 
         // Organizer money views: invoices (payout + per-event attendee invoices) + finance overview.
-        Route::get('invoices', [\App\Http\Controllers\Host\InvoiceController::class, 'index'])->name('invoices.index');
-        Route::get('invoices/events/{event}', [\App\Http\Controllers\Host\InvoiceController::class, 'event'])->name('invoices.event');
-        Route::get('finance', [\App\Http\Controllers\Host\FinanceController::class, 'index'])->name('finance.index');
+        Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('invoices/events/{event}', [InvoiceController::class, 'event'])->name('invoices.event');
+        Route::get('finance', [App\Http\Controllers\Host\FinanceController::class, 'index'])->name('finance.index');
 
         // Refund queue — approve/decline buyers' refund requests on the organizer's events.
-        Route::get('refunds', [\App\Http\Controllers\Host\RefundController::class, 'index'])->name('refunds.index');
-        Route::post('refunds/{refundRequest}/approve', [\App\Http\Controllers\Host\RefundController::class, 'approve'])->name('refunds.approve');
-        Route::post('refunds/{refundRequest}/decline', [\App\Http\Controllers\Host\RefundController::class, 'decline'])->name('refunds.decline');
+        Route::get('refunds', [RefundController::class, 'index'])->name('refunds.index');
+        Route::post('refunds/{refundRequest}/approve', [RefundController::class, 'approve'])->name('refunds.approve');
+        Route::post('refunds/{refundRequest}/decline', [RefundController::class, 'decline'])->name('refunds.decline');
 
         // Seating & table management.
         Route::get('events/{event}/seating', [SeatingController::class, 'index'])->name('events.seating');
@@ -300,9 +326,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('events/{event}/seating/auto-assign', [SeatingController::class, 'autoAssign'])->name('events.seating.auto-assign');
 
         // Team — collaborators who can help manage this account's events.
-        Route::get('team', [\App\Http\Controllers\Host\TeamController::class, 'index'])->name('team.index');
-        Route::post('team', [\App\Http\Controllers\Host\TeamController::class, 'store'])->middleware('throttle:posting')->name('team.store');
-        Route::delete('team/{member}', [\App\Http\Controllers\Host\TeamController::class, 'destroy'])->whereNumber('member')->name('team.destroy');
+        Route::get('team', [TeamController::class, 'index'])->name('team.index');
+        Route::post('team', [TeamController::class, 'store'])->middleware('throttle:posting')->name('team.store');
+        Route::delete('team/{member}', [TeamController::class, 'destroy'])->whereNumber('member')->name('team.destroy');
 
         // Payouts (the organizer's own balance + requests).
         Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
@@ -312,7 +338,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     });
 
     // Headless CMS — superadmin or staff granted the Content section.
-    Route::middleware(['role:superadmin|staff', \App\Http\Middleware\EnsureSectionAccess::class])->prefix('admin/cms')->name('admin.cms.')->group(function () {
+    Route::middleware(['role:superadmin|staff', EnsureSectionAccess::class])->prefix('admin/cms')->name('admin.cms.')->group(function () {
         Route::get('pages', [CmsPageController::class, 'index'])->name('pages.index');
         Route::get('pages/create', [CmsPageController::class, 'create'])->name('pages.create');
         Route::post('pages', [CmsPageController::class, 'store'])->name('pages.store');
@@ -347,7 +373,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
     });
 
     // Platform administration — superadmin (full) or staff, gated per section.
-    Route::middleware(['role:superadmin|staff', \App\Http\Middleware\EnsureSectionAccess::class])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['role:superadmin|staff', EnsureSectionAccess::class])->prefix('admin')->name('admin.')->group(function () {
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
         Route::get('analytics/export', [AdminAnalyticsController::class, 'export'])->name('analytics.export');
@@ -363,7 +389,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('organizer-fees/{user}', [OrganizerFeeController::class, 'update'])->name('organizer-fees.update');
         Route::delete('organizer-fees/{user}', [OrganizerFeeController::class, 'destroy'])->name('organizer-fees.destroy');
         // Broadcast an in-app notification to an audience.
-        Route::post('broadcast', [\App\Http\Controllers\Admin\BroadcastController::class, 'store'])->name('broadcast');
+        Route::post('broadcast', [BroadcastController::class, 'store'])->name('broadcast');
 
         // Event categories (used across discovery + event creation).
         Route::get('categories', [EventCategoryController::class, 'index'])->name('categories.index');
@@ -380,6 +406,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
 
         // Per-event SEO manager.
         Route::get('seo/events', [EventSeoController::class, 'index'])->name('seo.events');
+        Route::post('seo/templates', [EventSeoController::class, 'saveTemplates'])->name('seo.templates.save');
         Route::get('seo/events/{event}', [EventSeoController::class, 'edit'])->name('seo.events.edit');
         Route::put('seo/events/{event}', [EventSeoController::class, 'update'])->name('seo.events.update');
         Route::get('all-events', [AdminEventsController::class, 'index'])->name('events.index');
@@ -407,7 +434,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
 
         // Refund oversight + reconciliation across all organizers.
-        Route::get('refunds', [\App\Http\Controllers\Admin\RefundController::class, 'index'])->name('refunds.index');
+        Route::get('refunds', [App\Http\Controllers\Admin\RefundController::class, 'index'])->name('refunds.index');
 
         // Archive — soft-deleted items across the platform (restore / permanent delete).
         Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
@@ -445,6 +472,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsureAboutYou::clas
         Route::post('site/blog', [AdminSiteController::class, 'saveBlog'])->name('site.blog.save');
 
         Route::get('site/home-seo', [AdminSiteController::class, 'homeSeo'])->name('site.home-seo');
+        // The blog INDEX had no editable SEO at all — posts carry their own.
+        Route::get('site/blog-seo', [AdminSiteController::class, 'blogSeo'])->name('site.blog-seo');
+        Route::post('site/blog-seo', [AdminSiteController::class, 'saveBlogSeo'])->name('site.blog-seo.save');
         Route::post('site/home-seo', [AdminSiteController::class, 'saveHomeSeo'])->name('site.home-seo.save');
         // Dedicated editor for the landing SEO text block.
         Route::get('site/seo-text', [AdminSiteController::class, 'seoText'])->name('site.seo-text');

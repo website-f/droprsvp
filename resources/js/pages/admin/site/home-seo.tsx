@@ -17,7 +17,14 @@ function Count({ value, max }: { value: string; max: number }) {
     return <span className={`text-xs ${len > max ? 'text-destructive' : 'text-muted-foreground'}`}>{len}/{max}</span>;
 }
 
-export default function HomeSeoSettings({ seo, defaultImage }: { seo: HomeSeo; defaultImage: string }) {
+interface PageMeta { title: string; description: string; action: string; previewUrl: string }
+
+/**
+ * Shared by the homepage and the blog index — identical fields, so one screen
+ * rather than two copies that drift apart. `page` overrides the labels and the
+ * endpoint; without it this is the homepage editor it has always been.
+ */
+export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: HomeSeo; defaultImage: string; page?: PageMeta }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const [baseUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
     const fileRef = useRef<HTMLInputElement>(null);
@@ -44,16 +51,16 @@ export default function HomeSeoSettings({ seo, defaultImage }: { seo: HomeSeo; d
         }
     };
 
-    const save = () => form.post('/admin/site/home-seo', { preserveScroll: true });
+    const save = () => form.post(page?.action ?? '/admin/site/home-seo', { preserveScroll: true });
 
     return (
         <>
-            <Head title="Homepage SEO" />
+            <Head title={page?.title ?? 'Homepage SEO'} />
             <div className="mx-auto w-full max-w-3xl flex-1 p-4">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Homepage SEO</h1>
-                        <p className="text-sm text-muted-foreground">The landing page design is fixed — here you tune how it appears in search &amp; social.</p>
+                        <h1 className="text-2xl font-bold tracking-tight">{page?.title ?? 'Homepage SEO'}</h1>
+                        <p className="text-sm text-muted-foreground">{page?.description ?? 'The landing page design is fixed — here you tune how it appears in search & social.'}</p>
                     </div>
                     <Button onClick={save} disabled={processing}>Save changes</Button>
                 </div>

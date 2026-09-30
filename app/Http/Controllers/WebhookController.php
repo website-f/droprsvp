@@ -29,7 +29,7 @@ class WebhookController extends Controller
         if (! empty($parsed['reference']) && $parsed['paid']) {
             $order = Order::where('reference', $parsed['reference'])->first();
             if ($order) {
-                $checkout->markPaid($order, $parsed['payment_ref'] ?? null);
+                $checkout->markPaid($order, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
             }
         }
 
@@ -48,7 +48,7 @@ class WebhookController extends Controller
         if (! empty($parsed['reference']) && $parsed['paid']) {
             $promo = Promotion::where('reference', $parsed['reference'])->first();
             if ($promo) {
-                $promotions->settle($promo, $parsed['payment_ref'] ?? null);
+                $promotions->settle($promo, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
             }
         }
 
@@ -67,7 +67,7 @@ class WebhookController extends Controller
         if (! empty($parsed['reference']) && $parsed['paid']) {
             $sub = Subscription::where('reference', $parsed['reference'])->first();
             if ($sub) {
-                $membership->settle($sub, $parsed['payment_ref'] ?? null);
+                $membership->settle($sub, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
             }
         }
 

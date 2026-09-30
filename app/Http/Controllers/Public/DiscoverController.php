@@ -13,6 +13,7 @@ use App\Support\SiteContent;
 use App\Support\Url;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 
 class DiscoverController extends Controller
@@ -168,15 +169,23 @@ class DiscoverController extends Controller
             // foot-of-page SEO text block, both admin-editable.
             'hero' => $eventsPage['hero'],
             'featured' => $featured,
-            'seoText' => $eventsPage['seo_text'],
+            // The generic block belongs to the unfiltered page only. It used to
+            // render on every category too, so "Arts" and "Tech" both carried
+            // identical copy — which is duplicate content in Google's eyes and
+            // tells a reader nothing about the category they chose. A category
+            // page shows its own text instead (see categoryContent below).
+            'seoText' => $categoryModel ? null : $eventsPage['seo_text'],
             // Breadcrumb trail for the page header (Home / Events / City / Category),
             // as relative paths for Inertia links.
             'breadcrumbs' => $this->uiBreadcrumb($cityName, $citySlug, $categoryModel),
             // SEO copy shown (truncated, "see more") at the bottom of the page.
-            'categoryContent' => $categoryModel
-                ? ($categoryModel->content ? [['name' => $categoryModel->name, 'content' => $categoryModel->content]] : [])
-                : EventCategory::whereNotNull('content')->where('content', '!=', '')->orderBy('sort_order')->orderBy('name')
-                    ->get(['name', 'content'])->map(fn ($c) => ['name' => $c->name, 'content' => $c->content])->all(),
+            // On a category page: that category's own copy, which is the block the
+            // reader actually gets. On the unfiltered page: nothing, because the
+            // generic seoText above already covers it and listing every
+            // category's copy there was a wall of text.
+            'categoryContent' => $categoryModel && $categoryModel->content
+                ? [['name' => $categoryModel->name, 'content' => $categoryModel->content]]
+                : [],
         ]);
     }
 
@@ -298,7 +307,7 @@ class DiscoverController extends Controller
      * Mirrors what the React cards show — title, when, venue, city, category —
      * so it is the same content, not a keyword-stuffed alternative version.
      */
-    private function crawlableListing(string $heading, ?string $intro, \Illuminate\Support\Collection $events): string
+    private function crawlableListing(string $heading, ?string $intro, Collection $events): string
     {
         $html = '<h1>'.e($heading).'</h1>';
 
