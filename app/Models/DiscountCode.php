@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,7 @@ class DiscountCode extends Model
 {
     protected $fillable = [
         'event_id', 'code', 'kind', 'value', 'min_subtotal', 'max_redemptions', 'redemptions',
-        'starts_at', 'ends_at', 'is_active',
+        'starts_at', 'ends_at', 'is_active', 'is_public',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class DiscountCode extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
         ];
     }
 
@@ -32,6 +34,35 @@ class DiscountCode extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Codes the event page may advertise: flagged public, switched on, inside
+     * their window, and not already used up.
+     *
+     * Deliberately the same conditions rejectionReason() enforces, minus the
+     * minimum spend — a code with a minimum is still worth showing, it just
+     * comes with a condition the page states alongside it. Showing a code that
+     * would be refused for any of the OTHER reasons would be worse than showing
+     * none: the buyer types it in and is told no.
+     */
+    public function scopeAdvertisable(Builder $query): Builder
+    {
+        $now = now();
+
+        return $query->where('is_public', true)
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
+            ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now))
+            ->where(fn ($q) => $q->whereNull('max_redemptions')->orWhereColumn('redemptions', '<', 'max_redemptions'));
+    }
+
+    /** "20% off" / "RM10 off" — how the discount reads to a buyer. */
+    public function offerLabel(): string
+    {
+        return $this->kind === 'fixed'
+            ? 'RM'.rtrim(rtrim(number_format((float) $this->value, 2), '0'), '.').' off'
+            : rtrim(rtrim(number_format((float) $this->value, 2), '0'), '.').'% off';
     }
 
     /** Why this code can't be used on a given subtotal (null = it's good). */

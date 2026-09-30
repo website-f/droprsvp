@@ -37,6 +37,10 @@ class EventController extends Controller
             // seat-section-backed ones are bought through the seat map instead.
             'ticketTypes' => fn ($q) => $q->where('is_active', true)->whereNull('seat_section_id')->orderBy('sort_order'),
             'seatSections' => fn ($q) => $q->orderBy('sort_order')->with(['seats' => fn ($s) => $s->orderBy('sort_order'), 'ticketType']),
+            // Promo codes the organizer chose to advertise. A code nobody can
+            // discover is only useful if the organizer posts it somewhere else;
+            // this is the platform's own way to run a visible offer.
+            'discountCodes' => fn ($q) => $q->advertisable()->orderBy('id'),
         ]);
 
         $description = $this->metaDescription($event);
@@ -180,6 +184,19 @@ class EventController extends Controller
                     'remaining' => $t->remaining(),
                 ]),
             ],
+            // Only ever public codes — scopeAdvertisable does the filtering, so a
+            // private partner code can never reach the page payload.
+            'offers' => $event->discountCodes->map(fn ($code) => [
+                'code' => $code->code,
+                'label' => $code->offerLabel(),
+                'min_subtotal' => $code->min_subtotal !== null ? (float) $code->min_subtotal : null,
+                'ends_at' => $code->ends_at?->setTimezone($event->timezone)->format('j M Y'),
+                // What is left when the organizer capped it — the scarcity is
+                // real and worth stating, but only when it is getting close.
+                'remaining' => $code->max_redemptions !== null
+                    ? max(0, $code->max_redemptions - $code->redemptions)
+                    : null,
+            ])->values(),
             'seo' => [
                 'title' => $seo?->seo_title ?: $event->title,
             ],

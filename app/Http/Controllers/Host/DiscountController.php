@@ -64,6 +64,7 @@ class DiscountController extends Controller
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'is_active' => ['boolean'],
+            'is_public' => ['boolean'],
         ]);
         $data['code'] = strtoupper($data['code']);
 
@@ -82,6 +83,7 @@ class DiscountController extends Controller
             'min_subtotal' => $c->min_subtotal !== null ? (float) $c->min_subtotal : null,
             'max_redemptions' => $c->max_redemptions,
             'is_active' => $c->is_active,
+            'is_public' => $c->is_public,
             'starts_at' => optional($c->starts_at)->toDateString(),
             'ends_at' => optional($c->ends_at)->toDateString(),
             'stats' => [

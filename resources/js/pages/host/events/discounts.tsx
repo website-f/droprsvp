@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Plus, Tag, Ticket, Trash2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Eye, Pencil, Plus, Tag, Ticket, Trash2, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { AppSelect } from '@/components/ui/app-select';
@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 
 interface Code {
     id: number; code: string; kind: 'percent' | 'fixed'; value: number; min_subtotal: number | null;
-    max_redemptions: number | null; is_active: boolean; starts_at: string | null; ends_at: string | null;
+    max_redemptions: number | null; is_active: boolean; is_public: boolean; starts_at: string | null; ends_at: string | null;
     stats: { redemptions: number; revenue: number; discount_given: number };
 }
 interface EventInfo { title: string; slug: string; currency: string }
@@ -19,8 +19,8 @@ interface EventInfo { title: string; slug: string; currency: string }
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type FormData = { code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string; max_redemptions: string; starts_at: string; ends_at: string; is_active: boolean };
-const blank: FormData = { code: '', kind: 'percent', value: '', min_subtotal: '', max_redemptions: '', starts_at: '', ends_at: '', is_active: true };
+type FormData = { code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string; max_redemptions: string; starts_at: string; ends_at: string; is_active: boolean; is_public: boolean };
+const blank: FormData = { code: '', kind: 'percent', value: '', min_subtotal: '', max_redemptions: '', starts_at: '', ends_at: '', is_active: true, is_public: false };
 
 export default function Discounts({ event, codes }: { event: EventInfo; codes: Code[] }) {
     const confirm = useConfirm();
@@ -33,7 +33,7 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
         } else {
             form.setData({
                 code: c.code, kind: c.kind, value: String(c.value), min_subtotal: c.min_subtotal != null ? String(c.min_subtotal) : '',
-                max_redemptions: c.max_redemptions != null ? String(c.max_redemptions) : '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '', is_active: c.is_active,
+                max_redemptions: c.max_redemptions != null ? String(c.max_redemptions) : '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '', is_active: c.is_active, is_public: c.is_public,
             });
         }
 
@@ -90,6 +90,7 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
                                             <span className="font-mono text-base font-semibold">{c.code}</span>
                                             <Badge variant="secondary">{label(c)}</Badge>
                                             {c.is_active ? <Badge>Active</Badge> : <Badge variant="outline">Off</Badge>}
+                                            {c.is_public && <Badge variant="secondary"><Eye className="size-3" /> On event page</Badge>}
                                         </div>
                                         <div className="mt-1 text-xs text-muted-foreground">
                                             {c.min_subtotal ? `Min spend ${rm(c.min_subtotal)} · ` : ''}
@@ -160,6 +161,16 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
                         <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
                             <span className="text-sm">Active</span>
                             <Switch checked={form.data.is_active} onCheckedChange={(v) => form.setData('is_active', v)} />
+                        </label>
+                        <label className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+                            <span className="min-w-0">
+                                <span className="block text-sm">Show on event page</span>
+                                <span className="block text-xs text-muted-foreground">
+                                    Advertise it publicly, so buyers can apply it in one tap. Leave off for a
+                                    private code you hand out yourself.
+                                </span>
+                            </span>
+                            <Switch checked={form.data.is_public} onCheckedChange={(v) => form.setData('is_public', v)} />
                         </label>
                         <DialogFooter className="mt-1 gap-2">
                             <Button type="button" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>

@@ -33,6 +33,9 @@ class CheckoutController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:0'],
             'seats' => ['nullable', 'array'],
             'seats.*' => ['integer'],
+            // Carried over when the buyer tapped an advertised offer on the
+            // event page, so they don't have to retype what they just read.
+            'code' => ['nullable', 'string', 'max:60'],
         ]);
 
         // Intent-to-buy = a click on this event.
@@ -44,6 +47,20 @@ class CheckoutController extends Controller
         // is a capability, so only this session (or the authenticated owner) may
         // view/pay it.
         $this->rememberOrder($request, $order);
+
+        // Apply a code the buyer brought with them. Never fatal: the order is
+        // already created and holding stock, so a code that turns out not to
+        // apply (a minimum spend they haven't met, or one that ran out between
+        // the page load and the tap) has to leave them on the checkout page
+        // with an explanation, not lose the order.
+        if ($code = trim((string) ($data['code'] ?? ''))) {
+            try {
+                $this->checkout->applyDiscount($order, $code);
+            } catch (ValidationException $e) {
+                return redirect()->route('checkout.show', $order)
+                    ->with('flash_warning', $e->validator->errors()->first('code'));
+            }
+        }
 
         return redirect()->route('checkout.show', $order);
     }

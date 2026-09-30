@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
+import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Tag, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
@@ -80,7 +80,16 @@ function StarInput({ value, onChange }: { value: number; onChange: (v: number) =
     );
 }
 
-export default function PublicEvent({ event, seo, participants, discussion, reviews, viewer }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer }) {
+interface Offer {
+    code: string;
+    /** "20% off" / "RM10 off". */
+    label: string;
+    min_subtotal: number | null;
+    ends_at: string | null;
+    remaining: number | null;
+}
+
+export default function PublicEvent({ event, seo, participants, discussion, reviews, viewer, offers = [] }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer; offers?: Offer[] }) {
     const [qty, setQty] = useState<Record<number, number>>({});
     const [submitting, setSubmitting] = useState(false);
     const [tab, setTab] = useState<Tab>('about');
@@ -133,6 +142,11 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
 
     // Surface sold-out / limit / seat errors (from CheckoutService validation) as a
     // toast — otherwise the page just silently re-renders and the buyer is left guessing.
+    // The advertised code the buyer tapped, carried through to checkout so they
+    // never have to retype what the page just showed them. Null = none chosen;
+    // they can still type any code at checkout as before.
+    const [chosenCode, setChosenCode] = useState<string | null>(null);
+
     const checkoutOpts = {
         onFinish: () => setSubmitting(false),
         onError: (errors: Record<string, string>) =>
@@ -153,7 +167,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                 return;
             }
 
-            router.post(`/e/${event.slug}/checkout`, { seats: [...selectedSeats], items }, checkoutOpts);
+            router.post(`/e/${event.slug}/checkout`, { seats: [...selectedSeats], items, code: chosenCode }, checkoutOpts);
 
             return;
         }
@@ -166,7 +180,7 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
             return;
         }
 
-        router.post(`/e/${event.slug}/checkout`, { items }, checkoutOpts);
+        router.post(`/e/${event.slug}/checkout`, { items, code: chosenCode }, checkoutOpts);
     };
 
     const post = (parentId: number | null) => {
@@ -557,6 +571,54 @@ export default function PublicEvent({ event, seo, participants, discussion, revi
                     <aside id="tickets" className="min-w-0 lg:sticky lg:top-6 lg:self-start">
                         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                             <h2 className="mb-4 font-semibold">{event.seating_enabled ? 'Choose your seats' : 'Tickets'}</h2>
+
+                            {/* Advertised promo codes.
+                                Only codes the organizer flagged public and that
+                                are currently redeemable reach this array — the
+                                server filters, so a private partner code is
+                                never in the payload to begin with. Tapping one
+                                selects it; it is applied server-side the moment
+                                the order opens, and the checkout page shows it
+                                applied with the total already reduced. */}
+                            {offers.length > 0 && (
+                                <div className="mb-4 grid gap-2">
+                                    {offers.map((offer) => {
+                                        const chosen = chosenCode === offer.code;
+
+                                        return (
+                                            <button
+                                                key={offer.code}
+                                                type="button"
+                                                aria-pressed={chosen}
+                                                onClick={() => setChosenCode(chosen ? null : offer.code)}
+                                                className={`flex w-full items-center gap-3 rounded-xl border border-dashed p-3 text-left transition-colors ${
+                                                    chosen
+                                                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
+                                                        : 'border-border hover:border-foreground/40'
+                                                }`}
+                                            >
+                                                <Tag className={`size-4 shrink-0 ${chosen ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="flex flex-wrap items-baseline gap-x-2">
+                                                        <span className="font-mono text-sm font-semibold">{offer.code}</span>
+                                                        <span className="text-sm text-muted-foreground">{offer.label}</span>
+                                                    </span>
+                                                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                                                        {[
+                                                            offer.min_subtotal ? `On orders over RM${offer.min_subtotal.toFixed(2)}` : null,
+                                                            offer.ends_at ? `Ends ${offer.ends_at}` : null,
+                                                            offer.remaining !== null && offer.remaining <= 20 ? `${offer.remaining} left` : null,
+                                                        ].filter(Boolean).join(' · ') || 'Applied at checkout'}
+                                                    </span>
+                                                </span>
+                                                <span className={`shrink-0 text-xs font-semibold ${chosen ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                                                    {chosen ? 'Added' : 'Use'}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             {event.seating_enabled ? (
                                 event.seating.length === 0

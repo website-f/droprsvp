@@ -39,6 +39,7 @@ interface EventProp {
     // *_local are the same instants in the EVENT's timezone, computed server-side
     // for the datetime-local inputs, which carry no timezone of their own.
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; starts_at_local?: string | null; ends_at_local?: string | null; capacity: number | null }>;
+    discount_codes?: Array<{ id: number; code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string | null; max_redemptions: number | null; starts_at: string | null; ends_at: string | null; is_active: boolean; is_public: boolean; redemptions: number }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
     seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null; rotation?: number | null }>;
     seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number; rotation?: number }>;
@@ -92,6 +93,19 @@ function readImageMeta(file: File): Promise<{ w: number; h: number; size: number
 }
 
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
+interface DiscountRow {
+    id?: number; code: string; kind: 'percent' | 'fixed'; value: string;
+    min_subtotal: string; max_redemptions: string; starts_at: string; ends_at: string;
+    is_active: boolean; is_public: boolean;
+    /** Read-only, from the server — a redeemed code can't simply be deleted. */
+    redemptions?: number;
+}
+
+const emptyDiscount = (): DiscountRow => ({
+    code: '', kind: 'percent', value: '', min_subtotal: '', max_redemptions: '',
+    starts_at: '', ends_at: '', is_active: true, is_public: true,
+});
+
 const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
 interface PlatformFeeInfo { percent: number; flat: number; label: string; custom: boolean; min_ticket_price: number }
@@ -129,6 +143,14 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         publish: false,
         custom_fields: ((event?.custom_fields ?? []) as CustomField[]),
         sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: s.starts_at_local ?? dt(s.starts_at), ends_at: s.ends_at_local ?? dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
+        discounts: (event?.discount_codes ?? []).map((d): DiscountRow => ({
+            id: d.id, code: d.code, kind: d.kind, value: String(d.value),
+            min_subtotal: d.min_subtotal != null ? String(d.min_subtotal) : '',
+            max_redemptions: d.max_redemptions != null ? String(d.max_redemptions) : '',
+            starts_at: d.starts_at ? String(d.starts_at).slice(0, 10) : '',
+            ends_at: d.ends_at ? String(d.ends_at).slice(0, 10) : '',
+            is_active: d.is_active, is_public: d.is_public, redemptions: d.redemptions,
+        })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
         sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0' })),
     });
@@ -261,6 +283,17 @@ return;
         setData('sessions', data.sessions.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
     const patchTicket = (i: number, key: keyof TicketRow, val: string | boolean) =>
         setData('ticketTypes', data.ticketTypes.map((t, idx) => (idx === i ? { ...t, [key]: val } : t)));
+
+    const updateDiscount = (index: number, patch: Partial<DiscountRow>) =>
+        setData('discounts', data.discounts.map((d, i) => (i === index ? { ...d, ...patch } : d)));
+
+    const removeDiscount = (index: number) =>
+        setData('discounts', data.discounts.filter((_, i) => i !== index));
+
+    /** Server-side error for one field of one promo row, e.g. discounts.2.code. */
+    const discountError = (index: number, key: string): string | undefined =>
+        (errors as unknown as Record<string, string | undefined>)[`discounts.${index}.${key}`];
+
 
     const saveTemplate = async () => {
         const name = await prompt({ title: 'Save seating template', label: 'Template name', placeholder: 'e.g. Main Hall 400', confirmText: 'Save' });
@@ -747,6 +780,119 @@ form.post('/host/events', options);
                         onChange={(next) => setData('custom_fields', next)}
                         errors={errors as unknown as Record<string, string>}
                     />
+                </section>
+
+                {/* Promo codes.
+                    Lives in the builder rather than only on its own screen so a
+                    launch offer can be set up with the event, instead of being
+                    something you only discover exists after publishing. The
+                    standalone screen keeps the redemption + revenue reporting. */}
+                <section className="mb-6 rounded-xl border border-border bg-card p-5">
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Promo codes</h2>
+                        {event?.slug && (
+                            <a href={`/host/events/${event.slug}/discounts`} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+                                Redemption report &rarr;
+                            </a>
+                        )}
+                    </div>
+                    <p className="mb-4 text-xs text-muted-foreground">
+                        Buyers enter these at checkout. Turn on &ldquo;Show on event page&rdquo; to advertise one publicly;
+                        leave it off for a private code you share yourself.
+                    </p>
+
+                    {data.discounts.length === 0 && (
+                        <p className="mb-3 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                            No promo codes. Add one to run an early-bird or partner offer.
+                        </p>
+                    )}
+
+                    <div className="grid gap-3">
+                        {data.discounts.map((d, i) => (
+                            <div key={d.id ?? `new-${i}`} className="grid gap-3 rounded-lg border border-border p-3">
+                                <div className="flex flex-wrap items-start gap-3">
+                                    <div className="grid min-w-0 flex-1 gap-1.5">
+                                        <Label htmlFor={`discount-code-${i}`} className="text-xs">Code</Label>
+                                        <input
+                                            id={`discount-code-${i}`}
+                                            className={field + ' font-mono uppercase'}
+                                            value={d.code}
+                                            placeholder="EARLYBIRD"
+                                            onChange={(e) => updateDiscount(i, { code: e.target.value.toUpperCase().replace(/[^A-Z0-9._-]/g, '') })}
+                                        />
+                                        {discountError(i, 'code') && <p className="text-xs text-destructive">{discountError(i, 'code')}</p>}
+                                    </div>
+                                    <div className="grid w-28 gap-1.5">
+                                        <Label className="text-xs">Type</Label>
+                                        <AppSelect
+                                            value={d.kind}
+                                            onChange={(v) => updateDiscount(i, { kind: v as DiscountRow['kind'] })}
+                                            options={[{ value: 'percent', label: 'Percent' }, { value: 'fixed', label: 'Amount' }]}
+                                        />
+                                    </div>
+                                    <div className="grid w-28 gap-1.5">
+                                        <Label htmlFor={`discount-value-${i}`} className="text-xs">{d.kind === 'percent' ? 'Percent off' : 'RM off'}</Label>
+                                        <input
+                                            id={`discount-value-${i}`}
+                                            type="number" step="0.01" min="0.01" max={d.kind === 'percent' ? 100 : undefined}
+                                            className={field}
+                                            value={d.value}
+                                            onChange={(e) => updateDiscount(i, { value: e.target.value })}
+                                        />
+                                        {discountError(i, 'value') && <p className="text-xs text-destructive">{discountError(i, 'value')}</p>}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeDiscount(i)}
+                                        aria-label={`Remove ${d.code || 'promo code'}`}
+                                        className="mt-6 flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </button>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-4">
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor={`discount-min-${i}`} className="text-xs">Min spend (RM)</Label>
+                                        <input id={`discount-min-${i}`} type="number" step="0.01" min="0" className={field} value={d.min_subtotal} placeholder="Any" onChange={(e) => updateDiscount(i, { min_subtotal: e.target.value })} />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor={`discount-max-${i}`} className="text-xs">Max uses</Label>
+                                        <input id={`discount-max-${i}`} type="number" min="1" className={field} value={d.max_redemptions} placeholder="Unlimited" onChange={(e) => updateDiscount(i, { max_redemptions: e.target.value })} />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor={`discount-from-${i}`} className="text-xs">Starts</Label>
+                                        <input id={`discount-from-${i}`} type="date" className={field} value={d.starts_at} onChange={(e) => updateDiscount(i, { starts_at: e.target.value })} />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor={`discount-to-${i}`} className="text-xs">Ends</Label>
+                                        <input id={`discount-to-${i}`} type="date" className={field} value={d.ends_at} onChange={(e) => updateDiscount(i, { ends_at: e.target.value })} />
+                                        {discountError(i, 'ends_at') && <p className="text-xs text-destructive">{discountError(i, 'ends_at')}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <div className="rounded-lg border border-border p-3">
+                                        <SwitchField checked={d.is_active} onCheckedChange={(v) => updateDiscount(i, { is_active: v })} label="Active" description="Off pauses the code without deleting it." />
+                                    </div>
+                                    <div className="rounded-lg border border-border p-3">
+                                        <SwitchField checked={d.is_public} onCheckedChange={(v) => updateDiscount(i, { is_public: v })} label="Show on event page" description="Advertise it publicly so buyers can apply it in one tap." />
+                                    </div>
+                                </div>
+
+                                {(d.redemptions ?? 0) > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Used {d.redemptions} time{d.redemptions === 1 ? '' : 's'}. Removing it here switches it off
+                                        rather than deleting it, so those orders keep their record.
+                                    </p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setData('discounts', [...data.discounts, emptyDiscount()])}>
+                        <Plus className="size-3.5" /> Add promo code
+                    </Button>
                 </section>
 
                 {/* Event page sections */}

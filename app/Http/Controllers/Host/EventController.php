@@ -80,6 +80,9 @@ class EventController extends Controller
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
         $data = $this->sessionsToUtc($data);
         $this->assertTicketPricesCoverTheFee($data, $request->user());
+        // Before the event row exists: a bad promo payload must not leave a
+        // half-created event behind.
+        $this->assertDiscountCodesAreValid($data['discounts'] ?? [], null);
 
         $event = new Event($this->eventAttributes($data));
         $event->user_id = $request->user()->id;
@@ -88,6 +91,7 @@ class EventController extends Controller
 
         $this->syncSessions($event, $data['sessions'] ?? []);
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
+        $this->syncDiscountCodes($event, $data['discounts'] ?? []);
         $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
         $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
         $this->syncProps($event, $data['ticketing_mode'] === 'tables' ? ($data['props'] ?? []) : []);
@@ -101,7 +105,7 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
-        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats'), 'seatingTables' => fn ($q) => $q->orderBy('sort_order'), 'props']);
+        $event->load(['sessions', 'ticketTypes' => fn ($q) => $q->whereNull('seat_section_id'), 'seatSections' => fn ($q) => $q->withCount('seats'), 'seatingTables' => fn ($q) => $q->orderBy('sort_order'), 'props', 'discountCodes' => fn ($q) => $q->orderBy('id')]);
 
         // Hand the datetime-local inputs the event's OWN local time. They are
         // stored in UTC (see sessionsToUtc) and the input has no timezone, so
@@ -135,10 +139,12 @@ class EventController extends Controller
         // editing on someone's behalf must not be measured against their own rate.
         $this->assertTicketPricesCoverTheFee($data, $event->user);
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
+        $this->assertDiscountCodesAreValid($data['discounts'] ?? [], $event);
         $event->fill($this->eventAttributes($data))->save();
 
         $this->syncSessions($event, $data['sessions'] ?? []);
         $this->syncTicketTypes($event, $data['ticketTypes'] ?? []);
+        $this->syncDiscountCodes($event, $data['discounts'] ?? []);
         $this->syncSeatSections($event, $data['ticketing_mode'] === 'reserved' ? ($data['sections'] ?? []) : []);
         $this->syncTables($event, $data['ticketing_mode'] === 'tables' ? ($data['tables'] ?? []) : []);
         $this->syncProps($event, $data['ticketing_mode'] === 'tables' ? ($data['props'] ?? []) : []);
@@ -396,6 +402,21 @@ class EventController extends Controller
             'sessions.*.ends_at' => ['nullable', 'date', 'after_or_equal:sessions.*.starts_at'],
             'sessions.*.capacity' => ['nullable', 'integer', 'min:0'],
 
+            // Promo codes, created alongside the event rather than only on the
+            // separate screen — see syncDiscountCodes for why uniqueness is
+            // checked there rather than with a Rule::unique here.
+            'discounts' => ['array', 'max:50'],
+            'discounts.*.id' => ['nullable', 'integer'],
+            'discounts.*.code' => ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'discounts.*.kind' => ['required', 'in:percent,fixed'],
+            'discounts.*.value' => ['required', 'numeric', 'min:0.01'],
+            'discounts.*.min_subtotal' => ['nullable', 'numeric', 'min:0'],
+            'discounts.*.max_redemptions' => ['nullable', 'integer', 'min:1'],
+            'discounts.*.starts_at' => ['nullable', 'date'],
+            'discounts.*.ends_at' => ['nullable', 'date', 'after_or_equal:discounts.*.starts_at'],
+            'discounts.*.is_active' => ['boolean'],
+            'discounts.*.is_public' => ['boolean'],
+
             'ticketTypes' => ['array'],
             'ticketTypes.*.id' => ['nullable', 'integer'],
             'ticketTypes.*.name' => ['required', 'string', 'max:120'],
@@ -565,6 +586,90 @@ class EventController extends Controller
         }
         // Only prune MANUAL ticket types — seat-section-backed ones are managed by syncSeatSections.
         $event->ticketTypes()->whereNull('seat_section_id')->whereKeyNot($keep)->delete();
+    }
+
+    /**
+     * Check a whole promo-code payload BEFORE anything is written.
+     *
+     * Separate from syncDiscountCodes because the checks are cross-row: a
+     * payload with EARLYBIRD twice passes every per-row rule and only collides
+     * once the second one is inserted. Discovering that mid-write left the
+     * first code already created against a half-saved event, which is exactly
+     * the state a validation error is supposed to prevent.
+     *
+     * $event is null when the event is being created, in which case there are
+     * no existing codes to clash with.
+     */
+    private function assertDiscountCodesAreValid(array $rows, ?Event $event): void
+    {
+        $seen = [];
+
+        foreach (array_values($rows) as $i => $row) {
+            $code = strtoupper(trim((string) ($row['code'] ?? '')));
+
+            if (isset($seen[$code])) {
+                throw ValidationException::withMessages([
+                    "discounts.{$i}.code" => "“{$code}” is listed twice — each code may only appear once.",
+                ]);
+            }
+            $seen[$code] = true;
+
+            // A percentage over 100 would pay the buyer to attend.
+            if (($row['kind'] ?? null) === 'percent' && (float) ($row['value'] ?? 0) > 100) {
+                throw ValidationException::withMessages([
+                    "discounts.{$i}.value" => 'A percentage discount can’t be more than 100%.',
+                ]);
+            }
+
+            // Another code on this event already owns the string — including one
+            // the organizer did not have open in the builder.
+            $clash = $event?->discountCodes()
+                ->where('code', $code)
+                ->when(! empty($row['id']), fn ($q) => $q->whereKeyNot($row['id']))
+                ->exists();
+
+            if ($clash) {
+                throw ValidationException::withMessages([
+                    "discounts.{$i}.code" => "“{$code}” is already a code on this event.",
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Write the event's promo codes from the builder. Validated already — see
+     * assertDiscountCodesAreValid.
+     *
+     * A code that has already been redeemed is never silently dropped: removing
+     * it from the builder deactivates it instead of deleting it, so the orders
+     * that used it keep pointing at something and the organizer can still see
+     * it in the promo-code report. Unused codes are deleted outright.
+     */
+    private function syncDiscountCodes(Event $event, array $rows): void
+    {
+        $keep = [];
+
+        foreach (array_values($rows) as $row) {
+            $attrs = [
+                'code' => strtoupper(trim($row['code'])),
+                'kind' => $row['kind'],
+                'value' => $row['value'],
+                'min_subtotal' => $row['min_subtotal'] ?? null,
+                'max_redemptions' => $row['max_redemptions'] ?? null,
+                'starts_at' => $row['starts_at'] ?? null,
+                'ends_at' => $row['ends_at'] ?? null,
+                'is_active' => $row['is_active'] ?? true,
+                'is_public' => $row['is_public'] ?? false,
+            ];
+
+            $model = ! empty($row['id']) ? $event->discountCodes()->whereKey($row['id'])->first() : null;
+            $model ? $model->update($attrs) : $model = $event->discountCodes()->create($attrs);
+            $keep[] = $model->id;
+        }
+
+        foreach ($event->discountCodes()->whereKeyNot($keep)->get() as $code) {
+            $code->redemptions > 0 ? $code->update(['is_active' => false, 'is_public' => false]) : $code->delete();
+        }
     }
 
     /**
