@@ -383,6 +383,9 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::get('overview', [AdminOverviewController::class, 'index'])->name('overview');
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
         Route::get('analytics/export', [AdminAnalyticsController::class, 'export'])->name('analytics.export');
+        // Abandoned checkouts (before {event}, which would otherwise swallow it).
+        Route::get('analytics/abandoned', [AdminAnalyticsController::class, 'abandoned'])->name('analytics.abandoned');
+        Route::get('analytics/abandoned/export', [AdminAnalyticsController::class, 'abandonedExport'])->name('analytics.abandoned.export');
         Route::get('analytics/{event}', [AdminAnalyticsController::class, 'show'])->name('analytics.show');
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');

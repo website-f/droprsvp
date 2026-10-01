@@ -29,7 +29,7 @@ const STATUS_LABEL: Record<string, string> = {
  * the international form with no punctuation, so normalise to that — a local
  * leading 0 becomes the 60 country code.
  */
-function whatsappUrl(phone: string): string | null {
+export function whatsappUrl(phone: string): string | null {
     const digits = phone.replace(/\D+/g, '');
 
     if (digits.length < 8) {

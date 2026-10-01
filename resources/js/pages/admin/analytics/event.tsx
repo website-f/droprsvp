@@ -7,6 +7,8 @@ import { AnswerAnalytics } from '@/components/answer-analytics';
 import type { AnswerQuestion } from '@/components/answer-analytics';
 import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/components/charts';
 import type { ReachMetric } from '@/components/charts';
+import { CheckoutFunnel } from '@/components/checkout-funnel';
+import type { FunnelSummary } from '@/components/checkout-funnel';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
@@ -16,6 +18,7 @@ interface Data {
     trend: Reach[];
     demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
     answers?: AnswerQuestion[];
+    funnel: FunnelSummary;
 }
 
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -68,7 +71,15 @@ export default function AdminEventAnalytics({ data, filters, cityOptions, source
                     <Kpi icon={Wallet} label="Revenue" value={rm(data.kpis.revenue)} tint={PALETTE[6]} />
                 </div>
 
-                <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div className="mt-6">
+                    <CheckoutFunnel
+                        data={data.funnel}
+                        title={`Checkout funnel · ${filters.periodLabel}`}
+                        abandonedHref={`/admin/analytics/abandoned?${new URLSearchParams({ ...(filters.period === 'custom' ? { period: 'custom', from: filters.from, to: filters.to } : { period: filters.period }), event: data.event.slug }).toString()}`}
+                    />
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>

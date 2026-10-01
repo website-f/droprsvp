@@ -12,8 +12,12 @@ use App\Models\User;
 use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
 use App\Support\AnswerInsights;
+use App\Support\CheckoutFunnel;
+use App\Support\PlatformInsights;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnalyticsController extends Controller
@@ -44,7 +48,14 @@ class AnalyticsController extends Controller
             ->map(fn ($r) => ['name' => $r->event?->title ?? '—', 'value' => round((float) $r->revenue, 2)])
             ->all();
 
+        $impressionsInWindow = (int) EventDailyStat::whereBetween('stat_date', [$w['from_date'], $w['to_date']])->sum('impressions');
+
         return inertia('admin/analytics', [
+            // Where buyers drop out, and how many could be followed up.
+            'funnel' => CheckoutFunnel::summary($w, null, $impressionsInWindow),
+            'people' => PlatformInsights::users($w),
+            'topCustomers' => PlatformInsights::topCustomers($w, $audience),
+            'topOrganizers' => PlatformInsights::topOrganizers($w),
             'kpis' => [
                 'events' => Event::count(),
                 'published' => Event::where('status', 'published')->count(),
@@ -87,6 +98,99 @@ class AnalyticsController extends Controller
         ]);
     }
 
+    /**
+     * Abandoned checkouts: everyone who picked tickets — or went further and
+     * filled in their details — but never paid, one row per person per event,
+     * for follow-up campaigns.
+     */
+    public function abandoned(Request $request)
+    {
+        $w = AnalyticsWindow::fromRequest($request);
+        [$event, $stage, $q, $showRecovered] = $this->abandonedFilters($request);
+
+        $impressions = (int) EventDailyStat::query()
+            ->when($event, fn ($s) => $s->where('event_id', $event->id))
+            ->whereBetween('stat_date', [$w['from_date'], $w['to_date']])->sum('impressions');
+        $all = CheckoutFunnel::rows($w, $event?->id);
+        $rows = $this->filterAbandoned($all, $stage, $q, $showRecovered);
+
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 25;
+        $paginator = new LengthAwarePaginator(
+            $rows->forPage($page, $perPage)->values(),
+            $rows->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()],
+        );
+
+        return inertia('admin/analytics/abandoned', [
+            'summary' => CheckoutFunnel::summary($w, $event?->id, $impressions),
+            'trend' => CheckoutFunnel::trend($w, $event?->id),
+            'byEvent' => $event ? [] : CheckoutFunnel::byEvent($all),
+            'rows' => $paginator,
+            'event' => $event ? ['slug' => $event->slug, 'title' => $event->title] : null,
+            'filters' => [
+                'period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label'],
+                'event' => $event?->slug ?? '', 'stage' => $stage, 'q' => $q, 'recovered' => $showRecovered ? '1' : '',
+            ],
+            'stageOptions' => collect(CheckoutFunnel::STAGE_LABELS)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
+            'exportUrl' => route('admin.analytics.abandoned.export', $request->query()),
+        ]);
+    }
+
+    /** The abandoned-checkout contact list as CSV, ready for an EDM tool. */
+    public function abandonedExport(Request $request): StreamedResponse
+    {
+        $w = AnalyticsWindow::fromRequest($request);
+        [$event, $stage, $q, $showRecovered] = $this->abandonedFilters($request);
+        $rows = $this->filterAbandoned(CheckoutFunnel::rows($w, $event?->id), $stage, $q, $showRecovered);
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Name', 'Email', 'Phone', 'Event', 'Event date', 'Stage', 'Tickets', 'Items', 'Basket value', 'Currency', 'Attempts', 'Last attempt', 'Has account', 'Consent', 'City', 'Gender', 'Age', 'Heard via', 'Recovered', 'Order ref']);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r['name'], $r['email'], $r['phone'], $r['event'], $r['event_date'],
+                    CheckoutFunnel::STAGE_LABELS[$r['stage']] ?? $r['stage'],
+                    $r['tickets'], $r['items'], number_format($r['value'], 2, '.', ''), $r['currency'], $r['attempts'],
+                    $r['last_at_label'], $r['account'] ? 'yes' : 'no',
+                    match ($r['consent']) {
+                        'checkout' => 'Ticked consent at checkout',
+                        'account' => 'Registered member',
+                        default => '',
+                    },
+                    $r['city'], $r['gender'], $r['age_band'], $r['source'], $r['recovered'] ? 'yes' : 'no', $r['reference'],
+                ]);
+            }
+            fclose($out);
+        }, 'abandoned-checkouts-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /** @return array{0: ?Event, 1: string, 2: string, 3: bool} */
+    private function abandonedFilters(Request $request): array
+    {
+        $slug = (string) $request->query('event', '');
+        $event = $slug !== '' ? Event::where('slug', $slug)->first(['id', 'slug', 'title']) : null;
+        $stage = array_key_exists((string) $request->query('stage'), CheckoutFunnel::STAGE_LABELS) ? (string) $request->query('stage') : '';
+
+        return [$event, $stage, trim((string) $request->query('q', '')), $request->boolean('recovered')];
+    }
+
+    private function filterAbandoned(Collection $rows, string $stage, string $q, bool $showRecovered): Collection
+    {
+        $needle = mb_strtolower($q);
+
+        return $rows
+            ->when(! $showRecovered, fn ($c) => $c->where('recovered', false))
+            ->when($stage !== '', fn ($c) => $c->where('stage', $stage))
+            ->when($needle !== '', fn ($c) => $c->filter(fn ($r) => str_contains(
+                mb_strtolower(implode(' ', [$r['name'], $r['email'], $r['phone'], $r['event'], $r['reference']])),
+                $needle,
+            )))
+            ->values();
+    }
+
     /** One event's analytics on its own page (opened from the events table). */
     public function show(Request $request, Event $event)
     {
@@ -109,10 +213,10 @@ class AnalyticsController extends Controller
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Event', 'Status', 'Date', 'Impressions', 'Clicks', 'CTR %', 'Tickets sold', 'Revenue (RM)']);
+            fputcsv($out, ['Event', 'Status', 'Date', 'Impressions', 'Clicks', 'CTR %', 'Tickets sold', 'Revenue (RM)', 'Abandoned checkouts']);
             foreach ($rows as $e) {
                 $r = $this->eventRow($e);
-                fputcsv($out, [$r['title'], $r['status'], $r['when'] ?? '', $r['impressions'], $r['clicks'], $r['ctr'], $r['sold'], number_format($r['revenue'], 2, '.', '')]);
+                fputcsv($out, [$r['title'], $r['status'], $r['when'] ?? '', $r['impressions'], $r['clicks'], $r['ctr'], $r['sold'], number_format($r['revenue'], 2, '.', ''), $r['abandoned']]);
             }
             fclose($out);
         }, 'events-analytics-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
@@ -135,6 +239,7 @@ class AnalyticsController extends Controller
             'revenue' => 'revenue',
             'sold' => 'sold',
             'impressions' => 'impressions',
+            'abandoned' => 'abandoned',
             'title' => 'title',
             default => 'created_at',
         };
@@ -146,6 +251,10 @@ class AnalyticsController extends Controller
             ->withCount(['tickets as sold' => fn ($t) => $t->whereIn('status', ['valid', 'checked_in'])->whereBetween('created_at', [$from, $to])])
             ->withSum(['dailyStats as impressions' => fn ($s) => $s->whereBetween('stat_date', [$w['from_date'], $w['to_date']])], 'impressions')
             ->withSum(['dailyStats as clicks' => fn ($s) => $s->whereBetween('stat_date', [$w['from_date'], $w['to_date']])], 'clicks')
+            ->withCount(['orders as abandoned' => fn ($o) => $o->whereNull('paid_at')
+                ->whereIn('status', ['pending', 'cancelled', 'failed'])
+                ->where(fn ($x) => $x->where('status', '!=', 'pending')->orWhere('created_at', '<', now()->subMinutes(CheckoutFunnel::HOLD_MINUTES)))
+                ->whereBetween('created_at', [$from, $to])])
             ->withSum(['orders as revenue' => fn ($o) => $o->where('status', 'paid')->whereBetween('paid_at', [$from, $to])], \DB::raw('total - refunded_amount'))
             ->orderBy($column, $dir);
     }
@@ -181,12 +290,13 @@ class AnalyticsController extends Controller
             'ctr' => $impressions > 0 ? round($clicks / $impressions * 100, 1) : 0.0,
             'sold' => (int) ($e->sold ?? 0),
             'revenue' => round((float) ($e->revenue ?? 0), 2),
+            'abandoned' => (int) ($e->abandoned ?? 0),
         ];
     }
 
     private function sortKey(Request $request): string
     {
-        return in_array($request->query('sort'), ['revenue', 'sold', 'impressions', 'title', 'created_at'], true)
+        return in_array($request->query('sort'), ['revenue', 'sold', 'impressions', 'abandoned', 'title', 'created_at'], true)
             ? $request->query('sort') : 'created_at';
     }
 
@@ -237,6 +347,7 @@ class AnalyticsController extends Controller
                 'city' => Analytics::top((clone $paidInWindow), 'buyer_city', 6),
                 'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
+            'funnel' => CheckoutFunnel::summary($w, $event->id, (int) $event->dailyStats()->whereBetween('stat_date', [$w['from_date'], $w['to_date']])->sum('impressions')),
             // Same booking-question breakdown the organizer sees.
             'answers' => AnswerInsights::forEvent(
                 $event,

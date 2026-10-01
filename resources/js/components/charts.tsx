@@ -117,3 +117,42 @@ export function RevenueBars({ data, height = 260 }: { data: { date: string; reve
 function Empty({ height }: { height: number }) {
     return <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>No data yet</div>;
 }
+
+/** Two or more counts per day as grouped bars — e.g. paid vs abandoned checkouts. */
+export function SeriesBars({ data, series, height = 260 }: { data: Record<string, string | number>[]; series: { key: string; name: string; color: string }[]; height?: number }) {
+    'use no memo';
+
+    return (
+        <ResponsiveContainer width="100%" height={height}>
+            <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="date" tick={axisTick} tickLine={false} axisLine={false} minTickGap={24} />
+                <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--muted-foreground)' }} cursor={{ fill: 'var(--muted)', opacity: 0.4 }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                {series.map((s) => <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} radius={[4, 4, 0, 0]} />)}
+            </BarChart>
+        </ResponsiveContainer>
+    );
+}
+
+/** One count over time as a filled area — e.g. sign-ups per day. */
+export function CountArea({ data, dataKey, name, color = PALETTE[4], height = 240 }: { data: Record<string, string | number>[]; dataKey: string; name: string; color?: string; height?: number }) {
+    'use no memo';
+    const id = `g-${dataKey}`;
+
+    return (
+        <ResponsiveContainer width="100%" height={height}>
+            <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                <defs>
+                    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.35} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="date" tick={axisTick} tickLine={false} axisLine={false} minTickGap={24} />
+                <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--muted-foreground)' }} />
+                <Area type="monotone" dataKey={dataKey} name={name} stroke={color} strokeWidth={2} fill={`url(#${id})`} />
+            </AreaChart>
+        </ResponsiveContainer>
+    );
+}

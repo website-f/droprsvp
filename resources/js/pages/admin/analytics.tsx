@@ -1,18 +1,32 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowUpDown, CalendarCheck, CalendarDays, ChartColumn, Download, Eye, Search, Ticket, Users, Wallet } from 'lucide-react';
+import { ArrowUpDown, CalendarCheck, CalendarDays, ChartColumn, Download, Eye, Repeat, Search, ShoppingBag, Store, Ticket, UserPlus, Users, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { AnalyticsToolbar, AudienceFilters } from '@/components/analytics-toolbar';
-import { BarsChart, DonutChart, MetricToggle, PALETTE, RevenueBars, TrendChart } from '@/components/charts';
+import { BarsChart, CountArea, DonutChart, MetricToggle, PALETTE, RevenueBars, TrendChart } from '@/components/charts';
 import type { ReachMetric } from '@/components/charts';
+import { CheckoutFunnel } from '@/components/checkout-funnel';
+import type { FunnelSummary } from '@/components/checkout-funnel';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
-interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number }
+interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number; abandoned: number }
 interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 interface Filters { q: string; sort: string; dir: string; status: string; category: string; city: string; source: string; period: string; from: string; to: string; periodLabel: string }
+interface People {
+    kpis: { total: number; new: number; organizers: number; customers: number; customers_window: number; repeat: number; repeat_rate: number };
+    signups: { date: string; signups: number }[];
+    checkoutType: Slice[];
+    newVsReturning: Slice[];
+}
+interface Customer { name: string | null; email: string; phone: string | null; orders: number; events: number; spend: number; last: string | null }
+interface Organizer { name: string; slug: string | null; events: number; live: number; orders: number; revenue: number; fees: number }
 interface Props {
+    funnel: FunnelSummary;
+    people: People;
+    topCustomers: Customer[];
+    topOrganizers: Organizer[];
     kpis: { events: number; published: number; users: number; tickets: number; revenue: number; impressions: number };
     reach: Reach[];
     revenue: { date: string; revenue: number }[];
@@ -60,7 +74,7 @@ function Th({ label, k, activeSort, onSort, className = '' }: { label: string; k
     );
 }
 
-export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, exportUrl }: Props) {
+export default function AdminAnalytics({ funnel, people, topCustomers, topOrganizers, kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
     const [metric, setMetric] = useState<ReachMetric>('both');
 
@@ -137,11 +151,95 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                     <Panel title={`Revenue · ${filters.periodLabel}`}><RevenueBars data={revenue} /></Panel>
                 </div>
 
+                {/* Where buyers drop out */}
+                <div className="mt-4">
+                    <CheckoutFunnel data={funnel} title={`Checkout funnel · ${filters.periodLabel}`} abandonedHref={`/admin/analytics/abandoned?${windowQs}`} />
+                </div>
+
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                     <Panel title="Top events by revenue"><BarsChart data={topEvents} color={PALETTE[6]} height={260} /></Panel>
                     <Panel title="Audience age"><BarsChart data={demographics.age} color={PALETTE[2]} height={260} /></Panel>
                     <Panel title="Audience gender"><DonutChart data={demographics.gender} /></Panel>
                     <Panel title="Traffic sources"><DonutChart data={demographics.source} /></Panel>
+                </div>
+
+                {/* People: sign-ups, customers, organizers */}
+                <h2 className="mb-3 mt-8 text-base font-semibold">People</h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                    <Kpi icon={Users} label="Total users" value={people.kpis.total.toLocaleString()} tint={PALETTE[4]} />
+                    <Kpi icon={UserPlus} label={`New sign-ups · ${filters.periodLabel}`} value={people.kpis.new.toLocaleString()} tint={PALETTE[0]} />
+                    <Kpi icon={Store} label="Organizers" value={people.kpis.organizers.toLocaleString()} tint={PALETTE[1]} />
+                    <Kpi icon={ShoppingBag} label="Customers (ever)" value={people.kpis.customers.toLocaleString()} tint={PALETTE[6]} />
+                    <Kpi icon={ShoppingBag} label={`Bought · ${filters.periodLabel}`} value={people.kpis.customers_window.toLocaleString()} tint={PALETTE[2]} />
+                    <Kpi icon={Repeat} label={`Repeat customers · ${people.kpis.repeat_rate}%`} value={people.kpis.repeat.toLocaleString()} tint={PALETTE[5]} />
+                </div>
+                <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                    <Panel title={`Sign-ups · ${filters.periodLabel}`}><CountArea data={people.signups} dataKey="signups" name="Sign-ups" /></Panel>
+                    <Panel title="New vs returning buyers"><DonutChart data={people.newVsReturning} /></Panel>
+                    <Panel title="Member vs guest checkout"><DonutChart data={people.checkoutType} /></Panel>
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    <section className="rounded-2xl border border-border bg-card shadow-sm">
+                        <h2 className="border-b border-border p-4 text-sm font-semibold">Top customers · {filters.periodLabel}</h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="text-xs text-muted-foreground">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-medium">Customer</th>
+                                        <th className="px-3 py-2 text-right font-medium">Orders</th>
+                                        <th className="px-3 py-2 text-right font-medium">Events</th>
+                                        <th className="px-3 py-2 text-right font-medium">Spent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {topCustomers.length === 0 && <tr><td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">No purchases in this period.</td></tr>}
+                                    {topCustomers.map((c) => (
+                                        <tr key={c.email} className="border-t border-border/60 hover:bg-muted/40">
+                                            <td className="max-w-[220px] px-3 py-2">
+                                                <div className="truncate font-medium">{c.name || c.email}</div>
+                                                <div className="truncate text-xs text-muted-foreground">{c.email}{c.last ? ` · last ${c.last}` : ''}</div>
+                                            </td>
+                                            <td className="px-3 py-2 text-right tabular-nums">{c.orders}</td>
+                                            <td className="px-3 py-2 text-right tabular-nums">{c.events}</td>
+                                            <td className="px-3 py-2 text-right font-medium tabular-nums">{rm(c.spend)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section className="rounded-2xl border border-border bg-card shadow-sm">
+                        <h2 className="border-b border-border p-4 text-sm font-semibold">Top organizers · {filters.periodLabel}</h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="text-xs text-muted-foreground">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-medium">Organizer</th>
+                                        <th className="px-3 py-2 text-right font-medium">Events</th>
+                                        <th className="px-3 py-2 text-right font-medium">Orders</th>
+                                        <th className="px-3 py-2 text-right font-medium">Revenue</th>
+                                        <th className="px-3 py-2 text-right font-medium">Platform fee</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {topOrganizers.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">No sales in this period.</td></tr>}
+                                    {topOrganizers.map((o) => (
+                                        <tr key={o.slug ?? o.name} className="border-t border-border/60 hover:bg-muted/40">
+                                            <td className="max-w-[200px] px-3 py-2">
+                                                <div className="truncate font-medium">{o.name}</div>
+                                                <div className="text-xs text-muted-foreground">{o.live} live now</div>
+                                            </td>
+                                            <td className="px-3 py-2 text-right tabular-nums">{o.events}</td>
+                                            <td className="px-3 py-2 text-right tabular-nums">{o.orders}</td>
+                                            <td className="px-3 py-2 text-right font-medium tabular-nums">{rm(o.revenue)}</td>
+                                            <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{rm(o.fees)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
 
                 {/* Advanced events table — scales past the old dropdown */}
@@ -171,7 +269,7 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[720px] text-sm">
+                        <table className="w-full min-w-[820px] text-sm">
                             <thead className="border-b border-border text-xs text-muted-foreground">
                                 <tr>
                                     <Th label="Event" k="title" activeSort={filters.sort} onSort={sortBy} />
@@ -182,12 +280,13 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                                     <Th label="CTR" className="text-right" />
                                     <Th label="Sold" k="sold" activeSort={filters.sort} onSort={sortBy} className="text-right" />
                                     <Th label="Revenue" k="revenue" activeSort={filters.sort} onSort={sortBy} className="text-right" />
+                                    <Th label="Abandoned" k="abandoned" activeSort={filters.sort} onSort={sortBy} className="text-right" />
                                     <th className="px-3 py-2" />
                                 </tr>
                             </thead>
                             <tbody>
                                 {events.data.length === 0 && (
-                                    <tr><td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">No events match your search.</td></tr>
+                                    <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">No events match your search.</td></tr>
                                 )}
                                 {events.data.map((e) => (
                                     <tr key={e.slug} className="border-b border-border/60 last:border-0 hover:bg-muted/40">
@@ -199,6 +298,11 @@ export default function AdminAnalytics({ kpis, reach, revenue, topEvents, demogr
                                         <td className="px-3 py-2 text-right tabular-nums">{e.ctr}%</td>
                                         <td className="px-3 py-2 text-right tabular-nums">{e.sold.toLocaleString()}</td>
                                         <td className="px-3 py-2 text-right font-medium tabular-nums">{rm(e.revenue)}</td>
+                                        <td className="px-3 py-2 text-right tabular-nums">
+                                            {e.abandoned > 0
+                                                ? <Link href={`/admin/analytics/abandoned?${windowQs}&event=${encodeURIComponent(e.slug)}`} className="text-rose-600 hover:underline dark:text-rose-400">{e.abandoned.toLocaleString()}</Link>
+                                                : <span className="text-muted-foreground">0</span>}
+                                        </td>
                                         <td className="px-3 py-2 text-right"><Button asChild size="sm" variant="outline"><Link href={`/admin/analytics/${e.slug}?${windowQs}`}>View analytics</Link></Button></td>
                                     </tr>
                                 ))}

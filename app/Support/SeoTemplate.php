@@ -160,7 +160,7 @@ class SeoTemplate
      * Their business name when they gave one on their application, otherwise
      * the name on the account. One definition, used by both page types.
      */
-    private static function organizerName(?User $organizer): string
+    public static function organizerName(?User $organizer): string
     {
         if (! $organizer) {
             return (string) config('seo.site_name', 'DropRSVP');
@@ -175,6 +175,107 @@ class SeoTemplate
 
         return (string) ($organizer->organizerProfile?->business_name ?: $organizer->name);
     }
+
+    /**
+     * The keyword list for an event page that has no keywords of its own.
+     *
+     * Search engines that still read meta keywords (Bing, Yandex, Naver, and a
+     * long tail of event aggregators) — and the AI crawlers that summarise a
+     * page from its head — get the WHERE and WHEN spelled out, which the title
+     * can only abbreviate: the city AND its state, the venue, the month the
+     * event is in, and the phrases people actually type ("events in Kajang",
+     * "things to do in Selangor this October").
+     *
+     * Empty pieces are dropped, so an online or undated event never gets
+     * "events in ," in its head.
+     */
+    public static function eventKeywords(Event $event): string
+    {
+        $v = self::values($event);
+        $starts = $event->starts_at?->setTimezone($event->timezone ?: config('app.timezone'));
+        $month = $starts?->format('F Y');
+        $category = $v['{category}'];
+        $city = $v['{city}'];
+        $state = $v['{state}'];
+
+        $parts = [
+            $v['{event_name}'],
+            $category ? $category.' events' : null,
+            $city ? 'events in '.$city : null,
+            $city && $category ? $category.' '.$city : null,
+            $city ? 'things to do in '.$city : null,
+            $state ? 'events in '.$state : null,
+            $state && $month ? 'events in '.$state.' '.$month : null,
+            $month ? $month.' events' : null,
+            $v['{short_date}'],
+            $event->is_online ? 'online event' : ($v['{venue}'] ?: null),
+            $city,
+            $state,
+            $v['{organizer}'],
+            'Malaysia events',
+        ];
+
+        return collect($parts)
+            ->map(fn ($p) => trim((string) $p))
+            ->filter()
+            ->unique(fn ($p) => mb_strtolower($p))
+            ->implode(', ');
+    }
+
+    /** The keyword list for an organizer profile. */
+    public static function organizerKeywords(User $organizer): string
+    {
+        $v = self::organizerValues($organizer);
+
+        return collect([
+            $v['{organizer}'],
+            $v['{organizer}'].' events',
+            'event organiser',
+            $v['{city}'] ? 'event organiser '.$v['{city}'] : null,
+            $v['{city}'] ? 'events in '.$v['{city}'] : null,
+            'Malaysia event organiser',
+        ])->map(fn ($p) => trim((string) $p))->filter()->unique()->implode(', ');
+    }
+
+    /**
+     * Geo meta for an event page: geo.region (ISO 3166-2), geo.placename and
+     * geo.position / ICBM when the venue has been pinned.
+     *
+     * @return array<string,string>
+     */
+    public static function geoMeta(Event $event): array
+    {
+        if ($event->is_online) {
+            return [];
+        }
+
+        $v = self::values($event);
+        $region = self::REGION_CODES[$v['{state}']] ?? null;
+        $place = collect([$v['{city}'], $v['{state}'], 'Malaysia'])->filter()->implode(', ');
+
+        $meta = array_filter([
+            'geo.region' => $region ? 'MY-'.$region : 'MY',
+            'geo.placename' => $place,
+        ]);
+
+        if ($event->latitude && $event->longitude) {
+            $lat = rtrim(rtrim(number_format((float) $event->latitude, 6, '.', ''), '0'), '.');
+            $lng = rtrim(rtrim(number_format((float) $event->longitude, 6, '.', ''), '0'), '.');
+            $meta['geo.position'] = $lat.';'.$lng;
+            $meta['ICBM'] = $lat.', '.$lng;
+        }
+
+        return $meta;
+    }
+
+    /** ISO 3166-2:MY subdivision codes, keyed by the state names Cities uses. */
+    private const REGION_CODES = [
+        'Johor' => '01', 'Kedah' => '02', 'Kelantan' => '03', 'Melaka' => '04', 'Malacca' => '04',
+        'Negeri Sembilan' => '05', 'Pahang' => '06', 'Pulau Pinang' => '07', 'Penang' => '07',
+        'Perak' => '08', 'Perlis' => '09', 'Selangor' => '10', 'Terengganu' => '11',
+        'Sabah' => '12', 'Sarawak' => '13', 'Kuala Lumpur' => '14', 'W.P. Kuala Lumpur' => '14',
+        'Labuan' => '15', 'W.P. Labuan' => '15', 'Putrajaya' => '16', 'W.P. Putrajaya' => '16',
+    ];
 
     /** Substitute all tokens in a template string (null-safe). */
     public static function render(?string $text, Event $event): ?string

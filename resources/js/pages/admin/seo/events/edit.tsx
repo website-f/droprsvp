@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface EventInfo { slug: string; title: string; status: string }
-interface Props { event: EventInfo; seo: SeoData; fallback: { title: string; description: string }; baseUrl: string; templateTokens: SeoToken[]; templateValues: Record<string, string> }
+interface Props { event: EventInfo; seo: SeoData; fallback: { title: string; description: string; keywords: string }; baseUrl: string; templateTokens: SeoToken[]; templateValues: Record<string, string> }
 
 export default function EventSeoEdit({ event, seo, fallback, baseUrl, templateTokens, templateValues }: Props) {
     const flash = usePage().props.flash as { success?: string } | undefined;
@@ -40,13 +40,15 @@ export default function EventSeoEdit({ event, seo, fallback, baseUrl, templateTo
                     slug={data.slug}
                     onSlug={(v) => setData('slug', v)}
                     fallbackTitle={fallback.title}
+                    fallbackDescription={fallback.description}
+                    fallbackKeywords={fallback.keywords}
                     baseUrl={baseUrl}
                     tokens={templateTokens}
                     tokenValues={templateValues}
                 />
 
                 <p className="mt-2 px-1 text-xs text-muted-foreground">
-                    Changing the slug changes the event’s URL. Leave the title/description blank to fall back to the event’s own “{fallback.title}”.
+                    Changing the slug changes the event’s URL. Leave the title/description blank to use the house template — shown in the preview above.
                 </p>
 
                 <div className="mt-6 flex justify-end">

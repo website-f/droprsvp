@@ -87,6 +87,7 @@ class OrganizerController extends Controller
         app(SeoManager::class)
             ->title(SeoTemplate::forOrganizer('organizer_title', $organizer) ?: $displayName)
             ->description(SeoTemplate::forOrganizer('organizer_description', $organizer))
+            ->keywords(SeoTemplate::organizerKeywords($organizer))
             ->canonical($canonical)
             ->type('profile')
             ->image($logo)

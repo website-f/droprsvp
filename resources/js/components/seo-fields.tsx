@@ -78,13 +78,17 @@ function TokenRow({ tokens, onInsert }: { tokens: SeoToken[]; onInsert: (token: 
 }
 
 export function SeoFields({
-    seo, onChange, slug, onSlug, fallbackTitle, baseUrl, tokens, tokenValues,
+    seo, onChange, slug, onSlug, fallbackTitle, fallbackDescription, fallbackKeywords, baseUrl, tokens, tokenValues,
 }: {
     seo: SeoData;
     onChange: (patch: Partial<SeoData>) => void;
     slug: string;
     onSlug: (v: string) => void;
     fallbackTitle: string;
+    /** What the page emits when the description is left blank (e.g. the house template). */
+    fallbackDescription?: string;
+    /** What the page emits when keywords are left blank. */
+    fallbackKeywords?: string;
     baseUrl: string;
     tokens?: SeoToken[];
     tokenValues?: Record<string, string>;
@@ -97,7 +101,7 @@ export function SeoFields({
 
     // Preview substitutes tokens so the admin sees the real search snippet.
     const previewTitle = resolve(seo.seo_title || fallbackTitle || 'Untitled', tokenValues);
-    const previewDesc = resolve(seo.meta_description || 'Add a meta description to control how this appears in search results.', tokenValues);
+    const previewDesc = resolve(seo.meta_description || fallbackDescription || 'Add a meta description to control how this appears in search results.', tokenValues);
     const previewUrl = `${baseUrl}/${slug || 'slug'}`;
 
     return (
@@ -126,7 +130,7 @@ export function SeoFields({
                 </div>
                 <div className="grid gap-1.5">
                     <div className="flex items-center justify-between"><Label>Meta description</Label><Count value={seo.meta_description} max={155} /></div>
-                    <textarea ref={descRef} rows={3} className={area} value={seo.meta_description ?? ''} onChange={(e) => onChange({ meta_description: e.target.value })} />
+                    <textarea ref={descRef} rows={3} className={area} value={seo.meta_description ?? ''} onChange={(e) => onChange({ meta_description: e.target.value })} placeholder={fallbackDescription} />
                     {hasTokens && <TokenRow tokens={tokens!} onInsert={(t) => insertToken(descRef.current, seo.meta_description, t, (v) => onChange({ meta_description: v }))} />}
                 </div>
                 <div className="grid gap-1.5">
@@ -137,6 +141,9 @@ export function SeoFields({
                     <Label>Keywords</Label>
                     <TagInput value={seo.meta_keywords ?? ''} onChange={(v) => onChange({ meta_keywords: v })} placeholder="Type a keyword, press Enter…" />
                     <p className="text-xs text-muted-foreground">Type each keyword and press Enter. Rendered as the <code>meta keywords</code> tag.</p>
+                    {fallbackKeywords && !seo.meta_keywords && (
+                        <p className="text-xs text-muted-foreground">Left blank, the page uses: <span className="text-foreground">{fallbackKeywords}</span></p>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-6">

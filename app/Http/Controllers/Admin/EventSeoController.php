@@ -81,7 +81,7 @@ class EventSeoController extends Controller
 
     public function edit(Event $event)
     {
-        $event->loadMissing('category:id,name', 'user:id,name');
+        $event->loadMissing('category:id,name', 'user:id,name,city', 'user.organizerProfile');
         $seo = $event->seo;
 
         return inertia('admin/seo/events/edit', [
@@ -106,9 +106,14 @@ class EventSeoController extends Controller
                 'og_description' => $seo?->og_description,
                 'og_image' => $seo?->og_image,
             ],
+            // What the page emits while a field is left blank: the house
+            // template, filled in for this event. This used to be the bare
+            // event title, so the snippet preview here disagreed with the live
+            // page and made it look as if the template was not applied.
             'fallback' => [
-                'title' => $event->title,
-                'description' => $this->defaultDescription($event),
+                'title' => SeoTemplate::forEvent('event_title', $event) ?: $event->title,
+                'description' => SeoTemplate::forEvent('event_description', $event) ?: $this->defaultDescription($event),
+                'keywords' => SeoTemplate::eventKeywords($event),
             ],
             'baseUrl' => rtrim(Url::to('e'), '/'),
         ]);

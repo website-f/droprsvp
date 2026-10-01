@@ -50,7 +50,9 @@ class EventController extends Controller
         $cover = $event->cover_image ? $this->absolute($event->cover_image) : null;
         $banner = $event->banner_image ? $this->absolute($event->banner_image) : null;
         $canonical = url("/en-my/e/{$event->slug}");
-        $organizer = $event->user?->name ?? 'DropRSVP';
+        // The trading name, as the title and description use — the JSON-LD
+        // organizer was still the account holder's personal name.
+        $organizer = SeoTemplate::organizerName($event->user);
         $seo = $event->seo;
         $isPublic = $event->status === 'published' && in_array($event->visibility, ['public', 'unlisted'], true);
 
@@ -75,19 +77,34 @@ class EventController extends Controller
         $houseTitle = SeoTemplate::forEvent('event_title', $event);
         $houseDesc = SeoTemplate::forEvent('event_description', $event);
 
+        $pageTitle = $seoTitle ?: ($houseTitle ?: $event->title);
+
         // --- server-rendered SEO (no JS needed) ---
         $manager = app(SeoManager::class)
-            ->title($seoTitle ?: ($houseTitle ?: $event->title))
+            ->title($pageTitle)
             ->description($seoDesc ?: ($houseDesc ?: $description))
-            ->keywords($seoKeywords)
+            // Date and place, spelled out where the title can only abbreviate.
+            ->keywords($seoKeywords ?: SeoTemplate::eventKeywords($event))
             ->canonical($seo?->canonical_url ?: $canonical)
-            ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover)
+            ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover, null, null, $houseTitle ?: $event->title)
             ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount))
             ->breadcrumb([
                 ['name' => 'Home', 'url' => Url::to()],
                 ['name' => 'Events', 'url' => Url::to('all')],
                 ['name' => $event->title, 'url' => $canonical],
             ]);
+        foreach (SeoTemplate::geoMeta($event) as $name => $content) {
+            $manager->meta($name, $content);
+        }
+        // When it starts and ends, as machine-readable meta beside the JSON-LD.
+        $tz = $event->timezone ?: config('app.timezone');
+        if ($event->starts_at) {
+            $manager->meta('event:start_time', $event->starts_at->setTimezone($tz)->toIso8601String(), true);
+        }
+        if ($event->ends_at) {
+            $manager->meta('event:end_time', $event->ends_at->setTimezone($tz)->toIso8601String(), true);
+        }
+
         // Draft / owner-preview pages must never be indexed.
         $isPublic ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true)) : $manager->noindex();
 
@@ -201,7 +218,7 @@ class EventController extends Controller
                     : null,
             ])->values(),
             'seo' => [
-                'title' => $seo?->seo_title ?: $event->title,
+                'title' => $pageTitle,
             ],
             'participants' => $this->participants($event, $canSeeAllMembers, $participantsPage),
             'discussion' => $this->discussion($event, $discussionPage),

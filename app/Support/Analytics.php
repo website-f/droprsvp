@@ -51,7 +51,7 @@ class Analytics
      * $zero seeds a bucket's accumulator. Portable across SQLite + MySQL because
      * the month grouping happens in PHP, not SQL.
      */
-    private static function bucketed(array $w, callable $dayVal, array $zero): array
+    public static function bucketed(array $w, callable $dayVal, array $zero): array
     {
         // Dates are CarbonImmutable, so every step reassigns (addDay/addMonth
         // return a new instance rather than mutating in place).
