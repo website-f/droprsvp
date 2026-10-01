@@ -268,14 +268,9 @@ class CheckoutService
             return true;
         });
 
-        // Report the sale to GA from here, once — this is the one place every
-        // settlement passes through (webhook, gateway return, free order), so it
-        // is recorded even when the buyer's browser never comes back to the
-        // confirmation page. After the response, so GA can never slow checkout.
-        if ($newlyPaid && Tracking::serverSide()) {
-            $settled = $order->fresh();
-            defer(fn () => app(GoogleAnalytics::class)->purchase($settled));
-        }
+        // The sale is NOT reported to GA from here. The confirmation page gets
+        // first go (it is the buyer's own session); `analytics:sync-purchases`
+        // reports whatever it did not. See GoogleAnalytics.
 
         // Email the tickets exactly once, after settlement (outside the transaction).
         if ($newlyPaid && $order->fresh()->buyer_email) {
@@ -430,11 +425,11 @@ class CheckoutService
             return ['ok' => true, 'full' => $full, 'amount' => $amt, 'reason' => 'ok'];
         });
 
-        // Revenue in GA should fall when money goes back, partial refunds included.
+        // Revenue in GA should fall when money goes back, partial refunds
+        // included — once GA has the sale (otherwise the sync sends both, in order).
         if ($result['ok'] && Tracking::serverSide()) {
             $refunded = $order->fresh();
-            $amount = (float) $result['amount'];
-            defer(fn () => app(GoogleAnalytics::class)->refund($refunded, $amount));
+            defer(fn () => app(GoogleAnalytics::class)->refundChanged($refunded));
         }
 
         // Only a full refund flips the order + emails the "order refunded" notice

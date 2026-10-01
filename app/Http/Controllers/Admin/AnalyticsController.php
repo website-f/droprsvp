@@ -9,6 +9,7 @@ use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\GoogleAnalytics;
 use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
 use App\Support\AnswerInsights;
@@ -56,6 +57,8 @@ class AnalyticsController extends Controller
             'people' => PlatformInsights::users($w),
             'topCustomers' => PlatformInsights::topCustomers($w, $audience),
             'topOrganizers' => PlatformInsights::topOrganizers($w),
+            // Sales in the books vs sales GA has been sent, by which path.
+            'gaTally' => GoogleAnalytics::tally($w),
             'kpis' => [
                 'events' => Event::count(),
                 'published' => Event::where('status', 'published')->count(),

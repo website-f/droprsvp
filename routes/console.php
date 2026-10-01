@@ -12,5 +12,9 @@ Artisan::command('inspire', function () {
 // `* * * * * php artisan schedule:run` to fire (see DEPLOY.md).
 Schedule::command('orders:release-stale')->everyTenMinutes()->withoutOverlapping();
 
+// Report to GA every sale the buyer's browser did not (blocked tag, closed tab,
+// paid in the bank app and never came back). Same cron. See GoogleAnalytics.
+Schedule::command('analytics:sync-purchases')->everyFiveMinutes()->withoutOverlapping();
+
 // Take scheduled blog posts live at their publish time (same cron).
 Schedule::command('posts:publish-scheduled')->everyMinute()->withoutOverlapping();

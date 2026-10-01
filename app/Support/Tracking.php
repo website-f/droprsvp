@@ -126,10 +126,10 @@ class Tracking
     }
 
     /**
-     * Are purchases reported from the server?
+     * Can the server report sales (analytics:sync-purchases)?
      *
-     * When they are, the confirmation page does NOT also send one from the
-     * browser — two sources for one sale is how revenue gets double-counted.
+     * The confirmation page reports first either way; this is the safety net
+     * for the sales it cannot. See App\Services\GoogleAnalytics.
      */
     public static function serverSide(): bool
     {

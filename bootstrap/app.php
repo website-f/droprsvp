@@ -27,7 +27,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         // Payment gateway webhooks are server-to-server (no CSRF token).
-        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+        // The GA ack is sent with navigator.sendBeacon, which cannot carry a
+        // CSRF header, as the tab closes. Safe without one: the session cookie
+        // is SameSite=lax, so a cross-site POST arrives with no session and
+        // fails the order-access check; and all it can do is mark a sale of
+        // the caller's own as reported to GA.
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'orders/*/analytics/*']);
 
         // Spatie role/permission middleware aliases (used to gate the CMS to superadmin).
         $middleware->alias([

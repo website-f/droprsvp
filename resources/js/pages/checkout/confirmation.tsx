@@ -46,7 +46,7 @@ export default function CheckoutConfirmation({ order, analytics }: { order: Orde
 
     return (
         <>
-            <PurchaseEvent payload={analytics} />
+            <PurchaseEvent payload={analytics} reference={order.reference} />
             <Head title={paid ? 'You’re going!' : 'Order received'} />
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">

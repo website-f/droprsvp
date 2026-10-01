@@ -13,6 +13,7 @@ class Order extends Model
         'buyer_gender', 'buyer_age_band', 'buyer_birth_year', 'buyer_city', 'buyer_source', 'notes',
         'subtotal', 'discount', 'discount_code_id', 'fees', 'tax', 'total', 'refunded_amount', 'currency', 'payment_ref', 'payment_method', 'payment_brand', 'paid_at', 'refunded_at', 'meta',
         'custom_answers',
+        'ga_claimed_at', 'ga_reported_at', 'ga_reported_via',
     ];
 
     protected function casts(): array
@@ -25,6 +26,8 @@ class Order extends Model
             'total' => 'decimal:2',
             'refunded_amount' => 'decimal:2',
             'paid_at' => 'datetime',
+            'ga_claimed_at' => 'datetime',
+            'ga_reported_at' => 'datetime',
             'refunded_at' => 'datetime',
             'meta' => 'array',
             'custom_answers' => 'array',

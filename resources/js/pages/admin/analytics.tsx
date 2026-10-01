@@ -6,6 +6,8 @@ import { BarsChart, CountArea, DonutChart, MetricToggle, PALETTE, RevenueBars, T
 import type { ReachMetric } from '@/components/charts';
 import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
+import { GaTally } from '@/components/ga-tally';
+import type { GaTallyData } from '@/components/ga-tally';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,7 @@ interface Props {
     people: People;
     topCustomers: Customer[];
     topOrganizers: Organizer[];
+    gaTally: GaTallyData;
     kpis: { events: number; published: number; users: number; tickets: number; revenue: number; impressions: number };
     reach: Reach[];
     revenue: { date: string; revenue: number }[];
@@ -75,7 +78,7 @@ function Th({ label, k, activeSort, onSort, className = '' }: { label: string; k
     );
 }
 
-export default function AdminAnalytics({ funnel, people, topCustomers, topOrganizers, kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, exportUrl }: Props) {
+export default function AdminAnalytics({ funnel, people, topCustomers, topOrganizers, gaTally, kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
     const [metric, setMetric] = useState<ReachMetric>('both');
 
@@ -155,6 +158,11 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                 {/* Where buyers drop out */}
                 <div className="mt-4">
                     <CheckoutFunnel data={funnel} title={`Checkout funnel · ${filters.periodLabel}`} abandonedHref={`/admin/analytics/abandoned?${windowQs}`} />
+                </div>
+
+                {/* The books vs Google Analytics */}
+                <div className="mt-4">
+                    <GaTally data={gaTally} periodLabel={filters.periodLabel} />
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">

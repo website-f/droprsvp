@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Services\CheckoutService;
+use App\Services\GoogleAnalytics;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
 use App\Support\Cities;
@@ -367,11 +368,32 @@ class CheckoutController extends Controller
             'order' => $this->orderPayload($order, withTickets: true),
             // The GA4 `purchase` event. Nothing ever sent one, which is why the
             // property reported RM0 revenue against real ticket sales.
-            // Not sent from the browser when the server reports purchases —
-            // one sale, one source, or GA counts the revenue twice.
-            'analytics' => Tracking::serverSide() ? null : Tracking::purchasePayload($order),
+            // Only while GA has not had this sale yet. The page still has to win
+            // a claim before sending it (see analyticsClaim), so a refresh, a
+            // second tab or the server sync can never report it twice.
+            'analytics' => GoogleAnalytics::browserMaySend($order) ? Tracking::purchasePayload($order) : null,
             'pending' => $order->status === 'pending',
         ]);
+    }
+
+    /**
+     * The confirmation page asks to report this sale to GA. Only one asker
+     * ever wins; everyone else is told not to send.
+     */
+    public function analyticsClaim(Request $request, Order $order, GoogleAnalytics $ga)
+    {
+        $this->authorizeOrderAccess($order, $request);
+
+        return response()->json(['send' => $ga->claim($order)]);
+    }
+
+    /** GA dispatched the page's purchase hit: mark the sale reported. */
+    public function analyticsAck(Request $request, Order $order, GoogleAnalytics $ga)
+    {
+        $this->authorizeOrderAccess($order, $request);
+        $ga->ack($order);
+
+        return response()->noContent();
     }
 
     /** Remember an order reference against the current session (capped, deduped). */

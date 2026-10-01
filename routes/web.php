@@ -161,6 +161,9 @@ Route::delete('checkout/{order}/code', [CheckoutController::class, 'removeCode']
 Route::post('checkout/{order}/pay', [CheckoutController::class, 'pay'])->middleware('throttle:checkout')->name('checkout.pay');
 Route::get('checkout/{order}/fake-pay', [CheckoutController::class, 'fake'])->name('checkout.fake');
 Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
+// The confirmation page reporting its sale to GA (claim, then ack). See GoogleAnalytics.
+Route::post('orders/{order}/analytics/claim', [CheckoutController::class, 'analyticsClaim'])->middleware('throttle:30,1')->name('checkout.analytics.claim');
+Route::post('orders/{order}/analytics/ack', [CheckoutController::class, 'analyticsAck'])->middleware('throttle:30,1')->name('checkout.analytics.ack');
 Route::post('webhooks/chip', [WebhookController::class, 'chip'])->name('webhooks.chip');
 Route::post('webhooks/chip-send', [WebhookController::class, 'chipSend'])->name('webhooks.chip-send');
 Route::post('webhooks/promotions', [WebhookController::class, 'promotions'])->name('promotions.webhook');

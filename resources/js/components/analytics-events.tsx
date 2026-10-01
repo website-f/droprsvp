@@ -50,22 +50,91 @@ function sendOnce(key: string): boolean {
     return true;
 }
 
-/** Fire `purchase` once for a settled order. */
-export function PurchaseEvent({ payload }: { payload: Record<string, unknown> | null }) {
+/** Has gtag.js itself loaded? The inline `gtag` stub exists even when an ad blocker stopped it. */
+function gaLoaded(): boolean {
+    return !!(window as unknown as { google_tag_manager?: unknown }).google_tag_manager;
+}
+
+/** Wait up to `ms` for gtag.js to load. */
+async function waitForGa(ms: number): Promise<boolean> {
+    for (let waited = 0; waited < ms; waited += 200) {
+        if (gaLoaded()) {
+            return true;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 200));
+    }
+
+    return gaLoaded();
+}
+
+/**
+ * Report a settled order to GA — in step with the server, so it is counted once.
+ *
+ * The server is the safety net (App\Services\GoogleAnalytics): every few
+ * minutes it reports any sale GA has not had. So this page must only send
+ * when it can actually deliver, and must tell the server when it has:
+ *
+ *   1. wait for gtag.js to load — if an ad blocker or tracking protection
+ *      stopped it, do nothing and leave the sale to the server;
+ *   2. CLAIM the sale — the server grants one claim only, so a refresh, a
+ *      second tab, or a sync running this second cannot also send it;
+ *   3. send `purchase`, by beacon so it survives the tab being closed;
+ *   4. ACK when GA has dispatched it — also by beacon, for the same reason.
+ *
+ * A claim with no ack (closed mid-send) lapses after ten minutes and the server
+ * reports it instead, with the same transaction id GA de-duplicates on.
+ */
+export function PurchaseEvent({ payload, reference }: { payload: Record<string, unknown> | null; reference: string }) {
     useEffect(() => {
-        if (!payload) {
+        if (!payload || !reference) {
             return;
         }
 
-        const id = String(payload.transaction_id ?? '');
-        const send = gtag();
+        let cancelled = false;
+        const base = `/orders/${encodeURIComponent(reference)}/analytics`;
 
-        if (!send || !id || !sendOnce(`ga:purchase:${id}`)) {
-            return;
-        }
+        (async () => {
+            if (!(await waitForGa(8000)) || cancelled) {
+                return; // blocked or not loaded: the server will report it
+            }
 
-        send('event', 'purchase', payload);
-    }, [payload]);
+            const send = gtag();
+
+            if (!send) {
+                return;
+            }
+
+            const claim = await fetch(`${base}/claim`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+            if (cancelled || !claim?.send) {
+                return; // already reported, or another tab / the server has it
+            }
+
+            let acked = false;
+            const ack = () => {
+                if (acked) {
+                    return;
+                }
+
+                acked = true;
+
+                if (!navigator.sendBeacon?.(`${base}/ack`)) {
+                    void fetch(`${base}/ack`, { method: 'POST', credentials: 'same-origin', keepalive: true }).catch(() => {});
+                }
+            };
+
+            send('event', 'purchase', { ...payload, transport_type: 'beacon', event_callback: ack });
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [payload, reference]);
 
     return null;
 }
