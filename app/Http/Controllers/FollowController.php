@@ -39,7 +39,7 @@ class FollowController extends Controller
 
         $upcoming = Event::published()
             ->whereIn('user_id', $organizerIds)
-            ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->notEnded()
             ->with('user:id,name')
             ->orderByRaw('starts_at is null, starts_at asc')
             ->limit(30)

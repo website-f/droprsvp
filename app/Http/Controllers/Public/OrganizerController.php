@@ -303,7 +303,7 @@ class OrganizerController extends Controller
             ->whereIn('category_id', $categoryIds)
             ->whereNotIn('id', $ownEventIds)
             ->where('user_id', '!=', $organizer->id)
-            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->notEnded()
             ->orderByRaw('starts_at is null, starts_at asc')
             ->limit(4)->get()->map(fn (Event $e) => $this->card($e))->values();
     }

@@ -32,7 +32,7 @@ class SearchController extends Controller
 
         // 🔥 System hot: categories with the most upcoming published events.
         $topCatIds = Event::published()
-            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->notEnded()
             ->whereNotNull('category_id')
             ->selectRaw('category_id, count(*) as c')->groupBy('category_id')->orderByDesc('c')->limit(4)->pluck('category_id');
         $systemHot = EventCategory::whereIn('id', $topCatIds)->get(['name', 'slug'])
@@ -42,7 +42,7 @@ class SearchController extends Controller
         $hot = $adminHot->concat($systemHot)->unique('label')->take(6)->values();
 
         // Live type-ahead matches (only once the user has typed something).
-        $events = $q === '' ? collect() : Event::published()->where('title', 'like', $like)->limit(6)->get(['title', 'slug'])
+        $events = $q === '' ? collect() : Event::published()->notEnded()->where('title', 'like', $like)->limit(6)->get(['title', 'slug'])
             ->map(fn ($e) => ['label' => $e->title, 'url' => Url::path('e', $e->slug)]);
         $categories = $q === '' ? collect() : EventCategory::where('name', 'like', $like)->limit(5)->get(['name', 'slug'])
             ->map(fn ($c) => ['label' => $c->name, 'url' => Url::path('all', $c->slug)]);

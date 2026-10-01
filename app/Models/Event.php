@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Dates;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -180,5 +181,45 @@ class Event extends Model
     public function scopePublished(Builder $q): Builder
     {
         return $q->where('status', 'published')->where('visibility', 'public');
+    }
+
+    /**
+     * Events that have not finished yet — what public listings should show.
+     *
+     * Ended events stay in the database and keep their own page (links in the
+     * wild, organizer history, attendee receipts); they just stop being
+     * offered. Every listing used to roll its own date check, and each had a
+     * flaw: search suggestions had none at all, so finished events were
+     * offered as you typed; the rest compared the START time against midnight
+     * UTC — 8am in Malaysia — so an event that ended at 3pm stayed listed
+     * until the next morning, and a multi-day event still running was hidden
+     * because it started before today.
+     *
+     * The one rule, judged in the display timezone (App\Support\Dates):
+     *   * with an end time   — listed until it ends;
+     *   * with a start only  — listed until the end of the day it starts;
+     *   * with no dates      — always listed (it has not "ended").
+     */
+    public function scopeNotEnded(Builder $q): Builder
+    {
+        $now = now();
+        $startOfToday = now()->setTimezone(Dates::tz())->startOfDay()->utc();
+
+        return $q->where(fn (Builder $w) => $w
+            ->where(fn (Builder $x) => $x->whereNotNull('ends_at')->where('ends_at', '>', $now))
+            ->orWhere(fn (Builder $x) => $x->whereNull('ends_at')->where(fn (Builder $y) => $y
+                ->whereNull('starts_at')
+                ->orWhere('starts_at', '>=', $startOfToday))));
+    }
+
+    /** The same rule as scopeNotEnded(), for one already-loaded event. */
+    public function hasEnded(): bool
+    {
+        if ($this->ends_at) {
+            return $this->ends_at->isPast();
+        }
+
+        return $this->starts_at !== null
+            && $this->starts_at->lt(now()->setTimezone(Dates::tz())->startOfDay());
     }
 }

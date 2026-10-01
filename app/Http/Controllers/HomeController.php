@@ -135,7 +135,7 @@ class HomeController extends Controller
             ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
             ->withCount('reviews')
             ->withAvg('reviews as reviews_avg', 'rating')
-            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->notEnded()
             ->orderByRaw('starts_at is null, starts_at asc');
     }
 
@@ -215,7 +215,7 @@ class HomeController extends Controller
             ->get()
             ->map(function (User $u) use ($viewer, $followingIds) {
                 $next = $u->events()->published()
-                    ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+                    ->notEnded()
                     ->orderByRaw('starts_at is null, starts_at asc')
                     ->first(['slug']);
 
@@ -278,7 +278,7 @@ class HomeController extends Controller
         $counts = Event::published()
             ->whereNotNull('city')
             ->where('city', '!=', '')
-            ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '>=', now()))
+            ->notEnded()
             ->selectRaw('city, count(*) as total')
             ->groupBy('city')
             ->pluck('total', 'city');

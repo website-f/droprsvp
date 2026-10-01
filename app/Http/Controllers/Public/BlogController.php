@@ -184,7 +184,7 @@ class BlogController extends Controller
         // finished a piece about an event is the likeliest person on the site to
         // want a ticket, and the blog had no route onward to one.
         $activeEvents = Event::published()
-            ->where(fn ($w) => $w->whereNull('starts_at')->orWhere('starts_at', '>=', now()->startOfDay()))
+            ->notEnded()
             ->orderByRaw('starts_at is null, starts_at asc')
             ->limit(3)
             ->get(['slug', 'title', 'cover_image', 'city', 'starts_at', 'timezone'])

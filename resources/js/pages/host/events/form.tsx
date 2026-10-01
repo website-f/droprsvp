@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { ArtworkPreview } from '@/components/artwork-preview';
 import type { CustomField } from '@/components/custom-fields';
 import { CustomFieldsBuilder } from '@/components/custom-fields-builder';
 import { LayoutEditorOverlay, LayoutPreview } from '@/components/layout-editor-overlay';
@@ -60,7 +61,9 @@ const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm o
  */
 const dt = (v: string | null | undefined) => (v ? v.slice(0, 16) : '');
 
-const RECOMMEND_COVER = 'Recommended: 1600×900px (16:9) · JPG or PNG · under 5 MB';
+// Any shape is shown whole now (see ArtworkPreview), so this no longer pushes a
+// 16:9 crop on organizers whose poster is an Instagram portrait.
+const RECOMMEND_COVER = 'Any shape works — landscape or a portrait poster (e.g. 1080×1350) · JPG or PNG · under 5 MB';
 const RECOMMEND_BANNER = 'Recommended: 2400×800px (wide 3:1) · shown across the top of your event page & featured in the events-page hero';
 const RECOMMEND_GALLERY = 'Recommended: 1200×800px or larger · JPG or PNG · under 5 MB each · up to 12 images';
 const MAX_GALLERY = 12;
@@ -376,19 +379,23 @@ form.post('/host/events', options);
                             <Label>Cover image</Label>
                             {data.cover_image
                                 ? (
-                                    <div className="relative overflow-hidden rounded-lg border border-border">
-                                        <img src={data.cover_image} alt="" className="aspect-[16/9] w-full object-cover" />
-                                        <div className="absolute right-2 top-2 flex gap-2">
-                                            <Button type="button" size="sm" variant="secondary" disabled={uploadingCover} onClick={() => coverRef.current?.click()}>Replace</Button>
-                                            <Button type="button" size="sm" variant="secondary" onClick={() => setData('cover_image', '')}>Remove</Button>
-                                        </div>
-                                    </div>
+                                    // Previewed as the public site shows it — the whole image
+                                    // at its own shape, plus how it sits on an event card —
+                                    // rather than cropped to 16:9 (an Instagram portrait
+                                    // poster used to show as a sliver here).
+                                    <ArtworkPreview
+                                        src={data.cover_image}
+                                        busy={uploadingCover}
+                                        onReplace={() => coverRef.current?.click()}
+                                        onRemove={() => setData('cover_image', '')}
+                                        cardRatio="aspect-[16/10]"
+                                    />
                                 )
                                 : (
                                     <button type="button" onClick={() => coverRef.current?.click()} disabled={uploadingCover}
                                         className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground">
                                         <ImagePlus className="size-6" />
-                                        {uploadingCover ? 'Uploading…' : 'Upload a cover image (shown on cards & the event page)'}
+                                        {uploadingCover ? 'Uploading…' : 'Upload a cover image — any shape, portrait posters included'}
                                     </button>
                                 )}
                             <input ref={coverRef} type="file" accept="image/*" hidden onChange={(e) => onPickCover(e.target.files?.[0])} />
@@ -402,13 +409,14 @@ form.post('/host/events', options);
                             <Label>Event banner <span className="font-normal text-muted-foreground">(optional)</span></Label>
                             {data.banner_image
                                 ? (
-                                    <div className="relative overflow-hidden rounded-lg border border-border">
-                                        <img src={data.banner_image} alt="" className="aspect-[3/1] w-full object-cover" />
-                                        <div className="absolute right-2 top-2 flex gap-2">
-                                            <Button type="button" size="sm" variant="secondary" disabled={uploadingBanner} onClick={() => bannerRef.current?.click()}>Replace</Button>
-                                            <Button type="button" size="sm" variant="secondary" onClick={() => setData('banner_image', '')}>Remove</Button>
-                                        </div>
-                                    </div>
+                                    // The banner is shown whole on the event page too; it is
+                                    // not used on cards, so there is no card preview.
+                                    <ArtworkPreview
+                                        src={data.banner_image}
+                                        busy={uploadingBanner}
+                                        onReplace={() => bannerRef.current?.click()}
+                                        onRemove={() => setData('banner_image', '')}
+                                    />
                                 )
                                 : (
                                     <button type="button" onClick={() => bannerRef.current?.click()} disabled={uploadingBanner}
