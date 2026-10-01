@@ -63,7 +63,7 @@ export function AnswerAnalytics({ questions, drillBase }: {
                     Answers appear here once people book tickets.
                 </div>
             ) : (
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {questions.map((q, i) => (
                         <QuestionCard key={q.id} question={q} color={PALETTE[i % PALETTE.length]} drillBase={drillBase} />
                     ))}

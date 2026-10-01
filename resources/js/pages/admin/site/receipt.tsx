@@ -124,7 +124,7 @@ export default function ReceiptEditor({ template }: { template: Template }) {
                 </div>
                 {flash?.success && <div className="mb-4 rounded-lg bg-secondary px-4 py-2 text-sm">{flash.success}</div>}
 
-                <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
                     {/* Controls */}
                     <div className="grid content-start gap-5">
                         <section className="grid gap-3 rounded-xl border border-border bg-card p-4">

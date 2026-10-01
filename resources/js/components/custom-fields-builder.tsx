@@ -89,7 +89,7 @@ export function CustomFieldsBuilder({
                         </Button>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label>Label</Label>
                             <input

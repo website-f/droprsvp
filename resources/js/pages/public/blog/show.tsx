@@ -39,7 +39,7 @@ export default function BlogShow({ post, toc, hasInlineToc, sidebar }: { post: P
                         <ArrowLeft className="size-4" /> All posts
                     </Link>
 
-                    <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
+                    <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
                         <article className="min-w-0">
                             <header>
                                 {post.category && (

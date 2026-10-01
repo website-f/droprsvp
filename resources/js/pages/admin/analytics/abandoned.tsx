@@ -6,6 +6,7 @@ import { whatsappUrl } from '@/components/attendee-profile';
 import { PALETTE, SeriesBars } from '@/components/charts';
 import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -93,7 +94,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
 
                 <CheckoutFunnel data={summary} title={`Checkout funnel · ${filters.periodLabel}`} />
 
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <h2 className="mb-4 text-sm font-semibold">Paid vs abandoned · {filters.periodLabel}</h2>
                         <SeriesBars data={trend} series={[{ key: 'paid', name: 'Paid', color: PALETTE[6] }, { key: 'abandoned', name: 'Abandoned', color: PALETTE[3] }]} />
@@ -102,7 +103,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                     {!event && (
                         <section className="rounded-2xl border border-border bg-card shadow-sm">
                             <h2 className="border-b border-border p-4 text-sm font-semibold">Events losing the most buyers</h2>
-                            <div className="overflow-x-auto">
+                            <ResponsiveTable>
                                 <table className="w-full text-sm">
                                     <thead className="text-xs text-muted-foreground">
                                         <tr>
@@ -128,7 +129,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </ResponsiveTable>
                         </section>
                     )}
                 </div>
@@ -164,7 +165,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <ResponsiveTable>
                         <table className="w-full min-w-[900px] text-sm">
                             <thead className="border-b border-border text-xs text-muted-foreground">
                                 <tr>
@@ -224,7 +225,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                                 })}
                             </tbody>
                         </table>
-                    </div>
+                    </ResponsiveTable>
 
                     {(rows.prev_page_url || rows.next_page_url) && (
                         <div className="flex items-center justify-between gap-2 border-t border-border p-3 text-sm">

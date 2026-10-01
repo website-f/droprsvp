@@ -51,6 +51,12 @@ return [
      */
     'ga' => [
         'measurement_id' => env('GA_MEASUREMENT_ID', 'G-Q80TSQSFQ1'),
+        // Measurement Protocol secret (GA → Admin → Data streams → the web
+        // stream → Measurement Protocol API secrets). When set, purchases and
+        // refunds are reported from the server the moment payment settles,
+        // instead of relying on the buyer's browser reaching the confirmation
+        // page with the tag loaded.
+        'api_secret' => env('GA_API_SECRET'),
     ],
 
     /*

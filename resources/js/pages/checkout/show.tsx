@@ -103,7 +103,7 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
                     </div>
                 </header>
 
-                <main className="mx-auto grid max-w-3xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[minmax(0,1fr)_300px]">
+                <main className="mx-auto grid grid-cols-1 max-w-3xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[minmax(0,1fr)_300px]">
                     {/* Buyer details */}
                     <form onSubmit={submit}>
                         <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
@@ -159,7 +159,7 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
                             {/* About you (optional) — helps the organizer understand who's coming. */}
                             <div className="rounded-xl border border-border bg-muted/30 p-4">
                                 <p className="mb-3 text-xs font-medium text-muted-foreground">About you <span className="font-normal">(optional — helps the organizer)</span></p>
-                                <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
                                         <Label>{req('Gender', required.gender)}</Label>
                                         <AppSelect value={form.data.buyer_gender} onChange={(v) => form.setData('buyer_gender', v)} options={GENDERS} />

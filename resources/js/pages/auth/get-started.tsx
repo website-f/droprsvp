@@ -29,7 +29,7 @@ export default function GetStarted() {
     return (
         <>
             <Head title="Create your organizer account — DropRSVP" />
-            <div className="grid min-h-screen lg:grid-cols-2">
+            <div className="grid grid-cols-1 min-h-screen lg:grid-cols-2">
                 {/* Brand panel */}
                 <div className="relative hidden overflow-hidden bg-foreground p-12 text-background lg:flex lg:flex-col">
                     <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full opacity-40 blur-3xl" style={{ background: 'radial-gradient(circle,#6c63ff,transparent 70%)' }} />
@@ -110,7 +110,7 @@ export default function GetStarted() {
                                     <h2 className="text-2xl font-bold tracking-tight">Tell us your name</h2>
                                     <p className="mt-1.5 text-sm text-muted-foreground">And set a password to secure your account.</p>
                                 </div>
-                                <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
                                         <Label htmlFor="first">First name</Label>
                                         <input id="first" autoFocus className={field} value={data.first_name} onChange={(e) => setData('first_name', e.target.value)} />

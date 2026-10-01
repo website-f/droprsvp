@@ -46,7 +46,7 @@ export function Footer({
 
     return (
         <footer className={`mt-auto border-t border-border ${BG[background ?? 'muted'] ?? BG.muted}`}>
-            <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Brand. The logo and every column heading share one row height
                     (`footerHeight`) so their text lines up across the footer —
                     otherwise the short headings float above the taller wordmark. */}

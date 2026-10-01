@@ -109,7 +109,7 @@ export default function OrganizerApply({ application }: { application: Applicati
                             <input id="business_name" required className={field} value={data.business_name} onChange={(e) => setData('business_name', e.target.value)} />
                             {errors.business_name && <p className="text-xs text-destructive">{errors.business_name}</p>}
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="email">Contact email <span aria-hidden className="text-destructive">*</span></Label>
                                 <input id="email" type="email" required className={field} inputMode="email" value={data.email} onChange={(e) => setData('email', e.target.value)} placeholder="bookings@yourbrand.com" />
@@ -121,7 +121,7 @@ export default function OrganizerApply({ application }: { application: Applicati
                                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                             </div>
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="website">Website (optional)</Label>
                                 <input id="website" className={field} inputMode="url" value={data.website} onChange={(e) => setData('website', e.target.value)} placeholder="instagram.com/yourbrand" />

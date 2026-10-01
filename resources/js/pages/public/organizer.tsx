@@ -53,7 +53,7 @@ function priceLabel(e: EventCard): string {
 
 function EventGrid({ events }: { events: EventCard[] }) {
     return (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((e) => (
                 <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
                     <div className="relative w-full">
@@ -321,7 +321,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 
                 <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
                     {tab === 'about' && (
-                        <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
                             <div className="rounded-2xl border border-border bg-card p-6">
                                 <h2 className="text-lg font-bold tracking-tight">About</h2>
                                 {organizer.bio

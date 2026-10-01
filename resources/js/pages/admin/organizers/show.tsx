@@ -71,7 +71,7 @@ export default function OrganizerShow({ application: app }: { application: Appli
                 )}
 
                 {/* Contact + business */}
-                <div className="mt-6 grid gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
+                <div className="mt-6 grid grid-cols-1 gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
                     <Field label="Contact person">{app.name}</Field>
                     <Field label="Email on application"><a href={`mailto:${app.email}`} className="inline-flex items-center gap-1.5 break-all hover:underline"><Mail className="size-3.5 shrink-0" /> {app.email}</a></Field>
                     <Field label="Phone">{app.phone ? <a href={`tel:${app.phone}`} className="inline-flex items-center gap-1.5 hover:underline"><Phone className="size-3.5" /> {app.phone}</a> : <span className="text-muted-foreground">—</span>}</Field>

@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Receipt } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -38,7 +39,7 @@ export default function Orders({ event, orders }: Props) {
                         <p className="text-sm text-muted-foreground">No orders yet.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto rounded-xl border border-border">
+                    <ResponsiveTable className="rounded-xl border border-border">
                         <table className="w-full min-w-[700px] text-sm">
                             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr><th className="px-4 py-3 font-medium">Buyer</th><th className="px-4 py-3 font-medium">Tickets</th><th className="px-4 py-3 font-medium">Total</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 text-right font-medium">Actions</th></tr>
@@ -63,7 +64,7 @@ export default function Orders({ event, orders }: Props) {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </ResponsiveTable>
                 )}
             </div>
         </>

@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ExternalLink, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -33,7 +34,7 @@ export default function PagesIndex({ pages }: { pages: PageRow[] }) {
                         <Button asChild><Link href="/admin/cms/pages/create"><Plus className="size-4" /> Create your first page</Link></Button>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto rounded-xl border border-border">
+                    <ResponsiveTable className="rounded-xl border border-border">
                         <table className="w-full min-w-[640px] text-sm">
                             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr><th className="px-4 py-3 font-medium">Title</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Updated</th><th className="px-4 py-3 text-right font-medium">Actions</th></tr>
@@ -58,7 +59,7 @@ export default function PagesIndex({ pages }: { pages: PageRow[] }) {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </ResponsiveTable>
                 )}
             </div>
         </>

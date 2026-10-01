@@ -161,7 +161,7 @@ patchHero({ style: 'banners', banners: [emptyBanner()] });
                                         </div>
                                         <div className="grid gap-1.5"><Label className="text-xs">Heading</Label><input className={field} value={b.heading} onChange={(e) => patchBanner(i, { heading: e.target.value })} placeholder="From pop ballads to emo encores" /></div>
                                         <div className="grid gap-1.5"><Label className="text-xs">Subheading</Label><input className={field} value={b.subheading} onChange={(e) => patchBanner(i, { subheading: e.target.value })} /></div>
-                                        <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <div className="grid gap-1.5"><Label className="text-xs">Button label</Label><input className={field} value={b.cta_label} onChange={(e) => patchBanner(i, { cta_label: e.target.value })} placeholder="Get Into Live Music" /></div>
                                             <div className="grid gap-1.5"><Label className="text-xs">Button link</Label><input className={field} value={b.cta_url} onChange={(e) => patchBanner(i, { cta_url: e.target.value })} placeholder="/en-my/all/music/" /></div>
                                         </div>
@@ -190,7 +190,7 @@ patchHero({ style: 'banners', banners: [emptyBanner()] });
                         </div>
                         <div className="grid gap-1.5"><Label>Heading</Label><input className={field} value={data.organizer.heading} onChange={(e) => patch('organizer', { heading: e.target.value })} /></div>
                         <div className="grid gap-1.5"><Label>Body</Label><textarea rows={2} className={area} value={data.organizer.body} onChange={(e) => patch('organizer', { body: e.target.value })} /></div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5"><Label>Button label</Label><input className={field} value={data.organizer.cta_label} onChange={(e) => patch('organizer', { cta_label: e.target.value })} /></div>
                             <div className="grid gap-1.5"><Label>Button link</Label><input className={field} value={data.organizer.cta_url} onChange={(e) => patch('organizer', { cta_url: e.target.value })} /></div>
                         </div>

@@ -99,13 +99,13 @@ export default function Settings({ settings, rolePermissions, permissionSections
                 {flash?.success && <div className="mb-4 rounded-lg bg-secondary px-4 py-2 text-sm">{flash.success}</div>}
 
                 {/* Tabs */}
-                <div className="mb-6 flex gap-1 border-b border-border">
+                <div className="mb-6 flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]">
                     {TABS.map((t) => {
                         const active = tab === t.key;
 
                         return (
                             <button key={t.key} type="button" onClick={() => setTab(t.key)}
-                                className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${active ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                                className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${active ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                                 <t.icon className="size-4" /> {t.label}
                             </button>
                         );
@@ -114,7 +114,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
 
                 <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
                     {tab === 'payments' && (
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2 grid gap-1.5">
                                 <Label>Platform fee <span className="font-normal text-muted-foreground">— the higher of % or flat RM, deducted from the organizer’s ticket sales (buyers pay the ticket price only)</span></Label>
                                 <div className="flex flex-wrap items-center gap-2">
@@ -154,7 +154,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
                     )}
 
                     {tab === 'tax' && (
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field label="Tax rate (%)" hint="0 turns tax off. Applied to ticket subtotals at checkout."><input type="number" min={0} max={100} step="0.1" className={input} value={data.tax_percent} onChange={(e) => setData('tax_percent', e.target.value)} /></Field>
                             <Field label="Tax label" hint="e.g. SST, GST, VAT."><input className={input} value={data.tax_label} onChange={(e) => setData('tax_label', e.target.value)} /></Field>
                             <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border p-3">
@@ -199,7 +199,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
 
                     {tab === 'general' && (
                         <div className="grid gap-8">
-                            <div className="grid gap-6 lg:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                                 {/* Announcement banner / modal (saved with Settings) */}
                                 <div className="grid content-start gap-3 rounded-xl border border-border p-4">
                                     <div className="flex items-center justify-between gap-3">
@@ -208,13 +208,13 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                     </div>
                                     <p className="text-sm text-muted-foreground">A banner or first-load modal shown across the public site. Toggle it on, then edit — saving re-shows it for everyone.</p>
                                     <div className={`grid gap-3 transition-opacity ${data.announcement.active ? '' : 'pointer-events-none opacity-50'}`}>
-                                        <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <Field label="Style"><AppSelect value={data.announcement.style} onChange={(v) => setAnnounce('style', v)} options={[{ value: 'banner', label: 'Top banner' }, { value: 'modal', label: 'Popup modal' }]} /></Field>
                                             <Field label="Tone"><AppSelect value={data.announcement.level} onChange={(v) => setAnnounce('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
                                         </div>
                                         <Field label="Title"><input className={input} value={data.announcement.title} onChange={(e) => setAnnounce('title', e.target.value)} placeholder="Big news!" /></Field>
                                         <Field label="Message"><textarea rows={2} className={area} value={data.announcement.body} onChange={(e) => setAnnounce('body', e.target.value)} /></Field>
-                                        <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <Field label="Button label"><input className={input} value={data.announcement.cta_label} onChange={(e) => setAnnounce('cta_label', e.target.value)} placeholder="Learn more" /></Field>
                                             <Field label="Button link"><input className={input} value={data.announcement.cta_url} onChange={(e) => setAnnounce('cta_url', e.target.value)} placeholder="/en-my/all/" /></Field>
                                         </div>
@@ -229,7 +229,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                     <Field label="Audience"><AppSelect value={broadcast.data.audience} onChange={(v) => broadcast.setData('audience', v)} options={[{ value: 'all', label: 'Everyone' }, { value: 'organizers', label: 'Organizers' }, { value: 'buyers', label: 'Buyers' }, { value: 'admins', label: 'Admins' }]} /></Field>
                                     <Field label="Title"><input className={input} value={broadcast.data.title} onChange={(e) => broadcast.setData('title', e.target.value)} placeholder="Scheduled maintenance" /></Field>
                                     <Field label="Message"><textarea rows={2} className={area} value={broadcast.data.body} onChange={(e) => broadcast.setData('body', e.target.value)} /></Field>
-                                    <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         <Field label="Link (optional)"><input className={input} value={broadcast.data.url} onChange={(e) => broadcast.setData('url', e.target.value)} placeholder="/premium" /></Field>
                                         <Field label="Tone"><AppSelect value={broadcast.data.level} onChange={(v) => broadcast.setData('level', v)} options={[{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }]} /></Field>
                                     </div>
@@ -262,7 +262,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                 <div className="border-t border-border pt-6">
                                     <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4" /> User permissions</h2>
                                     <p className="mb-4 text-sm text-muted-foreground">Choose which admin sections <strong>Staff</strong> accounts can open. Superadmins always have full access and this list.</p>
-                                    <div className="grid gap-2 sm:grid-cols-2">
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         {permissionSections.map((s) => {
                                             const on = perms.data.permissions.staff.includes(s.key);
 

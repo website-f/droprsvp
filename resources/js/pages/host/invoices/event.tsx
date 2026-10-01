@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, Receipt } from 'lucide-react';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -56,7 +57,7 @@ export default function EventInvoices({ event, orders, byType }: Props) {
                     </div>
                 ) : (
                     <>
-                        <div className="overflow-x-auto rounded-2xl border border-border">
+                        <ResponsiveTable className="rounded-2xl border border-border">
                             <table className="w-full min-w-[840px] text-sm">
                                 <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                     <tr>
@@ -104,7 +105,7 @@ export default function EventInvoices({ event, orders, byType }: Props) {
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
+                        </ResponsiveTable>
                         {(orders.prev_page_url || orders.next_page_url) && (
                             <div className="mt-6 flex items-center justify-between gap-2 text-sm">
                                 <span className="text-muted-foreground">Page {orders.current_page} of {orders.last_page} · {orders.total} invoices</span>

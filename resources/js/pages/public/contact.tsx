@@ -32,7 +32,7 @@ export default function Contact({ categories }: { categories: Category[]; seo: S
             <div className="flex min-h-screen flex-col bg-background text-foreground">
                 <PublicHeader />
 
-                <main className="mx-auto grid w-full max-w-6xl flex-1 gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+                <main className="mx-auto grid grid-cols-1 w-full max-w-6xl flex-1 gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
                     {/* Intro */}
                     <div>
                         <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"><Headset className="size-3.5" /> We're here to help</span>
@@ -76,7 +76,7 @@ export default function Contact({ categories }: { categories: Category[]; seo: S
                                     {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                                 </div>
 
-                                <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
                                         <Label htmlFor="email">Email</Label>
                                         <div className="relative">

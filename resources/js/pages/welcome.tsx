@@ -613,7 +613,7 @@ export default function Welcome() {
                                 </div>
                             </Reveal>
 
-                            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 {posts.slice(0, 3).map((p) => (
                                     <Link
                                         key={p.slug}
@@ -721,7 +721,7 @@ function ContactForm() {
 
     return (
         <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="grid gap-1.5 sm:col-span-2">
                     <label htmlFor="c-name" className="text-sm font-medium">Name</label>
                     <input id="c-name" className={cfield} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Your name" />

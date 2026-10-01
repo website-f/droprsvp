@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DonutChart, RevenueBars } from '@/components/charts';
 import { PaymentBadge  } from '@/components/payment-badge';
 import type {PaymentInfo} from '@/components/payment-badge';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -123,7 +124,7 @@ export default function Finance({ kpis, trend, breakdown, transactions, filters,
                 {/* The two numbers that answer "how are we doing". Given their own
                     row because they are not the same kind of thing as the rest:
                     platform revenue is ours, the rest is money in transit. */}
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Kpi icon={Coins} label="Platform revenue" value={rm(kpis.platform_revenue)} tint="#22c55e" hint="Fees + boosts + subscriptions. This is what the platform actually earns." />
                     <Kpi icon={Banknote} label="Held for organizers" value={rm(kpis.owed_to_organizers)} tint="#64748b" hint="Collected on their behalf, minus fees and refunds, not yet paid out." />
                 </div>
@@ -143,7 +144,7 @@ export default function Finance({ kpis, trend, breakdown, transactions, filters,
                 </p>
 
                 {/* Charts */}
-                <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <h2 className="mb-1 text-sm font-semibold">Platform revenue — last 30 days</h2>
                         <p className="mb-4 text-xs text-muted-foreground">Fees, boosts and subscriptions. Not organizers&rsquo; ticket money.</p>
@@ -232,7 +233,7 @@ export default function Finance({ kpis, trend, breakdown, transactions, filters,
 
                 {/* Ledger */}
                 <div className="mt-3 rounded-2xl border border-border bg-card shadow-sm">
-                    <div className="overflow-x-auto">
+                    <ResponsiveTable>
                         <table className="w-full min-w-[820px] text-sm">
                             <thead>
                                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -276,7 +277,7 @@ export default function Finance({ kpis, trend, breakdown, transactions, filters,
                                 })}
                             </tbody>
                         </table>
-                    </div>
+                    </ResponsiveTable>
                 </div>
 
                 {showMethod && (

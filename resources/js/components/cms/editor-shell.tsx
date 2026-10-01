@@ -39,7 +39,7 @@ export function EditorShell({
                 <div className="flex items-center gap-2">{actions}</div>
             </header>
 
-            <div className="mx-auto grid w-full max-w-screen-2xl flex-1 gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:p-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="mx-auto grid grid-cols-1 w-full max-w-screen-2xl flex-1 gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:p-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
                 <main className="min-w-0">{children}</main>
                 <aside className="min-w-0 lg:sticky lg:top-20 lg:h-fit">
                     <div className="grid gap-4">{sidebar}</div>

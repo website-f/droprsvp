@@ -76,10 +76,31 @@ class Tracking
         return '^\\/(?:'.implode('|', array_unique($parts)).')\\/?$';
     }
 
-    /** Everything the browser needs to police itself, or null when tracking is off. */
+    /**
+     * The staff side of the back office. These pages never carry even the
+     * dormant config: an admin or organizer who lands here and then opens a
+     * public page is not a visitor we need to count from that session.
+     */
+    private const STAFF_PATHS = ['admin', 'admin/*', 'host', 'host/*'];
+
+    /**
+     * Everything the browser needs to police itself, or null when tracking is off.
+     *
+     * On a public page the tags are already rendered and this is the rule for
+     * muting them on the way into the back office (`active` true).
+     *
+     * On a BUYER's private page — login, their dashboard, their tickets — the
+     * tags are not rendered, but the config is still handed over with
+     * `active` false. This is a SPA: someone who signs in, browses to an event
+     * and checks out never loads another document until the payment gateway,
+     * so a session that started on /login was invisible to GA from end to
+     * end — no page views, no begin_checkout. TrackingGuard loads the tags the
+     * first time such a session reaches a public page; nothing is sent while
+     * they stay on private ones.
+     */
     public static function clientConfig(Request $request): ?array
     {
-        if (! self::shouldTrack($request)) {
+        if (app()->environment('local', 'testing') || $request->is(...self::STAFF_PATHS)) {
             return null;
         }
 
@@ -94,7 +115,68 @@ class Tracking
             'ga' => $ga,
             'clarity' => $clarity,
             'private' => self::privatePathPattern(),
+            'active' => self::shouldTrack($request),
         ];
+    }
+
+    /** The Measurement Protocol secret, or null when server-side reporting is off. */
+    public static function apiSecret(): ?string
+    {
+        return self::id('services.ga.api_secret');
+    }
+
+    /**
+     * Are purchases reported from the server?
+     *
+     * When they are, the confirmation page does NOT also send one from the
+     * browser — two sources for one sale is how revenue gets double-counted.
+     */
+    public static function serverSide(): bool
+    {
+        return self::measurementId() !== null && self::apiSecret() !== null;
+    }
+
+    /**
+     * The visitor's GA identity, read from the cookies gtag set.
+     *
+     * `client_id` comes from `_ga` ("GA1.1.<random>.<timestamp>") and
+     * `session_id` from `_ga_<stream>` ("GS1.1.<session>.…", or the newer
+     * "GS2.1.s<session>$o…"). Stored on the order at checkout so a purchase
+     * reported later from the server — by the payment webhook, in no browser
+     * at all — is credited to the visitor and the visit that made it, with its
+     * traffic source, rather than to an anonymous new user.
+     *
+     * Read from the raw Cookie header: Laravel's cookie encryption would hand
+     * back null for a cookie it did not write.
+     *
+     * @return array{client_id?: string, session_id?: string}
+     */
+    public static function gaIdsFrom(Request $request): array
+    {
+        $cookies = [];
+        foreach (explode(';', (string) $request->headers->get('cookie', '')) as $pair) {
+            $parts = explode('=', trim($pair), 2);
+            if (count($parts) === 2) {
+                $cookies[$parts[0]] = urldecode($parts[1]);
+            }
+        }
+
+        $ids = [];
+
+        $ga = explode('.', $cookies['_ga'] ?? '');
+        if (count($ga) >= 4 && ctype_digit($ga[2]) && ctype_digit($ga[3])) {
+            $ids['client_id'] = $ga[2].'.'.$ga[3];
+        }
+
+        $stream = self::measurementId() ? substr((string) self::measurementId(), 2) : null;
+        $session = $stream ? ($cookies['_ga_'.$stream] ?? null) : null;
+        if ($session !== null) {
+            if (preg_match('/^GS1\.\d+\.(\d+)/', $session, $m) || preg_match('/(?:^|[.$])s(\d+)/', $session, $m)) {
+                $ids['session_id'] = $m[1];
+            }
+        }
+
+        return $ids;
     }
 
     /** The GA4 measurement id, or null when analytics is switched off. */
@@ -176,7 +258,7 @@ class Tracking
     }
 
     /** @return array<string, mixed> */
-    private static function payload(Order $order): array
+    public static function payload(Order $order): array
     {
         $order->loadMissing(['items', 'event.category', 'discountCode']);
 

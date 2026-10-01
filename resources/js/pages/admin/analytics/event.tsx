@@ -79,7 +79,7 @@ export default function AdminEventAnalytics({ data, filters, cityOptions, source
                     />
                 </div>
 
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>

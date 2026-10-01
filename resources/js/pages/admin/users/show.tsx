@@ -187,7 +187,7 @@ export default function UserShow({ user, activity, fee, globalFee, canManageFees
                 )}
 
                 {/* Details */}
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <h2 className="mb-1 text-sm font-semibold">Contact</h2>
                         <div className="divide-y divide-border">

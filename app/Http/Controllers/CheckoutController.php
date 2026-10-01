@@ -43,6 +43,12 @@ class CheckoutController extends Controller
 
         $order = $this->checkout->start($event, $data['items'] ?? [], $request->user()?->id, $data['seats'] ?? []);
 
+        // The visitor's GA identity, so a purchase reported later by the server
+        // (see GoogleAnalytics) is credited to this visit and its traffic source.
+        if ($ga = Tracking::gaIdsFrom($request)) {
+            $order->update(['meta' => [...($order->meta ?? []), 'ga' => $ga]]);
+        }
+
         // Bind this order to the browser session that opened it — the reference
         // is a capability, so only this session (or the authenticated owner) may
         // view/pay it.
@@ -255,6 +261,11 @@ class CheckoutController extends Controller
         $autoLogin = (bool) ($data['auto_login'] ?? false);
         unset($data['auto_login']);
         $data['meta'] = [...($order->meta ?? []), 'auto_login' => $autoLogin];
+        // Refreshed here too: the GA cookies may only exist by now (the tag
+        // loads asynchronously, and a session can start mid-checkout).
+        if ($ga = Tracking::gaIdsFrom($request)) {
+            $data['meta']['ga'] = $ga;
+        }
 
         $order->update($data);
 
@@ -333,11 +344,22 @@ class CheckoutController extends Controller
     }
 
     /** Order confirmation with the issued tickets. */
-    public function confirmation(Request $request, Order $order)
+    public function confirmation(Request $request, Order $order, PaymentGateway $gateway)
     {
         // Confirmation exposes buyer PII + the tickets' QR tokens, so it's gated
         // to the authenticated owner/organizer or the session that checked out.
         $this->authorizeOrderAccess($order, $request);
+
+        // Still pending? Ask CHIP directly rather than wait for the webhook. The
+        // gateway often sends the buyer back a few seconds before it settles;
+        // this page then polls, and each poll reconciles here. Only for recent
+        // orders, so an old abandoned link never costs an API call per visit.
+        if ($order->status === 'pending' && $order->payment_ref
+            && $order->created_at?->gt(now()->subHours(2))
+            && $gateway instanceof ChipGateway && $gateway->isPaid($order)) {
+            $this->checkout->markPaid($order, $order->payment_ref, $gateway->paymentDetails($order->payment_ref));
+            $order->refresh();
+        }
 
         $order->load(['items', 'event', 'tickets']);
 
@@ -345,7 +367,10 @@ class CheckoutController extends Controller
             'order' => $this->orderPayload($order, withTickets: true),
             // The GA4 `purchase` event. Nothing ever sent one, which is why the
             // property reported RM0 revenue against real ticket sales.
-            'analytics' => Tracking::purchasePayload($order),
+            // Not sent from the browser when the server reports purchases —
+            // one sale, one source, or GA counts the revenue twice.
+            'analytics' => Tracking::serverSide() ? null : Tracking::purchasePayload($order),
+            'pending' => $order->status === 'pending',
         ]);
     }
 

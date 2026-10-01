@@ -56,7 +56,7 @@ return;
                     </p>
                 </div>
 
-                <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
                     {/* Current menu */}
                     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
                         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Menu items</h2>

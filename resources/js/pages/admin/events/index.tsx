@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ExternalLink, Search } from 'lucide-react';
 import { useState } from 'react';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +27,7 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                     <Button type="submit">Search</Button>
                 </form>
 
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <ResponsiveTable className="rounded-xl border border-border">
                     <table className="w-full min-w-[760px] text-sm">
                         <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                             <tr><th className="px-4 py-3 font-medium">Event</th><th className="px-4 py-3 font-medium">Organizer</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Sold</th><th className="px-4 py-3 font-medium">Revenue</th><th className="px-4 py-3"></th></tr>
@@ -51,7 +52,7 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </ResponsiveTable>
 
                 {(events.prev_page_url || events.next_page_url) && (
                     <div className="mt-6 flex justify-between">

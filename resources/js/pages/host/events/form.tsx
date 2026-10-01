@@ -440,7 +440,7 @@ form.post('/host/events', options);
                             <Label htmlFor="subtitle">Subtitle</Label>
                             <input id="subtitle" className={field} value={data.subtitle} onChange={(e) => setData('subtitle', e.target.value)} placeholder="A short one-liner" />
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="category">Category</Label>
                                 <AppSelect
@@ -521,7 +521,7 @@ form.post('/host/events', options);
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
                                     <Label htmlFor="venue_name">Venue name</Label>
                                     <input id="venue_name" className={field} value={data.venue_name} onChange={(e) => setData('venue_name', e.target.value)} placeholder="e.g. The Bee, Publika" />
@@ -580,7 +580,7 @@ form.post('/host/events', options);
                     {data.sessions.length === 0 && <p className="text-sm text-muted-foreground">Add at least one date. Add more for a recurring or multi-session event.</p>}
                     <div className="grid gap-4">
                         {data.sessions.map((s, i) => (
-                            <div key={i} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                            <div key={i} className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
                                 <div className="grid gap-1.5">
                                     <Label>Starts</Label>
                                     <DateTimePicker value={s.starts_at} onChange={(v) => patchSession(i, 'starts_at', v)} />
@@ -673,7 +673,7 @@ form.post('/host/events', options);
                                     <span className="text-sm font-semibold text-muted-foreground">Ticket {i + 1}{t.name ? ` · ${t.name}` : ''}</span>
                                     <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setData('ticketTypes', data.ticketTypes.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /> Remove</Button>
                                 </div>
-                                <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
                                         <Label>Name</Label>
                                         <input className={field} value={t.name} onChange={(e) => patchTicket(i, 'name', e.target.value)} placeholder="e.g. Early Bird" />
@@ -692,7 +692,7 @@ form.post('/host/events', options);
                                 {/* Pricing — free tickets have no price; paid tickets can show a discount */}
                                 {t.kind !== 'free' && (
                                     <div className="rounded-lg bg-muted/40 p-3">
-                                        <div className="grid items-start gap-3 sm:grid-cols-2">
+                                        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
                                             <div className="grid gap-1.5">
                                                 <Label>{t.kind === 'donation' ? 'Suggested amount (RM)' : 'Selling price (RM)'}</Label>
                                                 <input type="number" min={0} step="0.01" className={field} value={t.price} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
@@ -731,7 +731,7 @@ form.post('/host/events', options);
                                     </div>
                                 )}
 
-                                <div className="grid gap-3 sm:grid-cols-4">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                                     <div className="grid gap-1.5">
                                         <Label>Quantity</Label>
                                         <input type="number" min={0} className={field} value={t.quantity} onChange={(e) => patchTicket(i, 'quantity', e.target.value)} placeholder="∞" />
@@ -859,7 +859,7 @@ form.post('/host/events', options);
                                     </button>
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-4">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                                     <div className="grid gap-1.5">
                                         <Label htmlFor={`discount-min-${i}`} className="text-xs">Min spend (RM)</Label>
                                         <input id={`discount-min-${i}`} type="number" step="0.01" min="0" className={field} value={d.min_subtotal} placeholder="Any" onChange={(e) => updateDiscount(i, { min_subtotal: e.target.value })} />
@@ -879,7 +879,7 @@ form.post('/host/events', options);
                                     </div>
                                 </div>
 
-                                <div className="grid gap-2 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <div className="rounded-lg border border-border p-3">
                                         <SwitchField checked={d.is_active} onCheckedChange={(v) => updateDiscount(i, { is_active: v })} label="Active" description="Off pauses the code without deleting it." />
                                     </div>
@@ -917,7 +917,7 @@ form.post('/host/events', options);
                             <div className="text-sm font-medium">Refund policy</div>
                             <div className="text-xs text-muted-foreground">Controls whether attendees can request a refund. You always decide each request.</div>
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-[1fr_1.5fr]">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.5fr]">
                             <AppSelect value={data.refund_policy} onChange={(v) => setData('refund_policy', v)} options={[
                                 { value: 'until_event', label: 'Refundable until event starts' },
                                 { value: 'anytime', label: 'Refundable anytime' },

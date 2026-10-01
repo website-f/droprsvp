@@ -72,7 +72,7 @@ export default function HostAnalytics({ kpis, reach, revenue, events, filters, c
                     <Kpi icon={Wallet} label="Revenue" value={`RM ${kpis.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} tint={PALETTE[6]} />
                 </div>
 
-                <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>

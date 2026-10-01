@@ -50,7 +50,7 @@ export default function HelpForm({ article, categories }: { article: ArticleProp
                         <input id="title" className={field} value={data.title} onChange={(e) => setData('title', e.target.value)} placeholder="e.g. How to buy a ticket" />
                         {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="category">Category</Label>
                             <input id="category" list="help-cats" className={field} value={data.category} onChange={(e) => setData('category', e.target.value)} placeholder="e.g. Buying tickets" />

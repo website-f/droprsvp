@@ -30,9 +30,9 @@ export function ArtworkPreview({
     cardRatio?: string;
 }) {
     return (
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
             {/* Event page view: the real shape. */}
-            <figure className="grid gap-1.5">
+            <figure className="grid min-w-0 gap-1.5">
                 <div className="relative overflow-hidden rounded-lg border border-border bg-muted/40">
                     <img
                         src={src}

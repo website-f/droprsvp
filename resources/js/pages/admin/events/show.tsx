@@ -71,7 +71,7 @@ return;
 
                 {event.cover_image && <img src={event.cover_image} alt="" className="mb-6 aspect-[16/6] w-full rounded-2xl border border-border object-cover" />}
 
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     {/* Details */}
                     <section className="rounded-xl border border-border bg-card p-5">
                         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Details</h2>

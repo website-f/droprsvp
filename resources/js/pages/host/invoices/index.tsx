@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Banknote, CalendarDays, ChevronRight, Download, FileText } from 'lucide-react';
 import { useState } from 'react';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -38,7 +39,7 @@ export default function HostInvoices({ payouts, events }: Props) {
                         <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No events yet.</p>
                     ) : (
                         <>
-                            <div className="overflow-x-auto rounded-2xl border border-border">
+                            <ResponsiveTable className="rounded-2xl border border-border">
                                 <table className="w-full min-w-[560px] text-sm">
                                     <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                         <tr>
@@ -66,7 +67,7 @@ export default function HostInvoices({ payouts, events }: Props) {
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </ResponsiveTable>
                             {(events.prev_page_url || events.next_page_url) && (
                                 <div className="mt-6 flex items-center justify-between gap-2 text-sm">
                                     <span className="text-muted-foreground">Page {events.current_page} of {events.last_page}</span>

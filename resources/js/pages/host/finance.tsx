@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Banknote, CircleDollarSign, Clock, Landmark, TrendingUp, Wallet } from 'lucide-react';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Button } from '@/components/ui/button';
 
 interface Balance {
@@ -49,7 +50,7 @@ export default function HostFinance({ balance, feeLabel, events }: Props) {
                     {events.length === 0 ? (
                         <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No revenue yet.</p>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-border">
+                        <ResponsiveTable className="rounded-2xl border border-border">
                             <table className="w-full min-w-[640px] text-sm">
                                 <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                     <tr>
@@ -79,7 +80,7 @@ export default function HostFinance({ balance, feeLabel, events }: Props) {
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
+                        </ResponsiveTable>
                     )}
                     <p className="mt-3 text-xs text-muted-foreground">Net = gross − the platform fee ({feeLabel}). Available reflects matured events only; upcoming-event takings are held until the event has happened.</p>
                 </div>

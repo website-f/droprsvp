@@ -98,7 +98,7 @@ export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: Home
                         The picture shown when the homepage is shared on WhatsApp, Facebook, X or LinkedIn. Use a 1200&times;630 image — anything else gets cropped. Leave it empty to use the site default.
                     </p>
 
-                    <div className="mt-4 grid gap-5 lg:grid-cols-2">
+                    <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-2">
                         {/* Live preview — exactly what the link unfurls to. */}
                         <div>
                             <div className="mb-2 text-xs font-medium text-muted-foreground">Preview</div>

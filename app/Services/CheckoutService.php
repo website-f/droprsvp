@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\Payments\PaymentGateway;
 use App\Support\PlatformFee;
 use App\Support\Profile;
+use App\Support\Tracking;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -267,6 +268,15 @@ class CheckoutService
             return true;
         });
 
+        // Report the sale to GA from here, once — this is the one place every
+        // settlement passes through (webhook, gateway return, free order), so it
+        // is recorded even when the buyer's browser never comes back to the
+        // confirmation page. After the response, so GA can never slow checkout.
+        if ($newlyPaid && Tracking::serverSide()) {
+            $settled = $order->fresh();
+            defer(fn () => app(GoogleAnalytics::class)->purchase($settled));
+        }
+
         // Email the tickets exactly once, after settlement (outside the transaction).
         if ($newlyPaid && $order->fresh()->buyer_email) {
             $this->provisionBuyerAccount($order->fresh());
@@ -419,6 +429,13 @@ class CheckoutService
 
             return ['ok' => true, 'full' => $full, 'amount' => $amt, 'reason' => 'ok'];
         });
+
+        // Revenue in GA should fall when money goes back, partial refunds included.
+        if ($result['ok'] && Tracking::serverSide()) {
+            $refunded = $order->fresh();
+            $amount = (float) $result['amount'];
+            defer(fn () => app(GoogleAnalytics::class)->refund($refunded, $amount));
+        }
 
         // Only a full refund flips the order + emails the "order refunded" notice
         // (partial refunds are communicated by the refund-request approval flow).

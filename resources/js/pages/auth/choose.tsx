@@ -24,7 +24,7 @@ export default function Choose() {
                         <p className="mt-3 text-sm text-muted-foreground sm:text-base">Pick the option that fits you — you can always do the other later.</p>
                     </div>
 
-                    <div className="mt-10 grid gap-5 sm:grid-cols-2">
+                    <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2">
                         {/* Attendee */}
                         <Link
                             href="/register"

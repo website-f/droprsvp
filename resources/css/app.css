@@ -167,6 +167,16 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Grid children may shrink below their content's natural width.
+       By default a grid item won't, so one wide thing — a table, a
+       full-size image preview, a long unbroken URL — stretched its
+       column past the screen on a phone, where the layout clips it.
+       In the base layer, so an explicit min-w-* utility still wins. */
+    .grid > *,
+    .inline-grid > * {
+        min-width: 0;
+    }
 }
 
 /* ============================================================
@@ -299,3 +309,105 @@
 /* Puck component drawer — grab cursor so widgets read as draggable (classes are hashed). */
 [class*="Drawer-draggable"] { cursor: grab; }
 [class*="Drawer-draggable"]:active { cursor: grabbing; }
+
+/* ------------------------------------------------------------------
+   Responsive data tables (components/responsive-table.tsx).
+
+   Below md, each row is a card: the first cell is the title, every other
+   cell is "Label … value", the label coming from the column header via
+   data-label. Unlayered so it beats the Tailwind utilities written on the
+   table for the desktop layout (min-w-[…], whitespace-nowrap, max-w-…,
+   truncate, borders).
+   ------------------------------------------------------------------ */
+@media (max-width: 767.98px) {
+    .rtable {
+        overflow: visible;
+        border-width: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+    .rtable table,
+    .rtable tbody,
+    .rtable tfoot {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+    .rtable thead {
+        display: none;
+    }
+    .rtable tr {
+        display: block;
+        margin: 0 0 0.625rem;
+        padding: 0.5rem 0.875rem;
+        border: 1px solid var(--border);
+        border-radius: 0.875rem;
+        background: var(--card);
+    }
+    .rtable tr:last-child {
+        margin-bottom: 0;
+    }
+    .rtable td {
+        display: block;
+        max-width: none;
+        width: auto;
+        padding: 0.3rem 0;
+        border: 0;
+        text-align: right;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .rtable td::before {
+        content: attr(data-label);
+        float: left;
+        max-width: 48%;
+        margin-right: 0.75rem;
+        text-align: left;
+        font-size: 0.75rem;
+        line-height: 1.25rem;
+        font-weight: 500;
+        color: var(--muted-foreground);
+    }
+    .rtable td::after {
+        content: '';
+        display: table;
+        clear: both;
+    }
+    .rtable td[data-label='']::before {
+        content: none;
+    }
+    /* The row's title. */
+    .rtable td:first-child {
+        text-align: left;
+        padding-bottom: 0.45rem;
+        margin-bottom: 0.2rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .rtable td:first-child::before {
+        content: none;
+    }
+    .rtable td:only-child {
+        border-bottom: 0;
+        margin-bottom: 0;
+    }
+    /* Empty states and totals that span the table. */
+    .rtable td[colspan]:not([colspan='1']) {
+        text-align: center;
+    }
+    /* Cell contents laid out for a wide column: let them wrap in a card. */
+    .rtable td .truncate {
+        white-space: normal;
+    }
+    .rtable td > .flex {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    .rtable td:first-child > .flex {
+        justify-content: flex-start;
+    }
+    .rtable td > div,
+    .rtable td > span.block {
+        max-width: none;
+    }
+}

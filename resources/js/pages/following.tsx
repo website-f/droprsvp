@@ -32,7 +32,7 @@ export default function Following({ organizers, upcoming }: Props) {
                         {/* Organizers */}
                         <section>
                             <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Organizers ({organizers.length})</h2>
-                            <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {organizers.map((o, i) => (
                                     <div key={o.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                                         <span className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: TINTS[i % TINTS.length] }}>{initials(o.name)}</span>

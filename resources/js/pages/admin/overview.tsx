@@ -21,7 +21,7 @@ export default function Overview({ stats, boost_revenue, fee_label }: { stats: S
             <div className="mx-auto w-full max-w-5xl flex-1 p-4">
                 <h1 className="mb-6 text-2xl font-bold tracking-tight">Platform overview</h1>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Card icon={Wallet} label="Gross revenue" value={rm(stats.gross)} />
                     <Card icon={Banknote} label={`Platform fees · ${fee_label}`} value={rm(stats.platform_fees)} />
                     <Card icon={Ticket} label="Tickets sold" value={String(stats.tickets_sold)} />

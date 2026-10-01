@@ -31,6 +31,52 @@ interface TrackingConfig {
     clarity: string | null;
     /** Source of a RegExp matching every private path. */
     private: string;
+    /** Were the tags rendered with this document? False on a buyer's private page. */
+    active?: boolean;
+}
+
+type Gtag = (...args: unknown[]) => void;
+
+/**
+ * Load the tags into a session that began on a private page.
+ *
+ * A buyer who lands on /login or their dashboard gets no tags (those pages are
+ * not measured), and being a SPA, no new document arrives as they go on to an
+ * event and its checkout. So the session was invisible to GA from start to
+ * finish. This loads gtag (and Clarity) the first time it reaches a public
+ * page — exactly the snippet the server would have rendered there.
+ */
+function loadTags(cfg: TrackingConfig): void {
+    const w = window as unknown as { dataLayer?: unknown[]; gtag?: Gtag; clarity?: unknown };
+
+    if (cfg.ga && typeof w.gtag !== 'function') {
+        w.dataLayer = w.dataLayer || [];
+        // gtag.js reads the `arguments` object itself, not an array copy.
+        w.gtag = function gtag() {
+            // eslint-disable-next-line prefer-rest-params
+            w.dataLayer!.push(arguments);
+        };
+        w.gtag('js', new Date());
+        w.gtag('config', cfg.ga);
+
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(cfg.ga)}`;
+        document.head.appendChild(s);
+    }
+
+    if (cfg.clarity && typeof w.clarity !== 'function') {
+        const c = window as unknown as { clarity: ((...a: unknown[]) => void) & { q?: unknown[] } };
+        c.clarity = c.clarity || function clarity() {
+            // eslint-disable-next-line prefer-rest-params
+            (c.clarity.q = c.clarity.q || []).push(arguments);
+        };
+
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = `https://www.clarity.ms/tag/${encodeURIComponent(cfg.clarity)}`;
+        document.head.appendChild(s);
+    }
 }
 
 type Clarity = (command: string) => void;
@@ -76,10 +122,20 @@ export function TrackingGuard() {
             }
         };
 
-        // The page we started on. It is public — the server would not have
-        // rendered the tags otherwise — but set it explicitly so the flag is
-        // never left over from a previous state.
+        // The page we started on. Set explicitly so the flag is never left
+        // over from a previous state.
         setEnabled(cfg, !isPrivate(window.location.pathname));
+
+        // Started on a private page, so the tags were never rendered: load them
+        // on the first arrival at a public one (never before — nothing is sent
+        // from the private pages themselves).
+        let loaded = cfg.active !== false;
+        const ensureLoaded = () => {
+            if (!loaded && !isPrivate(window.location.pathname)) {
+                loaded = true;
+                loadTags(cfg);
+            }
+        };
 
         // Before the visit, so the switch is already thrown by the time the
         // history entry changes and GA's listener runs.
@@ -90,6 +146,7 @@ export function TrackingGuard() {
         // And again on arrival, which catches a redirect landing somewhere
         // other than where the visit was aimed.
         const navigate = router.on('navigate', () => {
+            ensureLoaded();
             setEnabled(cfg, !isPrivate(window.location.pathname));
         });
 

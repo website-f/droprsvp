@@ -49,10 +49,10 @@ export default function EventsSeoIndex({ events, filters, baseUrl, templates, de
                 {events.data.length === 0 ? (
                     <p className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No events found.</p>
                 ) : (
-                    <ul className="grid gap-3">
+                    <ul className="grid grid-cols-1 gap-3">
                         {events.data.map((e) => (
                             <li key={e.slug} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                                <div className="flex items-start justify-between gap-3">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="truncate font-semibold">{e.title}</span>
@@ -68,7 +68,7 @@ export default function EventsSeoIndex({ events, filters, baseUrl, templates, de
                                             <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{e.preview_desc || 'No description — add one to control the snippet.'}</div>
                                         </div>
                                     </div>
-                                    <Button asChild variant="outline" size="sm" className="shrink-0">
+                                    <Button asChild variant="outline" size="sm" className="shrink-0 self-start">
                                         <Link href={`/admin/seo/events/${e.slug}`}><Pencil className="size-3.5" /> Edit SEO</Link>
                                     </Button>
                                 </div>

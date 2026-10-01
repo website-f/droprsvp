@@ -190,7 +190,7 @@ export const renderComponents: Config<Props>['components'] = {
     },
     Features: {
         render: ({ items }) => (
-            <div className="mx-auto grid max-w-6xl gap-6 px-6 py-10 sm:grid-cols-3">
+            <div className="mx-auto grid grid-cols-1 max-w-6xl gap-6 px-6 py-10 sm:grid-cols-3">
                 {(items ?? []).map((f, i) => {
                     const Icon = ICONS[f.icon] ?? Ticket;
 
@@ -280,7 +280,7 @@ export const renderComponents: Config<Props>['components'] = {
         render: ({ title, items }) => (
             <section className="mx-auto max-w-5xl px-6 py-12">
                 {title && <h2 className="mb-8 text-center text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>}
-                <ol className="grid gap-6 sm:grid-cols-3">
+                <ol className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                     {(items ?? []).map((s, i) => (
                         <li key={i} className="rounded-2xl border border-border bg-card p-6">
                             <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">{i + 1}</span>
@@ -326,7 +326,7 @@ export const renderComponents: Config<Props>['components'] = {
             return (
                 <section className="mx-auto max-w-6xl px-6 py-12">
                     {heading && <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>}
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {posts.map((p) => (
                             <a key={p.slug} href={`/en-my/blog/${p.slug}/`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
                                 <div className="aspect-[16/10] overflow-hidden bg-muted">

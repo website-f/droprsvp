@@ -6,6 +6,7 @@ import { BarsChart, CountArea, DonutChart, MetricToggle, PALETTE, RevenueBars, T
 import type { ReachMetric } from '@/components/charts';
 import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 
@@ -140,7 +141,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                     <Kpi icon={Eye} label="Impressions" value={kpis.impressions.toLocaleString()} tint={PALETTE[5]} />
                 </div>
 
-                <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-sm font-semibold">Reach · {filters.periodLabel}</h2>
@@ -156,7 +157,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                     <CheckoutFunnel data={funnel} title={`Checkout funnel · ${filters.periodLabel}`} abandonedHref={`/admin/analytics/abandoned?${windowQs}`} />
                 </div>
 
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <Panel title="Top events by revenue"><BarsChart data={topEvents} color={PALETTE[6]} height={260} /></Panel>
                     <Panel title="Audience age"><BarsChart data={demographics.age} color={PALETTE[2]} height={260} /></Panel>
                     <Panel title="Audience gender"><DonutChart data={demographics.gender} /></Panel>
@@ -173,16 +174,16 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                     <Kpi icon={ShoppingBag} label={`Bought · ${filters.periodLabel}`} value={people.kpis.customers_window.toLocaleString()} tint={PALETTE[2]} />
                     <Kpi icon={Repeat} label={`Repeat customers · ${people.kpis.repeat_rate}%`} value={people.kpis.repeat.toLocaleString()} tint={PALETTE[5]} />
                 </div>
-                <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <Panel title={`Sign-ups · ${filters.periodLabel}`}><CountArea data={people.signups} dataKey="signups" name="Sign-ups" /></Panel>
                     <Panel title="New vs returning buyers"><DonutChart data={people.newVsReturning} /></Panel>
                     <Panel title="Member vs guest checkout"><DonutChart data={people.checkoutType} /></Panel>
                 </div>
 
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <section className="rounded-2xl border border-border bg-card shadow-sm">
                         <h2 className="border-b border-border p-4 text-sm font-semibold">Top customers · {filters.periodLabel}</h2>
-                        <div className="overflow-x-auto">
+                        <ResponsiveTable>
                             <table className="w-full text-sm">
                                 <thead className="text-xs text-muted-foreground">
                                     <tr>
@@ -207,11 +208,11 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
+                        </ResponsiveTable>
                     </section>
                     <section className="rounded-2xl border border-border bg-card shadow-sm">
                         <h2 className="border-b border-border p-4 text-sm font-semibold">Top organizers · {filters.periodLabel}</h2>
-                        <div className="overflow-x-auto">
+                        <ResponsiveTable>
                             <table className="w-full text-sm">
                                 <thead className="text-xs text-muted-foreground">
                                     <tr>
@@ -238,7 +239,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
+                        </ResponsiveTable>
                     </section>
                 </div>
 
@@ -268,7 +269,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <ResponsiveTable>
                         <table className="w-full min-w-[820px] text-sm">
                             <thead className="border-b border-border text-xs text-muted-foreground">
                                 <tr>
@@ -308,7 +309,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </ResponsiveTable>
 
                     {(events.prev_page_url || events.next_page_url) && (
                         <div className="flex items-center justify-between gap-2 border-t border-border p-3 text-sm">

@@ -36,7 +36,7 @@ export default function HelpIndex({ categories, filters }: { categories: Categor
                     {categories.length === 0 ? (
                         <p className="text-center text-sm text-muted-foreground">No articles found{filters.q ? ` for “${filters.q}”` : ''}.</p>
                     ) : (
-                        <div className="grid gap-6 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                             {categories.map((cat) => (
                                 <section key={cat.name} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
                                     <h2 className="text-lg font-semibold">{cat.name}</h2>

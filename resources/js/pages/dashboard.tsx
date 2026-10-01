@@ -81,7 +81,7 @@ export default function Dashboard({ stats, sales_by_day, upcoming, calendar, rec
                 </div>
 
                 {/* Stats */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard icon={Wallet} label="Revenue" value={`RM ${stats.revenue.toFixed(2)}`} />
                     <StatCard icon={Ticket} label="Tickets sold" value={String(stats.tickets_sold)} />
                     <StatCard icon={CheckCircle2} label="Checked in" value={String(stats.checked_in)} />
@@ -106,7 +106,7 @@ export default function Dashboard({ stats, sales_by_day, upcoming, calendar, rec
                     <EventCalendar events={calendar} />
                 </div>
 
-                <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
                     {/* Upcoming */}
                     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
                         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Upcoming events</h2>

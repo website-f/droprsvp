@@ -41,7 +41,7 @@ export default function AdminPayouts({ payouts, sendEnabled }: { payouts: Payout
                 {errors?.payout && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{errors.payout}</div>}
 
                 {/* Payout methods status */}
-                <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-2 font-medium"><HandCoins className="size-4" /> Manual bank transfer</div>
                         <div className="mt-1 flex items-center gap-1.5 text-xs text-[#2ec4b6]"><CheckCircle2 className="size-3.5" /> Always available</div>

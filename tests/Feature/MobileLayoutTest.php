@@ -44,17 +44,19 @@ class MobileLayoutTest extends TestCase
 
             // The wrapper does not have to be adjacent — some tables sit a few
             // elements deep — so this asks the weaker question: does the file
-            // that renders a table provide any horizontal scrolling at all?
-            if (! preg_match('/overflow-x-auto|overflow-auto/', $source)) {
+            // that renders a table make it phone-safe at all? ResponsiveTable
+            // counts: it is a scroll container from md up and a card list below.
+            if (! preg_match('/overflow-x-auto|overflow-auto|<ResponsiveTable/', $source)) {
                 $offenders[] = str_replace(base_path(), '', str_replace('\\', '/', $file));
             }
         }
 
         $this->assertSame([], $offenders, implode("\n", [
             'These files render a <table> with no horizontal scroll container, so',
-            'on a phone the right-hand columns are clipped and unreachable. Wrap it:',
+            'on a phone the right-hand columns are clipped and unreachable. Wrap it',
+            '(rows become labelled cards on a phone, a scrolling table above):',
             '',
-            '    <div className="overflow-x-auto rounded-xl border border-border">',
+            '    <ResponsiveTable className="rounded-xl border border-border">',
             '        <table className="w-full min-w-[720px] text-sm">',
             '',
             ...$offenders,

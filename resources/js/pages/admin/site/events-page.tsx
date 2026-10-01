@@ -86,7 +86,7 @@ export default function EventsPageSettings({ data: initial }: { data: Data }) {
                             <Label htmlFor="hero-sub">Subheading</Label>
                             <Input id="hero-sub" value={data.hero.subheading} onChange={(e) => patchHero({ subheading: e.target.value })} placeholder="A short line under the heading" />
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="hero-cta">Button label <span className="font-normal text-muted-foreground">(optional)</span></Label>
                                 <Input id="hero-cta" value={data.hero.cta_label} onChange={(e) => patchHero({ cta_label: e.target.value })} placeholder="e.g. Browse all" />

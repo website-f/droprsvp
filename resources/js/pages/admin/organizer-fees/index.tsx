@@ -12,6 +12,7 @@ import type {
     FeeRate,
     FeeTarget,
 } from '@/components/admin/organizer-fee-dialog';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -160,7 +161,7 @@ export default function OrganizerFees({
                     <Button type="submit">Search</Button>
                 </form>
 
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <ResponsiveTable className="rounded-xl border border-border">
                     <table className="w-full min-w-[720px] text-sm">
                         <thead className="bg-muted/50 text-left text-xs tracking-wide text-muted-foreground uppercase">
                             <tr>
@@ -265,7 +266,7 @@ export default function OrganizerFees({
                             )}
                         </tbody>
                     </table>
-                </div>
+                </ResponsiveTable>
 
                 {(organizers.prev_page_url || organizers.next_page_url) && (
                     <div className="mt-6 flex justify-between">

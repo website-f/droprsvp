@@ -221,7 +221,7 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                         <Button type="button" variant="ghost" size="icon" aria-label="Delete block" onClick={() => remove(selected)}><Trash2 className="size-4" /></Button>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label>{sel.kind === 'stage' ? 'Label' : 'Name'}</Label>
                             <input className={field} value={sel.name} onChange={(e) => patch(selected, 'name', e.target.value)} />
@@ -236,7 +236,7 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
 
                     {sel.kind === 'seated' && (
                         <>
-                            <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div className="grid gap-1.5"><Label>Rows</Label><input type="number" min={1} max={100} className={field} value={sel.rows} onChange={(e) => patch(selected, 'rows', e.target.value)} /></div>
                                 <div className="grid gap-1.5"><Label>Seats / row</Label><input type="number" min={1} max={100} className={field} value={sel.cols} onChange={(e) => patch(selected, 'cols', e.target.value)} /></div>
                                 <div className="grid gap-1.5"><Label>Row labels start at</Label><input maxLength={1} className={field} value={sel.row_label_start} onChange={(e) => patch(selected, 'row_label_start', e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} placeholder="A" /></div>
@@ -249,14 +249,14 @@ export function SeatLayoutEditor({ value, onChange }: { value: LayoutSectionRow[
                         </>
                     )}
                     {sel.kind === 'ga' && (
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="grid gap-1.5"><Label>Capacity</Label><input type="number" min={1} className={field} value={sel.capacity} onChange={(e) => patch(selected, 'capacity', e.target.value)} /></div>
                             <div className="grid gap-1.5"><Label>Width</Label><input type="number" min={80} max={600} className={field} value={sel.width ?? 180} onChange={(e) => patch(selected, 'width', +e.target.value || 180)} /></div>
                             <div className="grid gap-1.5"><Label>Height</Label><input type="number" min={60} max={600} className={field} value={sel.height ?? 110} onChange={(e) => patch(selected, 'height', +e.target.value || 110)} /></div>
                         </div>
                     )}
                     {sel.kind === 'stage' && (
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="grid gap-1.5"><Label>Width</Label><input type="number" min={80} max={800} className={field} value={sel.width ?? 280} onChange={(e) => patch(selected, 'width', +e.target.value || 280)} /></div>
                             <div className="grid gap-1.5"><Label>Height</Label><input type="number" min={30} max={300} className={field} value={sel.height ?? 48} onChange={(e) => patch(selected, 'height', +e.target.value || 48)} /></div>
                         </div>

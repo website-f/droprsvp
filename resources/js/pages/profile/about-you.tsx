@@ -53,7 +53,7 @@ export default function AboutYou({ profile, countries, cities, done }: Props) {
                             <input id="phone" className={field} value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="+60 12-345 6789" />
                             {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="grid gap-1.5">
                                 <Label>Gender</Label>
                                 <AppSelect value={data.gender} onChange={(v) => setData('gender', v)} options={GENDERS} />

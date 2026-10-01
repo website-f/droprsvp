@@ -9,6 +9,7 @@ import type { AttendeeRow } from '@/components/attendee-profile';
 import { useConfirm } from '@/components/confirm-dialog';
 import { QrScanner  } from '@/components/qr-scanner';
 import type {ScanFeedback} from '@/components/qr-scanner';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -272,7 +273,7 @@ p.set('type', filters.type);
                 </div>
 
                 {/* Stats */}
-                <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-border bg-card p-4">
                         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"><Users className="size-3.5" /> Admissions</div>
                         <div className="mt-1 text-2xl font-bold">{liveStats.total}</div>
@@ -325,7 +326,7 @@ p.set('type', filters.type);
                         <p className="text-sm text-muted-foreground">No admissions match your filters yet.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto rounded-xl border border-border">
+                    <ResponsiveTable className="rounded-xl border border-border">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr>
@@ -386,7 +387,7 @@ p.set('type', filters.type);
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </ResponsiveTable>
                 )}
 
                 {/* Pagination */}

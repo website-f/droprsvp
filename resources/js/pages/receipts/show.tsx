@@ -62,7 +62,7 @@ export default function ReceiptShow({ receipt, pdfUrl }: { receipt: Receipt; pdf
                     </div>
 
                     {/* Parties */}
-                    <div className="grid gap-6 py-6 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 py-6 sm:grid-cols-2">
                         <div>
                             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{receipt.party_label}</div>
                             <div className="mt-1 text-sm font-medium">{receipt.party.name || '—'}</div>

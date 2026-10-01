@@ -247,7 +247,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                     </div>
                 )}
 
-                <main className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                <main className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <div className="min-w-0">
                         {event.category && <Badge variant="secondary" className="mb-3">{event.category}</Badge>}
                         <h1 className="text-2xl font-bold tracking-tight break-words sm:text-4xl">{event.title}</h1>

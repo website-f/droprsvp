@@ -252,7 +252,7 @@ export function TableLayoutEditor({
 
             {/* Table properties */}
             {selTable && sel && (
-                <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-[1fr_auto_90px_auto]">
+                <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-[1fr_auto_90px_auto]">
                     <div className="grid gap-1"><Label className="text-xs">Table name</Label><input className={field} value={selTable.name} onChange={(e) => patchTable(sel.i, { name: e.target.value })} /></div>
                     <div className="grid gap-1">
                         <Label className="text-xs">Shape</Label>
@@ -270,12 +270,12 @@ export function TableLayoutEditor({
             {/* Prop properties */}
             {selProp && sel && (
                 <div className="grid gap-3 rounded-xl border border-border bg-card p-3">
-                    <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]">
                         <div className="grid gap-1"><Label className="text-xs">Label</Label><input className={field} value={selProp.label} onChange={(e) => patchProp(sel.i, { label: e.target.value })} /></div>
                         <div className="grid gap-1"><Label className="text-xs">Type</Label><AppSelect value={selProp.kind} onChange={(v) => patchProp(sel.i, { kind: v })} options={PROP_ORDER.map((k) => ({ value: k, label: PROP_KINDS[k][0] }))} /></div>
                         <div className="flex items-end"><Button type="button" variant="ghost" size="icon" className="size-9" aria-label="Remove prop" onClick={() => removeProp(sel.i)}><Trash2 className="size-4" /></Button></div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div className="grid gap-1"><Label className="text-xs">Width</Label><input type="number" min={30} max={2000} className={field} value={selProp.width} onChange={(e) => patchProp(sel.i, { width: Math.max(30, Number(e.target.value) || 30) })} /></div>
                         <div className="grid gap-1"><Label className="text-xs">Height</Label><input type="number" min={30} max={2000} className={field} value={selProp.height} onChange={(e) => patchProp(sel.i, { height: Math.max(30, Number(e.target.value) || 30) })} /></div>
                         <div className="grid gap-1"><Label className="text-xs">Colour</Label><input type="color" value={selProp.color} onChange={(e) => patchProp(sel.i, { color: e.target.value })} className="h-9 w-full cursor-pointer rounded-lg border border-input bg-card p-1" /></div>

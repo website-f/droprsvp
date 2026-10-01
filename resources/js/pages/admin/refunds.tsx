@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CircleDollarSign, Clock, Undo2, XCircle } from 'lucide-react';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -50,7 +51,7 @@ export default function AdminRefunds({ requests, filters, stats }: Props) {
                     ))}
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-border">
+                <ResponsiveTable className="rounded-2xl border border-border">
                     <table className="w-full min-w-[720px] text-sm">
                         <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
@@ -81,7 +82,7 @@ export default function AdminRefunds({ requests, filters, stats }: Props) {
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </ResponsiveTable>
 
                 {(requests.prev_page_url || requests.next_page_url) && (
                     <div className="mt-6 flex items-center justify-between gap-2 text-sm">

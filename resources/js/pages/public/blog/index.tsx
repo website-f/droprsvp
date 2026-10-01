@@ -45,14 +45,14 @@ export default function BlogIndex({ posts, sidebar, activeCategory }: {
                         </div>
                     )}
 
-                    <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
+                    <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
                         <div className="min-w-0">
                             {posts.data.length === 0 ? (
                                 <p className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
                                     No posts here yet.
                                 </p>
                             ) : (
-                                <div className="grid gap-6 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                     {posts.data.map((p) => (
                                         <Link key={p.slug} href={postUrl(p.slug)} className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
                                             {p.cover_image

@@ -95,7 +95,7 @@ export default function EventAnalytics({ event, kpis, trend, demographics, answe
                         Audience insights appear once people buy tickets and share their details at checkout.
                     </div>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Panel title="Gender"><DonutChart data={demographics.gender} /></Panel>
                         <Panel title="Age"><BarsChart data={demographics.age} color={PALETTE[2]} /></Panel>
                         <Panel title="Top cities"><BarsChart data={demographics.city} color={PALETTE[4]} /></Panel>

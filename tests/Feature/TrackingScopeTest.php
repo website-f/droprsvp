@@ -84,9 +84,15 @@ class TrackingScopeTest extends TestCase
         config(['services.ga.measurement_id' => 'G-TEST', 'services.clarity.project_id' => 'abc123']);
         $this->app->detectEnvironment(fn () => 'production');
 
-        $this->assertNotNull(Tracking::clientConfig(Request::create('/en-my/')));
+        $this->assertTrue(Tracking::clientConfig(Request::create('/en-my/'))['active']);
+        // Staff areas carry nothing at all.
         $this->assertNull(Tracking::clientConfig(Request::create('/admin/overview')));
-        $this->assertNull(Tracking::clientConfig(Request::create('/dashboard')));
+        $this->assertNull(Tracking::clientConfig(Request::create('/host/events')));
+        // A buyer's private page gets the config DORMANT: no tag rendered and
+        // nothing sent from it, but the guard can load the tag if this SPA
+        // session goes on to a public page (sign in -> event -> checkout).
+        $this->assertFalse(Tracking::clientConfig(Request::create('/dashboard'))['active']);
+        $this->assertFalse(Tracking::clientConfig(Request::create('/login'))['active']);
     }
 
     public function test_no_rule_is_published_when_both_trackers_are_off(): void

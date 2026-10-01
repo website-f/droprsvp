@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Check, Copy, Download, Eye, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
+import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -119,7 +120,7 @@ export default function AdminUsers({ users, filters, countries, ageBands }: Prop
                     <div className="sm:w-36"><AppSelect aria-label="Age" value={filters.age || 'all'} onChange={(v) => go({ age: v === 'all' ? '' : v })} options={[{ value: 'all', label: 'All ages' }, ...ageBands.map((a) => ({ value: a, label: AGE_LABEL[a] ?? a }))]} /></div>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <ResponsiveTable className="rounded-xl border border-border">
                     <table className="w-full min-w-[720px] text-sm">
                         <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
@@ -168,7 +169,7 @@ export default function AdminUsers({ users, filters, countries, ageBands }: Prop
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </ResponsiveTable>
 
                 {(users.prev_page_url || users.next_page_url) && (
                     <div className="mt-6 flex justify-between">

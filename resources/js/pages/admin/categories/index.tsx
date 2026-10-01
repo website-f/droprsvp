@@ -45,7 +45,7 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
 
     return (
         <div className="rounded-xl border border-border bg-card p-3">
-            <div className="grid items-end gap-3 sm:grid-cols-[auto_1fr_1fr_auto_auto]">
+            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[auto_1fr_1fr_auto_auto]">
                 <div className="flex flex-col pb-0.5">
                     <button type="button" aria-label="Move up" disabled={first} onClick={() => onMove(-1)} className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
                     <button type="button" aria-label="Move down" disabled={last} onClick={() => onMove(1)} className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
@@ -91,7 +91,7 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
             {open && (
             <>
             {/* Homepage appearance — exactly what a visitor sees on the “Browse by category” grid. */}
-            <div className="mt-3 grid gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-[1fr_1.4fr]">
+            <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-[1fr_1.4fr]">
                 <div className="grid gap-1.5">
                     <Label className="text-xs">Homepage preview</Label>
                     <div className="flex h-full items-center gap-3 rounded-2xl border border-border bg-background p-4">
@@ -186,7 +186,7 @@ function PostRow({ category }: { category: PostCategory }) {
     };
 
     return (
-        <div className="grid items-end gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-[1fr_1fr_auto_auto]">
+        <div className="grid grid-cols-1 items-end gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-[1fr_1fr_auto_auto]">
             <div className="grid gap-1.5">
                 <Label className="text-xs">Name</Label>
                 <input className={input} value={name} onChange={(e) => setName(e.target.value)} />

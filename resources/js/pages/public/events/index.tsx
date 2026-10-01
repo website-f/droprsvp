@@ -255,7 +255,7 @@ export default function Discover({ events, categories, cities, active, filters, 
                     {events.data.length === 0 ? (
                         <p className="mt-12 text-center text-sm text-muted-foreground">No events found. Try a different city, category or search.</p>
                     ) : (
-                        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {events.data.map((e) => (
                                 <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
                                     <div className="relative w-full">

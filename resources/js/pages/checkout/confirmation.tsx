@@ -1,5 +1,6 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock, Ticket } from 'lucide-react';
+import { useEffect } from 'react';
 import { PurchaseEvent } from '@/components/analytics-events';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,33 @@ interface OrderView {
 export default function CheckoutConfirmation({ order, analytics }: { order: OrderView; analytics: Record<string, unknown> | null }) {
     const paid = order.status === 'paid';
     const { auth, branding } = usePage().props;
+
+    // "This page will update once it's done" — it never did. The gateway often
+    // returns the buyer a few seconds before the payment settles, and the page
+    // sat on "Payment processing" until they refreshed by hand (so their
+    // tickets looked missing, and the purchase was never reported). Poll the
+    // order instead; each poll also reconciles with the gateway on the server.
+    // Gives up after ~3 minutes, by when a refresh or the emailed tickets take over.
+    useEffect(() => {
+        if (order.status !== 'pending') {
+            return;
+        }
+
+        let tries = 0;
+        const timer = window.setInterval(() => {
+            tries += 1;
+
+            if (tries > 45) {
+                window.clearInterval(timer);
+
+                return;
+            }
+
+            router.reload({ only: ['order', 'analytics', 'pending'] });
+        }, 4000);
+
+        return () => window.clearInterval(timer);
+    }, [order.status]);
 
     return (
         <>
