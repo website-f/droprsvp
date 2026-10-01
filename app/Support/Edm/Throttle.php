@@ -3,7 +3,6 @@
 namespace App\Support\Edm;
 
 use App\Models\EmailSend;
-use App\Models\Setting;
 use Illuminate\Support\Carbon;
 
 /**
@@ -29,9 +28,7 @@ final class Throttle
 {
     public static function hourlyLimit(): int
     {
-        $saved = (int) (Setting::getArray('edm', [])['hourly_limit'] ?? 0);
-
-        return max(1, $saved > 0 ? $saved : (int) config('edm.hourly_limit', 100));
+        return max(1, (int) Settings::get('hourly_limit'));
     }
 
     public static function perMinute(): int

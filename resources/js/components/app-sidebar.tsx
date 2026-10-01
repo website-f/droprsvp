@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -56,6 +56,7 @@ const platformNav: AdminNavItem[] = [
     { title: 'Finance', href: '/admin/finance', icon: CircleDollarSign, section: 'finance' },
     { title: 'Refunds', href: '/admin/refunds', icon: Undo2, section: 'refunds' },
     { title: 'Contact messages', href: '/admin/contact', icon: Inbox, section: 'contact' },
+    { title: 'Email marketing', href: '/admin/edm/campaigns', icon: Mail, section: 'edm' },
     { title: 'Archive', href: '/admin/archive', icon: Archive, section: 'archive' },
     { title: 'Settings', href: '/admin/settings', icon: Settings2, section: 'settings' },
 ];

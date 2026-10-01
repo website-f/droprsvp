@@ -98,7 +98,8 @@ function ImageUploadField({ name, value, onChange }: { name: string; value: stri
     );
 }
 
-const imageUpload: CustomField<string> = {
+/** Shared with the email builder (components/edm/email-puck-config.tsx). */
+export const imageUpload: CustomField<string> = {
     type: 'custom',
     render: ({ name, onChange, value }) => <ImageUploadField name={name} value={value ?? ''} onChange={onChange} />,
 };

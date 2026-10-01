@@ -25,7 +25,13 @@ class SecurityHeaders
         $headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $headers->set('X-XSS-Protection', '0'); // defer to CSP/escaping; legacy filter is itself a risk
         // Clickjacking backstop without constraining script/style sources.
-        $headers->set('Content-Security-Policy', "frame-ancestors 'self'");
+        //
+        // Only when the response has not set a stricter policy of its own —
+        // the email preview sends "script-src 'none'; frame-ancestors 'self'",
+        // and overwriting it here silently threw the script ban away.
+        if (! $headers->has('Content-Security-Policy')) {
+            $headers->set('Content-Security-Policy', "frame-ancestors 'self'");
+        }
 
         if ($request->secure()) {
             $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

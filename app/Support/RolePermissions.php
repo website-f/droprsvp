@@ -34,6 +34,7 @@ class RolePermissions
         'finance' => ['label' => 'Finance', 'prefixes' => ['admin.finance']],
         'refunds' => ['label' => 'Refunds', 'prefixes' => ['admin.refunds']],
         'contact' => ['label' => 'Contact messages', 'prefixes' => ['admin.contact']],
+        'edm' => ['label' => 'Email marketing', 'prefixes' => ['admin.edm']],
         'archive' => ['label' => 'Archive', 'prefixes' => ['admin.archive']],
         'content' => ['label' => 'Content (CMS)', 'prefixes' => ['admin.cms', 'admin.seo', 'admin.site.legal', 'admin.site.home-seo', 'admin.site.blog']],
         'appearance' => ['label' => 'Appearance', 'prefixes' => ['admin.site.branding', 'admin.site.landing', 'admin.site.footer', 'admin.site.receipt']],

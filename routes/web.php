@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\CmsCategoryController;
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
+use App\Http\Controllers\Admin\EdmAudienceController;
+use App\Http\Controllers\Admin\EdmCampaignController;
 use App\Http\Controllers\Admin\EventCategoryController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\EventSeoController;
@@ -456,6 +458,34 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
 
         // Finance — every transaction (tickets/boosts/subscriptions/payouts).
         Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
+
+        // Email marketing (EDM): DropRSVP's own campaigns and list.
+        Route::prefix('edm')->name('edm.')->group(function () {
+            Route::get('campaigns', [EdmCampaignController::class, 'index'])->name('campaigns.index');
+            Route::post('campaigns', [EdmCampaignController::class, 'store'])->name('campaigns.store');
+            Route::post('audience-count', [EdmCampaignController::class, 'audienceCount'])->name('audience-count');
+            Route::get('campaigns/{campaign}', [EdmCampaignController::class, 'show'])->whereNumber('campaign')->name('campaigns.show');
+            Route::put('campaigns/{campaign}', [EdmCampaignController::class, 'update'])->whereNumber('campaign')->name('campaigns.update');
+            Route::delete('campaigns/{campaign}', [EdmCampaignController::class, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
+            Route::get('campaigns/{campaign}/editor', [EdmCampaignController::class, 'editor'])->whereNumber('campaign')->name('campaigns.editor');
+            Route::post('campaigns/{campaign}/design', [EdmCampaignController::class, 'saveDesign'])->whereNumber('campaign')->name('campaigns.design');
+            Route::get('campaigns/{campaign}/preview', [EdmCampaignController::class, 'preview'])->whereNumber('campaign')->name('campaigns.preview');
+            Route::post('campaigns/{campaign}/test', [EdmCampaignController::class, 'test'])->whereNumber('campaign')->middleware('throttle:10,1')->name('campaigns.test');
+            Route::post('campaigns/{campaign}/send', [EdmCampaignController::class, 'send'])->whereNumber('campaign')->name('campaigns.send');
+            Route::post('campaigns/{campaign}/schedule', [EdmCampaignController::class, 'schedule'])->whereNumber('campaign')->name('campaigns.schedule');
+            Route::post('campaigns/{campaign}/unschedule', [EdmCampaignController::class, 'unschedule'])->whereNumber('campaign')->name('campaigns.unschedule');
+            Route::post('campaigns/{campaign}/pause', [EdmCampaignController::class, 'pause'])->whereNumber('campaign')->name('campaigns.pause');
+            Route::post('campaigns/{campaign}/resume', [EdmCampaignController::class, 'resume'])->whereNumber('campaign')->name('campaigns.resume');
+            Route::post('campaigns/{campaign}/cancel', [EdmCampaignController::class, 'cancel'])->whereNumber('campaign')->name('campaigns.cancel');
+            Route::post('campaigns/{campaign}/duplicate', [EdmCampaignController::class, 'duplicate'])->whereNumber('campaign')->name('campaigns.duplicate');
+
+            Route::get('subscribers', [EdmAudienceController::class, 'subscribers'])->name('subscribers');
+            Route::get('subscribers/export', [EdmAudienceController::class, 'export'])->name('subscribers.export');
+            Route::post('subscribers/{consent}/unsubscribe', [EdmAudienceController::class, 'unsubscribe'])->whereNumber('consent')->name('subscribers.unsubscribe');
+            Route::post('subscribers/{consent}/suppress', [EdmAudienceController::class, 'suppress'])->whereNumber('consent')->name('subscribers.suppress');
+            Route::get('settings', [EdmAudienceController::class, 'settings'])->name('settings');
+            Route::post('settings', [EdmAudienceController::class, 'saveSettings'])->name('settings.save');
+        });
         Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
 
         // Refund oversight + reconciliation across all organizers.

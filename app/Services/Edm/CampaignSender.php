@@ -9,6 +9,7 @@ use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
 use App\Support\Edm\Personalizer;
 use App\Support\Edm\Renderer;
+use App\Support\Edm\Settings;
 use App\Support\Edm\Throttle;
 use App\Support\PlatformAlert;
 use Illuminate\Support\Facades\DB;
@@ -200,8 +201,8 @@ class CampaignSender
                     textBody: $message['text'],
                     unsubscribeUrl: route('edm.unsubscribe', ['token' => $send->token]),
                     fromAddress: (string) config('edm.from.address'),
-                    fromName: $campaign->from_name ?: (string) config('edm.from.name'),
-                    replyToAddress: $campaign->reply_to ?: config('edm.reply_to'),
+                    fromName: $campaign->from_name ?: (string) Settings::get('from_name'),
+                    replyToAddress: $campaign->reply_to ?: (Settings::get('reply_to') ?: null),
                     campaignTag: 'c'.$campaign->id,
                 ));
         } catch (\Throwable $e) {
@@ -276,13 +277,13 @@ class CampaignSender
 
     private function context(EmailCampaign $campaign): array
     {
-        $sender = $campaign->from_name ?: (string) config('edm.from.name', 'DropRSVP');
+        $sender = $campaign->from_name ?: (string) Settings::get('from_name');
 
         return [
             'subject' => $campaign->subject,
             'preheader' => $campaign->preheader,
             'sender' => $sender,
-            'address' => (string) config('edm.postal_address', ''),
+            'address' => (string) Settings::get('postal_address'),
             'reason' => $campaign->organizer_id
                 ? "You are receiving this because you opted in to emails from {$sender} on DropRSVP."
                 : 'You are receiving this because you opted in to emails from DropRSVP.',
