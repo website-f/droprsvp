@@ -30,6 +30,7 @@ use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EdmTrackingController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Host\AnalyticsController;
@@ -131,6 +132,17 @@ Route::get('e/{event}', fn (string $event) => redirect(Url::to('e', $event), 301
 Route::get('blog/{post}', fn (string $post) => redirect(Url::to('blog', $post), 301));
 Route::get('help/{article}', fn (string $article) => redirect(Url::to('help', $article), 301));
 Route::get('o/{organizer}', fn (string $organizer) => redirect(Url::to('o', $organizer), 301));
+
+// Links inside campaign emails (EDM). Public, token-only, noindex. Kept off the
+// /en-my/ locale prefix: they are not pages of the site, and the trailing-slash
+// rule in .htaccess is scoped to /en-my/ so it never redirects them.
+Route::prefix('m')->name('edm.')->group(function () {
+    Route::get('o/{token}.gif', [EdmTrackingController::class, 'open'])->name('open');
+    Route::get('c/{token}/{link}', [EdmTrackingController::class, 'click'])->whereNumber('link')->name('click');
+    Route::get('v/{token}', [EdmTrackingController::class, 'view'])->name('view');
+    Route::get('u/{token}', [EdmTrackingController::class, 'confirm'])->name('unsubscribe');
+    Route::post('u/{token}', [EdmTrackingController::class, 'unsubscribe'])->middleware('throttle:60,1')->name('unsubscribe.confirm');
+});
 
 // SEO plumbing.
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');

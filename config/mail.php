@@ -49,6 +49,23 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        // Campaign mail (EDM). Its own SMTP login and From address — the
+        // cPanel "promo@edm…" mailbox — so marketing never leaves as the
+        // address tickets and receipts come from. Every value falls back to the
+        // main MAIL_* settings, so it works before anything EDM-specific is set.
+        // Where MAIL_MAILER is "log" (local), campaigns are logged too.
+        'edm' => [
+            'transport' => env('EDM_MAIL_TRANSPORT', env('MAIL_MAILER') === 'log' ? 'log' : 'smtp'),
+            'scheme' => env('EDM_MAIL_SCHEME', env('MAIL_SCHEME')),
+            'host' => env('EDM_MAIL_HOST', env('MAIL_HOST', '127.0.0.1')),
+            'port' => env('EDM_MAIL_PORT', env('MAIL_PORT', 2525)),
+            'username' => env('EDM_MAIL_USERNAME', env('MAIL_USERNAME')),
+            'password' => env('EDM_MAIL_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout' => 20,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'channel' => env('MAIL_LOG_CHANNEL'),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

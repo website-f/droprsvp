@@ -32,7 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // is SameSite=lax, so a cross-site POST arrives with no session and
         // fails the order-access check; and all it can do is mark a sale of
         // the caller's own as reported to GA.
-        $middleware->validateCsrfTokens(except: ['webhooks/*', 'orders/*/analytics/*']);
+        //
+        // Campaign unsubscribe: Gmail and Yahoo send the RFC 8058 one-click
+        // POST from their own servers, which cannot carry a token. The only
+        // credential is the 40-character random token in the URL, and the most
+        // a forged POST could do is unsubscribe whoever holds that link.
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'orders/*/analytics/*', 'm/u/*']);
 
         // Spatie role/permission middleware aliases (used to gate the CMS to superadmin).
         $middleware->alias([

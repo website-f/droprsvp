@@ -16,5 +16,10 @@ Schedule::command('orders:release-stale')->everyTenMinutes()->withoutOverlapping
 // paid in the bank app and never came back). Same cron. See GoogleAnalytics.
 Schedule::command('analytics:sync-purchases')->everyFiveMinutes()->withoutOverlapping();
 
+// Email campaigns: start any whose scheduled time has come and send the next
+// batch, within the hourly limit (same cron). No queue worker needed — see
+// App\Services\Edm\CampaignSender.
+Schedule::command('edm:send')->everyMinute()->withoutOverlapping(10);
+
 // Take scheduled blog posts live at their publish time (same cron).
 Schedule::command('posts:publish-scheduled')->everyMinute()->withoutOverlapping();
