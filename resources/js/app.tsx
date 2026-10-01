@@ -2,6 +2,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { FlashWatcher } from '@/components/flash-watcher';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { InertiaRecovery } from '@/components/inertia-recovery';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { TrackingGuard } from '@/components/tracking-guard';
 import { Toaster } from '@/components/ui/sonner';
@@ -66,6 +67,7 @@ createInertiaApp({
                             screens too, which carry their own chrome. */}
                         <ImpersonationBanner />
                         <TrackingGuard />
+                        <InertiaRecovery />
                         <Toaster />
                     </PromptProvider>
                 </ConfirmProvider>

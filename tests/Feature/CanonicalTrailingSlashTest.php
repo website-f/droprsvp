@@ -28,6 +28,34 @@ class CanonicalTrailingSlashTest extends TestCase
      */
     private const GENERATED = ['/resources/js/actions/', '/resources/js/routes/'];
 
+    /**
+     * The trailing-slash 301 is for PUBLIC pages only.
+     *
+     * It used to apply to every path, so app screens (/host/events, /dashboard)
+     * got a permanently-cacheable 301 too. Safari reuses that cached redirect
+     * for in-app requests and drops X-Inertia on the redirected hop, so the
+     * server returned a full HTML page and organizers saw a blank white modal
+     * when opening Events from the sidebar. Apache rules cannot run in PHPUnit,
+     * so this pins the condition that scopes the rule.
+     */
+    public function test_the_trailing_slash_redirect_is_scoped_to_public_pages(): void
+    {
+        $htaccess = file_get_contents(public_path('.htaccess'));
+
+        // Isolate the canonical-path block: from its comment to its RewriteRule.
+        $start = strpos($htaccess, '# --- Canonical path');
+        $this->assertNotFalse($start, 'The canonical-path block is missing from public/.htaccess.');
+        $end = strpos($htaccess, 'RewriteRule ^(.*)$ /$1/ [L,R=301]', $start);
+        $this->assertNotFalse($end, 'The trailing-slash RewriteRule is missing.');
+        $block = substr($htaccess, $start, $end - $start);
+
+        $this->assertStringContainsString(
+            'RewriteCond %{REQUEST_URI} ^/en-my(/|$)',
+            $block,
+            'The trailing-slash 301 must only apply to /en-my/ public pages, never to app screens.',
+        );
+    }
+
     public function test_url_helper_always_builds_a_trailing_slash(): void
     {
         $this->assertSame('/en-my/', Url::path());
