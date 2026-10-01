@@ -5,8 +5,12 @@ import { Switch } from '@/components/ui/switch';
 
 type Prefs = Record<string, boolean>;
 
-export default function NotificationsSettings({ channels, preferences }: { channels: Record<string, string>; preferences: Prefs }) {
-    const form = useForm<Prefs>(preferences);
+export default function NotificationsSettings({ channels, preferences, marketingEmail = false }: {
+    channels: Record<string, string>;
+    preferences: Prefs;
+    marketingEmail?: boolean;
+}) {
+    const form = useForm<Prefs>({ ...preferences, marketing_email: marketingEmail });
     const keys = Object.keys(channels);
 
     const submit = (e: React.FormEvent) => {
@@ -40,6 +44,23 @@ export default function NotificationsSettings({ channels, preferences }: { chann
                                 />
                             </label>
                         ))}
+                    </div>
+
+                    {/* Separate from the in-app channels above: this is consent to
+                        marketing EMAIL, and it is off until they turn it on. */}
+                    <div className="overflow-hidden rounded-xl border border-border">
+                        <label htmlFor="pref-marketing_email" className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3.5">
+                            <span>
+                                <span className="block text-sm text-foreground">Emails about upcoming events and offers</span>
+                                <span className="block text-xs text-muted-foreground">Our newsletter. Unsubscribe here or from any email.</span>
+                            </span>
+                            <Switch
+                                id="pref-marketing_email"
+                                checked={form.data.marketing_email}
+                                onCheckedChange={(v) => form.setData('marketing_email', v)}
+                                aria-label="Emails about upcoming events and offers"
+                            />
+                        </label>
                     </div>
 
                     <div className="flex items-center gap-3">

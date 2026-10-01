@@ -23,6 +23,8 @@ interface Row {
     city: string | null;
     account: boolean;
     consent: 'checkout' | 'account' | null;
+    /** Opted in to marketing email (email_consents), not the RSVP terms. */
+    marketing: boolean;
     tickets: number;
     items: string;
     value: number;
@@ -218,7 +220,8 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                                                     {r.email && <a href={`mailto:${r.email}`} title="Email" className="rounded-md border border-border p-1.5 hover:bg-accent"><Mail className="size-3.5" /></a>}
                                                     {wa && <a href={wa} target="_blank" rel="noreferrer" title="WhatsApp" className="rounded-md border border-border p-1.5 hover:bg-accent"><MessageCircle className="size-3.5" /></a>}
                                                 </div>
-                                                {r.consent && <div className="mt-1 text-[10px] text-muted-foreground">{r.consent === 'checkout' ? 'Consented at checkout' : 'Registered member'}</div>}
+                                                {r.consent && <div className="mt-1 text-[10px] text-muted-foreground">{r.consent === 'checkout' ? 'Agreed to RSVP terms' : 'Registered member'}</div>}
+                                                {r.marketing && <div className="mt-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Opted in to marketing</div>}
                                             </td>
                                         </tr>
                                     );
@@ -239,7 +242,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                 </section>
 
                 <p className="mt-3 text-xs text-muted-foreground">
-                    A checkout counts as abandoned once its 30-minute ticket hold runs out unpaid. Guests who left before typing anything can be counted but not contacted. Only email people who consented at checkout or are registered members, and include an unsubscribe link.
+                    A checkout counts as abandoned once its 30-minute ticket hold runs out unpaid. Guests who left before typing anything can be counted but not contacted. Agreeing to the RSVP terms is required to buy, so it is not permission to market: only people marked “Opted in to marketing” may receive promotional email.
                 </p>
             </div>
         </>

@@ -21,6 +21,7 @@ interface OrderView {
 interface Required { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
 
 const CONSENT_TEXT = 'By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.';
+const MARKETING_TEXT = 'Email me about upcoming events and offers on DropRSVP. Optional — unsubscribe any time.';
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
@@ -59,6 +60,8 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
         // decides whether they land on the confirmation already signed in.
         auto_login: true,
         consent: true,
+        // Off by default: marketing consent has to be an active choice.
+        marketing_opt_in: false,
     });
     const isFree = order.total <= 0;
 
@@ -227,6 +230,11 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
                                 <span className="text-muted-foreground">{CONSENT_TEXT}</span>
                             </div>
                             {form.errors.consent && <p className="text-xs text-destructive">{form.errors.consent}</p>}
+
+                            <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                <Switch checked={form.data.marketing_opt_in} onCheckedChange={(v) => form.setData('marketing_opt_in', v)} aria-label="Email me about upcoming events" className="mt-0.5" />
+                                <span className="text-muted-foreground">{MARKETING_TEXT}</span>
+                            </div>
                         </div>
 
                         <Button type="submit" size="lg" className="mt-6 w-full" disabled={form.processing || !canSubmit}>

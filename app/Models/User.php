@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Edm\Consent;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -75,6 +76,18 @@ class User extends Authenticatable implements PasskeyUser
         'event_reminders' => 'Reminders before events you’re attending',
         'organizer_updates' => 'Updates from organizers you follow',
     ];
+
+    protected static function booted(): void
+    {
+        // Marketing consent is keyed on the address mail goes to. When someone
+        // changes their email, the decision they made (an opt-OUT especially)
+        // must follow them rather than staying behind on the old address.
+        static::updated(function (User $user) {
+            if ($user->wasChanged('email')) {
+                Consent::moveToNewAddress($user, $user->getOriginal('email'), $user->email);
+            }
+        });
+    }
 
     /** This user's notification settings, merged over the all-on defaults. */
     public function notificationSettings(): array

@@ -151,18 +151,22 @@ class AnalyticsController extends Controller
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Name', 'Email', 'Phone', 'Event', 'Event date', 'Stage', 'Tickets', 'Items', 'Basket value', 'Currency', 'Attempts', 'Last attempt', 'Has account', 'Consent', 'City', 'Gender', 'Age', 'Heard via', 'Recovered', 'Order ref']);
+            fputcsv($out, ['Name', 'Email', 'Phone', 'Event', 'Event date', 'Stage', 'Tickets', 'Items', 'Basket value', 'Currency', 'Attempts', 'Last attempt', 'Has account', 'Relationship', 'Marketing opt-in', 'City', 'Gender', 'Age', 'Heard via', 'Recovered', 'Order ref']);
             foreach ($rows as $r) {
                 fputcsv($out, [
                     $r['name'], $r['email'], $r['phone'], $r['event'], $r['event_date'],
                     CheckoutFunnel::STAGE_LABELS[$r['stage']] ?? $r['stage'],
                     $r['tickets'], $r['items'], number_format($r['value'], 2, '.', ''), $r['currency'], $r['attempts'],
                     $r['last_at_label'], $r['account'] ? 'yes' : 'no',
+                    // "Ticked consent at checkout" read as permission to market,
+                    // which it never was: that switch is the RSVP terms, and
+                    // required to buy. Marketing opt-in is its own column.
                     match ($r['consent']) {
-                        'checkout' => 'Ticked consent at checkout',
+                        'checkout' => 'Agreed to RSVP terms at checkout',
                         'account' => 'Registered member',
                         default => '',
                     },
+                    ($r['marketing'] ?? false) ? 'yes' : 'no',
                     $r['city'], $r['gender'], $r['age_band'], $r['source'], $r['recovered'] ? 'yes' : 'no', $r['reference'],
                 ]);
             }

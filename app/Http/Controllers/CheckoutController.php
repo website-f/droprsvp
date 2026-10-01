@@ -13,6 +13,7 @@ use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
 use App\Support\Cities;
 use App\Support\CustomFields;
+use App\Support\Edm\Consent;
 use App\Support\Profile;
 use App\Support\Tracking;
 use Illuminate\Http\Request;
@@ -235,8 +236,20 @@ class CheckoutController extends Controller
             'auto_login' => ['boolean'],
             // Consent to use their details for the RSVP + updates.
             'consent' => ['accepted'],
+            // A SEPARATE, optional opt-in to marketing about other events. The
+            // consent above is agreement to the service and is required to
+            // continue, so it cannot double as permission to promote: consent
+            // to marketing has to be freely given, not a condition of buying.
+            'marketing_opt_in' => ['nullable', 'boolean'],
         ], ['consent.accepted' => 'Please agree to the terms to continue.']);
         unset($data['consent']);
+
+        // Recorded now, when they chose it, rather than on payment: the choice
+        // is theirs whether or not this particular order goes through.
+        if (! empty($data['marketing_opt_in'])) {
+            Consent::grant($data['buyer_email'] ?? null, 'checkout', $request->user(), null, $request->ip());
+        }
+        unset($data['marketing_opt_in']);
 
         // Answers are captured per TICKET, in the order tickets will be issued —
         // markPaid() walks the order items and their quantities in exactly this

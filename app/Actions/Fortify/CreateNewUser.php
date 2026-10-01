@@ -6,6 +6,7 @@ use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Mail\WelcomeMail;
 use App\Models\User;
+use App\Support\Edm\Consent;
 use App\Support\Mailer;
 use App\Support\PlatformAlert;
 use Illuminate\Support\Facades\Mail;
@@ -28,6 +29,8 @@ class CreateNewUser implements CreatesNewUsers
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
             'consent' => ['accepted'],
+            // Optional, separate from the required terms consent above.
+            'marketing_opt_in' => ['nullable', 'boolean'],
         ], [
             'consent.accepted' => 'Please agree to the terms to continue.',
             'email.unique' => 'You already have a DropRSVP account with this email — please sign in instead.',
@@ -43,6 +46,11 @@ class CreateNewUser implements CreatesNewUsers
         // once logged in; hosting/selling is the separate "Register as a vendor"
         // flow (/get-started) which grants the organizer role instead.
         $user->assignRole(Role::firstOrCreate(['name' => 'buyer', 'guard_name' => 'web']));
+
+        // Only when they ticked it. The switch starts OFF, unlike the terms one.
+        if (! empty($input['marketing_opt_in'])) {
+            Consent::grant($user->email, 'register', $user, null, request()->ip());
+        }
 
         // Warm welcome (deferred, non-fatal — a mail hiccup must not block sign-up).
         Mailer::defer($user->email, new WelcomeMail($user));

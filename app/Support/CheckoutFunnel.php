@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Order;
+use App\Support\Edm\Consent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -158,9 +159,10 @@ class CheckoutFunnel
                     'age_band' => $source->buyer_age_band,
                     'source' => $source->buyer_source,
                     'account' => $userId !== null,
-                    // Ticked "I agree…" on the checkout form, or is a signed-up
-                    // member. A guest who left before the form has given
-                    // nothing, and has no email to send to anyway.
+                    // How they relate to us: agreed to the RSVP terms on the
+                    // checkout form, or a signed-up member. NOT permission to
+                    // market — that switch is required to buy at all. Marketing
+                    // consent is `marketing` below, from email_consents.
                     'consent' => $withDetails ? 'checkout' : ($userId ? 'account' : null),
                     'tickets' => (int) $biggest->items->sum('quantity'),
                     'items' => $biggest->items->map(fn ($i) => $i->quantity.' × '.$i->name)->implode(', '),
@@ -174,7 +176,16 @@ class CheckoutFunnel
                 ];
             })
             ->sortByDesc('last_at')
-            ->values();
+            ->values()
+            ->pipe(function (Collection $rows) {
+                // One query for the whole list rather than one per row.
+                $subscribed = Consent::subscribedMap($rows->pluck('email'));
+
+                return $rows->map(fn (array $r) => [
+                    ...$r,
+                    'marketing' => (bool) ($subscribed[Consent::normalise($r['email'])] ?? false),
+                ]);
+            });
     }
 
     /** Abandoned vs paid per day, for the trend chart. */

@@ -18,9 +18,13 @@ type Props = {
 };
 
 const CONSENT_TEXT = 'By submitting this form, you agree to let Drop RSVP use your details to manage your RSVP and provide event updates.';
+const MARKETING_TEXT = 'Email me about upcoming events and offers on DropRSVP. Optional — unsubscribe any time.';
 
 export default function Register({ passwordRules }: Props) {
     const [consent, setConsent] = useState(true);
+    // OFF by default, unlike the terms switch: marketing consent has to be an
+    // active choice, and a pre-ticked box is not one.
+    const [marketing, setMarketing] = useState(false);
     const [email, setEmail] = useState('');
 
     return (
@@ -114,6 +118,12 @@ export default function Register({ passwordRules }: Props) {
                                 <span className="text-muted-foreground">{CONSENT_TEXT}</span>
                             </div>
                             <InputError message={errors.consent} />
+
+                            <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                <input type="hidden" name="marketing_opt_in" value={marketing ? '1' : '0'} />
+                                <Switch checked={marketing} onCheckedChange={setMarketing} aria-label="Email me about upcoming events" className="mt-0.5" />
+                                <span className="text-muted-foreground">{MARKETING_TEXT}</span>
+                            </div>
 
                             <Button
                                 type="submit"
