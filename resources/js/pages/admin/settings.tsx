@@ -116,7 +116,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
                     {tab === 'payments' && (
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2 grid gap-1.5">
-                                <Label>Platform fee <span className="font-normal text-muted-foreground">— the higher of % or flat RM, paid by buyers at checkout</span></Label>
+                                <Label>Platform fee <span className="font-normal text-muted-foreground">— the higher of % or flat RM, deducted from the organizer’s ticket sales (buyers pay the ticket price only)</span></Label>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <div className="relative w-36">
                                         <input type="number" min={0} max={100} step="0.1" className={`${input} pr-8`} value={data.fee_percent} onChange={(e) => setData('fee_percent', e.target.value)} />

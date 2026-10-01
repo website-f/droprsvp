@@ -20,6 +20,9 @@ class PayoutController extends Controller
 
         return inertia('host/payouts', [
             'balance' => $this->payouts->balanceFor($user),
+            // Per event: how much, and the date it unlocks. Without it the
+            // request button greyed out at RM 0.00 with no reason given.
+            'schedule' => $this->payouts->releaseSchedule($user),
             'bank' => [
                 'bank_code' => $user->payout_bank_code,
                 'account_number' => $user->payout_bank_account_number,

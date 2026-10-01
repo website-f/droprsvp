@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Download, FileText, Landmark, Pencil, Plus } from 'lucide-react';
+import { CheckCircle2, Clock, Download, FileText, Info, Landmark, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ interface PayoutRow { reference: string; amount: number; currency: string; statu
 interface Bank { bank_code: string | null; account_number: string | null; account_name: string | null }
 interface Business { business_name: string | null; tax_number: string | null; business_address: string | null }
 interface BankOption { value: string; label: string }
+interface Release { title: string; slug: string; net: number; available: boolean; releases_at: string | null; releases_on: string | null }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
@@ -23,10 +24,25 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
     );
 }
 
-export default function Payouts({ balance, payouts, bank, business, banks }: { balance: Balance; payouts: PayoutRow[]; bank: Bank; business: Business; banks: BankOption[] }) {
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+    return (
+        <li className="flex gap-3">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">{n}</span>
+            <div className="min-w-0">
+                <div className="font-medium">{title}</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{children}</p>
+            </div>
+        </li>
+    );
+}
+
+export default function Payouts({ balance, payouts, bank, business, banks, schedule = [] }: { balance: Balance; payouts: PayoutRow[]; bank: Bank; business: Business; banks: BankOption[]; schedule?: Release[] }) {
     const flash = usePage().props.flash as { success?: string; error?: string } | undefined;
     const errors = usePage().props.errors as Record<string, string>;
     const rm = (n: number) => `RM ${n.toFixed(2)}`;
+
+    // The next event still holding money — what the organizer is waiting on.
+    const nextRelease = schedule.find((r) => !r.available);
 
     const [bankOpen, setBankOpen] = useState(false);
     const [bizOpen, setBizOpen] = useState(false);
@@ -83,16 +99,74 @@ export default function Payouts({ balance, payouts, bank, business, banks }: { b
                         {balance.pending_clearance > 0 && <Line label="Held until events end" value={`− ${rm(balance.pending_clearance)}`} />}
                         <Line label="Already paid out / requested" value={`− ${rm(balance.withdrawn)}`} />
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">You keep the full ticket price — the platform fee ({balance.fee_label}) is paid by buyers at checkout, not deducted from you.</p>
+                    {/* Was "the platform fee is paid by buyers at checkout, not
+                        deducted from you" — no longer true: the commission comes
+                        out of the organizer's takings (PayoutService settles
+                        total − fees), and buyers pay the ticket price only. */}
+                    <p className="mt-2 text-xs text-muted-foreground">Shown after the platform fee ({balance.fee_label}) and any refunds.</p>
 
-                    {balance.pending_clearance > 0 && (
-                        <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{rm(balance.pending_clearance)} becomes available for payout once those events have taken place.</p>
+                    {/* Why the button may be greyed out — said plainly, with a date. */}
+                    {balance.available <= 0 && nextRelease && (
+                        <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                            <Clock className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                            <p>
+                                <span className="font-semibold">{rm(nextRelease.net)}</span> from <span className="font-semibold">{nextRelease.title}</span> unlocks
+                                {nextRelease.releases_on ? <> on <span className="font-semibold">{nextRelease.releases_on}</span></> : null}, once the event has ended.
+                                You can request a payout from then.
+                            </p>
+                        </div>
                     )}
 
                     <Button className="mt-5 w-full" size="lg" disabled={balance.available <= 0} onClick={() => router.post('/host/payouts', {}, { preserveScroll: true })}>
-                        Request payout of {rm(balance.available)}
+                        {balance.available > 0
+                            ? `Request payout of ${rm(balance.available)}`
+                            : nextRelease ? 'Payout opens after your event ends' : 'Nothing to pay out yet'}
                     </Button>
                 </div>
+
+                {/* How payouts work — the rule, stated once, before anyone asks. */}
+                <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold"><Info className="size-4 text-muted-foreground" /> How payouts work</h2>
+                    <ol className="mt-4 grid gap-3 text-sm">
+                        <Step n={1} title="Ticket sales are held while your event is upcoming">
+                            So that any refund a buyer is entitled to can still be paid back before the event happens.
+                        </Step>
+                        <Step n={2} title="They unlock when the event ends">
+                            The money from each event becomes available the moment it finishes (or starts, if it has no end time).
+                        </Step>
+                        <Step n={3} title="Request a payout, we transfer it">
+                            Request your available balance and we send it to the bank account below.
+                        </Step>
+                    </ol>
+                </div>
+
+                {/* Per event: how much, and when. */}
+                {schedule.length > 0 && (
+                    <div className="mt-6 rounded-2xl border border-border bg-card shadow-sm">
+                        <div className="border-b border-border px-5 py-4">
+                            <h2 className="text-sm font-semibold">Release schedule</h2>
+                            <p className="mt-0.5 text-xs text-muted-foreground">Each event's takings, and when they become available to withdraw.</p>
+                        </div>
+                        <ul className="divide-y divide-border">
+                            {schedule.map((r) => (
+                                <li key={r.slug} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate text-sm font-medium">{r.title}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {r.available
+                                                ? 'Event has ended'
+                                                : r.releases_on ? `Unlocks ${r.releases_on}` : 'Unlocks after the event ends'}
+                                        </div>
+                                    </div>
+                                    <span className="text-sm font-semibold tabular-nums">{rm(r.net)}</span>
+                                    {r.available
+                                        ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="size-3" /> Available</span>
+                                        : <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400"><Clock className="size-3" /> Held</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 {/* Payout bank account — empty state → modal → saved card */}
                 <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">

@@ -55,6 +55,48 @@ class PayoutService
         ];
     }
 
+    /**
+     * When each event's takings unlock — the "why can't I withdraw yet?" answer.
+     *
+     * balanceFor() gives the totals, but a single "held until events end" figure
+     * left organizers guessing which money, and until when. Their payout button
+     * simply greyed out at RM 0.00 with nothing saying why, which reads as broken.
+     * This lists every event that has taken money, what it is worth to them, and
+     * the date it becomes withdrawable — the same maturity rule balanceFor uses:
+     * the event's end (its start when it has no end), immediately when undated.
+     *
+     * Ordered so the next thing to unlock is first.
+     *
+     * @return list<array{title: string, slug: string, net: float, available: bool, releases_at: ?string, releases_on: ?string}>
+     */
+    public function releaseSchedule(User $organizer): array
+    {
+        $events = $organizer->events()
+            ->withSum(['orders as net' => fn ($q) => $q->where('status', 'paid')], DB::raw('total - fees - refunded_amount'))
+            ->get(['id', 'title', 'slug', 'starts_at', 'ends_at', 'timezone']);
+
+        return $events
+            ->filter(fn ($e) => (float) $e->net > 0)
+            ->map(function ($e) {
+                $releasesAt = $e->ends_at ?? $e->starts_at;
+
+                return [
+                    'title' => $e->title,
+                    'slug' => $e->slug,
+                    'net' => round((float) $e->net, 2),
+                    'available' => $releasesAt === null || $releasesAt->isPast(),
+                    'releases_at' => $releasesAt?->toIso8601String(),
+                    // In the event's own timezone: "after your event ends" means
+                    // when it ends where it happens.
+                    'releases_on' => $releasesAt?->setTimezone($e->timezone ?: config('app.timezone'))->format('j M Y, g:i A'),
+                ];
+            })
+            // Still-clearing first, soonest first; then what is already free.
+            ->sortBy(fn ($row) => [$row['available'] ? 1 : 0, $row['releases_at'] ?? ''])
+            ->values()
+            ->all();
+    }
+
     /** Request a payout for the full available balance. */
     public function request(User $organizer): Payout
     {

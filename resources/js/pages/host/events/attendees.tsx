@@ -1,32 +1,32 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Download, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Download, MessageSquareText, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { AttendeeFacets } from '@/components/attendee-facets';
+import type { Facet } from '@/components/attendee-facets';
+import { AttendeeProfile } from '@/components/attendee-profile';
+import type { AttendeeRow } from '@/components/attendee-profile';
 import { useConfirm } from '@/components/confirm-dialog';
 import { QrScanner  } from '@/components/qr-scanner';
 import type {ScanFeedback} from '@/components/qr-scanner';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { postJson } from '@/lib/api';
 
-interface Row {
-    id: number; token: string; name: string; email: string | null; phone: string | null;
-    type: string | null; seat: string | null; order_ref: string | null; purchased_at: string | null;
-    status: string; checked_in_at: string | null;
-}
+type Row = AttendeeRow;
 interface Paginated<T> {
     data: T[]; current_page: number; last_page: number; total: number;
     from: number | null; to: number | null; prev_page_url: string | null; next_page_url: string | null;
 }
-interface Filters { q: string; status: string; type: string }
+interface Filters { q: string; status: string; type: string; facets?: Record<string, string> }
 interface Stats { total: number; checked_in: number }
 interface Props {
     event: { title: string; slug: string; mode?: string };
     tickets: Paginated<Row>;
     filters: Filters;
     ticketTypes: { id: number; name: string }[];
+    facets?: Facet[];
     stats: Stats;
     openScanner?: boolean;
 }
@@ -39,7 +39,7 @@ const STATUS_LABEL: Record<string, string> = {
     checked_in: 'Checked in', valid: 'Not checked in', void: 'Void', refunded: 'Refunded',
 };
 
-export default function Attendees({ event, tickets, filters, ticketTypes, stats, openScanner = false }: Props) {
+export default function Attendees({ event, tickets, filters, ticketTypes, facets = [], stats, openScanner = false }: Props) {
     // Rows + stats live locally so scans/check-ins update instantly without a reload;
     // they re-sync whenever Inertia replaces the props (filter change / pagination).
     const [rows, setRows] = useState<Row[]>(tickets.data);
@@ -66,9 +66,19 @@ export default function Attendees({ event, tickets, filters, ticketTypes, stats,
 
     const base = `/host/events/${event.slug}/attendees`;
 
+    // Normalise: PHP serialises an empty array as [] rather than {}.
+    const activeFacets: Record<string, string> = Array.isArray(filters.facets) ? {} : (filters.facets ?? {});
+
     const applyFilters = (patch: Partial<Filters>) => {
-        const next = { ...filters, q, ...patch };
+        const next = { ...filters, q, facets: activeFacets, ...patch };
         const params: Record<string, string> = {};
+
+        // facets[key]=value, one per facet — the shape AttendeeController reads.
+        Object.entries(next.facets ?? {}).forEach(([key, value]) => {
+            if (value) {
+                params[`facets[${key}]`] = value;
+            }
+        });
 
         if (next.q) {
 params.q = next.q;
@@ -91,8 +101,23 @@ params.type = next.type;
         searchTimer.current = window.setTimeout(() => applyFilters({ q: v }), 350);
     };
 
+    const setFacet = (key: string, value: string | null) => {
+        const nextFacets = { ...activeFacets };
+
+        if (value === null) {
+            delete nextFacets[key];
+        } else {
+            nextFacets[key] = value;
+        }
+
+        applyFilters({ facets: nextFacets });
+    };
+
     const exportUrl = () => {
         const p = new URLSearchParams();
+
+        // The CSV is exactly what is on screen, facets included.
+        Object.entries(activeFacets).forEach(([key, value]) => p.set(`facets[${key}]`, value));
 
         if (q) {
 p.set('q', q);
@@ -224,6 +249,9 @@ p.set('type', filters.type);
 
     const pct = liveStats.total ? Math.round((liveStats.checked_in / liveStats.total) * 100) : 0;
 
+    // Only grow an Answers column when the event actually asked something.
+    const hasAnswers = rows.some((r) => Object.keys(r.answers ?? {}).length > 0);
+
     return (
         <>
             <Head title={`Attendees · ${event.title}`} />
@@ -264,7 +292,7 @@ p.set('type', filters.type);
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                     <div className="flex h-10 min-w-56 flex-1 items-center gap-2 rounded-lg border border-input bg-card px-3">
                         <Search className="size-4 text-muted-foreground" />
-                        <input value={q} onChange={(e) => onSearch(e.target.value)} placeholder="Search name, email, order, code…" className="w-full bg-transparent text-sm outline-none" />
+                        <input value={q} onChange={(e) => onSearch(e.target.value)} placeholder="Search name, email, phone, answer, order…" className="w-full bg-transparent text-sm outline-none" />
                     </div>
                     <div className="w-40"><AppSelect value={filters.status || 'all'} onChange={(v) => applyFilters({ status: v })} options={[{ value: 'all', label: 'All statuses' }, { value: 'valid', label: 'Not checked in' }, { value: 'checked_in', label: 'Checked in' }, { value: 'refunded', label: 'Refunded' }, { value: 'void', label: 'Void' }]} /></div>
                     {ticketTypes.length > 0 && (
@@ -275,6 +303,20 @@ p.set('type', filters.type);
                         white page behind if anything goes wrong server-side. */}
                     <Button asChild variant="outline" size="sm"><a href={exportUrl()} download><Download className="size-4" /> Export</a></Button>
                 </div>
+
+                <AttendeeFacets
+                    facets={facets}
+                    active={activeFacets}
+                    onChange={setFacet}
+                    onClear={() => applyFilters({ facets: {} })}
+                />
+
+                {/* How many match, once anything narrows the list. */}
+                {(Object.keys(activeFacets).length > 0 || filters.q) && (
+                    <p className="mb-3 text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">{tickets.total}</span> {tickets.total === 1 ? 'person matches' : 'people match'}
+                    </p>
+                )}
 
                 {/* Table */}
                 {rows.length === 0 ? (
@@ -289,6 +331,7 @@ p.set('type', filters.type);
                                 <tr>
                                     <th className="px-4 py-3 font-medium">Attendee</th>
                                     <th className="px-4 py-3 font-medium">Ticket</th>
+                                    {hasAnswers && <th className="px-4 py-3 font-medium">Answers</th>}
                                     <th className="px-4 py-3 font-medium">Order</th>
                                     <th className="px-4 py-3 font-medium">Status</th>
                                     <th className="px-4 py-3 text-right font-medium">Action</th>
@@ -298,13 +341,34 @@ p.set('type', filters.type);
                                 {rows.map((r) => (
                                     <tr key={r.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDetail(r)}>
                                         <td className="px-4 py-3">
-                                            <div className="font-medium">{r.name}</div>
+                                            <div className="flex items-center gap-1.5 font-medium">
+                                                {r.name}
+                                                {r.buyer?.notes && <MessageSquareText className="size-3.5 text-amber-600" aria-label="Left a note" />}
+                                            </div>
                                             <div className="text-xs text-muted-foreground">{r.email ?? '—'}</div>
+                                            {(r.buyer?.gender || r.buyer?.age_band || r.buyer?.city) && (
+                                                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                                    {[r.buyer?.gender, r.buyer?.age_band, r.buyer?.city].filter(Boolean).join(' · ')}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div>{r.type ?? '—'}</div>
                                             {r.seat && <div className="text-xs text-muted-foreground">{r.seat}</div>}
                                         </td>
+                                        {hasAnswers && (
+                                            <td className="px-4 py-3">
+                                                {/* What they told you, readable without opening each one. */}
+                                                <div className="flex max-w-xs flex-wrap gap-1">
+                                                    {Object.entries(r.answers ?? {}).slice(0, 3).map(([label, answer]) => (
+                                                        <span key={label} title={`${label}: ${answer}`} className="max-w-[11rem] truncate rounded-full bg-muted px-2 py-0.5 text-[11px]">
+                                                            {answer}
+                                                        </span>
+                                                    ))}
+                                                    {Object.keys(r.answers ?? {}).length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                                                </div>
+                                            </td>
+                                        )}
                                         <td className="px-4 py-3">
                                             <div className="text-xs text-muted-foreground">{r.order_ref ?? '—'}</div>
                                             <div className="text-xs text-muted-foreground">{r.purchased_at ?? ''}</div>
@@ -341,29 +405,14 @@ p.set('type', filters.type);
                 )}
             </div>
 
-            {/* Detail drawer */}
-            <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>{detail?.name}</DialogTitle></DialogHeader>
-                    {detail && (
-                        <div className="grid gap-3 text-sm">
-                            <div className="flex items-center justify-between"><span className="text-muted-foreground">Status</span><Badge variant={STATUS_BADGE[detail.status] ?? 'secondary'}>{STATUS_LABEL[detail.status] ?? detail.status}</Badge></div>
-                            {detail.checked_in_at && <Field label="Checked in at" value={detail.checked_in_at} />}
-                            <Field label="Email" value={detail.email} />
-                            <Field label="Phone" value={detail.phone} />
-                            <Field label="Ticket type" value={detail.type} />
-                            <Field label="Seat / Table" value={detail.seat} />
-                            <Field label="Order" value={detail.order_ref} />
-                            <Field label="Purchased" value={detail.purchased_at} />
-                            <Field label="Code" value={detail.token} mono />
-                            <div className="mt-1 flex gap-2">
-                                {detail.status === 'valid' && <Button className="flex-1" disabled={working} onClick={() => checkIn(detail.id)}><CheckCircle2 className="size-4" /> Check in</Button>}
-                                {detail.status === 'checked_in' && <Button variant="outline" className="flex-1" disabled={working} onClick={() => undo(detail.id, detail.name)}><RotateCcw className="size-4" /> Undo check-in</Button>}
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* Everything checkout learned about this person. */}
+            <AttendeeProfile
+                row={detail}
+                working={working}
+                onClose={() => setDetail(null)}
+                onCheckIn={(id) => checkIn(id)}
+                onUndo={undo}
+            />
 
             {/* Fullscreen scanner */}
             <QrScanner
@@ -386,15 +435,6 @@ p.set('type', filters.type);
                 )}
             />
         </>
-    );
-}
-
-function Field({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
-    return (
-        <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">{label}</span>
-            <span className={`text-right ${mono ? 'font-mono text-xs' : ''}`}>{value || '—'}</span>
-        </div>
     );
 }
 

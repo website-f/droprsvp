@@ -30,15 +30,15 @@ export default function HostFinance({ balance, feeLabel, events }: Props) {
                 <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Finance</h1>
-                        <p className="text-sm text-muted-foreground">Your ticket revenue and what’s available to pay out. Buyers pay the platform fee ({feeLabel}) at checkout — it isn’t deducted from you.</p>
+                        <p className="text-sm text-muted-foreground">Your ticket sales, the platform fee ({feeLabel}) deducted from them, and what’s available to pay out.</p>
                     </div>
                     <Button asChild variant="outline"><Link href="/host/payouts"><Landmark className="size-4" /> Payouts</Link></Button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-                    <Stat icon={TrendingUp} label="Ticket revenue (yours)" value={rm(balance.net)} tint="#6c63ff" />
-                    <Stat icon={CircleDollarSign} label="Buyer fees collected" value={rm(events.reduce((s, e) => s + e.fee, 0))} tint="#ff6584" hint="Paid by buyers to the platform" />
-                    <Stat icon={Wallet} label="Net earnings" value={rm(balance.net)} tint="#22c55e" />
+                    <Stat icon={TrendingUp} label="Ticket sales" value={rm(events.reduce((s, e) => s + e.gross, 0))} tint="#6c63ff" hint="What buyers paid, after refunds" />
+                    <Stat icon={CircleDollarSign} label="Platform fee" value={rm(events.reduce((s, e) => s + e.fee, 0))} tint="#ff6584" hint="Deducted from your ticket sales" />
+                    <Stat icon={Wallet} label="Net earnings" value={rm(balance.net)} tint="#22c55e" hint="Ticket sales minus the platform fee" />
                     <Stat icon={Banknote} label="Available to withdraw" value={rm(balance.available)} tint="#2ec4b6" />
                     <Stat icon={Clock} label="Held until events end" value={rm(balance.pending_clearance)} tint="#f5a524" hint="Clears once those events have taken place" />
                     <Stat icon={Landmark} label="Paid out / requested" value={rm(balance.withdrawn)} tint="#3b82f6" />

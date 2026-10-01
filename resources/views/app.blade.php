@@ -49,6 +49,28 @@
             </script>
         @endif
 
+        {{-- Mark JavaScript as available before the body parses, so the
+             server-rendered fallback inside #app is never painted for a visitor
+             whose browser is about to replace it with the full app — no flash
+             of plain text. Anything that does not run scripts (most crawlers)
+             never gets the class and reads the content normally. --}}
+        <script>document.documentElement.classList.add('js');</script>
+        <style>
+            .js .seo-fallback { display: none; }
+            .seo-fallback { max-width: 48rem; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.6; color: #0a0a0a; }
+            .seo-fallback h1 { font-size: 1.875rem; font-weight: 700; line-height: 1.2; margin: 0 0 .5rem; }
+            .seo-fallback h2 { font-size: 1.25rem; font-weight: 600; margin: 1.75rem 0 .5rem; }
+            .seo-fallback h3 { font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 .35rem; }
+            .seo-fallback p, .seo-fallback ul, .seo-fallback ol, .seo-fallback dl { margin: .75rem 0; }
+            .seo-fallback ul, .seo-fallback ol { padding-left: 1.25rem; list-style: disc; }
+            .seo-fallback dt { font-weight: 600; margin-top: .5rem; }
+            .seo-fallback dd { margin: 0; }
+            .seo-fallback a { text-decoration: underline; }
+            .seo-fallback img { max-width: 100%; height: auto; }
+            .seo-fallback table { border-collapse: collapse; width: 100%; }
+            .seo-fallback th, .seo-fallback td { border: 1px solid #ddd; padding: .4rem .6rem; text-align: left; }
+        </style>
+
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {
@@ -92,14 +114,17 @@
         <x-inertia::head />
     </head>
     <body class="font-sans antialiased">
-        {{-- Crawlable content fallback: since there's no Node/SSR in production,
-             content pages (help, blog…) render their body server-side here so
-             non-JS crawlers index the actual text, not just the meta tags. Real
-             visitors get the React version and never see this. --}}
+        {{-- The page's content, server-rendered INSIDE the React mount point.
+             There is no Node/SSR in production, so without this a crawler that
+             does not run JavaScript gets an empty #app. It used to sit in a
+             <noscript>, which the HTML-to-text extractors AI tools and SEO
+             crawlers use simply throw away — so pages still read as blank.
+             React replaces this on mount (no hydration; see InertiaApp). --}}
         @php($seoBody = app(\App\Support\SeoManager::class)->crawlableHtml())
-        @if($seoBody)
-            <noscript>{!! $seoBody !!}</noscript>
-        @endif
-        <x-inertia::app />
+        <x-inertia-app>
+            @if($seoBody)
+                <div class="seo-fallback">{!! $seoBody !!}</div>
+            @endif
+        </x-inertia-app>
     </body>
 </html>

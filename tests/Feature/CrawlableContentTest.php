@@ -206,13 +206,14 @@ class CrawlableContentTest extends TestCase
             $path = parse_url($url, PHP_URL_PATH);
             $html = $this->get($path)->getContent();
 
-            // The crawlable fallback lives in a <noscript> block; measure the
-            // TEXT in it, so a page that emits only empty markup still fails.
-            preg_match_all('~<noscript>(.*?)</noscript>~s', $html, $blocks);
-
+            // The crawlable content lives INSIDE the React mount point, #app.
+            // It used to be a <noscript> beside it, which the HTML-to-text
+            // extractors AI tools and SEO crawlers use throw away — so measure
+            // the TEXT inside #app, and a page that emits only empty markup (or
+            // regresses to <noscript>) still fails.
             $text = 0;
-            foreach ($blocks[1] as $block) {
-                $text = max($text, strlen(trim(html_entity_decode(strip_tags($block)))));
+            if (preg_match('~<div id="app">(.*)</body>~s', $html, $mount)) {
+                $text = strlen(trim(html_entity_decode(strip_tags($mount[1]))));
             }
 
             if ($text < 40) {

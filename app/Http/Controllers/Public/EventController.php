@@ -8,6 +8,7 @@ use App\Models\EventDailyStat;
 use App\Models\EventReview;
 use App\Models\Order;
 use App\Support\Cities;
+use App\Support\HtmlSanitizer;
 use App\Support\Ics;
 use App\Support\SeoManager;
 use App\Support\SeoTemplate;
@@ -351,24 +352,30 @@ class EventController extends Controller
      */
     private function crawlableEvent(Event $event, string $description, string $organizer): string
     {
-        $starts = $event->starts_at?->setTimezone($event->timezone);
-        $ends = $event->ends_at?->setTimezone($event->timezone);
+        $tz = $event->timezone ?: config('app.timezone');
+        $starts = $event->starts_at?->setTimezone($tz);
+        $ends = $event->ends_at?->setTimezone($tz);
+        $url = Url::to('e', $event->slug);
 
         $when = $starts?->format('l, j F Y, g:ia')
             .($ends ? ' – '.$ends->format($ends->isSameDay($starts) ? 'g:ia' : 'l, j F Y, g:ia') : '');
 
-        $html = '<article><h1>'.e($event->title).'</h1>';
+        $html = '<nav aria-label="Breadcrumb"><a href="'.e(Url::to()).'">Home</a> › '
+            .'<a href="'.e(Url::to('all')).'">Events</a> › '.e($event->title).'</nav>';
+
+        $html .= '<article><h1>'.e($event->title).'</h1>';
 
         if ($event->subtitle) {
             $html .= '<p>'.e($event->subtitle).'</p>';
         }
 
+        // ---- the facts -------------------------------------------------------
         $html .= '<dl>';
         if ($when !== '') {
             $html .= '<dt>When</dt><dd>'.e($when).'</dd>';
         }
         $html .= '<dt>Where</dt><dd>'.e($event->is_online
-            ? 'Online'
+            ? 'Online event'
             : implode(', ', array_filter([$event->venue_name, $event->venue_address, $event->city]))).'</dd>';
         $html .= '<dt>Organizer</dt><dd>'
             .($event->user?->slug
@@ -378,10 +385,73 @@ class EventController extends Controller
         if ($event->category?->name) {
             $html .= '<dt>Category</dt><dd>'.e($event->category->name).'</dd>';
         }
+        $html .= '<dt>Refunds</dt><dd>'.e($event->refundPolicyLabel()).'</dd>';
         $html .= '</dl>';
 
-        // description is already the plain-text summary used for the meta tag.
-        $html .= '<p>'.e($description).'</p>';
+        // ---- the whole description, not the 155-character meta snippet ----------
+        //
+        // This used to print the truncated meta description, so a crawler read
+        // "If you are new to this game, don't worry. No prior experience is..."
+        // and stopped there. The description is authored in the rich editor and
+        // sanitised on save; it is cleaned again here because this is raw HTML
+        // going into the page. Plain-text descriptions from before the editor
+        // keep their line breaks.
+        $body = (string) $event->description;
+
+        if (trim(strip_tags($body)) !== '') {
+            $html .= '<h2>About this event</h2>';
+            $html .= preg_match('/<[a-z][\s\S]*>/i', $body)
+                ? '<div>'.HtmlSanitizer::clean($body).'</div>'
+                : '<p>'.nl2br(e($body)).'</p>';
+        } elseif ($description !== '') {
+            $html .= '<p>'.e($description).'</p>';
+        }
+
+        // ---- the schedule, when it is more than one sitting ---------------------
+        if ($event->sessions->count() > 1) {
+            $html .= '<h2>Schedule</h2><ul>';
+            foreach ($event->sessions as $session) {
+                $at = $session->starts_at?->setTimezone($tz);
+                $until = $session->ends_at?->setTimezone($tz);
+                $html .= '<li>'.e(implode(' — ', array_filter([
+                    $session->title,
+                    $at ? $at->format('D, j M Y, g:ia').($until ? ' – '.$until->format('g:ia') : '') : null,
+                ]))).'</li>';
+            }
+            $html .= '</ul>';
+        }
+
+        // ---- tickets: what it costs and whether you can still get in ------------
+        $tickets = $event->ticketTypes->map(function ($t) {
+            $price = $t->kind === 'free' || (float) $t->price <= 0
+                ? 'Free'
+                : ($t->currency ?: 'MYR').' '.number_format((float) $t->price, 2);
+            $remaining = $t->remaining();
+            $state = match (true) {
+                $remaining === 0 => 'Sold out',
+                ! $t->isOnSale() => 'Not on sale',
+                $remaining !== null && $remaining <= 20 => $remaining.' left',
+                default => 'Available',
+            };
+
+            return '<li><strong>'.e($t->name).'</strong> — '.e($price).' ('.e($state).')'
+                .($t->description ? '<br>'.e($t->description) : '').'</li>';
+        });
+
+        // Reserved-seating events sell by section rather than ticket type.
+        $sections = $event->seating_enabled
+            ? $event->seatSections->where('kind', '!=', 'stage')->map(fn ($sec) => '<li><strong>'.e($sec->name).'</strong> — '
+                .e((float) $sec->price > 0 ? ($sec->currency ?: 'MYR').' '.number_format((float) $sec->price, 2) : 'Free')
+                .($sec->ticketType && $sec->ticketType->remaining() === 0 ? ' (Sold out)' : '').'</li>')
+            : collect();
+
+        if ($tickets->isNotEmpty() || $sections->isNotEmpty()) {
+            $html .= '<h2>Tickets</h2><ul>'.$tickets->implode('').$sections->implode('').'</ul>';
+        }
+
+        if ($event->status === 'published') {
+            $html .= '<p><a href="'.e($url.'#tickets').'">Get tickets for '.e($event->title).' on DropRSVP</a></p>';
+        }
 
         return $html.'</article>';
     }
