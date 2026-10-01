@@ -13,6 +13,7 @@ interface Props {
     campaigns: Paginated;
     stats: { subscribers: number; sent_30d: number; open_rate_30d: number | null; click_rate_30d: number | null };
     throttle: ThrottleStatus;
+    repermissionEligible: number;
 }
 
 const pct = (n: number | null) => (n === null ? '—' : `${n}%`);
@@ -28,7 +29,7 @@ function Stat({ icon: Icon, label, value, hint, tint }: { icon: typeof Mail; lab
     );
 }
 
-export default function EdmCampaigns({ campaigns, stats, throttle }: Props) {
+export default function EdmCampaigns({ campaigns, stats, throttle, repermissionEligible }: Props) {
     const [creating, setCreating] = useState(false);
     const form = useForm({ name: '' });
 
@@ -59,6 +60,25 @@ export default function EdmCampaigns({ campaigns, stats, throttle }: Props) {
                     <Stat icon={MailOpen} label="Open rate, 30 days" value={pct(stats.open_rate_30d)} hint="A lower bound: many inboxes block the open pixel." tint="#f5a524" />
                     <Stat icon={MousePointerClick} label="Click rate, 30 days" value={pct(stats.click_rate_30d)} tint="#22c55e" />
                 </div>
+
+                {/* Existing users never opted in, so the list starts small. This
+                    is the one sanctioned way to grow it from people we already know. */}
+                {repermissionEligible > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+                        <div className="min-w-0 text-sm">
+                            <div className="font-medium">
+                                {repermissionEligible.toLocaleString()} {repermissionEligible === 1 ? 'person has' : 'people have'} an account or bought a ticket but {repermissionEligible === 1 ? 'was' : 'were'} never asked
+                            </div>
+                            <div className="text-xs text-muted-foreground">Send them one email asking whether they would like to hear from you. Only those who say yes join the list, and nobody is ever asked twice.</div>
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={() => router.post('/admin/edm/campaigns', { name: 'May we keep you posted?', kind: 'repermission' })}
+                        >
+                            <Mail className="size-4" /> Prepare re-permission email
+                        </Button>
+                    </div>
+                )}
 
                 {/* Why sending is slow is the first question anyone asks. */}
                 <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">

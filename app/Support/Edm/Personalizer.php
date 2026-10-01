@@ -104,6 +104,8 @@ final class Personalizer
             'name' => $name ?: 'there',
             'email' => $send->email,
             'unsubscribe_url' => route('edm.unsubscribe', ['token' => $send->token]),
+            // The re-permission email's "yes" button.
+            'subscribe_url' => route('edm.subscribe', ['token' => $send->token]),
             'view_url' => route('edm.view', ['token' => $send->token]),
         ];
     }

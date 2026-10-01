@@ -143,6 +143,49 @@ class EdmTrackingController extends Controller
         ])->header('X-Robots-Tag', 'noindex, nofollow');
     }
 
+    /**
+     * The re-permission email's "Yes, keep me posted".
+     *
+     * GET only shows the button, for the same reason as unsubscribe: mail
+     * scanners open every link, and a GET that recorded consent would sign up
+     * people who never clicked — consent nobody gave is worth nothing.
+     */
+    public function confirmSubscribe(string $token): Response
+    {
+        $send = $this->permissionSend($token);
+
+        return response()->view('edm.subscribe', [
+            'token' => $token,
+            'valid' => (bool) $send,
+            'done' => $send && Consent::isSubscribed($send->email),
+        ])->header('X-Robots-Tag', 'noindex, nofollow');
+    }
+
+    public function subscribe(Request $request, string $token): Response
+    {
+        $send = $this->permissionSend($token);
+
+        // Only from a re-permission email, and only for the person it was sent
+        // to: the token is theirs. Someone who unsubscribed since still gets to
+        // change their mind — this is them choosing, explicitly.
+        if ($send && ! Consent::isSubscribed($send->email)) {
+            Consent::grant($send->email, 'repermission', $send->user, null, $request->ip());
+        }
+
+        return response()->view('edm.subscribe', [
+            'token' => $token,
+            'valid' => (bool) $send,
+            'done' => (bool) $send,
+        ])->header('X-Robots-Tag', 'noindex, nofollow');
+    }
+
+    private function permissionSend(string $token): ?EmailSend
+    {
+        $send = $this->send($token);
+
+        return $send && $send->campaign?->kind === 'repermission' ? $send : null;
+    }
+
     private function send(string $token): ?EmailSend
     {
         // Tokens are exactly 40 characters; anything else is not worth a query.

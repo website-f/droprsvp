@@ -98,6 +98,57 @@ final class Audience
         return self::query($spec, $organizerId)->count();
     }
 
+    /**
+     * Who the one-off re-permission email may go to.
+     *
+     * Everyone we have a relationship with — an account, or a paid order as a
+     * guest — who has NEVER made a marketing choice with DropRSVP: no opt-in,
+     * no opt-out. Never suppressed. And never asked before: a person receives
+     * at most one re-permission email, ever. Asking twice is how a polite
+     * question turns into the spam it was meant to avoid.
+     *
+     * $exceptCampaign is the campaign being built. Its own rows must not count
+     * as "already asked" while it is being filled — the list is inserted in
+     * chunks, and without this each chunk would drop out of the query it came
+     * from, shifting the next page and silently skipping people.
+     */
+    public static function repermission(?int $exceptCampaign = null): QueryBuilder
+    {
+        $accounts = DB::table('users')
+            ->selectRaw('LOWER(users.email) as email, users.id as user_id, users.name as name')
+            ->whereNotNull('users.email')
+            ->where('users.email', '!=', '');
+
+        $buyers = DB::table('orders')
+            ->selectRaw('LOWER(orders.buyer_email) as email, orders.user_id as user_id, orders.buyer_name as name')
+            ->whereIn('orders.status', ['paid', 'refunded'])
+            ->whereNotNull('orders.buyer_email')
+            ->where('orders.buyer_email', '!=', '');
+
+        return DB::query()
+            ->fromSub($accounts->unionAll($buyers), 'people')
+            ->selectRaw('people.email as email, MAX(people.user_id) as user_id, MAX(people.name) as name')
+            ->whereNotExists(fn (QueryBuilder $q) => $q->select(DB::raw(1))
+                ->from('email_consents')
+                ->whereColumn('email_consents.email', 'people.email')
+                ->where('email_consents.scope', Consent::PLATFORM))
+            ->whereNotExists(fn (QueryBuilder $q) => $q->select(DB::raw(1))
+                ->from('email_suppressions')
+                ->whereColumn('email_suppressions.email', 'people.email'))
+            ->whereNotExists(fn (QueryBuilder $q) => $q->select(DB::raw(1))
+                ->from('email_sends')
+                ->join('email_campaigns', 'email_campaigns.id', '=', 'email_sends.campaign_id')
+                ->whereColumn('email_sends.email', 'people.email')
+                ->where('email_campaigns.kind', 'repermission')
+                ->when($exceptCampaign, fn ($w) => $w->where('email_campaigns.id', '!=', $exceptCampaign)))
+            ->groupBy('people.email');
+    }
+
+    public static function repermissionCount(?int $exceptCampaign = null): int
+    {
+        return DB::query()->fromSub(self::repermission($exceptCampaign), 'r')->count();
+    }
+
     /** Orders placed under this consent row's address. */
     private static function orders(QueryBuilder $q): QueryBuilder
     {

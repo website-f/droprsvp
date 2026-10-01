@@ -55,19 +55,30 @@ class EdmCampaignController extends Controller
                 'click_rate_30d' => $this->rate((clone $last30)->sum('clicked_count'), (clone $last30)->sum('sent_count')),
             ],
             'throttle' => Throttle::status(),
+            // Everyone with an account or a purchase who has never been asked.
+            'repermissionEligible' => Audience::repermissionCount(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:160']]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:160'],
+            'kind' => ['nullable', 'in:standard,repermission'],
+        ]);
+
+        $repermission = ($data['kind'] ?? 'standard') === 'repermission';
 
         $campaign = EmailCampaign::create([
             'name' => $data['name'],
-            'subject' => '',
+            'kind' => $repermission ? 'repermission' : 'standard',
+            // The re-permission email comes written: it has one job, and the
+            // wording of that job matters more than any design choice.
+            'subject' => $repermission ? 'Can we keep you posted about events?' : '',
+            'preheader' => $repermission ? 'One click and you are in. Ignore this and we will not ask again.' : null,
             'from_name' => Settings::get('from_name'),
-            'design' => self::starterDesign(),
-            'audience' => Audience::normalise([]),
+            'design' => $repermission ? self::repermissionDesign() : self::starterDesign(),
+            'audience' => $repermission ? null : Audience::normalise([]),
             'created_by' => $request->user()->id,
         ]);
 
@@ -90,9 +101,13 @@ class EdmCampaignController extends Controller
                 'paused_reason' => $campaign->paused_reason,
                 'scheduled_at_local' => $campaign->scheduled_at?->setTimezone(Dates::tz())->format('Y-m-d\TH:i'),
             ],
-            'audienceCount' => $campaign->isEditable()
-                ? Audience::count($campaign->audience)
-                : $campaign->recipients_count,
+            'audienceCount' => match (true) {
+                ! $campaign->isEditable() => $campaign->recipients_count,
+                $campaign->kind === 'repermission' => Audience::repermissionCount($campaign->id),
+                default => Audience::count($campaign->audience),
+            },
+            // For a re-permission email, the only result that matters.
+            'confirmed' => $campaign->kind === 'repermission' ? $this->confirmed($campaign) : null,
             'options' => $this->audienceOptions(),
             'links' => $campaign->links()->orderByDesc('clicks')->limit(15)->get(['url', 'clicks', 'unique_clicks']),
             'throttle' => Throttle::status(),
@@ -118,7 +133,8 @@ class EdmCampaignController extends Controller
         $campaign->update([
             ...$data,
             'subject' => (string) ($data['subject'] ?? ''),
-            'audience' => Audience::normalise($data['audience'] ?? []),
+            // A re-permission email has a fixed audience; filters do not apply.
+            'audience' => $campaign->kind === 'repermission' ? null : Audience::normalise($data['audience'] ?? []),
         ]);
 
         return back()->with('flash_success', 'Campaign saved.');
@@ -164,7 +180,7 @@ class EdmCampaignController extends Controller
         $this->own($campaign);
 
         $html = $campaign->isEditable() || ! $campaign->html
-            ? Renderer::render((array) $campaign->design, $this->context($campaign))['html']
+            ? Renderer::render((array) $campaign->design, CampaignSender::renderContext($campaign))['html']
             : (string) $campaign->html;
 
         return response($this->sample($html, request()->user()?->name), 200, [
@@ -204,7 +220,7 @@ class EdmCampaignController extends Controller
             throw ValidationException::withMessages(['emails' => 'Add a subject line first.']);
         }
 
-        $rendered = Renderer::render((array) $campaign->design, $this->context($campaign));
+        $rendered = Renderer::render((array) $campaign->design, CampaignSender::renderContext($campaign));
 
         foreach ($emails as $email) {
             try {
@@ -384,19 +400,6 @@ class EdmCampaignController extends Controller
         return (float) $whole > 0 ? round(100 * (float) $part / (float) $whole, 1) : null;
     }
 
-    private function context(EmailCampaign $campaign): array
-    {
-        $sender = $campaign->from_name ?: (string) Settings::get('from_name');
-
-        return [
-            'subject' => $campaign->subject,
-            'preheader' => $campaign->preheader,
-            'sender' => $sender,
-            'address' => (string) Settings::get('postal_address'),
-            'reason' => 'You are receiving this because you opted in to emails from DropRSVP.',
-        ];
-    }
-
     /** Fill merge tags with a sample, for previews and tests. Links stay direct. */
     private function sample(string $content, ?string $name): string
     {
@@ -409,6 +412,7 @@ class EdmCampaignController extends Controller
             '{{name}}' => e($name ?: 'there'),
             '{{email}}' => e(request()->user()?->email ?? 'reader@example.com'),
             '{{unsubscribe_url}}' => url('/settings/notifications'),
+            '{{subscribe_url}}' => '#',
             '{{view_url}}' => '#',
         ]);
     }
@@ -459,6 +463,33 @@ class EdmCampaignController extends Controller
                 'image' => $e->cover_image,
             ])
             ->all();
+    }
+
+    /** How many people this re-permission email turned into subscribers. */
+    private function confirmed(EmailCampaign $campaign): int
+    {
+        return EmailConsent::query()
+            ->where('scope', Consent::PLATFORM)
+            ->where('status', 'subscribed')
+            ->where('source', 'repermission')
+            ->whereIn('email', $campaign->sends()->select('email'))
+            ->count();
+    }
+
+    /** The one-off "may we email you?" message. */
+    public static function repermissionDesign(): array
+    {
+        return [
+            'root' => ['props' => ['brandColor' => Renderer::DEFAULT_BRAND, 'backgroundColor' => '#f3f4f6', 'showLogo' => true]],
+            'content' => [
+                ['type' => 'Heading', 'props' => ['id' => 'Heading-1', 'text' => 'Want to hear about events near you?', 'level' => 'h1', 'align' => 'left']],
+                ['type' => 'Text', 'props' => ['id' => 'Text-1', 'align' => 'left', 'html' => '<p>Hi {{first_name}},</p>'
+                    .'<p>You have an account or bought tickets on DropRSVP. Now and then we would like to email you about upcoming events: gigs, workshops, meetups and the like.</p>'
+                    .'<p>Only if you want us to. One click below and you are in.</p>']],
+                ['type' => 'Button', 'props' => ['id' => 'Button-1', 'label' => 'Yes, keep me posted', 'url' => '{{subscribe_url}}', 'align' => 'center', 'color' => '']],
+                ['type' => 'Text', 'props' => ['id' => 'Text-2', 'align' => 'center', 'html' => '<p>Not interested? Just ignore this email. This is the only time we will ask.</p>']],
+            ],
+        ];
     }
 
     /** A new campaign is not a blank page: a sensible skeleton to edit. */

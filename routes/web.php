@@ -144,6 +144,8 @@ Route::prefix('m')->name('edm.')->group(function () {
     Route::get('v/{token}', [EdmTrackingController::class, 'view'])->name('view');
     Route::get('u/{token}', [EdmTrackingController::class, 'confirm'])->name('unsubscribe');
     Route::post('u/{token}', [EdmTrackingController::class, 'unsubscribe'])->middleware('throttle:60,1')->name('unsubscribe.confirm');
+    Route::get('s/{token}', [EdmTrackingController::class, 'confirmSubscribe'])->name('subscribe');
+    Route::post('s/{token}', [EdmTrackingController::class, 'subscribe'])->middleware('throttle:60,1')->name('subscribe.confirm');
 });
 
 // SEO plumbing.

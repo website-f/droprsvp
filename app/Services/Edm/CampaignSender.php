@@ -184,7 +184,11 @@ class CampaignSender
 
         // Checked again now, not only when the list was built: they may have
         // unsubscribed, or bounced from another campaign, in the meantime.
-        if (! Consent::mayEmail($send->email, $campaign->organizer_id)) {
+        $allowed = $campaign->kind === 'repermission'
+            ? Consent::mayAskPermission($send->email)
+            : Consent::mayEmail($send->email, $campaign->organizer_id);
+
+        if (! $allowed) {
             $send->forceFill(['status' => 'skipped', 'error' => 'No longer subscribed or suppressed'])->save();
 
             return 'skipped';
@@ -240,7 +244,7 @@ class CampaignSender
     /** Freeze the content: render the design once, register its links. */
     private function freeze(EmailCampaign $campaign): void
     {
-        $rendered = Renderer::render((array) $campaign->design, $this->context($campaign));
+        $rendered = Renderer::render((array) $campaign->design, self::renderContext($campaign));
 
         $campaign->forceFill([
             'html' => Personalizer::prepareLinks($campaign, $rendered['html']),
@@ -253,29 +257,39 @@ class CampaignSender
     {
         $now = now();
 
-        Audience::query($campaign->audience, $campaign->organizer_id)
-            ->orderBy('email_consents.id')
-            ->chunk(500, function ($rows) use ($campaign, $now) {
-                $insert = $rows->map(fn ($r) => [
-                    'campaign_id' => $campaign->id,
-                    'user_id' => $r->user_id,
-                    'email' => $r->email,
-                    'name' => $r->name,
-                    'token' => Str::random(40),
-                    'status' => 'queued',
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ])->all();
+        $source = $campaign->kind === 'repermission'
+            // People who have never been asked, excluding this campaign's own
+            // rows so the list does not shift under the chunked insert.
+            ? Audience::repermission($campaign->id)->orderBy('people.email')
+            : Audience::query($campaign->audience, $campaign->organizer_id)->orderBy('email_consents.id');
 
-                // insertOrIgnore: the (campaign, email) unique index is the
-                // final word on "one copy per person".
-                DB::table('email_sends')->insertOrIgnore($insert);
-            });
+        $source->chunk(500, function ($rows) use ($campaign, $now) {
+            $insert = $rows->map(fn ($r) => [
+                'campaign_id' => $campaign->id,
+                'user_id' => $r->user_id,
+                'email' => $r->email,
+                'name' => $r->name,
+                'token' => Str::random(40),
+                'status' => 'queued',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->all();
+
+            // insertOrIgnore: the (campaign, email) unique index is the
+            // final word on "one copy per person".
+            DB::table('email_sends')->insertOrIgnore($insert);
+        });
 
         return $campaign->sends()->count();
     }
 
-    private function context(EmailCampaign $campaign): array
+    /**
+     * What the renderer needs to know about who is sending and why.
+     *
+     * Public and static so the admin preview and test send use the exact same
+     * footer wording as real sends.
+     */
+    public static function renderContext(EmailCampaign $campaign): array
     {
         $sender = $campaign->from_name ?: (string) Settings::get('from_name');
 
@@ -284,9 +298,12 @@ class CampaignSender
             'preheader' => $campaign->preheader,
             'sender' => $sender,
             'address' => (string) Settings::get('postal_address'),
-            'reason' => $campaign->organizer_id
-                ? "You are receiving this because you opted in to emails from {$sender} on DropRSVP."
-                : 'You are receiving this because you opted in to emails from DropRSVP.',
+            'reason' => match (true) {
+                // Not "you opted in": they have not, which is the whole point.
+                $campaign->kind === 'repermission' => 'You are receiving this one-off email because you have an account or bought a ticket on DropRSVP. We will not send marketing emails unless you say yes.',
+                (bool) $campaign->organizer_id => "You are receiving this because you opted in to emails from {$sender} on DropRSVP.",
+                default => 'You are receiving this because you opted in to emails from DropRSVP.',
+            },
         ];
     }
 
@@ -298,6 +315,11 @@ class CampaignSender
 
         if (empty($campaign->design['content'])) {
             throw new RuntimeException('The email has no content yet.');
+        }
+
+        // Its whole job is the "yes" link. Without it, nobody could answer.
+        if ($campaign->kind === 'repermission' && ! str_contains(json_encode($campaign->design), '{{subscribe_url}}')) {
+            throw new RuntimeException('Add a button linking to {{subscribe_url}}: it is how people say yes.');
         }
     }
 

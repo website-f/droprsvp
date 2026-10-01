@@ -26,6 +26,8 @@ interface Campaign extends CampaignSummary {
 interface Props {
     campaign: Campaign;
     audienceCount: number;
+    /** Re-permission only: how many said yes. */
+    confirmed: number | null;
     options: { cities: string[]; events: SearchableOption[]; categories: SearchableOption[] };
     links: { url: string; clicks: number; unique_clicks: number }[];
     throttle: ThrottleStatus;
@@ -75,10 +77,11 @@ function estimate(recipients: number, t: ThrottleStatus): string {
     return hours < 48 ? `about ${Math.ceil(hours)} hours` : `about ${Math.ceil(hours / 24)} days`;
 }
 
-export default function EdmCampaign({ campaign, audienceCount, options, links, throttle, fromAddress, testEmail }: Props) {
+export default function EdmCampaign({ campaign, audienceCount, confirmed, options, links, throttle, fromAddress, testEmail }: Props) {
     const confirm = useConfirm();
     const editable = campaign.editable;
     const started = !!campaign.started_at;
+    const repermission = campaign.kind === 'repermission';
 
     const form = useForm({
         name: campaign.name,
@@ -206,7 +209,9 @@ export default function EdmCampaign({ campaign, audienceCount, options, links, t
                             <Tile icon={Send} label="Sent" value={campaign.sent.toLocaleString()} sub={campaign.failed ? `${campaign.failed} failed` : undefined} />
                             <Tile icon={MailOpen} label="Opened" value={pct(campaign.open_rate)} sub={`${campaign.opened.toLocaleString()} people`} />
                             <Tile icon={MousePointerClick} label="Clicked" value={pct(campaign.click_rate)} sub={`${campaign.clicked.toLocaleString()} people`} />
-                            <Tile icon={UserMinus} label="Unsubscribed" value={campaign.unsubscribed.toLocaleString()} />
+                            {repermission && confirmed !== null
+                                ? <Tile icon={Users} label="Said yes" value={confirmed.toLocaleString()} sub={campaign.sent ? `${Math.round((100 * confirmed) / campaign.sent)}% of sent` : undefined} />
+                                : <Tile icon={UserMinus} label="Unsubscribed" value={campaign.unsubscribed.toLocaleString()} />}
                             <Tile icon={AlertTriangle} label="Bounced" value={campaign.bounced.toLocaleString()} />
                         </div>
                         <p className="mt-2 text-[11px] text-muted-foreground">Opens are a lower bound: many inboxes block the tracking pixel. A click also counts as an open.</p>
@@ -275,7 +280,15 @@ export default function EdmCampaign({ campaign, audienceCount, options, links, t
                                 {count.toLocaleString()} {count === 1 ? 'person' : 'people'}
                             </span>
                         </div>
-                        <p className="mb-3 text-xs text-muted-foreground">Only subscribers who opted in to DropRSVP emails. Filters narrow that list; nothing here can add anyone.</p>
+                        {repermission ? (
+                            <div className="grid gap-2 text-sm text-muted-foreground">
+                                <p>Everyone with an account or a paid ticket who has <span className="font-medium text-foreground">never</span> chosen either way about DropRSVP emails.</p>
+                                <p>Each person can only ever receive one of these. Anyone who already opted in or out, or who was asked before, is left out automatically.</p>
+                                <p>Those who click “Yes” join the list. Everyone else is never emailed marketing.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="mb-3 text-xs text-muted-foreground">Only subscribers who opted in to DropRSVP emails. Filters narrow that list; nothing here can add anyone.</p>
 
                         <fieldset disabled={!editable} className="grid gap-4">
                             <div>
@@ -338,6 +351,8 @@ export default function EdmCampaign({ campaign, audienceCount, options, links, t
                                 </div>
                             )}
                         </fieldset>
+                            </>
+                        )}
                     </section>
 
                     {editable && (

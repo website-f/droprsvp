@@ -129,6 +129,22 @@ final class Consent
             && ! self::isSuppressed($email);
     }
 
+    /**
+     * Whether the one-off re-permission email may still go to this address.
+     *
+     * Only to someone who has made NO choice yet. If they opted in since the
+     * list was built, there is nothing to ask; if they opted out, asking would
+     * ignore the answer they already gave.
+     */
+    public static function mayAskPermission(?string $email): bool
+    {
+        $email = self::normalise($email);
+
+        return $email !== null
+            && ! EmailConsent::where('email', $email)->where('scope', self::PLATFORM)->exists()
+            && ! self::isSuppressed($email);
+    }
+
     public static function isSuppressed(?string $email): bool
     {
         $email = self::normalise($email);

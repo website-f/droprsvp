@@ -14,6 +14,8 @@
     <title>{{ $done ? 'You are unsubscribed' : 'Unsubscribe' }} · {{ config('seo.site_name', 'DropRSVP') }}</title>
     <style>
         :root { color-scheme: light dark; }
+        /* Without this, width:100% plus the card's padding is wider than a phone. */
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
             background: #f3f4f6; color: #111827;
