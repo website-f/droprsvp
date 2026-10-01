@@ -99,8 +99,12 @@ class OrganizerToolsTest extends TestCase
         $this->assertSame(2, $exp['First time']['count']);
         $this->assertSame(1, $exp['Veteran']['count']);
 
-        // …the text question is not a facet (searchable instead)…
-        $this->assertArrayNotHasKey('f_nick', $facets->all());
+        // …and typed-answer questions too: answered / not answered, plus the
+        // answers given (only three distinct ones here, so all are listed).
+        $nick = collect($facets['f_nick']['options'])->keyBy('label');
+        $this->assertSame(2, $nick['Answered']['count']);
+        $this->assertSame(1, $nick['No answer']['count']);
+        $this->assertSame(1, $nick['Dan the Demon']['count']);
 
         // …plus the demographics buyers actually answered, and remarks.
         $this->assertTrue($facets->has('gender'));

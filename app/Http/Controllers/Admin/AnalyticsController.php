@@ -11,6 +11,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
+use App\Support\AnswerInsights;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -236,6 +237,11 @@ class AnalyticsController extends Controller
                 'city' => Analytics::top((clone $paidInWindow), 'buyer_city', 6),
                 'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
+            // Same booking-question breakdown the organizer sees.
+            'answers' => AnswerInsights::forEvent(
+                $event,
+                fn ($orders) => Analytics::applyAudience($orders, $city ?: null, $source ?: null),
+            ),
             'city' => $city,
             'source' => $source,
             'cityOptions' => $cities,

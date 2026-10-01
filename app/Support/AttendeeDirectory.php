@@ -66,6 +66,9 @@ class AttendeeDirectory
     /** @var Collection<int, array<string, mixed>>|null one entry per ticket */
     private ?Collection $rows = null;
 
+    /** @var array<string, string> field id => type, for matching */
+    private array $fieldTypes = [];
+
     /**
      * @param  array<string, string>  $facets  selected facet => value
      */
@@ -76,6 +79,7 @@ class AttendeeDirectory
         private readonly array $facets,
     ) {
         $this->fields = CustomFields::forEvent($event);
+        $this->fieldTypes = array_column($this->fields, 'type', 'id');
     }
 
     /** The booking questions, resolved once for the whole page. */
@@ -111,18 +115,40 @@ class AttendeeDirectory
 
         // The organizer's own questions first: they are why this page exists.
         foreach ($this->fields as $field) {
-            if (! in_array($field['type'], CustomFields::CHOICE_TYPES, true)) {
-                continue;
-            }
-
             $key = 'f_'.$field['id'];
             $pool = $this->poolExcluding($key);
 
-            $options = collect($field['options'])->map(fn (array $option) => [
-                'value' => (string) $option['id'],
-                'label' => (string) $option['label'],
-                'count' => $pool->filter(fn (array $row) => in_array($option['id'], $row['answers'][$field['id']] ?? [], true))->count(),
-            ])->values()->all();
+            if (in_array($field['type'], CustomFields::CHOICE_TYPES, true)) {
+                $options = collect($field['options'])->map(fn (array $option) => [
+                    'value' => (string) $option['id'],
+                    'label' => (string) $option['label'],
+                    'count' => $pool->filter(fn (array $row) => in_array($option['id'], $row['answers'][$field['id']] ?? [], true))->count(),
+                ])->values()->all();
+            } else {
+                // Typed answers. These used to get no filter at all, so an event
+                // whose questions were free text showed nothing under "your
+                // booking questions". Offer answered / not answered, plus the
+                // answers people actually share — grouped so "Halal" and
+                // "halal" are one chip. The chips are chosen from everyone, so
+                // they don't jump around as other filters change; only the
+                // counts follow the filters.
+                $grouped = AnswerInsights::groupText(
+                    $this->rows()->map(fn (array $row) => $row['answers'][$field['id']][0] ?? '')->filter(),
+                );
+                $answerOf = fn (array $row) => AnswerInsights::normalise((string) ($row['answers'][$field['id']][0] ?? ''));
+
+                $options = array_merge(
+                    [
+                        ['value' => '__any', 'label' => 'Answered', 'count' => $pool->filter(fn ($row) => $answerOf($row) !== '')->count()],
+                        ['value' => '__none', 'label' => 'No answer', 'count' => $pool->filter(fn ($row) => $answerOf($row) === '')->count()],
+                    ],
+                    array_map(fn (array $value) => [
+                        'value' => 'v:'.$value['key'],
+                        'label' => $value['name'],
+                        'count' => $pool->filter(fn ($row) => $answerOf($row) === $value['key'])->count(),
+                    ], $grouped['values']),
+                );
+            }
 
             $out[] = ['key' => $key, 'label' => $field['label'], 'kind' => 'question', 'options' => $options];
         }
@@ -268,7 +294,7 @@ class AttendeeDirectory
             }
 
             $ok = match (true) {
-                str_starts_with($key, 'f_') => in_array((string) $value, $row['answers'][substr($key, 2)] ?? [], true),
+                str_starts_with($key, 'f_') => $this->matchesAnswer(substr($key, 2), (string) $value, $row),
                 $key === 'note' => $row['has_note'],
                 default => (string) ($row[$key] ?? '') === (string) $value,
             };
@@ -279,6 +305,25 @@ class AttendeeDirectory
         }
 
         return true;
+    }
+
+    /** Does this row's answer to one question satisfy a facet value? */
+    private function matchesAnswer(string $fieldId, string $value, array $row): bool
+    {
+        $given = $row['answers'][$fieldId] ?? [];
+
+        if (in_array($this->fieldTypes[$fieldId] ?? '', CustomFields::CHOICE_TYPES, true)) {
+            return in_array($value, $given, true);
+        }
+
+        $answer = AnswerInsights::normalise((string) ($given[0] ?? ''));
+
+        return match (true) {
+            $value === '__any' => $answer !== '',
+            $value === '__none' => $answer === '',
+            str_starts_with($value, 'v:') => $answer === substr($value, 2),
+            default => false,
+        };
     }
 
     private function demographicLabel(string $key, string $value): string

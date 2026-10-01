@@ -3,6 +3,8 @@ import { ArrowLeft, Eye, MousePointerClick, Percent, Ticket, Wallet } from 'luci
 import { useState } from 'react';
 import { AnalyticsToolbar, AudienceFilters } from '@/components/analytics-toolbar';
 import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
+import { AnswerAnalytics } from '@/components/answer-analytics';
+import type { AnswerQuestion } from '@/components/answer-analytics';
 import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/components/charts';
 import type { ReachMetric } from '@/components/charts';
 
@@ -13,6 +15,7 @@ interface Data {
     kpis: { impressions: number; clicks: number; ctr: number; sold: number; revenue: number; conversion: number };
     trend: Reach[];
     demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
+    answers?: AnswerQuestion[];
 }
 
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -78,6 +81,10 @@ export default function AdminEventAnalytics({ data, filters, cityOptions, source
                     <Panel title="Traffic sources"><DonutChart data={data.demographics.source} /></Panel>
                     <Panel title="Audience gender"><DonutChart data={data.demographics.gender} /></Panel>
                 </div>
+
+                {/* Superadmins can open the organizer's attendee list, so the
+                    rows link through to it here too. */}
+                <AnswerAnalytics questions={data.answers ?? []} drillBase={`/host/events/${data.event.slug}/attendees`} />
             </div>
         </>
     );

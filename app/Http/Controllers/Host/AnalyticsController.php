@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Ticket;
 use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
+use App\Support\AnswerInsights;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -89,6 +90,14 @@ class AnalyticsController extends Controller
                 'city' => Analytics::top((clone $paidInWindow), 'buyer_city', 6),
                 'source' => Analytics::breakdown((clone $paidInWindow), 'buyer_source', Analytics::SOURCE_LABELS),
             ],
+            // What ticket-holders answered to the organizer's booking
+            // questions, counted per question. Every CURRENT ticket-holder,
+            // not just sales in the date window — see AnswerInsights — but the
+            // city / source audience filters still apply.
+            'answers' => AnswerInsights::forEvent(
+                $event,
+                fn ($orders) => Analytics::applyAudience($orders, $city ?: null, $source ?: null),
+            ),
             'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label'], 'city' => $city, 'source' => $source],
             'cityOptions' => $cities,
             'sourceOptions' => Analytics::sourceOptions(),

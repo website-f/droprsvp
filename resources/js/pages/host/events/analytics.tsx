@@ -3,6 +3,8 @@ import { ArrowLeft, Eye, MousePointerClick, Percent, Ticket, TrendingUp, Wallet 
 import { useState } from 'react';
 import { AnalyticsToolbar, AudienceFilters } from '@/components/analytics-toolbar';
 import type { AnalyticsPeriod } from '@/components/analytics-toolbar';
+import { AnswerAnalytics } from '@/components/answer-analytics';
+import type { AnswerQuestion } from '@/components/answer-analytics';
 import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/components/charts';
 import type { ReachMetric } from '@/components/charts';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +16,7 @@ interface Props {
     kpis: { impressions: number; clicks: number; ctr: number; sold: number; revenue: number; conversion: number };
     trend: { date: string; impressions: number; clicks: number }[];
     demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
+    answers?: AnswerQuestion[];
     filters: AnalyticsPeriod;
     cityOptions: string[];
     sourceOptions: { value: string; label: string }[];
@@ -38,7 +41,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function EventAnalytics({ event, kpis, trend, demographics, filters, cityOptions, sourceOptions }: Props) {
+export default function EventAnalytics({ event, kpis, trend, demographics, answers = [], filters, cityOptions, sourceOptions }: Props) {
     const hasAudience = demographics.gender.length + demographics.age.length + demographics.city.length + demographics.source.length > 0;
     const [metric, setMetric] = useState<ReachMetric>('both');
 
@@ -80,6 +83,10 @@ export default function EventAnalytics({ event, kpis, trend, demographics, filte
                         <TrendChart data={trend} metric={metric} />
                     </section>
                 </div>
+
+                {/* The organizer's own booking questions, counted. Only when the
+                    event asked any — see AnswerAnalytics. */}
+                <AnswerAnalytics questions={answers} drillBase={`/host/events/${event.slug}/attendees`} />
 
                 {/* Audience */}
                 <h2 className="mt-8 mb-3 text-lg font-semibold tracking-tight">Audience</h2>
