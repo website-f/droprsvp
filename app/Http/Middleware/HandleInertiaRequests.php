@@ -5,6 +5,9 @@ namespace App\Http\Middleware;
 use App\Models\AppNotification;
 use App\Models\CmsPost;
 use App\Models\MenuItem;
+use App\Services\Chat\Messenger;
+use App\Support\Chat\PollToken;
+use App\Support\Chat\Realtime;
 use App\Support\Cities;
 use App\Support\Impersonation;
 use App\Support\RolePermissions;
@@ -69,6 +72,13 @@ class HandleInertiaRequests extends Middleware
             // resolves closures when the response is built, which is after the
             // controller has populated it.
             'pageTitle' => fn () => app(SeoManager::class)->displayTitle(),
+            // Messages badge + a token for the session-free poll, signed-in only.
+            'chat' => fn () => $request->user() ? [
+                'unread' => Messenger::unreadTotal($request->user()->id) + Messenger::requestCount($request->user()->id),
+                'token' => PollToken::issue($request->user()->id),
+                'v' => Realtime::version($request->user()->id),
+                'bv' => Realtime::broadcastVersion(),
+            ] : null,
             // Non-null only during a superadmin "view as" session; drives the
             // banner that says whose account this is and how to get out.
             'impersonating' => Impersonation::share($request),

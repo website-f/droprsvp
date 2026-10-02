@@ -56,13 +56,15 @@ class NotificationController extends Controller
         $keys = array_keys(User::NOTIFICATION_CHANNELS);
 
         $data = $request->validate([
-            ...array_fill_keys($keys, ['required', 'boolean']),
+            // A channel left out (a form from before it existed) keeps its value.
+            ...array_fill_keys($keys, ['sometimes', 'boolean']),
             'marketing_email' => ['sometimes', 'boolean'],
         ]);
 
+        $current = $request->user()->notificationSettings();
         $prefs = [];
         foreach ($keys as $key) {
-            $prefs[$key] = (bool) ($data[$key] ?? true);
+            $prefs[$key] = (bool) ($data[$key] ?? $current[$key]);
         }
 
         $request->user()->forceFill(['notification_preferences' => $prefs])->save();

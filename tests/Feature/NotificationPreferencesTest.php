@@ -18,7 +18,7 @@ class NotificationPreferencesTest extends TestCase
 
         $this->assertTrue($user->wantsNotification('product_news'));
         $this->assertSame(
-            ['product_news' => true, 'event_reminders' => true, 'organizer_updates' => true],
+            ['product_news' => true, 'event_reminders' => true, 'organizer_updates' => true, 'chat_messages' => true],
             $user->notificationSettings(),
         );
     }

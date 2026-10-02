@@ -11,6 +11,8 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** A count shown at the end of the item (hidden at 0). */
+    badge?: number;
 };
 
 /** A public-site navigation entry, managed under Admin → Menu. */

@@ -75,6 +75,7 @@ class User extends Authenticatable implements PasskeyUser
         'product_news' => 'Product news & announcements from DropRSVP',
         'event_reminders' => 'Reminders before events you’re attending',
         'organizer_updates' => 'Updates from organizers you follow',
+        'chat_messages' => 'Emails about unread messages',
     ];
 
     protected static function booted(): void

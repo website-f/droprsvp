@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, AtSign, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
+import { Archive, AtSign, BadgeCheck, Ban, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, Flag, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, MessageCircle, MessagesSquare, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -13,6 +13,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useChatStore } from '@/lib/chat-store';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -21,6 +22,7 @@ const buyerNav: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'My tickets', href: '/my/tickets', icon: Ticket },
     { title: 'Invoices', href: '/my/invoices', icon: Receipt },
+    { title: 'Messages', href: '/messages', icon: MessageCircle },
     { title: 'Following', href: '/following', icon: UserRoundCheck },
     { title: 'Go Premium', href: '/premium', icon: Crown },
 ];
@@ -29,6 +31,7 @@ const buyerNav: NavItem[] = [
 // tickets, so they get a trimmed "You" nav — their money lives under Organizing.
 const sellerNav: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+    { title: 'Messages', href: '/messages', icon: MessageCircle },
     { title: 'Following', href: '/following', icon: UserRoundCheck },
 ];
 
@@ -84,6 +87,14 @@ const hostEdmNav: NavItem[] = [
     { title: 'Sending domain', href: '/host/edm/domains', icon: AtSign },
 ];
 
+// Chat moderation: one screen with tabs; the group links straight to the busy ones.
+const chatAdminNav: NavItem[] = [
+    { title: 'Reports', href: '/admin/chat', icon: Flag },
+    { title: 'Announcements', href: '/admin/chat?tab=broadcasts', icon: Megaphone },
+    { title: 'IP bans', href: '/admin/chat?tab=ips', icon: Ban },
+    { title: 'Chat settings', href: '/admin/chat?tab=settings', icon: Settings2 },
+];
+
 const cmsNav: NavItem[] = [
     { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
     { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
@@ -113,6 +124,8 @@ export function AppSidebar() {
 
     // Staff only see sections they've been granted; superadmin gets everything.
     const platformItems = platformNav.filter((i) => sections.includes(i.section));
+    const { unread } = useChatStore();
+    const youNav = ((isOrganizer || isAdmin) ? sellerNav : buyerNav).map((i) => (i.href === '/messages' ? { ...i, badge: unread } : i));
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -131,11 +144,12 @@ export function AppSidebar() {
             <SidebarContent>
                 {/* Quick access stays flat; the heavy admin areas collapse into
                     one main category each so the sidebar stays manageable. */}
-                <NavMain items={(isOrganizer || isAdmin) ? sellerNav : buyerNav} label="You" />
+                <NavMain items={youNav} label="You" />
                 {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
                 {isOrganizer && <NavGroup label="Email marketing" icon={Megaphone} items={hostEdmNav} />}
                 {isAdmin && platformItems.length > 0 && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformItems} />}
                 {isAdmin && sections.includes('edm') && <NavGroup label="EDM" icon={Mail} items={edmNav} />}
+                {isAdmin && sections.includes('chat') && <NavGroup label="Chat" icon={MessagesSquare} items={chatAdminNav} />}
                 {isAdmin && sections.includes('content') && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}
                 {isAdmin && sections.includes('appearance') && <NavGroup label="Appearance" icon={Palette} items={siteNav} />}
             </SidebarContent>

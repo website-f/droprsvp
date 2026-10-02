@@ -3,6 +3,7 @@ import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
+    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
@@ -32,6 +33,7 @@ return null;
                                 <span>{item.title}</span>
                             </Link>
                         </SidebarMenuButton>
+                        {!!item.badge && <SidebarMenuBadge className="rounded-full bg-primary text-primary-foreground peer-hover/menu-button:text-primary-foreground peer-data-[active=true]/menu-button:text-primary-foreground">{item.badge > 99 ? '99+' : item.badge}</SidebarMenuBadge>}
                     </SidebarMenuItem>
                 ))}
             </SidebarMenu>

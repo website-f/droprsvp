@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Chat\ChatPollController;
+use App\Http\Middleware\ChatIpGuard;
 use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePasswordSet;
 use App\Http\Middleware\HandleAppearance;
@@ -12,6 +14,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Route;
 use Sentry\Laravel\Integration;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -22,6 +25,14 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        // Chat live updates: OUTSIDE the web group on purpose — no session,
+        // cookies, CSRF or Inertia, so a poll that finds nothing new costs a
+        // token check and a cache read. See ChatPollController.
+        then: function () {
+            Route::get('chat/poll', ChatPollController::class)
+                ->middleware(ChatIpGuard::class)
+                ->name('chat.poll');
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);

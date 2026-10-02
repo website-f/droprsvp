@@ -5,6 +5,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Admin\ArchiveController;
 use App\Http\Controllers\Admin\BroadcastController;
+use App\Http\Controllers\Admin\ChatModerationController;
 use App\Http\Controllers\Admin\CmsCategoryController;
 use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
@@ -35,6 +36,8 @@ use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\OrganizerSignupController;
 use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\Chat\ChatController;
+use App\Http\Controllers\Chat\ChatMediaController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EdmTrackingController;
@@ -74,6 +77,7 @@ use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Middleware\ChatIpGuard;
 use App\Http\Middleware\EnsureAboutYou;
 use App\Http\Middleware\EnsureOrganizerApproved;
 use App\Http\Middleware\EnsureSectionAccess;
@@ -263,6 +267,33 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
 
     // Event rating + review (attendees only).
     Route::post('e/{event}/reviews', [EventReviewController::class, 'store'])->middleware('throttle:posting')->name('events.reviews.store');
+
+    // Messages: one-to-one chat. Live updates come from the session-free
+    // chat/poll route (bootstrap/app.php), not from here.
+    Route::middleware(ChatIpGuard::class)->group(function () {
+        Route::get('messages', [ChatController::class, 'index'])->name('chat.index');
+        Route::get('messages/new/{user}', [ChatController::class, 'start'])->whereNumber('user')->name('chat.start');
+        Route::get('messages/{conversation}', [ChatController::class, 'show'])->whereNumber('conversation')->name('chat.show');
+
+        Route::prefix('chat')->name('chat.')->group(function () {
+            Route::get('token', [ChatController::class, 'token'])->name('token');
+            Route::get('search', [ChatController::class, 'search'])->middleware('throttle:60,1')->name('search');
+            Route::get('announcements', [ChatController::class, 'announcements'])->name('announcements');
+            Route::post('messages', [ChatController::class, 'send'])->middleware('throttle:60,1')->name('send');
+            Route::delete('messages/{message}', [ChatController::class, 'unsend'])->whereNumber('message')->name('unsend');
+            Route::get('media/{message}/{variant}', ChatMediaController::class)->whereNumber('message')->whereIn('variant', ['thumb', 'full'])->name('media');
+            Route::get('conversations/{conversation}', [ChatController::class, 'conversation'])->whereNumber('conversation')->name('conversation');
+            Route::get('conversations/{conversation}/older', [ChatController::class, 'older'])->whereNumber('conversation')->name('older');
+            Route::post('conversations/{conversation}/read', [ChatController::class, 'read'])->whereNumber('conversation')->name('read');
+            Route::post('conversations/{conversation}/typing', [ChatController::class, 'typing'])->whereNumber('conversation')->middleware('throttle:40,1')->name('typing');
+            Route::post('conversations/{conversation}/accept', [ChatController::class, 'accept'])->whereNumber('conversation')->name('accept');
+            Route::post('conversations/{conversation}/decline', [ChatController::class, 'decline'])->whereNumber('conversation')->name('decline');
+            Route::post('conversations/{conversation}/hide', [ChatController::class, 'hide'])->whereNumber('conversation')->name('hide');
+            Route::post('users/{user}/block', [ChatController::class, 'block'])->whereNumber('user')->name('block');
+            Route::delete('users/{user}/block', [ChatController::class, 'unblock'])->whereNumber('user')->name('unblock');
+            Route::post('reports', [ChatController::class, 'report'])->middleware('throttle:10,1')->name('report');
+        });
+    });
 
     // Follow organizers + the following feed.
     Route::post('organizers/{organizer}/follow', [FollowController::class, 'toggle'])->middleware('throttle:posting')->name('organizers.follow');
@@ -533,6 +564,20 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
 
         // Email marketing (EDM): DropRSVP's own campaigns and list.
+        // Chat moderation: reports, suspensions, IP bans, announcements, settings.
+        Route::prefix('chat')->name('chat.')->group(function () {
+            Route::get('/', [ChatModerationController::class, 'index'])->name('index');
+            Route::get('reports/{report}/context', [ChatModerationController::class, 'context'])->whereNumber('report')->name('reports.context');
+            Route::post('reports/{report}/resolve', [ChatModerationController::class, 'resolve'])->whereNumber('report')->name('reports.resolve');
+            Route::post('users/{user}/suspend', [ChatModerationController::class, 'suspend'])->whereNumber('user')->name('users.suspend');
+            Route::post('users/{user}/unsuspend', [ChatModerationController::class, 'unsuspend'])->whereNumber('user')->name('users.unsuspend');
+            Route::post('ip-bans', [ChatModerationController::class, 'banIp'])->name('ip-bans.store');
+            Route::delete('ip-bans/{ban}', [ChatModerationController::class, 'unbanIp'])->whereNumber('ban')->name('ip-bans.destroy');
+            Route::post('broadcasts', [ChatModerationController::class, 'broadcast'])->middleware('throttle:10,1')->name('broadcasts.store');
+            Route::delete('broadcasts/{broadcast}', [ChatModerationController::class, 'deleteBroadcast'])->whereNumber('broadcast')->name('broadcasts.destroy');
+            Route::post('settings', [ChatModerationController::class, 'settings'])->name('settings');
+        });
+
         Route::prefix('edm')->name('edm.')->group(function () {
             // EDM → Overview.
             Route::get('/', EdmDashboardController::class)->name('overview');

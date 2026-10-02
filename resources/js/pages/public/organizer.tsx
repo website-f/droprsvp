@@ -297,9 +297,15 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                         </div>
 
                         {!viewer.is_self && (
-                            <Button variant={viewer.is_following ? 'outline' : 'default'} onClick={follow} className="shrink-0">
-                                {viewer.is_following ? <><UserCheck className="size-4" /> Following</> : <><UserPlus className="size-4" /> Follow</>}
-                            </Button>
+                            <div className="flex shrink-0 gap-2">
+                                <Button variant={viewer.is_following ? 'outline' : 'default'} onClick={follow}>
+                                    {viewer.is_following ? <><UserCheck className="size-4" /> Following</> : <><UserPlus className="size-4" /> Follow</>}
+                                </Button>
+                                {/* Guests are sent to log in and land back in the new chat. */}
+                                <Button variant="outline" asChild>
+                                    <Link href={`/messages/new/${organizer.id}`}><MessageCircle className="size-4" /> Message</Link>
+                                </Button>
+                            </div>
                         )}
                     </div>
 

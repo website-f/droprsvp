@@ -3,6 +3,7 @@ import { Menu, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Wordmark } from '@/components/brand';
+import { MessagesButton } from '@/components/chat/messages-button';
 import { Footer } from '@/components/cms/footer-blocks';
 import type { FooterData } from '@/components/cms/footer-blocks';
 import { HeaderSearch } from '@/components/header-search';
@@ -67,6 +68,7 @@ export function PublicHeader() {
 
                 <div className="ml-auto flex items-center gap-2 md:ml-0">
                     <AppearanceToggle />
+                    {auth?.user && <MessagesButton />}
                     {auth?.user && <NotificationBell />}
                     {/* Search toggle (mobile only) */}
                     <button
