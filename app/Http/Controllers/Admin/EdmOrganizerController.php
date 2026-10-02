@@ -46,7 +46,7 @@ class EdmOrganizerController extends Controller
 
         $subscribers = EmailConsent::whereIn('organizer_id', $ids)->where('status', 'subscribed')
             ->selectRaw('organizer_id, COUNT(*) as c')->groupBy('organizer_id')->pluck('c', 'organizer_id');
-        $campaigns = EmailCampaign::whereIn('organizer_id', $ids)
+        $campaigns = EmailCampaign::whereIn('organizer_id', $ids)->where('kind', '!=', 'automation')
             ->selectRaw('organizer_id, COUNT(*) as c')->groupBy('organizer_id')->pluck('c', 'organizer_id');
         $credits = EdmCreditEntry::whereIn('organizer_id', $ids)->where('pool', 'credits')
             ->selectRaw('organizer_id, SUM(delta) as c')->groupBy('organizer_id')->pluck('c', 'organizer_id');

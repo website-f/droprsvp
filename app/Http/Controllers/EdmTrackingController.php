@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EmailLink;
 use App\Models\EmailSend;
+use App\Services\Edm\Automations;
 use App\Support\Edm\Consent;
 use App\Support\Edm\Personalizer;
 use Illuminate\Http\RedirectResponse;
@@ -123,6 +124,11 @@ class EdmTrackingController extends Controller
 
         if ($send) {
             Consent::revoke($send->email, 'unsubscribe', $send->campaign?->organizer_id, $request->ip());
+
+            // From an automated email: stop that workspace's sequences too.
+            if ($send->campaign?->kind === 'automation') {
+                Automations::optOut($send->email, $send->campaign->organizer_id, $request->ip());
+            }
 
             if ($send->unsubscribed_at === null) {
                 $send->forceFill(['unsubscribed_at' => now()])->save();

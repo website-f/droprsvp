@@ -75,6 +75,8 @@ class EdmCampaignController extends Controller
 
         $campaigns = EmailCampaign::query()
             ->where('organizer_id', $this->scopeId())
+            // Automation steps live under Automations, not here.
+            ->where('kind', '!=', 'automation')
             ->when($status === 'active', fn ($x) => $x->whereIn('status', ['sending', 'paused']))
             ->when($status === 'sent', fn ($x) => $x->whereIn('status', ['sent', 'cancelled']))
             ->when(in_array($status, ['draft', 'scheduled'], true), fn ($x) => $x->where('status', $status))
@@ -84,7 +86,7 @@ class EdmCampaignController extends Controller
             ->withQueryString()
             ->through(fn (EmailCampaign $c) => $this->summary($c));
 
-        $last30 = EmailCampaign::where('organizer_id', $this->scopeId())->where('started_at', '>=', now()->subDays(30));
+        $last30 = EmailCampaign::where('organizer_id', $this->scopeId())->where('kind', '!=', 'automation')->where('started_at', '>=', now()->subDays(30));
 
         return Inertia::render($this->page('campaigns/index'), [
             ...$this->extra('index'),
@@ -101,7 +103,7 @@ class EdmCampaignController extends Controller
             // (The platform's alone: organizers' lists only grow by opt-in.)
             'repermissionEligible' => $this->scopeId() === null ? Audience::repermissionCount() : 0,
             'filters' => ['status' => $status, 'q' => $q],
-            'statusCounts' => EmailCampaign::where('organizer_id', $this->scopeId())
+            'statusCounts' => EmailCampaign::where('organizer_id', $this->scopeId())->where('kind', '!=', 'automation')
                 ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status'),
             // For "New campaign": start blank, from a starter, or a saved template.
             'starters' => collect(StarterTemplates::all())->map(fn ($t) => ['key' => $t['key'], 'name' => $t['name'], 'description' => $t['description']])->values(),
@@ -446,6 +448,8 @@ class EdmCampaignController extends Controller
         $scope = $this->scopeId();
 
         abort_unless($scope === null ? $campaign->organizer_id === null : (int) $campaign->organizer_id === $scope, 404);
+        // A step's hidden campaign is managed from its automation.
+        abort_if($campaign->kind === 'automation', 404);
     }
 
     private function editable(EmailCampaign $campaign): void

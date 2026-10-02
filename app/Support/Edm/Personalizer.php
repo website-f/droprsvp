@@ -98,7 +98,11 @@ final class Personalizer
         $name = trim((string) $send->name);
         $first = $name !== '' ? strtok($name, ' ') : '';
 
-        return [
+        // An automation's per-recipient values ({{event_name}}, {{event_url}}…)
+        // first, so the fixed ones below can never be overridden by them.
+        $context = array_map('strval', array_filter((array) $send->context, 'is_scalar'));
+
+        return array_merge($context, [
             // "there" reads naturally in "Hi {{first_name}}," when we have no name.
             'first_name' => $first ?: 'there',
             'name' => $name ?: 'there',
@@ -107,7 +111,7 @@ final class Personalizer
             // The re-permission email's "yes" button.
             'subscribe_url' => route('edm.subscribe', ['token' => $send->token]),
             'view_url' => route('edm.view', ['token' => $send->token]),
-        ];
+        ]);
     }
 
     private static function fill(string $content, array $values, bool $html): string

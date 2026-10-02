@@ -200,9 +200,14 @@ class CampaignSender
 
         // Checked again now, not only when the list was built: they may have
         // unsubscribed, or bounced from another campaign, in the meantime.
-        $allowed = $campaign->kind === 'repermission'
-            ? Consent::mayAskPermission($send->email)
-            : Consent::mayEmail($send->email, $campaign->organizer_id);
+        $allowed = match ($campaign->kind) {
+            'repermission' => Consent::mayAskPermission($send->email),
+            // Automated emails go to ticket holders without marketing consent
+            // (they are about something the person did), unless the step
+            // promotes something — then only to subscribers.
+            'automation' => Consent::mayEmailAutomation($send->email, $campaign->organizer_id, (bool) ($campaign->audience['marketing'] ?? false)),
+            default => Consent::mayEmail($send->email, $campaign->organizer_id),
+        };
 
         if (! $allowed) {
             $send->forceFill(['status' => 'skipped', 'error' => 'No longer subscribed or suppressed'])->save();
@@ -280,6 +285,12 @@ class CampaignSender
     /** Freeze the content: render the design once, register its links. */
     private function freeze(EmailCampaign $campaign): void
     {
+        self::freezeContent($campaign);
+    }
+
+    /** Public for automation steps, which freeze whenever they are edited or switched on. */
+    public static function freezeContent(EmailCampaign $campaign): void
+    {
         $rendered = Renderer::render((array) $campaign->design, self::renderContext($campaign));
 
         $campaign->forceFill([
@@ -345,6 +356,9 @@ class CampaignSender
             'reason' => match (true) {
                 // Not "you opted in": they have not, which is the whole point.
                 $campaign->kind === 'repermission' => 'You are receiving this one-off email because you have an account or bought a ticket on DropRSVP. We will not send marketing emails unless you say yes.',
+                // An automated email about something the reader did (a booking,
+                // a checkout) — unless the step promotes, which needs opt-in.
+                $campaign->kind === 'automation' && empty($campaign->audience['marketing']) => "This is an automatic email from {$sender} about your booking on DropRSVP. Unsubscribe to stop these emails.",
                 (bool) $campaign->organizer_id => "You are receiving this because you opted in to emails from {$sender} on DropRSVP.",
                 default => 'You are receiving this because you opted in to emails from DropRSVP.',
             },
@@ -398,6 +412,8 @@ class CampaignSender
     private function finishCompleted(): void
     {
         EmailCampaign::where('status', 'sending')
+            // An automation step is never "finished": more people arrive.
+            ->where('kind', '!=', 'automation')
             ->whereDoesntHave('sends', fn ($q) => $q->where('status', 'queued'))
             ->get()
             ->each(function (EmailCampaign $c) {

@@ -17,7 +17,7 @@ class EmailSend extends Model
     ];
 
     protected $fillable = [
-        'campaign_id', 'user_id', 'email', 'name', 'token', 'status', 'attempts', 'error',
+        'campaign_id', 'user_id', 'email', 'name', 'context', 'dedupe', 'token', 'status', 'attempts', 'error',
         'sent_at', 'opened_at', 'open_count', 'clicked_at', 'click_count', 'unsubscribed_at',
     ];
 
@@ -28,6 +28,8 @@ class EmailSend extends Model
             'opened_at' => 'datetime',
             'clicked_at' => 'datetime',
             'unsubscribed_at' => 'datetime',
+            // Per-recipient values an automation fills in: {{event_name}} …
+            'context' => 'array',
         ];
     }
 

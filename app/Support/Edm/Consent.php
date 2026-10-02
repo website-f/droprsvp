@@ -33,6 +33,58 @@ final class Consent
     /** Grant sources a person can choose for themselves. */
     public const SOURCES = ['checkout', 'register', 'settings', 'repermission', 'admin'];
 
+    /**
+     * The opt-out scope for automated emails (reminders, follow-ups, recovery)
+     * from DropRSVP or one organizer. Those go to ticket holders without
+     * marketing consent, because they are about something the person did —
+     * but pressing "unsubscribe" on one must still stop the rest.
+     */
+    public static function automationScope(?int $organizerId = null): string
+    {
+        return $organizerId ? "auto:organizer:{$organizerId}" : 'auto:platform';
+    }
+
+    /** Has this address opted out of this workspace's automated emails? */
+    public static function optedOutOfAutomations(?string $email, ?int $organizerId = null): bool
+    {
+        $email = self::normalise($email);
+
+        return $email !== null && EmailConsent::where('email', $email)
+            ->where('scope', self::automationScope($organizerId))
+            ->where('status', 'unsubscribed')
+            ->exists();
+    }
+
+    /**
+     * Whether an automated email may go to this address right now: never if
+     * suppressed or opted out of automations; and, for a step that promotes
+     * (marketing), only to someone subscribed to the list.
+     */
+    public static function mayEmailAutomation(?string $email, ?int $organizerId, bool $marketing): bool
+    {
+        $email = self::normalise($email);
+
+        return $email !== null
+            && ! self::isSuppressed($email)
+            && ! self::optedOutOfAutomations($email, $organizerId)
+            && (! $marketing || self::isSubscribed($email, $organizerId));
+    }
+
+    /** Record an opt-out from a workspace's automated emails. */
+    public static function revokeAutomations(?string $email, ?int $organizerId = null, ?string $ip = null): void
+    {
+        $email = self::normalise($email);
+
+        if (! $email) {
+            return;
+        }
+
+        EmailConsent::updateOrCreate(
+            ['email' => $email, 'scope' => self::automationScope($organizerId)],
+            ['organizer_id' => $organizerId, 'status' => 'unsubscribed', 'source' => 'unsubscribe', 'unsubscribed_at' => now(), 'ip' => $ip],
+        );
+    }
+
     /** The scope string for a list: DropRSVP's own, or one organizer's. */
     public static function scope(?int $organizerId = null): string
     {

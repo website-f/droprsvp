@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, AtSign, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, AtSign, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -65,6 +65,7 @@ const platformNav: AdminNavItem[] = [
 const edmNav: NavItem[] = [
     { title: 'Overview', href: '/admin/edm', icon: Gauge },
     { title: 'Campaigns', href: '/admin/edm/campaigns', icon: Send },
+    { title: 'Automations', href: '/admin/edm/automations', icon: Workflow },
     { title: 'Templates', href: '/admin/edm/templates', icon: LayoutTemplate },
     { title: 'Subscribers', href: '/admin/edm/subscribers', icon: Users },
     { title: 'Organizers', href: '/admin/edm/organizers', icon: BadgeCheck },
@@ -76,6 +77,7 @@ const edmNav: NavItem[] = [
 const hostEdmNav: NavItem[] = [
     { title: 'Overview', href: '/host/edm', icon: Gauge },
     { title: 'Campaigns', href: '/host/edm/campaigns', icon: Send },
+    { title: 'Automations', href: '/host/edm/automations', icon: Workflow },
     { title: 'Templates', href: '/host/edm/templates', icon: LayoutTemplate },
     { title: 'Subscribers', href: '/host/edm/subscribers', icon: Users },
     { title: 'Credits', href: '/host/edm/credits', icon: Coins },

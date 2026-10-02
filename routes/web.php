@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\EdmAudienceController;
+use App\Http\Controllers\Admin\EdmAutomationController;
 use App\Http\Controllers\Admin\EdmCampaignController;
 use App\Http\Controllers\Admin\EdmDashboardController;
 use App\Http\Controllers\Admin\EdmDeliverabilityController;
@@ -322,6 +323,22 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
             Route::get('subscribers/export', [HostEdm\SubscriberController::class, 'export'])->name('subscribers.export');
             Route::post('subscribers/{consent}/unsubscribe', [HostEdm\SubscriberController::class, 'unsubscribe'])->whereNumber('consent')->name('subscribers.unsubscribe');
 
+            // Automations.
+            Route::get('automations', [HostEdm\AutomationController::class, 'index'])->name('automations.index');
+            Route::post('automations', [HostEdm\AutomationController::class, 'store'])->name('automations.store');
+            Route::get('automations/{automation}', [HostEdm\AutomationController::class, 'show'])->whereNumber('automation')->name('automations.show');
+            Route::put('automations/{automation}', [HostEdm\AutomationController::class, 'update'])->whereNumber('automation')->name('automations.update');
+            Route::delete('automations/{automation}', [HostEdm\AutomationController::class, 'destroy'])->whereNumber('automation')->name('automations.destroy');
+            Route::post('automations/{automation}/activate', [HostEdm\AutomationController::class, 'activate'])->whereNumber('automation')->name('automations.activate');
+            Route::post('automations/{automation}/pause', [HostEdm\AutomationController::class, 'pause'])->whereNumber('automation')->name('automations.pause');
+            Route::post('automations/{automation}/steps', [HostEdm\AutomationController::class, 'addStep'])->whereNumber('automation')->name('automations.steps.store');
+            Route::put('automations/{automation}/steps/{step}', [HostEdm\AutomationController::class, 'updateStep'])->whereNumber(['automation', 'step'])->name('automations.steps.update');
+            Route::delete('automations/{automation}/steps/{step}', [HostEdm\AutomationController::class, 'destroyStep'])->whereNumber(['automation', 'step'])->name('automations.steps.destroy');
+            Route::get('automations/{automation}/steps/{step}/editor', [HostEdm\AutomationController::class, 'stepEditor'])->whereNumber(['automation', 'step'])->name('automations.steps.editor');
+            Route::post('automations/{automation}/steps/{step}/design', [HostEdm\AutomationController::class, 'saveStepDesign'])->whereNumber(['automation', 'step'])->name('automations.steps.design');
+            Route::get('automations/{automation}/steps/{step}/preview', [HostEdm\AutomationController::class, 'stepPreview'])->whereNumber(['automation', 'step'])->name('automations.steps.preview');
+            Route::post('automations/{automation}/steps/{step}/test', [HostEdm\AutomationController::class, 'stepTest'])->whereNumber(['automation', 'step'])->middleware('throttle:10,1')->name('automations.steps.test');
+
             Route::get('credits', [HostEdm\WorkspaceController::class, 'credits'])->name('credits');
             Route::post('credits', [HostEdm\WorkspaceController::class, 'buy'])->middleware('throttle:10,1')->name('credits.buy');
             Route::get('credits/return', [HostEdm\WorkspaceController::class, 'creditsReturn'])->name('credits.return');
@@ -555,6 +572,22 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
             Route::post('templates/{template}/design', [EdmTemplateController::class, 'saveDesign'])->whereNumber('template')->name('templates.design');
             Route::get('templates/{template}/preview', [EdmTemplateController::class, 'preview'])->whereNumber('template')->name('templates.preview');
             Route::post('templates/{template}/duplicate', [EdmTemplateController::class, 'duplicate'])->whereNumber('template')->name('templates.duplicate');
+
+            // Automations: sequences that send themselves.
+            Route::get('automations', [EdmAutomationController::class, 'index'])->name('automations.index');
+            Route::post('automations', [EdmAutomationController::class, 'store'])->name('automations.store');
+            Route::get('automations/{automation}', [EdmAutomationController::class, 'show'])->whereNumber('automation')->name('automations.show');
+            Route::put('automations/{automation}', [EdmAutomationController::class, 'update'])->whereNumber('automation')->name('automations.update');
+            Route::delete('automations/{automation}', [EdmAutomationController::class, 'destroy'])->whereNumber('automation')->name('automations.destroy');
+            Route::post('automations/{automation}/activate', [EdmAutomationController::class, 'activate'])->whereNumber('automation')->name('automations.activate');
+            Route::post('automations/{automation}/pause', [EdmAutomationController::class, 'pause'])->whereNumber('automation')->name('automations.pause');
+            Route::post('automations/{automation}/steps', [EdmAutomationController::class, 'addStep'])->whereNumber('automation')->name('automations.steps.store');
+            Route::put('automations/{automation}/steps/{step}', [EdmAutomationController::class, 'updateStep'])->whereNumber(['automation', 'step'])->name('automations.steps.update');
+            Route::delete('automations/{automation}/steps/{step}', [EdmAutomationController::class, 'destroyStep'])->whereNumber(['automation', 'step'])->name('automations.steps.destroy');
+            Route::get('automations/{automation}/steps/{step}/editor', [EdmAutomationController::class, 'stepEditor'])->whereNumber(['automation', 'step'])->name('automations.steps.editor');
+            Route::post('automations/{automation}/steps/{step}/design', [EdmAutomationController::class, 'saveStepDesign'])->whereNumber(['automation', 'step'])->name('automations.steps.design');
+            Route::get('automations/{automation}/steps/{step}/preview', [EdmAutomationController::class, 'stepPreview'])->whereNumber(['automation', 'step'])->name('automations.steps.preview');
+            Route::post('automations/{automation}/steps/{step}/test', [EdmAutomationController::class, 'stepTest'])->whereNumber(['automation', 'step'])->middleware('throttle:10,1')->name('automations.steps.test');
 
             // Every organizer's EDM usage, and the review screen for suspensions.
             Route::get('organizers', [EdmOrganizerController::class, 'index'])->name('organizers');

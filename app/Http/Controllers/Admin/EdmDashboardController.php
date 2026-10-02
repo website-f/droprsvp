@@ -78,6 +78,7 @@ class EdmDashboardController extends Controller
                 ->map(fn ($c, $s) => ['name' => self::SOURCE_LABELS[$s] ?? ucfirst((string) $s), 'value' => (int) $c])
                 ->sortByDesc('value')->values(),
             'campaigns' => EmailCampaign::whereNull('organizer_id')
+                ->where('kind', '!=', 'automation')
                 ->whereIn('status', ['sending', 'paused', 'scheduled', 'sent'])
                 ->orderByRaw("CASE status WHEN 'sending' THEN 0 WHEN 'paused' THEN 1 WHEN 'scheduled' THEN 2 ELSE 3 END")
                 ->latest('updated_at')->limit(6)->get()

@@ -171,6 +171,38 @@ final class Credits
         });
     }
 
+    /**
+     * Spend credits for automated sends, which go out one person at a time
+     * rather than as a campaign. Returns false (spending nothing) when the
+     * organizer has run out — the sequence then skips that email.
+     */
+    public static function spend(int $organizerId, int $count, int $campaignId, string $note): bool
+    {
+        EdmAccount::for($organizerId);
+
+        return DB::transaction(function () use ($organizerId, $count, $campaignId, $note) {
+            EdmAccount::where('organizer_id', $organizerId)->lockForUpdate()->first();
+            $organizer = User::findOrFail($organizerId);
+
+            $allowanceLeft = self::allowanceLeft($organizer);
+            $credits = max(0, self::balance($organizerId));
+
+            if ($allowanceLeft + $credits < $count) {
+                return false;
+            }
+
+            $fromAllowance = min($allowanceLeft, $count);
+            if ($fromAllowance > 0) {
+                self::entry($organizerId, 'allowance', -$fromAllowance, 'automation', $campaignId, note: $note);
+            }
+            if ($count - $fromAllowance > 0) {
+                self::entry($organizerId, 'credits', -($count - $fromAllowance), 'automation', $campaignId, note: $note);
+            }
+
+            return true;
+        });
+    }
+
     /** Add (or, negative, remove) purchased credits — a purchase or an admin adjustment. */
     public static function grant(int $organizerId, int $credits, string $reason = 'adjust', ?string $note = null, ?int $purchaseId = null, ?int $by = null): void
     {

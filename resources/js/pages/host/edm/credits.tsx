@@ -14,7 +14,7 @@ interface Props {
     purchases: { reference: string; credits: number; amount: number; status: string; when: string | null }[];
 }
 
-const REASON: Record<string, string> = { purchase: 'Bought', reserve: 'Campaign', refund: 'Unsent, returned', adjust: 'Adjusted by DropRSVP' };
+const REASON: Record<string, string> = { purchase: 'Bought', reserve: 'Campaign', refund: 'Unsent, returned', adjust: 'Adjusted by DropRSVP', automation: 'Automation' };
 
 export default function HostEdmCredits({ credits, packs, premiumAllowance, ledger, purchases }: Props) {
     const [buying, setBuying] = useState('');

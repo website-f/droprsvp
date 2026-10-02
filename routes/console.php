@@ -26,6 +26,10 @@ Schedule::command('edm:send')->everyMinute()->withoutOverlapping(10);
 // auto-pause work). See App\Support\Edm\Bounces.
 Schedule::command('edm:bounces')->everyTenMinutes()->withoutOverlapping(15);
 
+// Email automations (reminders, follow-ups, abandoned checkout, welcome):
+// enrol new people and queue what is due; edm:send delivers it.
+Schedule::command('edm:automations')->everyFiveMinutes()->withoutOverlapping(10);
+
 // Is the sending IP or domain on a blocklist? Alerts the admins if so.
 Schedule::command('edm:health')->dailyAt('07:00')->withoutOverlapping();
 

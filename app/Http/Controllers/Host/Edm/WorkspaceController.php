@@ -41,7 +41,7 @@ class WorkspaceController extends Controller
             'limits' => config('edm.organizers.guard'),
             'subscribers' => EmailConsent::where('scope', $scope)->where('status', 'subscribed')->count(),
             'joined30' => EmailConsent::where('scope', $scope)->where('status', 'subscribed')->where('consented_at', '>=', now()->subDays(30))->count(),
-            'campaigns' => EmailCampaign::where('organizer_id', $user->id)->latest('updated_at')->limit(5)->get()
+            'campaigns' => EmailCampaign::where('organizer_id', $user->id)->where('kind', '!=', 'automation')->latest('updated_at')->limit(5)->get()
                 ->map(fn (EmailCampaign $c) => [
                     'id' => $c->id,
                     'name' => $c->name,
