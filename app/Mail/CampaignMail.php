@@ -31,6 +31,7 @@ class CampaignMail extends Mailable
         public string $fromName,
         public ?string $replyToAddress = null,
         public ?string $campaignTag = null,
+        public ?string $sendToken = null,
     ) {}
 
     public function envelope(): Envelope
@@ -51,6 +52,9 @@ class CampaignMail extends Mailable
             'Auto-Submitted' => 'auto-generated',
             // Lets a bounce or complaint be traced to its campaign.
             'X-Campaign' => $this->campaignTag,
+            // The recipient's send, so a bounce quoting these headers is tied
+            // to the exact send rather than guessed from the address.
+            'X-Edm-Send' => $this->sendToken,
         ]));
     }
 

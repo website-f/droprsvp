@@ -1,6 +1,7 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Gauge, Info } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
+import { Gauge, Info } from 'lucide-react';
 import type { ThrottleStatus } from '@/components/edm/campaign';
+import { EDM_CRUMB, EdmHeader } from '@/components/edm/ui';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -28,11 +29,9 @@ export default function EdmSettings({ settings, throttle, fromAddress, mailer, w
 
     return (
         <>
-            <Head title="Email marketing settings" />
+            <Head title="EDM settings" />
             <div className="mx-auto w-full max-w-3xl flex-1 p-4">
-                <Link href="/admin/edm/campaigns" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Campaigns</Link>
-                <h1 className="mb-1 text-2xl font-bold tracking-tight">Email marketing settings</h1>
-                <p className="mb-6 text-sm text-muted-foreground">How campaign mail leaves the server.</p>
+                <EdmHeader title="Settings" description="How campaign mail leaves the server: the hourly limit, the sender, and the footer address." />
 
                 <form onSubmit={submit} className="grid gap-5">
                     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -95,4 +94,4 @@ export default function EdmSettings({ settings, throttle, fromAddress, mailer, w
     );
 }
 
-EdmSettings.layout = { breadcrumbs: [{ title: 'Email marketing', href: '/admin/edm/campaigns' }, { title: 'Settings', href: '/admin/edm/settings' }] };
+EdmSettings.layout = { breadcrumbs: [EDM_CRUMB, { title: 'Settings', href: '/admin/edm/settings' }] };

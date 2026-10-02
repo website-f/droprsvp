@@ -1,11 +1,15 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft, CalendarClock, Copy, Eye, Loader2, Mail, MailOpen, MousePointerClick, Pause, Pencil, Play, Send, Trash2, UserMinus, Users, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BookmarkPlus, CalendarClock, Copy, Eye, Loader2, Mail, MailOpen, MousePointerClick, Pause, Pencil, Play, Send, Trash2, UserMinus, Users, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { statusBadge } from '@/components/edm/campaign';
 import type { CampaignSummary, ThrottleStatus } from '@/components/edm/campaign';
+import { SpamCheckCard } from '@/components/edm/spam-check';
+import type { SpamResult } from '@/components/edm/spam-check';
+import { EDM_CRUMB } from '@/components/edm/ui';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { SearchableOption } from '@/components/ui/searchable-select';
 import { postJson } from '@/lib/api';
@@ -33,6 +37,8 @@ interface Props {
     throttle: ThrottleStatus;
     fromAddress: string;
     testEmail: string;
+    /** Unsent campaigns only. */
+    spam: SpamResult | null;
 }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -77,7 +83,7 @@ function estimate(recipients: number, t: ThrottleStatus): string {
     return hours < 48 ? `about ${Math.ceil(hours)} hours` : `about ${Math.ceil(hours / 24)} days`;
 }
 
-export default function EdmCampaign({ campaign, audienceCount, confirmed, options, links, throttle, fromAddress, testEmail }: Props) {
+export default function EdmCampaign({ campaign, audienceCount, confirmed, options, links, throttle, fromAddress, testEmail, spam }: Props) {
     const confirm = useConfirm();
     const editable = campaign.editable;
     const started = !!campaign.started_at;
@@ -124,6 +130,8 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
     };
 
     const test = useForm({ emails: testEmail });
+    const [savingTemplate, setSavingTemplate] = useState(false);
+    const templateForm = useForm({ name: campaign.name, description: '', campaign_id: campaign.id });
     const schedule = useForm({ at: campaign.scheduled_at_local ?? '' });
 
     const act = (path: string) => router.post(`/admin/edm/campaigns/${campaign.id}/${path}`, {}, { preserveScroll: true });
@@ -135,8 +143,8 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
 
         const ok = await confirm({
             title: `Send to ${count.toLocaleString()} ${count === 1 ? 'person' : 'people'}?`,
-            description: `Emails go out a few at a time within your hourly limit, ${estimate(count, throttle)} in total. You can pause at any point, but sent emails cannot be recalled.`,
-            confirmText: 'Send campaign',
+            description: `${spam?.level === 'poor' ? `The spam check scores this ${spam.score}/10 — a lot of it may land in spam. Consider fixing the issues first. ` : ''}Emails go out a few at a time within your hourly limit, ${estimate(count, throttle)} in total. You can pause at any point, but sent emails cannot be recalled.`,
+            confirmText: spam?.level === 'poor' ? 'Send anyway' : 'Send campaign',
         });
 
         if (ok) {
@@ -175,6 +183,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                         {campaign.status === 'paused' && <Button onClick={() => act('resume')}><Play className="size-4" /> Resume</Button>}
                         {['sending', 'paused'].includes(campaign.status) && <Button variant="outline" onClick={cancel}><XCircle className="size-4" /> Cancel</Button>}
                         <Button variant="outline" onClick={() => act('duplicate')}><Copy className="size-4" /> Duplicate</Button>
+                        {!repermission && <Button variant="outline" onClick={() => setSavingTemplate(true)}><BookmarkPlus className="size-4" /> Save as template</Button>}
                         {editable && <Button variant="ghost" onClick={remove} aria-label="Delete draft"><Trash2 className="size-4" /></Button>}
                     </div>
                 </div>
@@ -379,9 +388,16 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                         title="Email preview"
                         // No scripts, no forms, no navigation of the admin page.
                         sandbox=""
-                        className="h-[640px] w-full rounded-xl border border-border bg-white"
+                        className="h-[520px] w-full rounded-xl border border-border bg-white sm:h-[640px]"
                     />
                 </section>
+
+                {/* ---- spam check ------------------------------------------ */}
+                {spam && campaign.has_content && (
+                    <div className="mt-5">
+                        <SpamCheckCard result={spam} />
+                    </div>
+                )}
 
                 {/* ---- test + send ----------------------------------------- */}
                 {editable && (
@@ -417,7 +433,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                                     <form onSubmit={(e) => {
  e.preventDefault(); schedule.post(`/admin/edm/campaigns/${campaign.id}/schedule`, { preserveScroll: true }); 
 }} className="flex flex-wrap items-center gap-2">
-                                        <input type="datetime-local" className={`${field} w-auto`} value={schedule.data.at} onChange={(e) => schedule.setData('at', e.target.value)} />
+                                        <input type="datetime-local" className={`${field} w-full sm:w-auto`} value={schedule.data.at} onChange={(e) => schedule.setData('at', e.target.value)} />
                                         <Button type="submit" variant="outline" disabled={!schedule.data.at || schedule.processing}><CalendarClock className="size-4" /> Schedule</Button>
                                     </form>
                                     {schedule.errors.at && <span className="text-xs text-destructive">{schedule.errors.at}</span>}
@@ -428,8 +444,35 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                     </div>
                 )}
             </div>
+
+            <Dialog open={savingTemplate} onOpenChange={setSavingTemplate}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Save as template</DialogTitle>
+                        <DialogDescription>Keeps this design, subject and preview text in your template library for future campaigns. This campaign is unchanged.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        templateForm.post('/admin/edm/templates', { preserveScroll: true, onSuccess: () => setSavingTemplate(false) });
+                    }} className="grid gap-3">
+                        <label className="grid gap-1.5 text-sm">
+                            <span className="font-medium">Template name</span>
+                            <input autoFocus className={field} value={templateForm.data.name} onChange={(e) => templateForm.setData('name', e.target.value)} />
+                            {templateForm.errors.name && <span className="text-xs text-destructive">{templateForm.errors.name}</span>}
+                        </label>
+                        <label className="grid gap-1.5 text-sm">
+                            <span className="font-medium">Description <span className="font-normal text-muted-foreground">(optional)</span></span>
+                            <input className={field} value={templateForm.data.description} onChange={(e) => templateForm.setData('description', e.target.value)} placeholder="When to use it" />
+                        </label>
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <Button type="button" variant="ghost" onClick={() => setSavingTemplate(false)}>Cancel</Button>
+                            <Button type="submit" disabled={templateForm.processing || !templateForm.data.name.trim()}>Save template</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
 
-EdmCampaign.layout = { breadcrumbs: [{ title: 'Email marketing', href: '/admin/edm/campaigns' }, { title: 'Campaign', href: '#' }] };
+EdmCampaign.layout = { breadcrumbs: [EDM_CRUMB, { title: 'Campaigns', href: '/admin/edm/campaigns' }, { title: 'Campaign', href: '#' }] };

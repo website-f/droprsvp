@@ -31,6 +31,8 @@ return [
 
     // Conservative until the real host cap is known.
     'hourly_limit' => (int) env('EDM_HOURLY_LIMIT', 100),
+    // Whether the limit was set deliberately, or is still the cautious default.
+    'hourly_limit_configured' => env('EDM_HOURLY_LIMIT') !== null,
 
     // Shown in every footer. Commercial email must carry a postal address.
     'postal_address' => env('EDM_POSTAL_ADDRESS', ''),
@@ -43,6 +45,32 @@ return [
         'start_per_day' => (int) env('EDM_WARMUP_START', 100),
         'double_every_days' => (int) env('EDM_WARMUP_DOUBLE_DAYS', 3),
     ],
+
+    /*
+    | Bounce processing. Bounces return to the address campaigns are sent
+    | from; `edm:bounces` reads that mailbox over IMAP every ten minutes. It
+    | defaults to the EDM SMTP login, which on cPanel is the same mailbox, so
+    | usually nothing extra is needed. Alternatively pipe the mailbox to
+    | `php artisan edm:bounces --stdin` from cPanel's Forwarders.
+    */
+    'bounces' => [
+        'enabled' => (bool) env('EDM_BOUNCES', true),
+        'host' => env('EDM_BOUNCE_HOST', env('EDM_MAIL_HOST', env('MAIL_HOST'))),
+        'port' => (int) env('EDM_BOUNCE_PORT', 993),
+        'encryption' => env('EDM_BOUNCE_ENCRYPTION', 'ssl'),     // ssl (993) | tls (143 + STARTTLS) | none
+        'username' => env('EDM_BOUNCE_USERNAME', env('EDM_MAIL_USERNAME', env('MAIL_USERNAME'))),
+        'password' => env('EDM_BOUNCE_PASSWORD', env('EDM_MAIL_PASSWORD', env('MAIL_PASSWORD'))),
+        'folder' => env('EDM_BOUNCE_FOLDER', 'INBOX'),
+    ],
+
+    /*
+    | Deliverability checks. The sending IP is looked up on blocklists daily;
+    | it defaults to the address of the EDM mail host. Set it explicitly if mail
+    | leaves from a different IP (check a received email's headers). The DKIM
+    | selector is the one your host publishes — cPanel uses "default".
+    */
+    'sending_ips' => array_values(array_filter(array_map('trim', explode(',', (string) env('EDM_SENDING_IP', ''))))),
+    'dkim_selector' => env('EDM_DKIM_SELECTOR', 'default'),
 
     // Stop a campaign before a blocklist stops the server: past these rates,
     // once enough mail has gone out to judge, it pauses itself.

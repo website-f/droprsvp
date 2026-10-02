@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\Edm\CampaignSender;
 use App\Support\Edm\Throttle;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Send the next batch of campaign email. Scheduled every minute.
@@ -30,6 +31,10 @@ class SendCampaigns extends Command
         }
 
         $sent = $sender->dispatch();
+
+        // A heartbeat, so the deliverability page can tell whether the
+        // scheduler cron is actually running.
+        Cache::forever('edm.dispatch.last', now()->toIso8601String());
 
         if ($sent > 0) {
             $this->info("Sent {$sent} campaign email(s).");

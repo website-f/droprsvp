@@ -208,6 +208,7 @@ class CampaignSender
                     fromName: $campaign->from_name ?: (string) Settings::get('from_name'),
                     replyToAddress: $campaign->reply_to ?: (Settings::get('reply_to') ?: null),
                     campaignTag: 'c'.$campaign->id,
+                    sendToken: $send->token,
                 ));
         } catch (\Throwable $e) {
             $attempts = $send->attempts + 1;

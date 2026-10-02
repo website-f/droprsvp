@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\CampaignMail;
 use App\Models\EmailCampaign;
 use App\Models\EmailConsent;
+use App\Models\EmailTemplate;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Services\Edm\CampaignSender;
@@ -14,6 +15,8 @@ use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
 use App\Support\Edm\Renderer;
 use App\Support\Edm\Settings;
+use App\Support\Edm\SpamCheck;
+use App\Support\Edm\StarterTemplates;
 use App\Support\Edm\Throttle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,8 +40,15 @@ class EdmCampaignController extends Controller
 
     public function index(Request $request)
     {
+        $status = in_array($request->query('status'), ['draft', 'scheduled', 'active', 'sent'], true) ? $request->query('status') : '';
+        $q = trim((string) $request->query('q', ''));
+
         $campaigns = EmailCampaign::query()
             ->whereNull('organizer_id')
+            ->when($status === 'active', fn ($x) => $x->whereIn('status', ['sending', 'paused']))
+            ->when($status === 'sent', fn ($x) => $x->whereIn('status', ['sent', 'cancelled']))
+            ->when(in_array($status, ['draft', 'scheduled'], true), fn ($x) => $x->where('status', $status))
+            ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('subject', 'like', "%{$q}%")))
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -57,6 +67,12 @@ class EdmCampaignController extends Controller
             'throttle' => Throttle::status(),
             // Everyone with an account or a purchase who has never been asked.
             'repermissionEligible' => Audience::repermissionCount(),
+            'filters' => ['status' => $status, 'q' => $q],
+            'statusCounts' => EmailCampaign::whereNull('organizer_id')
+                ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status'),
+            // For "New campaign": start blank, from a starter, or a saved template.
+            'starters' => collect(StarterTemplates::all())->map(fn ($t) => ['key' => $t['key'], 'name' => $t['name'], 'description' => $t['description']])->values(),
+            'templates' => EmailTemplate::whereNull('organizer_id')->latest('updated_at')->limit(50)->get(['id', 'name', 'description']),
         ]);
     }
 
@@ -113,6 +129,9 @@ class EdmCampaignController extends Controller
             'throttle' => Throttle::status(),
             'fromAddress' => config('edm.from.address'),
             'testEmail' => request()->user()->email,
+            // Checked on every load of an unsent campaign, so it reflects the
+            // last saved subject and design.
+            'spam' => $campaign->isEditable() ? SpamCheck::forCampaign($campaign) : null,
         ]);
     }
 
@@ -148,7 +167,7 @@ class EdmCampaignController extends Controller
         return Inertia::render('admin/edm/campaigns/editor', [
             'campaign' => ['id' => $campaign->id, 'name' => $campaign->name, 'editable' => $campaign->isEditable()],
             'design' => $campaign->design ?: self::starterDesign(),
-            'events' => $this->eventChoices(),
+            'events' => self::eventChoices(),
         ]);
     }
 
@@ -448,7 +467,7 @@ class EdmCampaignController extends Controller
     }
 
     /** Published, upcoming events the editor's event card can pick from. */
-    private function eventChoices(): array
+    public static function eventChoices(): array
     {
         return Event::query()
             ->where('status', 'published')

@@ -12,6 +12,7 @@ import {
     SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 /**
@@ -20,13 +21,21 @@ import type { NavItem } from '@/types';
  * on both the header and each sub-link.
  */
 export function NavGroup({ label, icon: Icon, items, defaultOpen = false }: { label: string; icon: LucideIcon; items: NavItem[]; defaultOpen?: boolean }) {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { currentUrl } = useCurrentUrl();
 
     if (items.length === 0) {
         return null;
     }
 
-    const containsActive = items.some((i) => isCurrentUrl(i.href));
+    // The item whose link is the closest parent of the current page, so a
+    // detail page (/admin/edm/campaigns/12) highlights its list (Campaigns)
+    // and keeps the group open. Longest match wins: Overview at /admin/edm
+    // must not claim every page beneath it.
+    const active = items
+        .map((i) => toUrl(i.href).replace(/\/$/, ''))
+        .filter((href) => currentUrl === href || currentUrl.startsWith(`${href}/`))
+        .sort((a, b) => b.length - a.length)[0];
+    const containsActive = active !== undefined;
 
     return (
         <SidebarGroup className="px-2 py-0">
@@ -44,7 +53,7 @@ export function NavGroup({ label, icon: Icon, items, defaultOpen = false }: { la
                             <SidebarMenuSub>
                                 {items.map((item) => (
                                     <SidebarMenuSubItem key={item.title}>
-                                        <SidebarMenuSubButton asChild isActive={isCurrentUrl(item.href)}>
+                                        <SidebarMenuSubButton asChild isActive={toUrl(item.href).replace(/\/$/, '') === active}>
                                             <Link href={item.href} prefetch>
                                                 {item.icon && <item.icon />}
                                                 <span>{item.title}</span>

@@ -11,6 +11,9 @@ use App\Http\Controllers\Admin\CmsPostController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\EdmAudienceController;
 use App\Http\Controllers\Admin\EdmCampaignController;
+use App\Http\Controllers\Admin\EdmDashboardController;
+use App\Http\Controllers\Admin\EdmDeliverabilityController;
+use App\Http\Controllers\Admin\EdmTemplateController;
 use App\Http\Controllers\Admin\EventCategoryController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
 use App\Http\Controllers\Admin\EventSeoController;
@@ -463,6 +466,9 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
 
         // Email marketing (EDM): DropRSVP's own campaigns and list.
         Route::prefix('edm')->name('edm.')->group(function () {
+            // EDM → Overview.
+            Route::get('/', EdmDashboardController::class)->name('overview');
+
             Route::get('campaigns', [EdmCampaignController::class, 'index'])->name('campaigns.index');
             Route::post('campaigns', [EdmCampaignController::class, 'store'])->name('campaigns.store');
             Route::post('audience-count', [EdmCampaignController::class, 'audienceCount'])->name('audience-count');
@@ -485,6 +491,25 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
             Route::get('subscribers/export', [EdmAudienceController::class, 'export'])->name('subscribers.export');
             Route::post('subscribers/{consent}/unsubscribe', [EdmAudienceController::class, 'unsubscribe'])->whereNumber('consent')->name('subscribers.unsubscribe');
             Route::post('subscribers/{consent}/suppress', [EdmAudienceController::class, 'suppress'])->whereNumber('consent')->name('subscribers.suppress');
+            Route::post('suppressions/{suppression}/remove', [EdmAudienceController::class, 'unsuppress'])->whereNumber('suppression')->name('suppressions.remove');
+
+            // Saved templates + built-in starters.
+            Route::get('templates', [EdmTemplateController::class, 'index'])->name('templates.index');
+            Route::post('templates', [EdmTemplateController::class, 'store'])->name('templates.store');
+            Route::post('templates/use', [EdmTemplateController::class, 'use'])->name('templates.use');
+            Route::get('templates/starters/{key}/preview', [EdmTemplateController::class, 'starterPreview'])->where('key', '[a-z0-9-]+')->name('templates.starter-preview');
+            Route::put('templates/{template}', [EdmTemplateController::class, 'update'])->whereNumber('template')->name('templates.update');
+            Route::delete('templates/{template}', [EdmTemplateController::class, 'destroy'])->whereNumber('template')->name('templates.destroy');
+            Route::get('templates/{template}/editor', [EdmTemplateController::class, 'editor'])->whereNumber('template')->name('templates.editor');
+            Route::post('templates/{template}/design', [EdmTemplateController::class, 'saveDesign'])->whereNumber('template')->name('templates.design');
+            Route::get('templates/{template}/preview', [EdmTemplateController::class, 'preview'])->whereNumber('template')->name('templates.preview');
+            Route::post('templates/{template}/duplicate', [EdmTemplateController::class, 'duplicate'])->whereNumber('template')->name('templates.duplicate');
+
+            // Deliverability: setup checklist, DNS, blocklists, bounces.
+            Route::get('deliverability', [EdmDeliverabilityController::class, 'index'])->name('deliverability');
+            Route::post('deliverability/check', [EdmDeliverabilityController::class, 'check'])->middleware('throttle:6,1')->name('deliverability.check');
+            Route::post('deliverability/bounces', [EdmDeliverabilityController::class, 'readBounces'])->middleware('throttle:6,1')->name('deliverability.bounces');
+
             Route::get('settings', [EdmAudienceController::class, 'settings'])->name('settings');
             Route::post('settings', [EdmAudienceController::class, 'saveSettings'])->name('settings.save');
         });

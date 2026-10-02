@@ -27,7 +27,26 @@ class EdmAudienceController extends Controller
     public function subscribers(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
-        $status = in_array($request->query('status'), ['subscribed', 'unsubscribed'], true) ? $request->query('status') : 'subscribed';
+        $status = in_array($request->query('status'), ['subscribed', 'unsubscribed', 'suppressed'], true) ? $request->query('status') : 'subscribed';
+
+        // Suppressed is a different table: addresses never to be mailed from any
+        // list, with the reason (bounce, complaint, manual) and the evidence.
+        if ($status === 'suppressed') {
+            return $this->render($request, $q, $status, EmailSuppression::query()
+                ->when($q !== '', fn ($x) => $x->where('email', 'like', '%'.strtolower($q).'%'))
+                ->latest('updated_at')
+                ->paginate(30)
+                ->withQueryString()
+                ->through(fn (EmailSuppression $s) => [
+                    'id' => $s->id,
+                    'email' => $s->email,
+                    'name' => null,
+                    'source' => $s->reason,
+                    'detail' => $s->detail,
+                    'since' => Dates::display($s->updated_at, 'j M Y, g:ia'),
+                    'suppressed' => true,
+                ]));
+        }
 
         $rows = EmailConsent::query()
             ->where('scope', Consent::PLATFORM)
@@ -50,6 +69,11 @@ class EdmAudienceController extends Controller
         $suppressed = EmailSuppression::whereIn('email', collect($rows->items())->pluck('email'))->pluck('email')->flip();
         $rows->through(fn (array $r) => [...$r, 'suppressed' => $suppressed->has($r['email'])]);
 
+        return $this->render($request, $q, $status, $rows);
+    }
+
+    private function render(Request $request, string $q, string $status, $rows)
+    {
         $base = EmailConsent::where('scope', Consent::PLATFORM);
 
         return Inertia::render('admin/edm/subscribers', [
@@ -83,6 +107,19 @@ class EdmAudienceController extends Controller
         Consent::suppress($consent->email, 'manual', 'Suppressed by '.$request->user()->name);
 
         return back()->with('flash_success', "{$consent->email} will not be emailed again.");
+    }
+
+    /**
+     * Lift a suppression — for an address fixed after a bounce, or blocked by
+     * mistake. Their consent is untouched: they get mail again only if they
+     * are still subscribed.
+     */
+    public function unsuppress(EmailSuppression $suppression): RedirectResponse
+    {
+        $email = $suppression->email;
+        $suppression->delete();
+
+        return back()->with('flash_success', "{$email} can be emailed again (if still subscribed).");
     }
 
     public function export(Request $request): StreamedResponse

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -56,9 +56,19 @@ const platformNav: AdminNavItem[] = [
     { title: 'Finance', href: '/admin/finance', icon: CircleDollarSign, section: 'finance' },
     { title: 'Refunds', href: '/admin/refunds', icon: Undo2, section: 'refunds' },
     { title: 'Contact messages', href: '/admin/contact', icon: Inbox, section: 'contact' },
-    { title: 'Email marketing', href: '/admin/edm/campaigns', icon: Mail, section: 'edm' },
     { title: 'Archive', href: '/admin/archive', icon: Archive, section: 'archive' },
     { title: 'Settings', href: '/admin/settings', icon: Settings2, section: 'settings' },
+];
+
+// EDM — email marketing has its own group: it is a workspace of its own
+// (campaigns, templates, the list, deliverability), not one admin screen.
+const edmNav: NavItem[] = [
+    { title: 'Overview', href: '/admin/edm', icon: Gauge },
+    { title: 'Campaigns', href: '/admin/edm/campaigns', icon: Send },
+    { title: 'Templates', href: '/admin/edm/templates', icon: LayoutTemplate },
+    { title: 'Subscribers', href: '/admin/edm/subscribers', icon: Users },
+    { title: 'Deliverability', href: '/admin/edm/deliverability', icon: ShieldCheck },
+    { title: 'Settings', href: '/admin/edm/settings', icon: Settings2 },
 ];
 
 const cmsNav: NavItem[] = [
@@ -111,6 +121,7 @@ export function AppSidebar() {
                 <NavMain items={(isOrganizer || isAdmin) ? sellerNav : buyerNav} label="You" />
                 {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
                 {isAdmin && platformItems.length > 0 && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformItems} />}
+                {isAdmin && sections.includes('edm') && <NavGroup label="EDM" icon={Mail} items={edmNav} />}
                 {isAdmin && sections.includes('content') && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}
                 {isAdmin && sections.includes('appearance') && <NavGroup label="Appearance" icon={Palette} items={siteNav} />}
             </SidebarContent>
