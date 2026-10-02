@@ -26,15 +26,26 @@ interface Active { city: string | null; city_name: string | null; category: stri
 interface CategoryContent { name: string; content: string }
 interface Seo { title: string }
 
-/** SEO copy block shown at the bottom of the page, truncated with a See more toggle. */
+/**
+ * The category's own copy at the foot of its page, collapsed with See more.
+ *
+ * The content is HTML (sanitised by the server). It was printed as text, so
+ * readers saw the tags themselves. Collapsed by height rather than line-clamp,
+ * which does not work across several block elements.
+ */
 function ContentBlock({ name, content }: CategoryContent) {
     const [open, setOpen] = useState(false);
-    const long = content.length > 320;
+    const long = content.replace(/<[^>]*>/g, '').length > 320;
+    // Copy that starts with its own heading does not need the name above it too.
+    const ownHeading = /^\s*<h[1-6]/i.test(content);
 
     return (
         <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="mb-2 font-semibold">{name}</h3>
-            <p className={`whitespace-pre-line text-sm leading-relaxed text-muted-foreground ${!open && long ? 'line-clamp-4' : ''}`}>{content}</p>
+            {!ownHeading && <h3 className="mb-2 font-semibold">{name}</h3>}
+            <div className={`relative ${!open && long ? 'max-h-32 overflow-hidden' : ''}`}>
+                <div className={`${contentClass} text-sm text-muted-foreground`} dangerouslySetInnerHTML={{ __html: content }} />
+                {!open && long && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent" />}
+            </div>
             {long && (
                 <button type="button" onClick={() => setOpen((v) => !v)} className="mt-2 text-sm font-medium text-foreground underline underline-offset-4">
                     {open ? 'See less' : 'See more'}

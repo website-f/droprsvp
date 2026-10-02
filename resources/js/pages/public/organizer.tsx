@@ -6,6 +6,7 @@ import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Framed, SmartImage } from '@/components/smart-image';
+import { SocialIcon } from '@/components/social-icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -15,6 +16,7 @@ interface EventCard {
 }
 interface Organizer {
     id: number; slug: string; name: string; avatar: string | null; bio: string | null; website: string | null;
+    socials?: { platform: string; label: string; url: string }[];
     location: string | null; event_types: string[]; followers: number; members: number; photos_count: number; events_count: number; joined: string | null;
 }
 interface Member { name: string; chat?: string | null }
@@ -293,6 +295,24 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
                                 {organizer.joined && <span>Since {organizer.joined}</span>}
                             </div>
                             {organizer.bio && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground/80 line-clamp-2">{organizer.bio}</p>}
+                            {/* Their own profiles elsewhere — on every tab, not only About. */}
+                            {(organizer.socials?.length ?? 0) > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {organizer.socials!.map((s) => (
+                                        <a
+                                            key={s.platform}
+                                            href={s.url}
+                                            target="_blank"
+                                            rel="me noopener noreferrer"
+                                            aria-label={`${organizer.name} on ${s.label}`}
+                                            title={s.label}
+                                            className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-foreground hover:text-background"
+                                        >
+                                            <SocialIcon platform={s.platform} className="size-4" />
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
                             {organizer.event_types.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-1.5">
                                     {organizer.event_types.slice(0, 6).map((t) => <Badge key={t} variant="secondary" className="capitalize">{t}</Badge>)}

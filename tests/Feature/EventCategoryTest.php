@@ -84,7 +84,8 @@ class EventCategoryTest extends TestCase
         $this->get('/en-my/all/music')->assertInertia(fn (Assert $p) => $p
             ->has('categoryContent', 1)
             ->where('categoryContent.0.name', 'Music')
-            ->where('categoryContent.0.content', 'The best music events across Malaysia.'));
+            // Rendered as HTML now; plain-text copy becomes a paragraph.
+            ->where('categoryContent.0.content', '<p>The best music events across Malaysia.</p>'));
     }
 
     public function test_superadmin_can_reorder_categories(): void

@@ -8,6 +8,7 @@ use App\Models\EventCategory;
 use App\Models\Order;
 use App\Support\Cities;
 use App\Support\EventFaces;
+use App\Support\HtmlSanitizer;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use App\Support\Url;
@@ -184,9 +185,33 @@ class DiscoverController extends Controller
             // generic seoText above already covers it and listing every
             // category's copy there was a wall of text.
             'categoryContent' => $categoryModel && $categoryModel->content
-                ? [['name' => $categoryModel->name, 'content' => $categoryModel->content]]
+                ? [['name' => $categoryModel->name, 'content' => self::copyHtml($categoryModel->content)]]
                 : [],
         ]);
+    }
+
+    /**
+     * Category copy as HTML the page can render.
+     *
+     * The admin editor writes HTML (<h2>, <p>), but the page printed it as
+     * text, so readers saw the tags. Older copy may be plain text with line
+     * breaks: that is escaped and turned into paragraphs, so it keeps its
+     * shape instead of becoming one run-on line. Sanitised either way — it is
+     * admin-written, but it is still published HTML.
+     */
+    private static function copyHtml(string $content): string
+    {
+        $content = trim($content);
+
+        // Plain text unless it carries real formatting tags — "a <b>" in prose
+        // is a stray bracket, not markup.
+        if (! preg_match('/<\/?(p|h[1-6]|ul|ol|li|br|strong|em|b|i|u|a|div|span|blockquote|table|hr)\b/i', $content)) {
+            $paragraphs = preg_split('/\R{2,}/', $content) ?: [$content];
+
+            return implode('', array_map(fn ($p) => '<p>'.nl2br(e(trim($p))).'</p>', $paragraphs));
+        }
+
+        return HtmlSanitizer::clean($content);
     }
 
     /** Legacy /events?category=&q= → 301 to the canonical path URL. */

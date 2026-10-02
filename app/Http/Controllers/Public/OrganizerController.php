@@ -12,6 +12,7 @@ use App\Support\Chat\ChatLink;
 use App\Support\Cities;
 use App\Support\SeoManager;
 use App\Support\SeoTemplate;
+use App\Support\SocialLinks;
 use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -117,6 +118,7 @@ class OrganizerController extends Controller
                 'avatar' => $profile?->poster ?: $organizer->avatar,
                 'bio' => $profile?->bio,
                 'website' => $profile?->website,
+                'socials' => SocialLinks::forDisplay($profile?->socials),
                 'location' => $organizer->city,
                 'event_types' => $profile?->event_types ?? [],
                 'followers' => $followersCount,
@@ -402,7 +404,12 @@ class OrganizerController extends Controller
             ]) : null,
             // Only their own site — never the phone or email, which are on the
             // profile for attendees to use, not for scrapers to harvest.
-            'sameAs' => $profile?->website ? [$profile->website] : null,
+            // Their website and social profiles: how search engines tie this
+            // page to the same organizer elsewhere.
+            'sameAs' => array_values(array_filter([
+                $profile?->website,
+                ...array_column(SocialLinks::forDisplay($profile?->socials), 'url'),
+            ])) ?: null,
         ], fn ($v) => $v !== null && $v !== []);
 
         $page = array_filter([

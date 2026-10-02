@@ -229,15 +229,122 @@ export function RichEditor({ value, onChange, placeholder, compact = false, minH
 
     const insertHtml = (html: string) => exec('insertHTML', html);
 
+    /*
+     * Where the cursor was when a dialog opened.
+     *
+     * Link, video and image each ask for something in a dialog first, and the
+     * dialog's input takes focus — and with it the editor's selection. When
+     * the editor got focus back the browser put the cursor wherever it liked,
+     * so a link meant for the end of a paragraph landed at the start of the
+     * next heading, on its own line, at heading size. The range is saved
+     * before the dialog opens and put back before anything is inserted.
+     */
+    const savedRange = useRef<Range | null>(null);
+
+    const saveSelection = () => {
+        const sel = window.getSelection();
+        const el = editorRef.current;
+
+        savedRange.current = sel && sel.rangeCount > 0 && el && el.contains(sel.getRangeAt(0).commonAncestorContainer)
+            ? sel.getRangeAt(0).cloneRange()
+            : null;
+    };
+
+    const restoreSelection = () => {
+        const el = editorRef.current;
+        const sel = window.getSelection();
+
+        if (!el || !sel) {
+            return;
+        }
+
+        el.focus();
+        sel.removeAllRanges();
+
+        if (savedRange.current) {
+            sel.addRange(savedRange.current);
+        } else {
+            // Nothing was selected in the editor: append at the end rather
+            // than wherever the browser happens to put the caret.
+            const end = document.createRange();
+            end.selectNodeContents(el);
+            end.collapse(false);
+            sel.addRange(end);
+        }
+    };
+
+    const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     const link = () => {
-        promptRef.current({ title: 'Insert link', label: 'URL', placeholder: 'https://…', confirmText: 'Insert' }).then((url) => {
-            if (url) {
-                exec('createLink', url.trim());
+        saveSelection();
+        promptRef.current({ title: 'Insert link', label: 'URL', placeholder: 'https://…', confirmText: 'Insert' }).then((raw) => {
+            const url = raw?.trim();
+
+            if (!url) {
+                return;
             }
+
+            // "droprsvp.com/x" is how people type a link; without a scheme the
+            // browser would treat it as a path relative to the editor page.
+            const href = /^(https?:|mailto:|tel:|\/|#)/i.test(url) ? url : `https://${url}`;
+
+            restoreSelection();
+
+            const sel = window.getSelection();
+
+            // With text selected, link that text.
+            if (sel && !sel.isCollapsed) {
+                exec('createLink', href);
+
+                return;
+            }
+
+            // With nothing selected, insert the URL as its own link text. As a
+            // DOM node rather than execCommand('insertHTML'): Chrome wraps
+            // inserted HTML in <span style="color: …"> copied from the
+            // surrounding computed style, which then sits in the saved post.
+            const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+
+            if (!range) {
+                return;
+            }
+
+            const anchor = document.createElement('a');
+            anchor.href = href;
+            anchor.textContent = url;
+
+            // A space either side, unless one is already there, so the link
+            // does not run into "👉" or the next word.
+            const before = range.startContainer.nodeType === Node.TEXT_NODE
+                ? (range.startContainer.textContent ?? '').slice(0, range.startOffset)
+                : '';
+            const fragment = document.createDocumentFragment();
+
+            if (before !== '' && !/\s$/.test(before)) {
+                fragment.appendChild(document.createTextNode(' '));
+            }
+
+            fragment.appendChild(anchor);
+            const trailing = document.createTextNode('\u00a0');
+            fragment.appendChild(trailing);
+
+            range.deleteContents();
+            range.insertNode(fragment);
+
+            // Caret after the link, ready to keep typing.
+            const caret = document.createRange();
+            caret.setStartAfter(trailing);
+            caret.collapse(true);
+            sel!.removeAllRanges();
+            sel!.addRange(caret);
+
+            emit();
+            syncState();
         });
     };
 
     const video = () => {
+        saveSelection();
         promptRef.current({ title: 'Insert YouTube video', label: 'YouTube link', placeholder: 'https://www.youtube.com/watch?v=…', confirmText: 'Insert' }).then((url) => {
             if (!url) {
                 return;
@@ -245,11 +352,13 @@ export function RichEditor({ value, onChange, placeholder, compact = false, minH
 
             const id = youtubeId(url.trim());
             const src = id ? `https://www.youtube.com/embed/${id}` : url.trim();
-            insertHtml(`<iframe src="${src}" allowfullscreen frameborder="0"></iframe><p><br></p>`);
+            restoreSelection();
+            insertHtml(`<iframe src="${escapeHtml(src)}" allowfullscreen frameborder="0"></iframe><p><br></p>`);
         });
     };
 
     const image = () => {
+        saveSelection();
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -263,7 +372,9 @@ export function RichEditor({ value, onChange, placeholder, compact = false, minH
             const url = await uploadImageWithToast(file);
 
             if (url) {
-                insertHtml(`<img src="${url}" alt="">`);
+                // The upload takes a moment; put the cursor back where it was.
+                restoreSelection();
+                insertHtml(`<img src="${escapeHtml(url)}" alt="">`);
             }
         };
         input.click();

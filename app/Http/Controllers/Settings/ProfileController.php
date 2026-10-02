@@ -37,6 +37,7 @@ class ProfileController extends Controller
                 'poster' => $profile?->poster ?? '',
                 'website' => $profile?->website ?? '',
                 'bio' => $profile?->bio ?? '',
+                'socials' => (object) ($profile?->socials ?? []),
             ],
         ]);
     }

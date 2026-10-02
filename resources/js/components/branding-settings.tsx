@@ -3,6 +3,7 @@ import { Building2, ImagePlus, Loader2, Trash2, UserRound } from 'lucide-react';
 import { useRef, useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { SocialLinksField } from '@/components/social-links-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,8 @@ export interface Branding {
     poster: string;
     website: string;
     bio: string;
+    /** { platform: link } — only the ones they have. */
+    socials?: Record<string, string>;
 }
 
 /**
@@ -31,6 +34,7 @@ export function BrandingSettings({ branding, isOrganizer }: { branding: Branding
         poster: branding.poster,
         website: branding.website,
         bio: branding.bio,
+        socials: { ...(branding.socials ?? {}) } as Record<string, string>,
     });
 
     const submit = (e: React.FormEvent) => {
@@ -99,9 +103,20 @@ export function BrandingSettings({ branding, isOrganizer }: { branding: Branding
                             autoComplete="url"
                             value={form.data.website}
                             onChange={(e) => form.setData('website', e.target.value)}
-                            placeholder="instagram.com/yourbrand"
+                            placeholder="yourbrand.com"
                         />
                         <InputError message={form.errors.website} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>
+                            Social media <span className="font-normal text-muted-foreground">(optional)</span>
+                        </Label>
+                        <SocialLinksField
+                            value={form.data.socials}
+                            onChange={(next) => form.setData('socials', next)}
+                            errors={form.errors as Record<string, string | undefined>}
+                        />
                     </div>
 
                     <div className="grid gap-2">

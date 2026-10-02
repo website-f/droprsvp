@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Support\SocialLinks;
 use App\Support\WebsiteUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
@@ -45,7 +47,18 @@ class BrandingController extends Controller
             'poster' => [$isOrganizer ? 'nullable' : 'prohibited', 'string', 'max:2048'],
             'website' => [$isOrganizer ? 'nullable' : 'prohibited', 'url', 'max:2048'],
             'bio' => [$isOrganizer ? 'nullable' : 'prohibited', 'string', 'max:2000'],
+            // { platform: link-or-handle }; cleaned and checked per platform below.
+            'socials' => [$isOrganizer ? 'nullable' : 'prohibited', 'array'],
+            'socials.*' => ['nullable', 'string', 'max:2048'],
         ]);
+
+        [$socials, $socialErrors] = SocialLinks::clean((array) ($data['socials'] ?? []));
+
+        if ($socialErrors) {
+            throw ValidationException::withMessages(
+                collect($socialErrors)->mapWithKeys(fn ($m, $p) => ["socials.{$p}" => $m])->all(),
+            );
+        }
 
         // `nullable` allows a key to be absent entirely, not just empty, so every
         // read needs a default — a partial submit would otherwise 500.
@@ -59,6 +72,9 @@ class BrandingController extends Controller
                 'poster' => ($data['poster'] ?? null) ?: null,
                 'website' => ($data['website'] ?? null) ?: null,
                 'bio' => ($data['bio'] ?? null) ?: null,
+                // Only touched when the form sent the field, so an older
+                // client that does not know about socials cannot wipe them.
+                ...(array_key_exists('socials', $data) ? ['socials' => $socials ?: null] : []),
             ]);
         }
 
