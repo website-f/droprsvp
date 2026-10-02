@@ -122,7 +122,7 @@ class EdmOrganizerController extends Controller
         ]);
 
         if (! empty($data['credits'])) {
-            Credits::grant($organizer->id, (int) $data['credits'], 'adjust', $data['note'] ?: 'Adjusted by '.$request->user()->name, by: $request->user()->id);
+            Credits::grant($organizer->id, (int) $data['credits'], 'adjust', ($data['note'] ?? null) ?: 'Adjusted by '.$request->user()->name, by: $request->user()->id);
         }
 
         $account = EdmAccount::for($organizer->id);

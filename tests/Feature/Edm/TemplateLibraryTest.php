@@ -88,6 +88,17 @@ class TemplateLibraryTest extends TestCase
         $this->assertSame(3, collect(EmailCampaign::firstOrFail()->design['content'])->where('type', 'EventCard')->count());
     }
 
+    public function test_use_without_a_name_takes_the_templates(): void
+    {
+        // The "Use" button on a card posts no name at all.
+        $t = EmailTemplate::create(['name' => 'Monthly letter', 'design' => $this->design()]);
+
+        $this->actingAs($this->admin)->post('/admin/edm/templates/use', ['template_id' => $t->id])->assertRedirect();
+        $this->actingAs($this->admin)->post('/admin/edm/templates/use', ['starter' => 'spotlight'])->assertRedirect();
+
+        $this->assertSame(['Monthly letter', 'Event spotlight'], EmailCampaign::orderBy('id')->pluck('name')->all());
+    }
+
     public function test_previews_render_as_email(): void
     {
         $t = EmailTemplate::create(['name' => 'X', 'design' => $this->design()]);

@@ -257,6 +257,10 @@ class OrganizerEdmTest extends TestCase
         $this->actingAs($admin)->post("/admin/edm/organizers/{$this->org->id}/adjust", ['credits' => 250, 'note' => 'Goodwill', 'monthly_allowance' => 500])->assertRedirect();
 
         $this->assertSame(250, Credits::balance($this->org->id));
+
+        // Credits alone, no note field sent.
+        $this->actingAs($admin)->post("/admin/edm/organizers/{$this->org->id}/adjust", ['credits' => 10])->assertRedirect();
+        $this->assertSame(260, Credits::balance($this->org->id));
         $this->assertSame(500, Credits::allowance($this->org));
     }
 

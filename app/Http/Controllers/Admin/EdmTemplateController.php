@@ -190,7 +190,8 @@ class EdmTemplateController extends Controller
 
         $campaign = EmailCampaign::create([
             'organizer_id' => $this->scopeId(),
-            'name' => $data['name'] ?: $source['name'],
+            // The cards' "Use" button sends no name; the dialog does.
+            'name' => ($data['name'] ?? null) ?: $source['name'],
             'subject' => (string) ($source['subject'] ?? ''),
             'preheader' => $source['preheader'] ?? null,
             'from_name' => $this->scopeId() === null ? Settings::get('from_name') : null,
