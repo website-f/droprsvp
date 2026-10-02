@@ -9,6 +9,7 @@ use App\Models\Chat\Report;
 use App\Models\Chat\UserState;
 use App\Models\User;
 use App\Services\Chat\Messenger;
+use App\Support\Chat\ChatLink;
 use App\Support\Chat\ChatSettings;
 use App\Support\Chat\IpGuard;
 use App\Support\Chat\PollToken;
@@ -45,6 +46,8 @@ class ChatTest extends TestCase
     {
         return $this->actingAs($from)->postJson('/chat/messages', array_filter([
             $to instanceof User ? 'recipient_id' : 'conversation_id' => $to->id,
+            // As if from a "Message" button: these tests are about what happens next.
+            'reach' => $to instanceof User ? ChatLink::key($from->id, $to->id) : null,
             'body' => $body,
             'image' => $image,
         ]));
@@ -363,7 +366,7 @@ class ChatTest extends TestCase
 
         // A brand-new chat with someone: a draft, no conversation yet.
         $zed = User::factory()->create();
-        $this->actingAs($this->ali)->get('/messages/new/'.$zed->id)->assertOk()
+        $this->actingAs($this->ali)->get(ChatLink::for($this->ali, $zed->id))->assertOk()
             ->assertInertia(fn ($p) => $p->where('draft.id', $zed->id)->where('draft.request', true));
 
         // An existing one redirects to it; someone else's chat is not found.

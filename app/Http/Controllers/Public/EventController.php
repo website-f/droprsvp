@@ -7,6 +7,8 @@ use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\EventReview;
 use App\Models\Order;
+use App\Models\User;
+use App\Support\Chat\ChatLink;
 use App\Support\Cities;
 use App\Support\HtmlSanitizer;
 use App\Support\Ics;
@@ -220,8 +222,8 @@ class EventController extends Controller
             'seo' => [
                 'title' => $pageTitle,
             ],
-            'participants' => $this->participants($event, $canSeeAllMembers, $participantsPage),
-            'discussion' => $this->discussion($event, $discussionPage),
+            'participants' => $this->participants($event, $canSeeAllMembers, $participantsPage, $user, $isOwner),
+            'discussion' => $this->discussion($event, $discussionPage, $user),
             'reviews' => $this->reviews($event, $myReview, $reviewsPage),
             'viewer' => [
                 'authed' => (bool) $user,
@@ -240,18 +242,24 @@ class EventController extends Controller
      * People who got tickets. Free/guest see the first 4 (the rest paywalled);
      * premium + the organizer see the full list, paginated.
      */
-    private function participants(Event $event, bool $canSeeAll, int $page): array
+    private function participants(Event $event, bool $canSeeAll, int $page, ?User $viewer = null, bool $isOwner = false): array
     {
         $perPage = 12;
         $paid = Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_email');
         $total = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
-        $rows = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])->unique('buyer_email')->values();
+        $rows = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email', 'user_id'])->unique('buyer_email')->values();
+
+        // Message buttons only between people at the same event: the organizer,
+        // or someone holding a ticket themselves.
+        $canMessage = $viewer && ($isOwner || $rows->contains(fn ($o) => (int) $o->user_id === $viewer->id
+            || strcasecmp((string) $o->buyer_email, (string) $viewer->email) === 0));
+        $person = fn ($o) => ['name' => $o->buyer_name ?: 'Guest', 'chat' => $canMessage ? ChatLink::for($viewer, $o->user_id) : null];
 
         if (! $canSeeAll) {
             return [
                 'count' => $total,
                 'unlocked' => false,
-                'list' => $rows->take(4)->map(fn ($m) => ['name' => $m->buyer_name ?: 'Guest'])->values()->all(),
+                'list' => $rows->take(4)->map($person)->values()->all(),
                 'page' => 1,
                 'pages' => 1,
             ];
@@ -264,7 +272,7 @@ class EventController extends Controller
             'count' => $total,
             'unlocked' => true,
             'list' => $rows->slice(($page - 1) * $perPage, $perPage)
-                ->map(fn ($m) => ['name' => $m->buyer_name ?: 'Guest'])->values()->all(),
+                ->map($person)->values()->all(),
             'page' => $page,
             'pages' => $pages,
         ];
@@ -305,7 +313,7 @@ class EventController extends Controller
     }
 
     /** Threaded discussion — top-level questions with the organizer's replies (paginated). */
-    private function discussion(Event $event, int $page): array
+    private function discussion(Event $event, int $page, ?User $viewer = null): array
     {
         $perPage = 8;
         $count = (int) $event->comments()->count();
@@ -319,12 +327,14 @@ class EventController extends Controller
             'list' => $event->comments()->with(['user:id,name', 'replies.user:id,name'])->forPage($page, $perPage)->get()->map(fn ($c) => [
                 'id' => $c->id,
                 'author' => $c->user?->name ?? 'User',
+                'chat' => ChatLink::for($viewer, $c->user_id),
                 'body' => $c->body,
                 'when' => $c->created_at->diffForHumans(),
                 'is_organizer' => $c->user_id === $event->user_id,
                 'replies' => $c->replies->map(fn ($r) => [
                     'id' => $r->id,
                     'author' => $r->user?->name ?? 'User',
+                    'chat' => ChatLink::for($viewer, $r->user_id),
                     'body' => $r->body,
                     'when' => $r->created_at->diffForHumans(),
                     'is_organizer' => $r->user_id === $event->user_id,

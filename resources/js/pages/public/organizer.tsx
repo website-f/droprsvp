@@ -1,6 +1,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { CalendarDays, CornerDownRight, Globe, Images, Info, Lock, MapPin, MessageCircle, Send, Shield, Sparkles, Star, UserCheck, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
+import { MessagePersonButton } from '@/components/chat/message-person-button';
 import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
@@ -16,9 +17,10 @@ interface Organizer {
     id: number; slug: string; name: string; avatar: string | null; bio: string | null; website: string | null;
     location: string | null; event_types: string[]; followers: number; members: number; photos_count: number; events_count: number; joined: string | null;
 }
-interface Members { attendees: { name: string }[]; followers: { name: string }[]; hidden?: number }
+interface Member { name: string; chat?: string | null }
+interface Members { attendees: Member[]; followers: Member[]; hidden?: number }
 interface Photo { path: string; caption: string | null }
-interface Post { id: number; author: string; body: string; when: string | null; is_organizer: boolean; replies: Post[] }
+interface Post { id: number; author: string; chat?: string | null; body: string; when: string | null; is_organizer: boolean; replies: Post[] }
 interface DiscussionData { posts: Post[]; pagination: { page: number; per_page: number; total: number; has_more: boolean } }
 interface Viewer { authed: boolean; is_self: boolean; can_moderate: boolean; is_following: boolean }
 type Tab = 'about' | 'events' | 'members' | 'photos' | 'discussion';
@@ -112,7 +114,7 @@ function MorePrompt({ count }: { count: number }) {
     );
 }
 
-function MemberGrid({ people, empty }: { people: { name: string }[]; empty: string }) {
+function MemberGrid({ people, empty }: { people: Member[]; empty: string }) {
     if (people.length === 0) {
         return <p className="text-sm text-muted-foreground">{empty}</p>;
     }
@@ -122,7 +124,8 @@ function MemberGrid({ people, empty }: { people: { name: string }[]; empty: stri
             {people.map((p, i) => (
                 <div key={i} className="flex items-center gap-2.5 rounded-xl border border-border bg-card p-3">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: TINTS[i % TINTS.length] }}>{initials(p.name)}</span>
-                    <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
+                    <MessagePersonButton href={p.chat} name={p.name} />
                 </div>
             ))}
         </div>
@@ -168,6 +171,7 @@ function Comment({ post, depth, ctx }: { post: Post; depth: number; ctx: Comment
                 <span className="text-sm font-semibold">{post.author}</span>
                 {post.is_organizer && <Badge variant="secondary">Organizer</Badge>}
                 {post.when && <span className="text-xs text-muted-foreground">{post.when}</span>}
+                <MessagePersonButton href={post.chat} name={post.author} label />
             </div>
             <p className="mt-1.5 whitespace-pre-line text-sm text-foreground/85">{post.body}</p>
 

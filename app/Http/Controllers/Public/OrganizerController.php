@@ -8,6 +8,7 @@ use App\Models\EventPhoto;
 use App\Models\Order;
 use App\Models\OrganizerPost;
 use App\Models\User;
+use App\Support\Chat\ChatLink;
 use App\Support\Cities;
 use App\Support\SeoManager;
 use App\Support\SeoTemplate;
@@ -65,12 +66,14 @@ class OrganizerController extends Controller
         $photos = $this->photos($eventIds);
         $photosCount = $photos->count();
 
-        $attendees = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email'])
+        // "chat" is a signed Message link for a signed-in viewer (ChatLink);
+        // guest checkouts have no account and so no button.
+        $attendees = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email', 'user_id'])
             ->unique('buyer_email')->take($authed ? 60 : $preview)
-            ->map(fn ($o) => ['name' => $o->buyer_name ?: 'Guest'])->values();
+            ->map(fn ($o) => ['name' => $o->buyer_name ?: 'Guest', 'chat' => ChatLink::for($user, $o->user_id)])->values();
         $followers = $organizer->followers()->orderByPivot('created_at', 'desc')
             ->limit($authed ? 60 : $preview)->get(['users.id', 'name'])
-            ->map(fn ($u) => ['name' => $u->name])->values();
+            ->map(fn ($u) => ['name' => $u->name, 'chat' => ChatLink::for($user, $u->id)])->values();
 
         // Canonical must be the locale, trailing-slash URL this page is actually
         // served at. It used to be url("/o/{slug}") — the LEGACY path, which 301s
@@ -214,7 +217,7 @@ class OrganizerController extends Controller
         $posts = $authed
             ? $base->with(['author:id,name', 'repliesRecursive'])
                 ->latest()->forPage($page, $perPage)->get()
-                ->map(fn ($post) => $this->mapPost($post, $organizer))->all()
+                ->map(fn ($post) => $this->mapPost($post, $organizer, $request->user()))->all()
             : [];
 
         return [
@@ -229,15 +232,16 @@ class OrganizerController extends Controller
     }
 
     /** Recursively shape a post and its nested replies for the client. */
-    private function mapPost(OrganizerPost $post, User $organizer): array
+    private function mapPost(OrganizerPost $post, User $organizer, ?User $viewer): array
     {
         return [
             'id' => $post->id,
             'author' => $post->author?->name ?? 'User',
+            'chat' => ChatLink::for($viewer, $post->user_id),
             'body' => $post->body,
             'when' => $post->created_at?->diffForHumans(),
             'is_organizer' => $post->user_id === $organizer->id,
-            'replies' => $post->repliesRecursive->map(fn ($r) => $this->mapPost($r, $organizer))->all(),
+            'replies' => $post->repliesRecursive->map(fn ($r) => $this->mapPost($r, $organizer, $viewer))->all(),
         ];
     }
 

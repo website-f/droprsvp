@@ -20,7 +20,7 @@ interface Props {
     inbox: InboxItem[];
     counts: Counts;
     selected: (Thread & { messages: ChatMessage[]; typing: boolean }) | null;
-    draft: (Person & { blocked: boolean; request: boolean }) | null;
+    draft: (Person & { blocked: boolean; request: boolean; reach: string }) | null;
     realtime: { token: string; v: number; bv: number };
     config: { max_length: number; images: boolean; max_image_mb: number; request_limit: number; poll: Record<string, number> };
     suspended: string | null;
@@ -193,6 +193,7 @@ export default function ChatPage({ inbox: initialInbox, counts: initialCounts, s
             fd.append('conversation_id', String(thread.id));
         } else if (draft) {
             fd.append('recipient_id', String(draft.id));
+            fd.append('reach', draft.reach);
         }
 
         if (body) {

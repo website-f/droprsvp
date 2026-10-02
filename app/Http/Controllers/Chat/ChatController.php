@@ -10,6 +10,7 @@ use App\Models\Chat\UserState;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\Chat\Messenger;
+use App\Support\Chat\ChatLink;
 use App\Support\Chat\ChatSettings;
 use App\Support\Chat\PollToken;
 use App\Support\Chat\Realtime;
@@ -55,6 +56,10 @@ class ChatController extends Controller
             return redirect('/messages/'.$c->id);
         }
 
+        if (! Messenger::reachable($me, $user) && ! ChatLink::valid($me->id, $user->id, $request->query('k'))) {
+            return redirect('/messages')->with('flash_error', 'Start a chat from a “Message” button — on an organizer’s page, an event you’re going to, or a discussion.');
+        }
+
         return $this->page($request, null, $user);
     }
 
@@ -82,6 +87,8 @@ class ChatController extends Controller
             'draft' => $draftTo ? Messenger::person($draftTo) + [
                 'blocked' => Messenger::blockedBetween($me->id, $draftTo->id),
                 'request' => ! Messenger::related($me, $draftTo),
+                // Lets the first message through; only issued once start() has checked the link.
+                'reach' => ChatLink::key($me->id, $draftTo->id),
             ] : null,
             'realtime' => [
                 'token' => PollToken::issue($me->id),
@@ -142,12 +149,18 @@ class ChatController extends Controller
             'recipient_id' => ['nullable', 'integer'],
             'body' => ['nullable', 'string', 'max:'.(Messenger::MAX_LENGTH + 100)],
             'image' => ['nullable', 'file', 'max:'.((int) ChatSettings::get('max_image_mb') * 1024)],
+            'reach' => ['nullable', 'string', 'max:64'],
         ]);
 
         $me = $request->user();
         $to = ! empty($data['conversation_id'])
             ? Conversation::findOrFail($data['conversation_id'])
             : User::findOrFail($data['recipient_id'] ?? 0);
+
+        // A first message to someone new needs the same right as opening the chat.
+        if ($to instanceof User && ! Messenger::reachable($me, $to) && ! ChatLink::valid($me->id, $to->id, $data['reach'] ?? null)) {
+            return response()->json(['message' => 'You can’t start a chat with this person from here.'], 422);
+        }
 
         try {
             $message = $this->messenger->send($me, $to, $data['body'] ?? null, $request->file('image'), $request->ip());

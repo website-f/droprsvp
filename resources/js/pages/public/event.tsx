@@ -3,6 +3,7 @@ import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, 
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
+import { MessagePersonButton } from '@/components/chat/message-person-button';
 import { EventBanner } from '@/components/event-banner';
 import { ImageLightbox, useLightbox } from '@/components/image-lightbox';
 import { PageTitle } from '@/components/page-title';
@@ -19,7 +20,7 @@ interface TicketTypeView {
     price: number; compare_at_price: number | null; currency: string; on_sale: boolean; sold_out: boolean;
     min_per_order: number; max_per_order: number; remaining: number | null;
 }
-interface Reply { id: number; author: string; body: string; when: string; is_organizer: boolean }
+interface Reply { id: number; author: string; chat?: string | null; body: string; when: string; is_organizer: boolean }
 interface Comment extends Reply { replies: Reply[] }
 interface EventView {
     slug: string; title: string; subtitle: string | null; description: string | null;
@@ -31,7 +32,7 @@ interface EventView {
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
 }
-interface Participants { count: number; unlocked: boolean; list: { name: string }[]; page: number; pages: number }
+interface Participants { count: number; unlocked: boolean; list: { name: string; chat?: string | null }[]; page: number; pages: number }
 interface Review { id: number; author: string; rating: number; body: string | null; when: string; mine: boolean }
 interface Reviews { average: number; count: number; distribution: Record<string, number>; list: Review[]; page: number; pages: number; mine: { rating: number; body: string | null } | null }
 interface Discussion { count: number; page: number; pages: number; list: Comment[] }
@@ -368,7 +369,8 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                                 {participants.list.map((m, i) => (
                                                     <div key={i} className="flex items-center gap-3 rounded-xl border border-border p-3">
                                                         <span className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: TINTS[i % TINTS.length] }}>{initials(m.name)}</span>
-                                                        <span className="truncate text-sm font-medium">{m.name}</span>
+                                                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.name}</span>
+                                                        <MessagePersonButton href={m.chat} name={m.name} />
                                                     </div>
                                                 ))}
                                             </div>
@@ -716,6 +718,7 @@ function CommentBody({ c }: { c: Reply }) {
                     <span className="font-semibold">{c.author}</span>
                     {c.is_organizer && <Badge className="gap-1 bg-[#6c63ff] text-white hover:bg-[#6c63ff]"><Crown className="size-3" /> Organizer</Badge>}
                     <span className="text-xs text-muted-foreground">{c.when}</span>
+                    <MessagePersonButton href={c.chat} name={c.author} label />
                 </div>
                 <p className="mt-1 whitespace-pre-line text-sm text-foreground/80">{c.body}</p>
             </div>

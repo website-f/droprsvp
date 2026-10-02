@@ -48,6 +48,30 @@ class Messenger
     }
 
     /** Do these two already know each other well enough to skip the request step? */
+    /**
+     * Whether $me may open a chat with $them without a signed link (ChatLink):
+     * the same people search finds — organizers, follows either way, buyers
+     * and the organizers they bought from — plus anyone already in a chat
+     * with them. Everyone else is reached from a "Message" button on a page
+     * where the two actually meet.
+     */
+    public static function reachable(User $me, User $them): bool
+    {
+        if (RolePermissions::isAdmin($me) || self::between($me->id, $them->id)) {
+            return true;
+        }
+
+        if ($them->organizerProfile()->where('status', 'approved')->exists()) {
+            return true;
+        }
+
+        if ($me->following()->whereKey($them->id)->exists()) {
+            return true;
+        }
+
+        return self::related($me, $them);
+    }
+
     public static function related(User $sender, User $recipient): bool
     {
         if (RolePermissions::isAdmin($sender)) {
