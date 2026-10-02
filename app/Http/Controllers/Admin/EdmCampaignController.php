@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\CampaignMail;
+use App\Models\EdmSendingDomain;
 use App\Models\EmailCampaign;
 use App\Models\EmailConsent;
 use App\Models\EmailTemplate;
@@ -29,14 +30,43 @@ use Inertia\Inertia;
 use RuntimeException;
 
 /**
- * Admin > Email marketing: DropRSVP's own campaigns.
+ * Campaigns, for whichever workspace this is: DropRSVP's own (EDM in the admin
+ * panel), or one organizer's (Email marketing in the host panel, which extends
+ * this class and overrides the four workspace methods below).
  *
- * Organizer workspaces (Phase 2) will reuse the same models and sender with
- * organizer_id set; everything here is scoped to organizer_id = null.
+ * One controller, so the two cannot drift: the same validation, the same
+ * sender, the same send-time checks. Everything is scoped by organizer_id —
+ * null for the platform, the organizer's id otherwise.
  */
 class EdmCampaignController extends Controller
 {
-    public function __construct(private CampaignSender $sender) {}
+    public function __construct(protected CampaignSender $sender) {}
+
+    // ---- the workspace -----------------------------------------------------
+
+    /** Whose campaigns these are: null = DropRSVP's own. */
+    protected function scopeId(): ?int
+    {
+        return null;
+    }
+
+    /** URL root of this workspace. */
+    protected function base(): string
+    {
+        return '/admin/edm';
+    }
+
+    /** The Inertia page for $name in this workspace. */
+    protected function page(string $name): string
+    {
+        return 'admin/edm/'.$name;
+    }
+
+    /** Extra props a workspace adds to its pages (credits, domains…). */
+    protected function extra(string $page, ?EmailCampaign $campaign = null): array
+    {
+        return [];
+    }
 
     public function index(Request $request)
     {
@@ -44,7 +74,7 @@ class EdmCampaignController extends Controller
         $q = trim((string) $request->query('q', ''));
 
         $campaigns = EmailCampaign::query()
-            ->whereNull('organizer_id')
+            ->where('organizer_id', $this->scopeId())
             ->when($status === 'active', fn ($x) => $x->whereIn('status', ['sending', 'paused']))
             ->when($status === 'sent', fn ($x) => $x->whereIn('status', ['sent', 'cancelled']))
             ->when(in_array($status, ['draft', 'scheduled'], true), fn ($x) => $x->where('status', $status))
@@ -54,25 +84,28 @@ class EdmCampaignController extends Controller
             ->withQueryString()
             ->through(fn (EmailCampaign $c) => $this->summary($c));
 
-        $last30 = EmailCampaign::whereNull('organizer_id')->where('started_at', '>=', now()->subDays(30));
+        $last30 = EmailCampaign::where('organizer_id', $this->scopeId())->where('started_at', '>=', now()->subDays(30));
 
-        return Inertia::render('admin/edm/campaigns/index', [
+        return Inertia::render($this->page('campaigns/index'), [
+            ...$this->extra('index'),
+            'base' => $this->base(),
             'campaigns' => $campaigns,
             'stats' => [
-                'subscribers' => EmailConsent::where('scope', Consent::PLATFORM)->where('status', 'subscribed')->count(),
+                'subscribers' => EmailConsent::where('scope', Consent::scope($this->scopeId()))->where('status', 'subscribed')->count(),
                 'sent_30d' => (int) (clone $last30)->sum('sent_count'),
                 'open_rate_30d' => $this->rate((clone $last30)->sum('opened_count'), (clone $last30)->sum('sent_count')),
                 'click_rate_30d' => $this->rate((clone $last30)->sum('clicked_count'), (clone $last30)->sum('sent_count')),
             ],
             'throttle' => Throttle::status(),
             // Everyone with an account or a purchase who has never been asked.
-            'repermissionEligible' => Audience::repermissionCount(),
+            // (The platform's alone: organizers' lists only grow by opt-in.)
+            'repermissionEligible' => $this->scopeId() === null ? Audience::repermissionCount() : 0,
             'filters' => ['status' => $status, 'q' => $q],
-            'statusCounts' => EmailCampaign::whereNull('organizer_id')
+            'statusCounts' => EmailCampaign::where('organizer_id', $this->scopeId())
                 ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status'),
             // For "New campaign": start blank, from a starter, or a saved template.
             'starters' => collect(StarterTemplates::all())->map(fn ($t) => ['key' => $t['key'], 'name' => $t['name'], 'description' => $t['description']])->values(),
-            'templates' => EmailTemplate::whereNull('organizer_id')->latest('updated_at')->limit(50)->get(['id', 'name', 'description']),
+            'templates' => EmailTemplate::where('organizer_id', $this->scopeId())->latest('updated_at')->limit(50)->get(['id', 'name', 'description']),
         ]);
     }
 
@@ -83,7 +116,7 @@ class EdmCampaignController extends Controller
             'kind' => ['nullable', 'in:standard,repermission'],
         ]);
 
-        $repermission = ($data['kind'] ?? 'standard') === 'repermission';
+        $repermission = ($data['kind'] ?? 'standard') === 'repermission' && $this->scopeId() === null;
 
         $campaign = EmailCampaign::create([
             'name' => $data['name'],
@@ -92,25 +125,31 @@ class EdmCampaignController extends Controller
             // wording of that job matters more than any design choice.
             'subject' => $repermission ? 'Can we keep you posted about events?' : '',
             'preheader' => $repermission ? 'One click and you are in. Ignore this and we will not ask again.' : null,
-            'from_name' => Settings::get('from_name'),
+            'organizer_id' => $this->scopeId(),
+            // Blank for an organizer: the sender name then follows their
+            // business name (CampaignSender::senderName).
+            'from_name' => $this->scopeId() === null ? Settings::get('from_name') : null,
             'design' => $repermission ? self::repermissionDesign() : self::starterDesign(),
             'audience' => $repermission ? null : Audience::normalise([]),
             'created_by' => $request->user()->id,
         ]);
 
-        return to_route('admin.edm.campaigns.show', $campaign);
+        return redirect($this->base().'/campaigns/'.$campaign->id);
     }
 
     public function show(EmailCampaign $campaign)
     {
         $this->own($campaign);
 
-        return Inertia::render('admin/edm/campaigns/show', [
+        return Inertia::render($this->page('campaigns/show'), [
+            ...$this->extra('show', $campaign),
+            'base' => $this->base(),
             'campaign' => [
                 ...$this->summary($campaign),
                 'subject' => $campaign->subject,
                 'preheader' => $campaign->preheader,
                 'from_name' => $campaign->from_name,
+                'from_address' => $campaign->from_address,
                 'reply_to' => $campaign->reply_to,
                 'audience' => Audience::normalise($campaign->audience),
                 'has_content' => ! empty($campaign->design['content']),
@@ -120,7 +159,7 @@ class EdmCampaignController extends Controller
             'audienceCount' => match (true) {
                 ! $campaign->isEditable() => $campaign->recipients_count,
                 $campaign->kind === 'repermission' => Audience::repermissionCount($campaign->id),
-                default => Audience::count($campaign->audience),
+                default => Audience::count($campaign->audience, $this->scopeId()),
             },
             // For a re-permission email, the only result that matters.
             'confirmed' => $campaign->kind === 'repermission' ? $this->confirmed($campaign) : null,
@@ -128,6 +167,7 @@ class EdmCampaignController extends Controller
             'links' => $campaign->links()->orderByDesc('clicks')->limit(15)->get(['url', 'clicks', 'unique_clicks']),
             'throttle' => Throttle::status(),
             'fromAddress' => config('edm.from.address'),
+            'senderName' => CampaignSender::senderName($campaign),
             'testEmail' => request()->user()->email,
             // Checked on every load of an unsent campaign, so it reflects the
             // last saved subject and design.
@@ -146,8 +186,26 @@ class EdmCampaignController extends Controller
             'preheader' => ['nullable', 'string', 'max:200'],
             'from_name' => ['nullable', 'string', 'max:120'],
             'reply_to' => ['nullable', 'email', 'max:191'],
+            'from_address' => ['nullable', 'email', 'max:191'],
             'audience' => ['nullable', 'array'],
         ]);
+
+        // A From address on the organizer's own domain: only one they have
+        // verified. Anything else is dropped back to the platform address.
+        $data['sending_domain_id'] = null;
+        if (! empty($data['from_address']) && $this->scopeId() !== null) {
+            $host = strtolower(substr(strrchr($data['from_address'], '@') ?: '', 1));
+            $domain = EdmSendingDomain::where('organizer_id', $this->scopeId())->where('domain', $host)->where('status', 'verified')->first();
+
+            if (! $domain) {
+                throw ValidationException::withMessages(['from_address' => "Verify {$host} under Sending domain before sending from it."]);
+            }
+
+            $data['sending_domain_id'] = $domain->id;
+            $data['from_address'] = strtolower($data['from_address']);
+        } else {
+            $data['from_address'] = null;
+        }
 
         $campaign->update([
             ...$data,
@@ -167,7 +225,10 @@ class EdmCampaignController extends Controller
         return Inertia::render('admin/edm/campaigns/editor', [
             'campaign' => ['id' => $campaign->id, 'name' => $campaign->name, 'editable' => $campaign->isEditable()],
             'design' => $campaign->design ?: self::starterDesign(),
-            'events' => self::eventChoices(),
+            'events' => self::eventChoices($this->scopeId()),
+            'saveUrl' => $this->base().'/campaigns/'.$campaign->id.'/design',
+            'backUrl' => $this->base().'/campaigns/'.$campaign->id,
+            'backLabel' => 'Campaign',
         ]);
     }
 
@@ -249,7 +310,7 @@ class EdmCampaignController extends Controller
                     textBody: $this->sample($rendered['text'], $request->user()?->name),
                     unsubscribeUrl: url('/settings/notifications'),
                     fromAddress: (string) config('edm.from.address'),
-                    fromName: $campaign->from_name ?: (string) Settings::get('from_name'),
+                    fromName: CampaignSender::senderName($campaign),
                     replyToAddress: $campaign->reply_to ?: (Settings::get('reply_to') ?: null),
                     campaignTag: 'test-c'.$campaign->id,
                 ));
@@ -268,7 +329,7 @@ class EdmCampaignController extends Controller
     {
         $data = $request->validate(['audience' => ['nullable', 'array']]);
 
-        return response()->json(['count' => Audience::count($data['audience'] ?? [])]);
+        return response()->json(['count' => Audience::count($data['audience'] ?? [], $this->scopeId())]);
     }
 
     public function send(EmailCampaign $campaign): RedirectResponse
@@ -319,9 +380,8 @@ class EdmCampaignController extends Controller
     public function resume(EmailCampaign $campaign): RedirectResponse
     {
         $this->own($campaign);
-        $this->sender->resume($campaign);
 
-        return back()->with('flash_success', 'Resumed.');
+        return $this->attempt(fn () => $this->sender->resume($campaign), 'Resumed.');
     }
 
     public function cancel(EmailCampaign $campaign): RedirectResponse
@@ -337,6 +397,9 @@ class EdmCampaignController extends Controller
         $this->own($campaign);
 
         $copy = EmailCampaign::create([
+            'organizer_id' => $campaign->organizer_id,
+            'from_address' => $campaign->from_address,
+            'sending_domain_id' => $campaign->sending_domain_id,
             'name' => mb_substr($campaign->name.' (copy)', 0, 160),
             'subject' => $campaign->subject,
             'preheader' => $campaign->preheader,
@@ -347,7 +410,7 @@ class EdmCampaignController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        return to_route('admin.edm.campaigns.show', $copy)->with('flash_success', 'Copied. This one has not been sent.');
+        return redirect($this->base().'/campaigns/'.$copy->id)->with('flash_success', 'Copied. This one has not been sent.');
     }
 
     public function destroy(EmailCampaign $campaign): RedirectResponse
@@ -361,7 +424,7 @@ class EdmCampaignController extends Controller
 
         $campaign->delete();
 
-        return to_route('admin.edm.campaigns.index')->with('flash_success', 'Draft deleted.');
+        return redirect($this->base().'/campaigns')->with('flash_success', 'Draft deleted.');
     }
 
     // ---- helpers ------------------------------------------------------------
@@ -380,7 +443,9 @@ class EdmCampaignController extends Controller
     /** This controller handles DropRSVP's own list only. */
     private function own(EmailCampaign $campaign): void
     {
-        abort_unless($campaign->organizer_id === null, 404);
+        $scope = $this->scopeId();
+
+        abort_unless($scope === null ? $campaign->organizer_id === null : (int) $campaign->organizer_id === $scope, 404);
     }
 
     private function editable(EmailCampaign $campaign): void
@@ -440,7 +505,7 @@ class EdmCampaignController extends Controller
     {
         return [
             'cities' => EmailConsent::query()
-                ->where('email_consents.scope', Consent::PLATFORM)
+                ->where('email_consents.scope', Consent::scope($this->scopeId()))
                 ->where('email_consents.status', 'subscribed')
                 ->join('users', 'users.id', '=', 'email_consents.user_id')
                 ->whereNotNull('users.city')
@@ -453,6 +518,8 @@ class EdmCampaignController extends Controller
             // time has passed — so published covers both.
             'events' => Event::query()
                 ->where('status', 'published')
+                // An organizer targets by their own events only.
+                ->when($this->scopeId(), fn ($q, $id) => $q->where('user_id', $id))
                 ->latest('starts_at')
                 ->limit(300)
                 ->get(['id', 'title', 'starts_at', 'timezone'])
@@ -467,10 +534,11 @@ class EdmCampaignController extends Controller
     }
 
     /** Published, upcoming events the editor's event card can pick from. */
-    public static function eventChoices(): array
+    public static function eventChoices(?int $organizerId = null): array
     {
         return Event::query()
             ->where('status', 'published')
+            ->when($organizerId, fn ($q, $id) => $q->where('user_id', $id))
             ->notEnded()
             ->orderBy('starts_at')
             ->limit(300)

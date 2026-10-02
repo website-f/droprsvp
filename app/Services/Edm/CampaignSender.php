@@ -3,8 +3,10 @@
 namespace App\Services\Edm;
 
 use App\Mail\CampaignMail;
+use App\Models\EdmAccount;
 use App\Models\EmailCampaign;
 use App\Models\EmailSend;
+use App\Models\User;
 use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
 use App\Support\Edm\Personalizer;
@@ -43,11 +45,16 @@ class CampaignSender
         }
 
         $this->assertSendable($campaign);
+        $this->assertOrganizerMaySend($campaign);
 
         DB::transaction(function () use ($campaign) {
             $this->freeze($campaign);
 
             $count = $this->enqueue($campaign);
+
+            // An organizer's campaign takes its whole recipient count from
+            // their quota up front; not enough, and the whole start rolls back.
+            Credits::reserve($campaign, $count);
 
             $campaign->forceFill([
                 'status' => $count > 0 ? 'sending' : 'sent',
@@ -84,6 +91,8 @@ class CampaignSender
 
     public function resume(EmailCampaign $campaign): void
     {
+        $this->assertOrganizerMaySend($campaign);
+
         if ($campaign->status === 'paused') {
             $campaign->forceFill(['status' => 'sending', 'paused_reason' => null])->save();
         }
@@ -100,6 +109,8 @@ class CampaignSender
             $campaign->sends()->where('status', 'queued')->update(['status' => 'skipped', 'error' => 'Campaign cancelled']);
             $campaign->forceFill(['status' => 'cancelled', 'finished_at' => now()])->save();
         });
+
+        Credits::settle($campaign->fresh());
     }
 
     /**
@@ -174,6 +185,11 @@ class CampaignSender
         $this->finishCompleted();
         $this->checkBounceRates();
 
+        // Organizer rates move as their mail goes out; judge them while it does.
+        if ($sends->contains(fn (EmailSend $s) => $s->campaign->organizer_id !== null)) {
+            OrganizerGuard::sweep();
+        }
+
         return $sent;
     }
 
@@ -196,16 +212,31 @@ class CampaignSender
 
         $message = Personalizer::forRecipient($campaign, $send);
 
+        // An organizer's own verified domain: From that address, and signed
+        // with that domain's DKIM key. Anything less (not verified, records
+        // removed since) falls back to the platform address — never unsigned.
+        $domain = $campaign->sending_domain_id ? $campaign->sendingDomain : null;
+        $ownDomain = $domain && $domain->isVerified() && $campaign->from_address
+            && str_ends_with(strtolower($campaign->from_address), '@'.$domain->domain);
+
+        $mailer = Mail::mailer(config('edm.mailer', 'edm'));
+        $restore = null;
+
+        if ($ownDomain && method_exists($mailer, 'getSymfonyTransport')) {
+            $restore = $mailer->getSymfonyTransport();
+            $mailer->setSymfonyTransport(new DkimSigningTransport($restore, SendingDomains::signer($domain)));
+        }
+
         try {
-            Mail::mailer(config('edm.mailer', 'edm'))
+            $mailer
                 ->to($send->email, $send->name ?: null)
                 ->send(new CampaignMail(
                     subjectLine: $message['subject'],
                     htmlBody: $message['html'],
                     textBody: $message['text'],
                     unsubscribeUrl: route('edm.unsubscribe', ['token' => $send->token]),
-                    fromAddress: (string) config('edm.from.address'),
-                    fromName: $campaign->from_name ?: (string) Settings::get('from_name'),
+                    fromAddress: $ownDomain ? (string) $campaign->from_address : (string) config('edm.from.address'),
+                    fromName: self::senderName($campaign),
                     replyToAddress: $campaign->reply_to ?: (Settings::get('reply_to') ?: null),
                     campaignTag: 'c'.$campaign->id,
                     sendToken: $send->token,
@@ -228,6 +259,10 @@ class CampaignSender
             report($e);
 
             return 'failed';
+        } finally {
+            if ($restore) {
+                $mailer->setSymfonyTransport($restore);
+            }
         }
 
         $send->forceFill([
@@ -292,13 +327,21 @@ class CampaignSender
      */
     public static function renderContext(EmailCampaign $campaign): array
     {
-        $sender = $campaign->from_name ?: (string) Settings::get('from_name');
+        $sender = self::senderName($campaign);
+        $address = (string) Settings::get('postal_address');
+
+        // An organizer's mail carries THEIR business address — the law asks for
+        // the sender's, and the reader needs to know who is writing.
+        if ($campaign->organizer_id) {
+            $profile = User::find($campaign->organizer_id)?->organizerProfile;
+            $address = trim((string) $profile?->business_address) ?: $address;
+        }
 
         return [
             'subject' => $campaign->subject,
             'preheader' => $campaign->preheader,
             'sender' => $sender,
-            'address' => (string) Settings::get('postal_address'),
+            'address' => $address,
             'reason' => match (true) {
                 // Not "you opted in": they have not, which is the whole point.
                 $campaign->kind === 'repermission' => 'You are receiving this one-off email because you have an account or bought a ticket on DropRSVP. We will not send marketing emails unless you say yes.',
@@ -306,6 +349,34 @@ class CampaignSender
                 default => 'You are receiving this because you opted in to emails from DropRSVP.',
             },
         ];
+    }
+
+    /** The From name: the campaign's own, else the organizer's business name, else the platform's. */
+    public static function senderName(EmailCampaign $campaign): string
+    {
+        if ($campaign->from_name) {
+            return $campaign->from_name;
+        }
+
+        if ($campaign->organizer_id && ($organizer = User::find($campaign->organizer_id))) {
+            return (string) ($organizer->organizerProfile?->business_name ?: $organizer->name);
+        }
+
+        return (string) Settings::get('from_name');
+    }
+
+    /** An organizer suspended by the guardrails (or a superadmin) cannot send. */
+    private function assertOrganizerMaySend(EmailCampaign $campaign): void
+    {
+        if (! $campaign->organizer_id) {
+            return;
+        }
+
+        $account = EdmAccount::where('organizer_id', $campaign->organizer_id)->first();
+
+        if ($account?->isSuspended()) {
+            throw new RuntimeException('Email sending is suspended for this account: '.($account->suspended_reason ?: 'under review').' A DropRSVP admin will review it.');
+        }
     }
 
     private function assertSendable(EmailCampaign $campaign): void
@@ -329,7 +400,10 @@ class CampaignSender
         EmailCampaign::where('status', 'sending')
             ->whereDoesntHave('sends', fn ($q) => $q->where('status', 'queued'))
             ->get()
-            ->each(fn (EmailCampaign $c) => $c->forceFill(['status' => 'sent', 'finished_at' => now()])->save());
+            ->each(function (EmailCampaign $c) {
+                $c->forceFill(['status' => 'sent', 'finished_at' => now()])->save();
+                Credits::settle($c);
+            });
     }
 
     /**

@@ -1,14 +1,15 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 
 type Prefs = Record<string, boolean>;
 
-export default function NotificationsSettings({ channels, preferences, marketingEmail = false }: {
+export default function NotificationsSettings({ channels, preferences, marketingEmail = false, organizerLists = [] }: {
     channels: Record<string, string>;
     preferences: Prefs;
     marketingEmail?: boolean;
+    organizerLists?: { id: number; name: string; since: string | null }[];
 }) {
     const form = useForm<Prefs>({ ...preferences, marketing_email: marketingEmail });
     const keys = Object.keys(channels);
@@ -62,6 +63,29 @@ export default function NotificationsSettings({ channels, preferences, marketing
                             />
                         </label>
                     </div>
+
+                    {/* Each organizer is a list of its own: leaving one leaves the others. */}
+                    {organizerLists.length > 0 && (
+                        <div className="overflow-hidden rounded-xl border border-border">
+                            <div className="border-b border-border px-4 py-3">
+                                <div className="text-sm text-foreground">Organizers you hear from</div>
+                                <div className="text-xs text-muted-foreground">You chose these at checkout. Each is separate from our newsletter.</div>
+                            </div>
+                            <ul className="divide-y divide-border">
+                                {organizerLists.map((o) => (
+                                    <li key={o.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                                        <span className="min-w-0">
+                                            <span className="block truncate text-sm text-foreground">{o.name}</span>
+                                            {o.since && <span className="block text-xs text-muted-foreground">Since {o.since}</span>}
+                                        </span>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => router.post(`/settings/notifications/organizers/${o.id}/unsubscribe`, {}, { preserveScroll: true })}>
+                                            Unsubscribe
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-3">
                         <Button type="submit" disabled={form.processing}>{form.processing ? 'Saving…' : 'Save preferences'}</Button>

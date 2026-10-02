@@ -66,28 +66,28 @@ final class Audience
             // Their profile city, or the city they gave at any checkout.
             $query->where(fn (Builder $w) => $w
                 ->whereIn('users.city', $f['cities'])
-                ->orWhereExists(fn (QueryBuilder $q) => self::orders($q)->whereIn('orders.buyer_city', $f['cities'])));
+                ->orWhereExists(fn (QueryBuilder $q) => self::orders($q, $organizerId)->whereIn('orders.buyer_city', $f['cities'])));
         }
 
         if ($f['event_ids']) {
-            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q)->whereIn('orders.event_id', $f['event_ids']));
+            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q, $organizerId)->whereIn('orders.event_id', $f['event_ids']));
         }
 
         if ($f['category_ids']) {
-            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q)
+            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q, $organizerId)
                 ->join('events', 'events.id', '=', 'orders.event_id')
                 ->whereIn('events.category_id', $f['category_ids']));
         }
 
         if ($f['purchased_within_days']) {
-            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q)
+            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q, $organizerId)
                 ->where('orders.paid_at', '>=', now()->subDays($f['purchased_within_days'])));
         }
 
         if ($f['purchase'] === 'buyers') {
-            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q));
+            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q, $organizerId));
         } elseif ($f['purchase'] === 'non_buyers') {
-            $query->whereNotExists(fn (QueryBuilder $q) => self::paidOrders($q));
+            $query->whereNotExists(fn (QueryBuilder $q) => self::paidOrders($q, $organizerId));
         }
 
         return $query;
@@ -150,15 +150,19 @@ final class Audience
     }
 
     /** Orders placed under this consent row's address. */
-    private static function orders(QueryBuilder $q): QueryBuilder
+    private static function orders(QueryBuilder $q, ?int $organizerId = null): QueryBuilder
     {
         return $q->select(DB::raw(1))
             ->from('orders')
-            ->whereRaw('LOWER(orders.buyer_email) = email_consents.email');
+            ->whereRaw('LOWER(orders.buyer_email) = email_consents.email')
+            // An organizer's audience is judged on purchases from THEIR events
+            // only: what someone bought from another organizer is not theirs
+            // to target by.
+            ->when($organizerId, fn ($w) => $w->whereIn('orders.event_id', DB::table('events')->select('id')->where('user_id', $organizerId)));
     }
 
-    private static function paidOrders(QueryBuilder $q): QueryBuilder
+    private static function paidOrders(QueryBuilder $q, ?int $organizerId = null): QueryBuilder
     {
-        return self::orders($q)->whereIn('orders.status', ['paid', 'refunded'])->whereNotNull('orders.paid_at');
+        return self::orders($q, $organizerId)->whereIn('orders.status', ['paid', 'refunded'])->whereNotNull('orders.paid_at');
     }
 }

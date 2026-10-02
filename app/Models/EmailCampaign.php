@@ -22,7 +22,7 @@ class EmailCampaign extends Model
     ];
 
     protected $fillable = [
-        'organizer_id', 'kind', 'name', 'subject', 'preheader', 'from_name', 'reply_to',
+        'organizer_id', 'kind', 'name', 'subject', 'preheader', 'from_name', 'from_address', 'sending_domain_id', 'reply_to',
         'design', 'audience', 'html', 'text', 'status', 'paused_reason',
         'scheduled_at', 'started_at', 'finished_at', 'created_by',
     ];
@@ -35,6 +35,7 @@ class EmailCampaign extends Model
             'scheduled_at' => 'datetime',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'credits_settled_at' => 'datetime',
         ];
     }
 
@@ -51,6 +52,11 @@ class EmailCampaign extends Model
     public function organizer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'organizer_id');
+    }
+
+    public function sendingDomain(): BelongsTo
+    {
+        return $this->belongsTo(EdmSendingDomain::class, 'sending_domain_id');
     }
 
     public function creator(): BelongsTo

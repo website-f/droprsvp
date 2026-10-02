@@ -15,6 +15,7 @@ use App\Support\Cities;
 use App\Support\CustomFields;
 use App\Support\Edm\Consent;
 use App\Support\Profile;
+use App\Support\SeoTemplate;
 use App\Support\Tracking;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -241,6 +242,10 @@ class CheckoutController extends Controller
             // continue, so it cannot double as permission to promote: consent
             // to marketing has to be freely given, not a condition of buying.
             'marketing_opt_in' => ['nullable', 'boolean'],
+            // And, separately again, to hear from THIS event's organizer.
+            // Agreeing to DropRSVP's emails is not agreeing to every
+            // organizer's, so each is its own list and its own choice.
+            'organizer_opt_in' => ['nullable', 'boolean'],
         ], ['consent.accepted' => 'Please agree to the terms to continue.']);
         unset($data['consent']);
 
@@ -249,7 +254,10 @@ class CheckoutController extends Controller
         if (! empty($data['marketing_opt_in'])) {
             Consent::grant($data['buyer_email'] ?? null, 'checkout', $request->user(), null, $request->ip());
         }
-        unset($data['marketing_opt_in']);
+        if (! empty($data['organizer_opt_in']) && $order->event?->user_id) {
+            Consent::grant($data['buyer_email'] ?? null, 'checkout', $request->user(), (int) $order->event->user_id, $request->ip());
+        }
+        unset($data['marketing_opt_in'], $data['organizer_opt_in']);
 
         // Answers are captured per TICKET, in the order tickets will be issued —
         // markPaid() walks the order items and their quantities in exactly this
@@ -463,6 +471,8 @@ class CheckoutController extends Controller
                 'when' => $event?->starts_at?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
                 'venue_name' => $event?->venue_name,
                 'is_online' => (bool) $event?->is_online,
+                // For the "hear from this organizer" opt-in.
+                'organizer' => $event?->user ? SeoTemplate::organizerName($event->user) : null,
             ],
             'items' => $order->items->map(fn ($i) => [
                 'name' => $i->name,

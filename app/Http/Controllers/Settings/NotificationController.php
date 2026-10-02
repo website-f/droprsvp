@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmailConsent;
 use App\Models\User;
 use App\Support\Edm\Consent;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +23,31 @@ class NotificationController extends Controller
             // consent, recorded in email_consents with when and where it was
             // given, and it starts off rather than on.
             'marketingEmail' => Consent::isSubscribed($request->user()->email),
+            // Organizers they chose to hear from at checkout — each its own list.
+            'organizerLists' => EmailConsent::query()
+                ->where('email', Consent::normalise($request->user()->email))
+                ->where('scope', 'like', 'organizer:%')
+                ->where('status', 'subscribed')
+                ->with('organizer.organizerProfile:id,user_id,business_name')
+                ->get()
+                ->filter(fn (EmailConsent $c) => $c->organizer)
+                ->map(fn (EmailConsent $c) => [
+                    'id' => $c->organizer_id,
+                    'name' => $c->organizer->organizerProfile?->business_name ?: $c->organizer->name,
+                    'since' => $c->consented_at?->format('j M Y'),
+                ])
+                ->values(),
         ]);
+    }
+
+    /** Stop emails from one organizer, leaving every other list as it is. */
+    public function unsubscribeOrganizer(Request $request, User $organizer): RedirectResponse
+    {
+        Consent::revoke($request->user()->email, 'settings', $organizer->id, $request->ip());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'You will no longer get emails from '.($organizer->organizerProfile?->business_name ?: $organizer->name).'.']);
+
+        return back();
     }
 
     /** Persist the user's opt-in/opt-out choices. */

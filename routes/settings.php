@@ -19,6 +19,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/notifications', [NotificationController::class, 'edit'])->name('notifications.edit');
     Route::patch('settings/notifications', [NotificationController::class, 'update'])->name('notifications.update');
+    Route::post('settings/notifications/organizers/{organizer}/unsubscribe', [NotificationController::class, 'unsubscribeOrganizer'])->whereNumber('organizer')->name('notifications.organizer.unsubscribe');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

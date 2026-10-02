@@ -109,3 +109,5 @@ export function Pager({ prev, next, page, last }: { prev: string | null; next: s
 }
 
 export const EDM_CRUMB = { title: 'EDM', href: '/admin/edm' };
+
+export const HOST_EDM_CRUMB = { title: 'Email marketing', href: '/host/edm' };

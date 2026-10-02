@@ -24,6 +24,34 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class EdmAudienceController extends Controller
 {
+    /** Whose list this is: null = DropRSVP's own; the host panel overrides it. */
+    protected function scopeId(): ?int
+    {
+        return null;
+    }
+
+    protected function base(): string
+    {
+        return '/admin/edm';
+    }
+
+    protected function page(string $name): string
+    {
+        return 'admin/edm/'.$name;
+    }
+
+    /**
+     * Suppressions this workspace may see. The platform sees all of them; an
+     * organizer only those on their own list — never anyone else's addresses.
+     */
+    protected function suppressions()
+    {
+        return EmailSuppression::query()->when($this->scopeId() !== null, fn ($q) => $q->whereIn(
+            'email',
+            EmailConsent::where('scope', Consent::scope($this->scopeId()))->select('email'),
+        ));
+    }
+
     public function subscribers(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
@@ -32,7 +60,7 @@ class EdmAudienceController extends Controller
         // Suppressed is a different table: addresses never to be mailed from any
         // list, with the reason (bounce, complaint, manual) and the evidence.
         if ($status === 'suppressed') {
-            return $this->render($request, $q, $status, EmailSuppression::query()
+            return $this->render($request, $q, $status, $this->suppressions()
                 ->when($q !== '', fn ($x) => $x->where('email', 'like', '%'.strtolower($q).'%'))
                 ->latest('updated_at')
                 ->paginate(30)
@@ -49,7 +77,7 @@ class EdmAudienceController extends Controller
         }
 
         $rows = EmailConsent::query()
-            ->where('scope', Consent::PLATFORM)
+            ->where('scope', Consent::scope($this->scopeId()))
             ->where('status', $status)
             ->when($q !== '', fn ($x) => $x->where('email', 'like', '%'.strtolower($q).'%'))
             ->with('user:id,name')
@@ -74,15 +102,19 @@ class EdmAudienceController extends Controller
 
     private function render(Request $request, string $q, string $status, $rows)
     {
-        $base = EmailConsent::where('scope', Consent::PLATFORM);
+        $base = EmailConsent::where('scope', Consent::scope($this->scopeId()));
 
-        return Inertia::render('admin/edm/subscribers', [
+        return Inertia::render($this->page('subscribers'), [
+            'base' => $this->base(),
+            // Suppression is platform-wide (it protects the shared server), so
+            // only DropRSVP's admins can add or lift one.
+            'canSuppress' => $this->scopeId() === null,
             'subscribers' => $rows,
             'filters' => ['q' => $q, 'status' => $status],
             'counts' => [
                 'subscribed' => (clone $base)->where('status', 'subscribed')->count(),
                 'unsubscribed' => (clone $base)->where('status', 'unsubscribed')->count(),
-                'suppressed' => EmailSuppression::count(),
+                'suppressed' => $this->suppressions()->count(),
             ],
             'sources' => (clone $base)->where('status', 'subscribed')
                 ->selectRaw('source, count(*) as total')->groupBy('source')->pluck('total', 'source'),
@@ -92,9 +124,9 @@ class EdmAudienceController extends Controller
     /** Take someone off the list at their request (an email, a phone call). */
     public function unsubscribe(Request $request, EmailConsent $consent): RedirectResponse
     {
-        abort_unless($consent->scope === Consent::PLATFORM, 404);
+        abort_unless($consent->scope === Consent::scope($this->scopeId()), 404);
 
-        Consent::revoke($consent->email, 'admin', null, $request->ip());
+        Consent::revoke($consent->email, 'admin', $this->scopeId(), $request->ip());
 
         return back()->with('flash_success', "{$consent->email} is unsubscribed.");
     }
@@ -124,7 +156,7 @@ class EdmAudienceController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        $rows = EmailConsent::where('scope', Consent::PLATFORM)
+        $rows = EmailConsent::where('scope', Consent::scope($this->scopeId()))
             ->where('status', 'subscribed')
             ->with('user:id,name')
             ->orderBy('email')

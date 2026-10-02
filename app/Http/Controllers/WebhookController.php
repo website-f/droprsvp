@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EdmCreditPurchase;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\Promotion;
 use App\Models\Subscription;
 use App\Services\CheckoutService;
+use App\Services\Edm\CreditPurchases;
 use App\Services\MembershipService;
 use App\Services\Payments\ChipSendGateway;
 use App\Services\Payments\PaymentGateway;
@@ -49,6 +51,25 @@ class WebhookController extends Controller
             $promo = Promotion::where('reference', $parsed['reference'])->first();
             if ($promo) {
                 $promotions->settle($promo, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
+            }
+        }
+
+        return response('ok', 200);
+    }
+
+    /** CHIP webhook for EDM credit packs. */
+    public function edmCredits(Request $request, PaymentGateway $gateway, CreditPurchases $purchases): Response
+    {
+        $parsed = $gateway->parseWebhook($request);
+
+        if ($parsed === null) {
+            return response('invalid signature', 400);
+        }
+
+        if (! empty($parsed['reference']) && $parsed['paid']) {
+            $purchase = EdmCreditPurchase::where('reference', $parsed['reference'])->first();
+            if ($purchase) {
+                $purchases->settle($purchase, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
             }
         }
 

@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 interface Saved { id: number; name: string; description: string | null; subject: string | null; blocks: number; updated_at: string | null; creator: string | null }
 interface Starter { key: string; name: string; description: string; subject: string; blocks: number }
-interface Props { templates: Saved[]; starters: Starter[] }
+interface Props { templates: Saved[]; starters: Starter[]; base?: string }
 
 /**
  * A live thumbnail: the real rendered email, scaled down. Rendered by the same
@@ -30,7 +30,7 @@ function Thumb({ src, title }: { src: string; title: string }) {
     );
 }
 
-export default function EdmTemplates({ templates, starters }: Props) {
+export default function EdmTemplates({ base = '/admin/edm', templates, starters }: Props) {
     const confirm = useConfirm();
     const [preview, setPreview] = useState<{ src: string; title: string } | null>(null);
     const [creating, setCreating] = useState<{ starter?: string } | null>(null);
@@ -41,11 +41,11 @@ export default function EdmTemplates({ templates, starters }: Props) {
         setCreating({ starter: starter?.key });
     };
 
-    const use = (payload: Record<string, string | number>) => router.post('/admin/edm/templates/use', payload);
+    const use = (payload: Record<string, string | number>) => router.post(`${base}/templates/use`, payload);
 
     const remove = async (t: Saved) => {
         if (await confirm({ title: `Delete “${t.name}”?`, description: 'Campaigns already made from it keep their own copy.', confirmText: 'Delete', destructive: true })) {
-            router.delete(`/admin/edm/templates/${t.id}`, { preserveScroll: true });
+            router.delete(`${base}/templates/${t.id}`, { preserveScroll: true });
         }
     };
 
@@ -69,8 +69,8 @@ export default function EdmTemplates({ templates, starters }: Props) {
                     <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {templates.map((t) => (
                             <article key={t.id} className="flex flex-col rounded-2xl border border-border bg-card shadow-sm">
-                                <button type="button" className="text-left" onClick={() => setPreview({ src: `/admin/edm/templates/${t.id}/preview`, title: t.name })} aria-label={`Preview ${t.name}`}>
-                                    <Thumb src={`/admin/edm/templates/${t.id}/preview`} title={t.name} />
+                                <button type="button" className="text-left" onClick={() => setPreview({ src: `${base}/templates/${t.id}/preview`, title: t.name })} aria-label={`Preview ${t.name}`}>
+                                    <Thumb src={`${base}/templates/${t.id}/preview`} title={t.name} />
                                 </button>
                                 <div className="flex flex-1 flex-col gap-1 p-4">
                                     <div className="flex items-start justify-between gap-2">
@@ -80,9 +80,9 @@ export default function EdmTemplates({ templates, starters }: Props) {
                                                 <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label="More"><MoreHorizontal className="size-4" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => setPreview({ src: `/admin/edm/templates/${t.id}/preview`, title: t.name })}><Eye className="size-4" /> Preview</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => router.visit(`/admin/edm/templates/${t.id}/editor`)}><Pencil className="size-4" /> Edit design</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => router.post(`/admin/edm/templates/${t.id}/duplicate`, {}, { preserveScroll: true })}><Copy className="size-4" /> Duplicate</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setPreview({ src: `${base}/templates/${t.id}/preview`, title: t.name })}><Eye className="size-4" /> Preview</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => router.visit(`${base}/templates/${t.id}/editor`)}><Pencil className="size-4" /> Edit design</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => router.post(`${base}/templates/${t.id}/duplicate`, {}, { preserveScroll: true })}><Copy className="size-4" /> Duplicate</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem className="text-destructive" onClick={() => remove(t)}><Trash2 className="size-4" /> Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -92,7 +92,7 @@ export default function EdmTemplates({ templates, starters }: Props) {
                                     <p className="text-[11px] text-muted-foreground">{t.blocks} block{t.blocks === 1 ? '' : 's'} · edited {t.updated_at}{t.creator ? ` by ${t.creator}` : ''}</p>
                                     <div className="mt-auto flex gap-2 pt-3">
                                         <Button size="sm" className="flex-1" onClick={() => use({ template_id: t.id })}><Send className="size-4" /> Use</Button>
-                                        <Button size="sm" variant="outline" className="flex-1" asChild><Link href={`/admin/edm/templates/${t.id}/editor`}><Pencil className="size-4" /> Edit</Link></Button>
+                                        <Button size="sm" variant="outline" className="flex-1" asChild><Link href={`${base}/templates/${t.id}/editor`}><Pencil className="size-4" /> Edit</Link></Button>
                                     </div>
                                 </div>
                             </article>
@@ -104,8 +104,8 @@ export default function EdmTemplates({ templates, starters }: Props) {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {starters.map((s) => (
                         <article key={s.key} className="flex flex-col rounded-2xl border border-border bg-card shadow-sm">
-                            <button type="button" className="text-left" onClick={() => setPreview({ src: `/admin/edm/templates/starters/${s.key}/preview`, title: s.name })} aria-label={`Preview ${s.name}`}>
-                                <Thumb src={`/admin/edm/templates/starters/${s.key}/preview`} title={s.name} />
+                            <button type="button" className="text-left" onClick={() => setPreview({ src: `${base}/templates/starters/${s.key}/preview`, title: s.name })} aria-label={`Preview ${s.name}`}>
+                                <Thumb src={`${base}/templates/starters/${s.key}/preview`} title={s.name} />
                             </button>
                             <div className="flex flex-1 flex-col gap-1 p-4">
                                 <h3 className="font-semibold">{s.name}</h3>
@@ -140,7 +140,7 @@ export default function EdmTemplates({ templates, starters }: Props) {
                     </DialogHeader>
                     <form onSubmit={(e) => {
                         e.preventDefault();
-                        form.post('/admin/edm/templates');
+                        form.post(`${base}/templates`);
                     }} className="grid gap-3">
                         <label className="grid gap-1.5 text-sm">
                             <span className="font-medium">Name</span>

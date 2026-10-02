@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\EdmAudienceController;
 use App\Http\Controllers\Admin\EdmCampaignController;
 use App\Http\Controllers\Admin\EdmDashboardController;
 use App\Http\Controllers\Admin\EdmDeliverabilityController;
+use App\Http\Controllers\Admin\EdmOrganizerController;
 use App\Http\Controllers\Admin\EdmTemplateController;
 use App\Http\Controllers\Admin\EventCategoryController;
 use App\Http\Controllers\Admin\EventsController as AdminEventsController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\Host\AnalyticsController;
 use App\Http\Controllers\Host\AttendeeController;
 use App\Http\Controllers\Host\CheckInController;
 use App\Http\Controllers\Host\DiscountController;
+use App\Http\Controllers\Host\Edm as HostEdm;
 use App\Http\Controllers\Host\EventController;
 use App\Http\Controllers\Host\EventPhotoController;
 use App\Http\Controllers\Host\InvoiceController;
@@ -186,6 +188,7 @@ Route::post('orders/{order}/analytics/ack', [CheckoutController::class, 'analyti
 Route::post('webhooks/chip', [WebhookController::class, 'chip'])->name('webhooks.chip');
 Route::post('webhooks/chip-send', [WebhookController::class, 'chipSend'])->name('webhooks.chip-send');
 Route::post('webhooks/promotions', [WebhookController::class, 'promotions'])->name('promotions.webhook');
+Route::post('webhooks/edm-credits', [WebhookController::class, 'edmCredits'])->name('edm-credits.webhook');
 Route::post('webhooks/subscriptions', [WebhookController::class, 'subscriptions'])->name('subscriptions.webhook');
 
 // Public ticket pass (the qr_token in the URL is the credential).
@@ -281,6 +284,54 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
     // Hard-gated to vendors: a free attendee account must upgrade (become a
     // vendor) before it can create or manage events.
     Route::middleware(['role:organizer|superadmin', EnsureOrganizerApproved::class])->prefix('host')->name('host.')->group(function () {
+        // Email marketing: the organizer's own campaigns to their opted-in
+        // followers. Same engine and builder as DropRSVP's (see Host\Edm).
+        Route::prefix('edm')->name('edm.')->group(function () {
+            Route::get('/', [HostEdm\WorkspaceController::class, 'overview'])->name('overview');
+
+            Route::get('campaigns', [HostEdm\CampaignController::class, 'index'])->name('campaigns.index');
+            Route::post('campaigns', [HostEdm\CampaignController::class, 'store'])->name('campaigns.store');
+            Route::post('audience-count', [HostEdm\CampaignController::class, 'audienceCount'])->name('audience-count');
+            Route::get('campaigns/{campaign}', [HostEdm\CampaignController::class, 'show'])->whereNumber('campaign')->name('campaigns.show');
+            Route::put('campaigns/{campaign}', [HostEdm\CampaignController::class, 'update'])->whereNumber('campaign')->name('campaigns.update');
+            Route::delete('campaigns/{campaign}', [HostEdm\CampaignController::class, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
+            Route::get('campaigns/{campaign}/editor', [HostEdm\CampaignController::class, 'editor'])->whereNumber('campaign')->name('campaigns.editor');
+            Route::post('campaigns/{campaign}/design', [HostEdm\CampaignController::class, 'saveDesign'])->whereNumber('campaign')->name('campaigns.design');
+            Route::get('campaigns/{campaign}/preview', [HostEdm\CampaignController::class, 'preview'])->whereNumber('campaign')->name('campaigns.preview');
+            Route::post('campaigns/{campaign}/test', [HostEdm\CampaignController::class, 'test'])->whereNumber('campaign')->middleware('throttle:10,1')->name('campaigns.test');
+            Route::post('campaigns/{campaign}/send', [HostEdm\CampaignController::class, 'send'])->whereNumber('campaign')->name('campaigns.send');
+            Route::post('campaigns/{campaign}/schedule', [HostEdm\CampaignController::class, 'schedule'])->whereNumber('campaign')->name('campaigns.schedule');
+            Route::post('campaigns/{campaign}/unschedule', [HostEdm\CampaignController::class, 'unschedule'])->whereNumber('campaign')->name('campaigns.unschedule');
+            Route::post('campaigns/{campaign}/pause', [HostEdm\CampaignController::class, 'pause'])->whereNumber('campaign')->name('campaigns.pause');
+            Route::post('campaigns/{campaign}/resume', [HostEdm\CampaignController::class, 'resume'])->whereNumber('campaign')->name('campaigns.resume');
+            Route::post('campaigns/{campaign}/cancel', [HostEdm\CampaignController::class, 'cancel'])->whereNumber('campaign')->name('campaigns.cancel');
+            Route::post('campaigns/{campaign}/duplicate', [HostEdm\CampaignController::class, 'duplicate'])->whereNumber('campaign')->name('campaigns.duplicate');
+
+            Route::get('templates', [HostEdm\TemplateController::class, 'index'])->name('templates.index');
+            Route::post('templates', [HostEdm\TemplateController::class, 'store'])->name('templates.store');
+            Route::post('templates/use', [HostEdm\TemplateController::class, 'use'])->name('templates.use');
+            Route::get('templates/starters/{key}/preview', [HostEdm\TemplateController::class, 'starterPreview'])->where('key', '[a-z0-9-]+')->name('templates.starter-preview');
+            Route::put('templates/{template}', [HostEdm\TemplateController::class, 'update'])->whereNumber('template')->name('templates.update');
+            Route::delete('templates/{template}', [HostEdm\TemplateController::class, 'destroy'])->whereNumber('template')->name('templates.destroy');
+            Route::get('templates/{template}/editor', [HostEdm\TemplateController::class, 'editor'])->whereNumber('template')->name('templates.editor');
+            Route::post('templates/{template}/design', [HostEdm\TemplateController::class, 'saveDesign'])->whereNumber('template')->name('templates.design');
+            Route::get('templates/{template}/preview', [HostEdm\TemplateController::class, 'preview'])->whereNumber('template')->name('templates.preview');
+            Route::post('templates/{template}/duplicate', [HostEdm\TemplateController::class, 'duplicate'])->whereNumber('template')->name('templates.duplicate');
+
+            Route::get('subscribers', [HostEdm\SubscriberController::class, 'subscribers'])->name('subscribers');
+            Route::get('subscribers/export', [HostEdm\SubscriberController::class, 'export'])->name('subscribers.export');
+            Route::post('subscribers/{consent}/unsubscribe', [HostEdm\SubscriberController::class, 'unsubscribe'])->whereNumber('consent')->name('subscribers.unsubscribe');
+
+            Route::get('credits', [HostEdm\WorkspaceController::class, 'credits'])->name('credits');
+            Route::post('credits', [HostEdm\WorkspaceController::class, 'buy'])->middleware('throttle:10,1')->name('credits.buy');
+            Route::get('credits/return', [HostEdm\WorkspaceController::class, 'creditsReturn'])->name('credits.return');
+
+            Route::get('domains', [HostEdm\WorkspaceController::class, 'domains'])->name('domains');
+            Route::post('domains', [HostEdm\WorkspaceController::class, 'addDomain'])->middleware('throttle:10,1')->name('domains.store');
+            Route::post('domains/{domain}/verify', [HostEdm\WorkspaceController::class, 'verifyDomain'])->whereNumber('domain')->middleware('throttle:20,1')->name('domains.verify');
+            Route::delete('domains/{domain}', [HostEdm\WorkspaceController::class, 'removeDomain'])->whereNumber('domain')->name('domains.destroy');
+        });
+
         // Analytics across all the organizer's events (links out to each event's own).
         Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics');
 
@@ -504,6 +555,12 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
             Route::post('templates/{template}/design', [EdmTemplateController::class, 'saveDesign'])->whereNumber('template')->name('templates.design');
             Route::get('templates/{template}/preview', [EdmTemplateController::class, 'preview'])->whereNumber('template')->name('templates.preview');
             Route::post('templates/{template}/duplicate', [EdmTemplateController::class, 'duplicate'])->whereNumber('template')->name('templates.duplicate');
+
+            // Every organizer's EDM usage, and the review screen for suspensions.
+            Route::get('organizers', [EdmOrganizerController::class, 'index'])->name('organizers');
+            Route::post('organizers/{organizer}/suspend', [EdmOrganizerController::class, 'suspend'])->whereNumber('organizer')->name('organizers.suspend');
+            Route::post('organizers/{organizer}/reinstate', [EdmOrganizerController::class, 'reinstate'])->whereNumber('organizer')->name('organizers.reinstate');
+            Route::post('organizers/{organizer}/adjust', [EdmOrganizerController::class, 'adjust'])->whereNumber('organizer')->name('organizers.adjust');
 
             // Deliverability: setup checklist, DNS, blocklists, bounces.
             Route::get('deliverability', [EdmDeliverabilityController::class, 'index'])->name('deliverability');

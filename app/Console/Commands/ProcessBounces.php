@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Edm\OrganizerGuard;
 use App\Support\Edm\Bounces\BounceProcessor;
 use App\Support\Edm\Bounces\ImapMailbox;
 use Illuminate\Console\Command;
@@ -70,6 +71,11 @@ class ProcessBounces extends Command
         }
 
         $this->remember($totals, null, 'imap');
+
+        // Bounces and complaints move organizers' rates; judge them now.
+        if ($totals['bounces'] > 0) {
+            OrganizerGuard::sweep();
+        }
         $this->info("Read {$totals['fetched']} message(s): {$totals['bounces']} bounce(s), {$totals['suppressed']} address(es) suppressed.");
 
         return self::SUCCESS;

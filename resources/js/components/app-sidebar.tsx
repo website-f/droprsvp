@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
+import { Archive, AtSign, BadgeCheck, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -67,8 +67,19 @@ const edmNav: NavItem[] = [
     { title: 'Campaigns', href: '/admin/edm/campaigns', icon: Send },
     { title: 'Templates', href: '/admin/edm/templates', icon: LayoutTemplate },
     { title: 'Subscribers', href: '/admin/edm/subscribers', icon: Users },
+    { title: 'Organizers', href: '/admin/edm/organizers', icon: BadgeCheck },
     { title: 'Deliverability', href: '/admin/edm/deliverability', icon: ShieldCheck },
     { title: 'Settings', href: '/admin/edm/settings', icon: Settings2 },
+];
+
+// An organizer's own email marketing, to the buyers who opted in to them.
+const hostEdmNav: NavItem[] = [
+    { title: 'Overview', href: '/host/edm', icon: Gauge },
+    { title: 'Campaigns', href: '/host/edm/campaigns', icon: Send },
+    { title: 'Templates', href: '/host/edm/templates', icon: LayoutTemplate },
+    { title: 'Subscribers', href: '/host/edm/subscribers', icon: Users },
+    { title: 'Credits', href: '/host/edm/credits', icon: Coins },
+    { title: 'Sending domain', href: '/host/edm/domains', icon: AtSign },
 ];
 
 const cmsNav: NavItem[] = [
@@ -120,6 +131,7 @@ export function AppSidebar() {
                     one main category each so the sidebar stays manageable. */}
                 <NavMain items={(isOrganizer || isAdmin) ? sellerNav : buyerNav} label="You" />
                 {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
+                {isOrganizer && <NavGroup label="Email marketing" icon={Megaphone} items={hostEdmNav} />}
                 {isAdmin && platformItems.length > 0 && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformItems} />}
                 {isAdmin && sections.includes('edm') && <NavGroup label="EDM" icon={Mail} items={edmNav} />}
                 {isAdmin && sections.includes('content') && <NavGroup label="Content (CMS)" icon={FileText} items={cmsNav} />}

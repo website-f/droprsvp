@@ -23,7 +23,7 @@ interface AudienceSpec {
 }
 
 interface Campaign extends CampaignSummary {
-    subject: string; preheader: string | null; from_name: string | null; reply_to: string | null;
+    subject: string; preheader: string | null; from_name: string | null; from_address?: string | null; reply_to: string | null;
     audience: AudienceSpec; has_content: boolean; paused_reason: string | null; scheduled_at_local: string | null;
 }
 
@@ -39,6 +39,12 @@ interface Props {
     testEmail: string;
     /** Unsent campaigns only. */
     spam: SpamResult | null;
+    base?: string;
+    senderName?: string;
+    /** Organizer workspaces only. */
+    credits?: { allowance: number; allowance_left: number; credits: number; available: number; premium: boolean; period: string };
+    account?: { suspended: boolean; reason: string | null };
+    domains?: string[];
 }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
@@ -83,7 +89,8 @@ function estimate(recipients: number, t: ThrottleStatus): string {
     return hours < 48 ? `about ${Math.ceil(hours)} hours` : `about ${Math.ceil(hours / 24)} days`;
 }
 
-export default function EdmCampaign({ campaign, audienceCount, confirmed, options, links, throttle, fromAddress, testEmail, spam }: Props) {
+export default function EdmCampaign({ base = '/admin/edm', campaign, audienceCount, confirmed, options, links, throttle, fromAddress, testEmail, spam, senderName, credits, account, domains = [] }: Props) {
+    const organizer = credits !== undefined;
     const confirm = useConfirm();
     const editable = campaign.editable;
     const started = !!campaign.started_at;
@@ -95,8 +102,13 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
         preheader: campaign.preheader ?? '',
         from_name: campaign.from_name ?? '',
         reply_to: campaign.reply_to ?? '',
+        from_address: campaign.from_address ?? '',
         audience: campaign.audience,
     });
+    // Own-domain From address, split for the form: local part + verified domain.
+    const [fromLocal, setFromLocal] = useState(() => (campaign.from_address ?? '').split('@')[0] || 'hello');
+    const setFromDomain = (domain: string) => form.setData('from_address', domain ? `${fromLocal}@${domain}` : '');
+    const fromDomain = (form.data.from_address.split('@')[1] ?? '');
 
     // Live count as the filters change, before anything is saved.
     const [count, setCount] = useState(audienceCount);
@@ -112,21 +124,21 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
 
         setCounting(true);
         const id = window.setTimeout(() => {
-            postJson<{ count: number }>('/admin/edm/audience-count', { audience: form.data.audience })
+            postJson<{ count: number }>(`${base}/audience-count`, { audience: form.data.audience })
                 .then((r) => setCount(r.count))
                 .catch(() => {})
                 .finally(() => setCounting(false));
         }, 350);
 
         return () => window.clearTimeout(id);
-    }, [form.data.audience]);
+    }, [form.data.audience, base]);
 
     const setAudience = (patch: Partial<AudienceSpec>) => form.setData('audience', { ...form.data.audience, ...patch });
     const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
     const save = (e?: React.FormEvent) => {
         e?.preventDefault();
-        form.put(`/admin/edm/campaigns/${campaign.id}`, { preserveScroll: true });
+        form.put(`${base}/campaigns/${campaign.id}`, { preserveScroll: true });
     };
 
     const test = useForm({ emails: testEmail });
@@ -134,7 +146,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
     const templateForm = useForm({ name: campaign.name, description: '', campaign_id: campaign.id });
     const schedule = useForm({ at: campaign.scheduled_at_local ?? '' });
 
-    const act = (path: string) => router.post(`/admin/edm/campaigns/${campaign.id}/${path}`, {}, { preserveScroll: true });
+    const act = (path: string) => router.post(`${base}/campaigns/${campaign.id}/${path}`, {}, { preserveScroll: true });
 
     const sendNow = async () => {
         if (form.isDirty) {
@@ -154,7 +166,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
 
     const remove = async () => {
         if (await confirm({ title: 'Delete this draft?', description: 'It has not been sent, so nothing else is affected.', confirmText: 'Delete', destructive: true })) {
-            router.delete(`/admin/edm/campaigns/${campaign.id}`);
+            router.delete(`${base}/campaigns/${campaign.id}`);
         }
     };
 
@@ -172,7 +184,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
             <div className="mx-auto w-full max-w-5xl flex-1 p-4">
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <Link href="/admin/edm/campaigns" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Campaigns</Link>
+                        <Link href={`${base}/campaigns`} className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Campaigns</Link>
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="truncate text-2xl font-bold tracking-tight">{campaign.name}</h1>
                             {statusBadge(campaign.status)}
@@ -187,6 +199,13 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                         {editable && <Button variant="ghost" onClick={remove} aria-label="Delete draft"><Trash2 className="size-4" /></Button>}
                     </div>
                 </div>
+
+                {account?.suspended && (
+                    <div className="mb-5 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                        <div><span className="font-medium">Email sending is suspended for your account.</span> {account.reason} A DropRSVP admin will review it; until then nothing can be sent or resumed.</div>
+                    </div>
+                )}
 
                 {campaign.paused_reason && (
                     <div className="mb-5 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
@@ -276,7 +295,38 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                                     {form.errors.reply_to && <span className="text-xs text-destructive">{form.errors.reply_to}</span>}
                                 </label>
                             </div>
-                            <p className="text-xs text-muted-foreground">Sends from <span className="font-medium text-foreground">{fromAddress}</span>.</p>
+                            {organizer && domains.length > 0 ? (
+                                <div className="grid gap-1.5 text-sm">
+                                    <span className="font-medium">From address</span>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <input
+                                            className={`${field} sm:w-40`}
+                                            value={fromLocal}
+                                            disabled={!fromDomain}
+                                            onChange={(e) => {
+                                                const local = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, '');
+                                                setFromLocal(local);
+
+                                                if (fromDomain) {
+                                                    form.setData('from_address', `${local}@${fromDomain}`);
+                                                }
+                                            }}
+                                        />
+                                        <span className="hidden text-muted-foreground sm:inline">@</span>
+                                        <select className={field} value={fromDomain} onChange={(e) => setFromDomain(e.target.value)}>
+                                            <option value="">{fromAddress} (DropRSVP)</option>
+                                            {domains.map((d) => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </div>
+                                    {form.errors.from_address && <span className="text-xs text-destructive">{form.errors.from_address}</span>}
+                                    <span className="text-xs text-muted-foreground">Your verified domains are signed with your own DKIM key.</span>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    Sends from <span className="font-medium text-foreground">{fromAddress}</span> as “{form.data.from_name || senderName || 'DropRSVP'}”.
+                                    {organizer && <> Want your own address? <Link href={`${base}/domains`} className="font-medium text-foreground underline">Add a sending domain</Link>.</>}
+                                </p>
+                            )}
                         </fieldset>
                     </section>
 
@@ -377,14 +427,14 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h2 className="font-semibold">Email</h2>
                         <div className="flex gap-2">
-                            <Button asChild variant="outline" size="sm"><a href={`/admin/edm/campaigns/${campaign.id}/preview`} target="_blank" rel="noopener"><Eye className="size-4" /> Open preview</a></Button>
-                            <Button asChild size="sm"><Link href={`/admin/edm/campaigns/${campaign.id}/editor`}><Pencil className="size-4" /> {editable ? 'Design email' : 'View design'}</Link></Button>
+                            <Button asChild variant="outline" size="sm"><a href={`${base}/campaigns/${campaign.id}/preview`} target="_blank" rel="noopener"><Eye className="size-4" /> Open preview</a></Button>
+                            <Button asChild size="sm"><Link href={`${base}/campaigns/${campaign.id}/editor`}><Pencil className="size-4" /> {editable ? 'Design email' : 'View design'}</Link></Button>
                         </div>
                     </div>
                     <p className="mb-3 text-xs text-muted-foreground">Exactly what an inbox receives — rendered by the same code that sends it, with your name filled in.</p>
                     <iframe
                         key={campaign.updated_at ?? ''}
-                        src={`/admin/edm/campaigns/${campaign.id}/preview`}
+                        src={`${base}/campaigns/${campaign.id}/preview`}
                         title="Email preview"
                         // No scripts, no forms, no navigation of the admin page.
                         sandbox=""
@@ -406,7 +456,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                             <h2 className="mb-1 font-semibold">Send a test</h2>
                             <p className="mb-3 text-xs text-muted-foreground">Up to five addresses. Goes out immediately, outside the hourly limit, and is not counted.</p>
                             <form onSubmit={(e) => {
- e.preventDefault(); test.post(`/admin/edm/campaigns/${campaign.id}/test`, { preserveScroll: true }); 
+ e.preventDefault(); test.post(`${base}/campaigns/${campaign.id}/test`, { preserveScroll: true }); 
 }} className="grid gap-2">
                                 <input className={field} value={test.data.emails} onChange={(e) => test.setData('emails', e.target.value)} placeholder="you@example.com, colleague@example.com" />
                                 {test.errors.emails && <span className="text-xs text-destructive">{test.errors.emails}</span>}
@@ -427,11 +477,18 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                                         {count.toLocaleString()} {count === 1 ? 'person' : 'people'} · {estimate(count, throttle) || 'nobody to send to yet'} at {throttle.hourly_limit} an hour
                                         {throttle.warmup_daily_cap !== null && ` (warm-up: ${throttle.warmup_daily_cap} a day)`}.
                                     </p>
+                                    {credits && (
+                                        <div className={`rounded-lg border p-3 text-xs ${count > credits.available ? 'border-destructive/40 bg-destructive/5' : 'border-border bg-muted/30'}`}>
+                                            Uses <span className="font-semibold text-foreground">{count.toLocaleString()}</span> email credit{count === 1 ? '' : 's'} · you have <span className="font-semibold text-foreground">{credits.available.toLocaleString()}</span>
+                                            {credits.allowance > 0 && <> ({credits.allowance_left.toLocaleString()} free this month + {credits.credits.toLocaleString()} bought)</>}.
+                                            {count > credits.available && <> <Link href={`${base}/credits`} className="font-medium text-foreground underline">Buy credits</Link> or narrow the audience.</>}
+                                        </div>
+                                    )}
                                     <div className="flex flex-wrap gap-2">
-                                        <Button onClick={sendNow} disabled={!campaign.has_content || !form.data.subject.trim() || count === 0}><Send className="size-4" /> Send now</Button>
+                                        <Button onClick={sendNow} disabled={!campaign.has_content || !form.data.subject.trim() || count === 0 || !!account?.suspended || (credits !== undefined && count > credits.available)}><Send className="size-4" /> Send now</Button>
                                     </div>
                                     <form onSubmit={(e) => {
- e.preventDefault(); schedule.post(`/admin/edm/campaigns/${campaign.id}/schedule`, { preserveScroll: true }); 
+ e.preventDefault(); schedule.post(`${base}/campaigns/${campaign.id}/schedule`, { preserveScroll: true }); 
 }} className="flex flex-wrap items-center gap-2">
                                         <input type="datetime-local" className={`${field} w-full sm:w-auto`} value={schedule.data.at} onChange={(e) => schedule.setData('at', e.target.value)} />
                                         <Button type="submit" variant="outline" disabled={!schedule.data.at || schedule.processing}><CalendarClock className="size-4" /> Schedule</Button>
@@ -453,7 +510,7 @@ export default function EdmCampaign({ campaign, audienceCount, confirmed, option
                     </DialogHeader>
                     <form onSubmit={(e) => {
                         e.preventDefault();
-                        templateForm.post('/admin/edm/templates', { preserveScroll: true, onSuccess: () => setSavingTemplate(false) });
+                        templateForm.post(`${base}/templates`, { preserveScroll: true, onSuccess: () => setSavingTemplate(false) });
                     }} className="grid gap-3">
                         <label className="grid gap-1.5 text-sm">
                             <span className="font-medium">Template name</span>

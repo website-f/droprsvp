@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\EdmSendingDomain;
+use App\Services\Edm\OrganizerGuard;
+use App\Services\Edm\SendingDomains;
 use App\Support\Edm\Health\BlocklistCheck;
 use App\Support\Edm\Health\DomainAuth;
 use Illuminate\Console\Command;
@@ -17,7 +20,7 @@ class EdmHealth extends Command
 
     protected $description = 'Check the EDM sending domain (SPF, DKIM, DMARC) and blocklists';
 
-    public function handle(DomainAuth $auth, BlocklistCheck $blocklists): int
+    public function handle(DomainAuth $auth, BlocklistCheck $blocklists, SendingDomains $domains): int
     {
         foreach ($auth->check() as $r) {
             $this->line(sprintf('%-6s %-5s %s', $r['label'], strtoupper($r['status']), $r['detail']));
@@ -28,6 +31,15 @@ class EdmHealth extends Command
             $listed += $r['status'] === 'listed' ? 1 : 0;
             $this->line(sprintf('%-16s %-24s %s', $r['target'], $r['label'], strtoupper($r['status'])));
         }
+
+        // Organizers' own domains: records can be removed after verification,
+        // and a domain that no longer verifies must stop being used.
+        foreach (EdmSendingDomain::whereIn('status', ['verified', 'failed'])->get() as $domain) {
+            $domains->verify($domain);
+            $this->line(sprintf('%-30s %s', $domain->domain, strtoupper($domain->status)));
+        }
+
+        OrganizerGuard::sweep();
 
         if (BlocklistCheck::sendingIps() === []) {
             $this->warn('No sending IP known: set EDM_SENDING_IP (or EDM_MAIL_HOST) to check IP blocklists.');

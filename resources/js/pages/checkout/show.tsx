@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 interface OrderView {
     reference: string; currency: string; total: number;
     subtotal: number; discount: number; discount_code?: string | null; tax: number;
-    event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
+    event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; organizer?: string | null };
     items: Array<{ name: string; quantity: number; unit_price: number; line_total: number }>;
 }
 interface Required { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
@@ -62,6 +62,8 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
         consent: true,
         // Off by default: marketing consent has to be an active choice.
         marketing_opt_in: false,
+        // A separate list per organizer; also off by default.
+        organizer_opt_in: false,
     });
     const isFree = order.total <= 0;
 
@@ -230,6 +232,13 @@ export default function CheckoutShow({ order, required, buyer, cities = [], cust
                                 <span className="text-muted-foreground">{CONSENT_TEXT}</span>
                             </div>
                             {form.errors.consent && <p className="text-xs text-destructive">{form.errors.consent}</p>}
+
+                            {order.event.organizer && (
+                                <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
+                                    <Switch checked={form.data.organizer_opt_in} onCheckedChange={(v) => form.setData('organizer_opt_in', v)} aria-label={`Email me about future events from ${order.event.organizer}`} className="mt-0.5" />
+                                    <span className="text-muted-foreground">Email me about future events from <span className="font-medium text-foreground">{order.event.organizer}</span>. Optional — unsubscribe any time.</span>
+                                </div>
+                            )}
 
                             <div className="flex items-start gap-3 rounded-xl border border-border p-4 text-sm">
                                 <Switch checked={form.data.marketing_opt_in} onCheckedChange={(v) => form.setData('marketing_opt_in', v)} aria-label="Email me about upcoming events" className="mt-0.5" />

@@ -72,6 +72,32 @@ return [
     'sending_ips' => array_values(array_filter(array_map('trim', explode(',', (string) env('EDM_SENDING_IP', ''))))),
     'dkim_selector' => env('EDM_DKIM_SELECTOR', 'default'),
 
+    /*
+    | Organizer EDM. Organizers email their own opted-in followers from the host
+    | panel. Every email spends one credit: first from the free monthly
+    | allowance (premium organizers), then from purchased credits. Packs are
+    | bought through CHIP. All of it can be adjusted per organizer by a
+    | superadmin in EDM → Organizers.
+    */
+    'organizers' => [
+        'premium_allowance' => (int) env('EDM_PREMIUM_ALLOWANCE', 2000),   // free emails / month
+        'free_allowance' => (int) env('EDM_FREE_ALLOWANCE', 0),            // for non-premium organizers
+        'packs' => [
+            ['key' => 'starter', 'name' => 'Starter', 'credits' => 1000, 'price' => 15.00],
+            ['key' => 'growth', 'name' => 'Growth', 'credits' => 5000, 'price' => 60.00],
+            ['key' => 'pro', 'name' => 'Pro', 'credits' => 20000, 'price' => 200.00],
+        ],
+        // Abuse guardrails: judged over the last 30 days, once at least
+        // `min_sent` emails have gone out. Past any of these, the organizer's
+        // sending is suspended until a superadmin reviews it.
+        'guard' => [
+            'min_sent' => 200,
+            'bounce_rate' => 0.05,
+            'unsubscribe_rate' => 0.02,
+            'complaint_rate' => 0.003,
+        ],
+    ],
+
     // Stop a campaign before a blocklist stops the server: past these rates,
     // once enough mail has gone out to judge, it pauses itself.
     'auto_pause' => [

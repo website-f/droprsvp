@@ -21,6 +21,7 @@ interface Props {
     statusCounts: Record<string, number>;
     starters: StarterChoice[];
     templates: TemplateChoice[];
+    base?: string;
 }
 
 const TABS: { key: string; label: string; statuses: string[] }[] = [
@@ -31,14 +32,14 @@ const TABS: { key: string; label: string; statuses: string[] }[] = [
     { key: 'sent', label: 'Sent', statuses: ['sent', 'cancelled'] },
 ];
 
-export default function EdmCampaigns({ campaigns, stats, throttle, repermissionEligible, filters, statusCounts, starters, templates }: Props) {
+export default function EdmCampaigns({ base = '/admin/edm', campaigns, stats, throttle, repermissionEligible, filters, statusCounts, starters, templates }: Props) {
     // ?new=1 (from the overview's button) opens the dialog straight away.
     const [creating, setCreating] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('new') === '1');
     const [q, setQ] = useState(filters.q);
 
     const go = (patch: Partial<Props['filters']>) => {
         const next = { ...filters, q, ...patch };
-        router.get('/admin/edm/campaigns', Object.fromEntries(Object.entries(next).filter(([, v]) => v)), { preserveState: true, preserveScroll: true });
+        router.get(`${base}/campaigns`, Object.fromEntries(Object.entries(next).filter(([, v]) => v)), { preserveState: true, preserveScroll: true });
     };
 
     const total = (statuses: string[]) => statuses.length === 0
@@ -51,7 +52,7 @@ export default function EdmCampaigns({ campaigns, stats, throttle, repermissionE
             <div className="mx-auto w-full max-w-6xl flex-1 p-4">
                 <EdmHeader
                     title="Campaigns"
-                    description="Emails to people who opted in to hear from DropRSVP."
+                    description={base.startsWith("/host") ? "Emails to people who opted in to hear from you at checkout." : "Emails to people who opted in to hear from DropRSVP."}
                     actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" /> New campaign</Button>}
                 />
 
@@ -70,7 +71,7 @@ export default function EdmCampaigns({ campaigns, stats, throttle, repermissionE
                             </div>
                             <div className="text-xs text-muted-foreground">Send them one email asking whether they would like to hear from you. Only those who say yes join the list, and nobody is ever asked twice.</div>
                         </div>
-                        <Button variant="outline" className="shrink-0" onClick={() => router.post('/admin/edm/campaigns', { name: 'May we keep you posted?', kind: 'repermission' })}>
+                        <Button variant="outline" className="shrink-0" onClick={() => router.post(`${base}/campaigns`, { name: 'May we keep you posted?', kind: 'repermission' })}>
                             <Mail className="size-4" /> Prepare re-permission email
                         </Button>
                     </div>
@@ -125,9 +126,9 @@ export default function EdmCampaigns({ campaigns, stats, throttle, repermissionE
                                         </td>
                                     </tr>
                                 ) : campaigns.data.map((c) => (
-                                    <tr key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => router.visit(`/admin/edm/campaigns/${c.id}`)}>
+                                    <tr key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => router.visit(`${base}/campaigns/${c.id}`)}>
                                         <td className="px-4 py-3">
-                                            <Link href={`/admin/edm/campaigns/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
+                                            <Link href={`${base}/campaigns/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
                                             <div className="text-xs text-muted-foreground">
                                                 {c.kind === 'repermission' && 'Re-permission · '}
                                                 {c.status === 'scheduled' && c.scheduled_at ? `Sends ${c.scheduled_at}` : c.started_at ? `Started ${c.started_at}` : `Edited ${c.updated_at}`}
@@ -156,7 +157,7 @@ export default function EdmCampaigns({ campaigns, stats, throttle, repermissionE
                 </div>
             </div>
 
-            <NewCampaignDialog open={creating} onOpenChange={setCreating} starters={starters} templates={templates} />
+            <NewCampaignDialog open={creating} onOpenChange={setCreating} starters={starters} templates={templates} basePath={base} />
         </>
     );
 }

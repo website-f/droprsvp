@@ -17,6 +17,9 @@ interface Props {
     filters: { q: string; status: Status };
     counts: { subscribed: number; unsubscribed: number; suppressed: number };
     sources: Record<string, number>;
+    base?: string;
+    /** Platform admins only: suppression protects the shared server. */
+    canSuppress?: boolean;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -38,27 +41,27 @@ const TABS: { key: Status; label: string }[] = [
     { key: 'suppressed', label: 'Suppressed' },
 ];
 
-export default function EdmSubscribers({ subscribers, filters, counts, sources }: Props) {
+export default function EdmSubscribers({ base = '/admin/edm', canSuppress = true, subscribers, filters, counts, sources }: Props) {
     const confirm = useConfirm();
     const [q, setQ] = useState(filters.q);
 
-    const go = (patch: Partial<Props['filters']>) => router.get('/admin/edm/subscribers', { ...filters, q, ...patch }, { preserveState: true, preserveScroll: true });
+    const go = (patch: Partial<Props['filters']>) => router.get(`${base}/subscribers`, { ...filters, q, ...patch }, { preserveState: true, preserveScroll: true });
 
     const unsubscribe = async (r: Row) => {
         if (await confirm({ title: `Unsubscribe ${r.email}?`, description: 'For when they ask by email or phone. They can opt back in themselves.', confirmText: 'Unsubscribe' })) {
-            router.post(`/admin/edm/subscribers/${r.id}/unsubscribe`, {}, { preserveScroll: true });
+            router.post(`${base}/subscribers/${r.id}/unsubscribe`, {}, { preserveScroll: true });
         }
     };
 
     const suppress = async (r: Row) => {
         if (await confirm({ title: `Never email ${r.email} again?`, description: 'For a dead or hostile inbox. Applies to every list, and is not undone by opting back in.', confirmText: 'Suppress', destructive: true })) {
-            router.post(`/admin/edm/subscribers/${r.id}/suppress`, {}, { preserveScroll: true });
+            router.post(`${base}/subscribers/${r.id}/suppress`, {}, { preserveScroll: true });
         }
     };
 
     const unsuppress = async (r: Row) => {
         if (await confirm({ title: `Allow ${r.email} again?`, description: 'Only if the problem is fixed (the mailbox works again, or it was blocked by mistake). They get mail again only if still subscribed.', confirmText: 'Allow again' })) {
-            router.post(`/admin/edm/suppressions/${r.id}/remove`, {}, { preserveScroll: true });
+            router.post(`${base}/suppressions/${r.id}/remove`, {}, { preserveScroll: true });
         }
     };
 
@@ -70,8 +73,10 @@ export default function EdmSubscribers({ subscribers, filters, counts, sources }
             <div className="mx-auto w-full max-w-6xl flex-1 p-4">
                 <EdmHeader
                     title="Subscribers"
-                    description="People who chose to hear from DropRSVP. There is no import: consent has to come from the person, and bought or copied lists are where spam complaints come from."
-                    actions={<Button asChild variant="outline"><a href="/admin/edm/subscribers/export"><Download className="size-4" /> Export CSV</a></Button>}
+                    description={canSuppress
+                        ? 'People who chose to hear from DropRSVP. There is no import: consent has to come from the person, and bought or copied lists are where spam complaints come from.'
+                        : 'People who ticked “email me about future events from you” at checkout. There is no import: consent has to come from the person.'}
+                    actions={<Button asChild variant="outline"><a href={`${base}/subscribers/export`}><Download className="size-4" /> Export CSV</a></Button>}
                 />
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -149,8 +154,8 @@ export default function EdmSubscribers({ subscribers, filters, counts, sources }
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex justify-end gap-1">
                                                 {filters.status === 'subscribed' && <Button size="sm" variant="ghost" onClick={() => unsubscribe(r)} title="Unsubscribe"><UserMinus className="size-4" /> <span className="md:sr-only">Unsubscribe</span></Button>}
-                                                {filters.status !== 'suppressed' && !r.suppressed && <Button size="sm" variant="ghost" onClick={() => suppress(r)} title="Never email again"><Ban className="size-4" /> <span className="md:sr-only">Suppress</span></Button>}
-                                                {filters.status === 'suppressed' && <Button size="sm" variant="ghost" onClick={() => unsuppress(r)} title="Allow again"><RotateCcw className="size-4" /> Allow again</Button>}
+                                                {canSuppress && filters.status !== 'suppressed' && !r.suppressed && <Button size="sm" variant="ghost" onClick={() => suppress(r)} title="Never email again"><Ban className="size-4" /> <span className="md:sr-only">Suppress</span></Button>}
+                                                {canSuppress && filters.status === 'suppressed' && <Button size="sm" variant="ghost" onClick={() => unsuppress(r)} title="Allow again"><RotateCcw className="size-4" /> Allow again</Button>}
                                             </div>
                                         </td>
                                     </tr>
