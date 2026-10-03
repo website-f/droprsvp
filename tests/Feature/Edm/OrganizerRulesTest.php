@@ -8,6 +8,7 @@ use App\Models\EmailSend;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\OrganizerProfile;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\Edm\CampaignSender;
 use App\Support\Edm\Audience;
@@ -36,6 +37,8 @@ class OrganizerRulesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Organizer email is off until an admin switches it on; these tests are about using it.
+        OrganizerRules::saveGlobal(['enabled' => true]);
         Mail::fake();
         config(['edm.hourly_limit' => 6000, 'edm.warmup.enabled' => false, 'edm.organizers.free_allowance' => 100000]);
 
@@ -91,6 +94,16 @@ class OrganizerRulesTest extends TestCase
     }
 
     // ---- access ---------------------------------------------------------------------
+
+    public function test_it_is_off_for_organizers_until_an_admin_switches_it_on(): void
+    {
+        Setting::putArray('edm_organizers', []);   // a fresh install: nothing saved
+
+        $this->assertFalse(OrganizerRules::global()['enabled']);
+        $this->actingAs($this->org)->get('/host/edm')->assertForbidden();
+        $this->actingAs($this->org)->get('/dashboard')
+            ->assertInertia(fn (Assert $p) => $p->where('auth.organizer_edm.state', 'off'));
+    }
 
     public function test_the_master_switch_turns_it_off_for_everyone(): void
     {

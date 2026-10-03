@@ -65,7 +65,8 @@ final class OrganizerRules
         $cfg = (array) config('edm.organizers', []);
 
         $out = [
-            'enabled' => (bool) ($saved['enabled'] ?? true),
+            // Off until a superadmin switches it on in EDM → Organizer rules.
+            'enabled' => (bool) ($saved['enabled'] ?? false),
             'access' => in_array($saved['access'] ?? null, self::ACCESS_MODES, true) ? $saved['access'] : 'all',
         ];
 

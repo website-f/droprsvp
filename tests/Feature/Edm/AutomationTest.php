@@ -18,6 +18,7 @@ use App\Services\Edm\Automations;
 use App\Services\Edm\CampaignSender;
 use App\Services\Edm\Credits;
 use App\Support\Edm\Consent;
+use App\Support\Edm\OrganizerRules;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -39,6 +40,8 @@ class AutomationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Organizer email is off until an admin switches it on; these tests are about using it.
+        OrganizerRules::saveGlobal(['enabled' => true]);
         Mail::fake();
         Carbon::setTestNow(Carbon::parse('2026-10-05 10:00:00', 'UTC'));
         config(['edm.hourly_limit' => 6000, 'edm.warmup.enabled' => false]);

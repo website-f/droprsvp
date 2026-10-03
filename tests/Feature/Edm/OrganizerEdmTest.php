@@ -23,6 +23,7 @@ use App\Services\Edm\SendingDomains;
 use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
 use App\Support\Edm\Health\Dns;
+use App\Support\Edm\OrganizerRules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Mail;
@@ -44,6 +45,8 @@ class OrganizerEdmTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Organizer email is off until an admin switches it on; these tests are about using it.
+        OrganizerRules::saveGlobal(['enabled' => true]);
         Mail::fake();
         config(['edm.hourly_limit' => 6000, 'edm.warmup.enabled' => false, 'edm.organizers.premium_allowance' => 100, 'edm.organizers.free_allowance' => 0]);
 
