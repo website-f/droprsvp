@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, ArrowRight, AtSign, Coins, Mail, Plus, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRight, AtSign, Coins, Gauge, Mail, Plus, ShieldCheck, Users } from 'lucide-react';
 import { PALETTE } from '@/components/charts';
 import { statusBadge } from '@/components/edm/campaign';
+import { limitText, UsageMeters } from '@/components/edm/organizer-rules';
+import type { Rules, UsageMap } from '@/components/edm/organizer-rules';
 import { EdmHeader, HOST_EDM_CRUMB, pct, Section, Stat, StatusPill } from '@/components/edm/ui';
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +13,9 @@ interface Props {
     rates: { sent: number; bounced: number; unsubscribed: number; complaints: number; bounce_rate: number; unsubscribe_rate: number; complaint_rate: number };
     limits: { min_sent: number; bounce_rate: number; unsubscribe_rate: number; complaint_rate: number };
     subscribers: number;
+    reachable: number;
+    rules: Rules;
+    usage: UsageMap;
     joined30: number;
     campaigns: { id: number; name: string; status: string; recipients: number; sent: number; open_rate: number | null; click_rate: number | null; when: string | null }[];
     domain: { domain: string; status: string } | null;
@@ -29,14 +34,14 @@ function Meter({ label, value, limit }: { label: string; value: number; limit: n
     );
 }
 
-export default function HostEdmOverview({ credits, account, rates, limits, subscribers, joined30, campaigns, domain }: Props) {
+export default function HostEdmOverview({ credits, account, rates, limits, subscribers, reachable, rules, usage, joined30, campaigns, domain }: Props) {
     return (
         <>
             <Head title="Email marketing" />
             <div className="mx-auto w-full max-w-6xl flex-1 p-4">
                 <EdmHeader
                     title="Email marketing"
-                    description="Email the people who asked to hear from you — buyers who ticked “email me about future events” at your checkout."
+                    description="Email the people who joined your events — ticket buyers who ticked “email me about future events” at your checkout."
                     actions={<Button onClick={() => router.visit('/host/edm/campaigns?new=1')} disabled={account.suspended}><Plus className="size-4" /> New campaign</Button>}
                 />
 
@@ -48,7 +53,13 @@ export default function HostEdmOverview({ credits, account, rates, limits, subsc
                 )}
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <Stat icon={Users} label="Subscribers" value={subscribers.toLocaleString()} hint={`+${joined30.toLocaleString()} in the last 30 days`} tint={PALETTE[0]} />
+                    <Stat
+                        icon={Users}
+                        label="People you can email"
+                        value={reachable.toLocaleString()}
+                        hint={reachable < subscribers ? `${subscribers.toLocaleString()} opted in · ${(subscribers - reachable).toLocaleString()} haven’t bought a ticket` : `+${joined30.toLocaleString()} opted in, last 30 days`}
+                        tint={PALETTE[0]}
+                    />
                     <Stat icon={Coins} label="Emails you can send" value={credits.available.toLocaleString()} hint={credits.allowance > 0 ? `${credits.allowance_left.toLocaleString()} free left in ${credits.period}` : 'From credits you bought'} tint={PALETTE[6]} />
                     <Stat icon={Mail} label="Sent, last 30 days" value={rates.sent.toLocaleString()} tint={PALETTE[2]} />
                     <Stat icon={AtSign} label="Sending from" value={domain?.status === 'verified' ? domain.domain : 'DropRSVP'} hint={domain && domain.status !== 'verified' ? `${domain.domain} not verified yet` : undefined} tint={PALETTE[4]} />
@@ -101,6 +112,23 @@ export default function HostEdmOverview({ credits, account, rates, limits, subsc
                         )}
                     </Section>
                 </div>
+
+                <Section
+                    className="mt-4"
+                    title={<span className="flex items-center gap-2"><Gauge className="size-4" /> Your sending limits</span>}
+                    description="Set by DropRSVP so every organizer’s email keeps reaching inboxes. Big campaigns are paced, not refused: whatever doesn’t fit this hour goes out in the next."
+                >
+                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                        <UsageMeters usage={usage} />
+                        <dl className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="rounded-lg border border-border p-2.5"><dt className="text-[11px] text-muted-foreground">Recipients per campaign</dt><dd className="font-semibold tabular-nums">{limitText(rules.max_recipients)}</dd></div>
+                            <div className="rounded-lg border border-border p-2.5"><dt className="text-[11px] text-muted-foreground">Emails per person, per week</dt><dd className="font-semibold tabular-nums">{limitText(rules.per_person_per_week)}</dd></div>
+                            <div className="col-span-2 rounded-lg border border-border p-2.5 text-[11px] text-muted-foreground">
+                                Only people who bought a ticket (or registered) for one of your events and opted in can receive your emails.
+                            </div>
+                        </dl>
+                    </div>
+                </Section>
 
                 <Section
                     className="mt-4"

@@ -8,14 +8,15 @@ import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-interface Row { id: number; email: string; name: string | null; source: string; detail?: string | null; since: string | null; suppressed: boolean }
+/** `joined`: on an organizer's list, how many of their events this person bought a ticket for (0 = can't be emailed). */
+interface Row { id: number; email: string; name: string | null; source: string; detail?: string | null; since: string | null; suppressed: boolean; joined?: number | null }
 interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 type Status = 'subscribed' | 'unsubscribed' | 'suppressed';
 
 interface Props {
     subscribers: Paginated;
     filters: { q: string; status: Status };
-    counts: { subscribed: number; unsubscribed: number; suppressed: number };
+    counts: { subscribed: number; unsubscribed: number; suppressed: number; reachable?: number | null };
     sources: Record<string, number>;
     base?: string;
     /** Platform admins only: suppression protects the shared server. */
@@ -80,7 +81,13 @@ export default function EdmSubscribers({ base = '/admin/edm', canSuppress = true
                 />
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <Stat icon={Users} label="Subscribed" value={counts.subscribed.toLocaleString()} tint={PALETTE[0]} />
+                    <Stat
+                        icon={Users}
+                        label="Subscribed"
+                        value={counts.subscribed.toLocaleString()}
+                        hint={counts.reachable != null ? `${counts.reachable.toLocaleString()} joined an event — the ones you can email` : undefined}
+                        tint={PALETTE[0]}
+                    />
                     <Stat icon={UserMinus} label="Unsubscribed" value={counts.unsubscribed.toLocaleString()} tint={PALETTE[7]} />
                     <Stat icon={Ban} label="Suppressed" value={counts.suppressed.toLocaleString()} hint="Never mailed, from any list." tint={PALETTE[3]} />
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -143,7 +150,13 @@ export default function EdmSubscribers({ base = '/admin/edm', canSuppress = true
                                         <td className="px-4 py-3">
                                             <div className="font-medium">{r.email}</div>
                                             {filters.status !== 'suppressed' && (
-                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{r.name ?? 'No account'} {r.suppressed && <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">Suppressed</Badge>}</div>
+                                                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                                    {r.name ?? 'No account'}
+                                                    {r.suppressed && <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">Suppressed</Badge>}
+                                                    {r.joined != null && (r.joined > 0
+                                                        ? <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">Joined {r.joined} event{r.joined === 1 ? '' : 's'}</Badge>
+                                                        : <Badge variant="outline" className="h-4 px-1.5 text-[10px]" title="Opted in at checkout but never paid — can't be emailed">No ticket yet</Badge>)}
+                                                </div>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">

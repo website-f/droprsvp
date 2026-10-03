@@ -21,6 +21,8 @@ export type Auth = {
     admin_sections?: string[];
     must_set_password?: boolean;
     unread_notifications?: number;
+    /** Organizer email marketing per the platform's rules: on, locked (Premium unlocks it) or off. */
+    organizer_edm?: { state: 'on' | 'locked' | 'off'; automations: boolean; domains: boolean } | null;
 };
 
 export type Passkey = {

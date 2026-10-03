@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, AtSign, BadgeCheck, Ban, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, Flag, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, MessageCircle, MessagesSquare, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
+import { Archive, AtSign, BadgeCheck, Ban, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, Flag, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, MessageCircle, MessagesSquare, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, SlidersHorizontal, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -72,6 +72,7 @@ const edmNav: NavItem[] = [
     { title: 'Templates', href: '/admin/edm/templates', icon: LayoutTemplate },
     { title: 'Subscribers', href: '/admin/edm/subscribers', icon: Users },
     { title: 'Organizers', href: '/admin/edm/organizers', icon: BadgeCheck },
+    { title: 'Organizer rules', href: '/admin/edm/organizer-rules', icon: SlidersHorizontal },
     { title: 'Deliverability', href: '/admin/edm/deliverability', icon: ShieldCheck },
     { title: 'Settings', href: '/admin/edm/settings', icon: Settings2 },
 ];
@@ -121,6 +122,12 @@ export function AppSidebar() {
     // Organizing tools (create events, payouts) are for vendors — public/free
     // attendee accounts don't see them. Superadmins always do.
     const isOrganizer = auth?.is_organizer;
+    // Organizer email marketing, per the platform's rules: hidden when switched
+    // off; when Premium would unlock it, only the overview (which says so).
+    const edm = auth?.organizer_edm;
+    const edmItems = edm?.state === 'locked'
+        ? hostEdmNav.slice(0, 1)
+        : hostEdmNav.filter((i) => (i.href !== '/host/edm/automations' || edm?.automations) && (i.href !== '/host/edm/domains' || edm?.domains));
 
     // Staff only see sections they've been granted; superadmin gets everything.
     const platformItems = platformNav.filter((i) => sections.includes(i.section));
@@ -146,7 +153,7 @@ export function AppSidebar() {
                     one main category each so the sidebar stays manageable. */}
                 <NavMain items={youNav} label="You" />
                 {isOrganizer && <NavGroup label="Organizing" icon={CalendarDays} items={organizingNav} />}
-                {isOrganizer && <NavGroup label="Email marketing" icon={Megaphone} items={hostEdmNav} />}
+                {isOrganizer && edm && edm.state !== 'off' && <NavGroup label="Email marketing" icon={Megaphone} items={edmItems} />}
                 {isAdmin && platformItems.length > 0 && <NavGroup label="Platform admin" icon={ShieldCheck} items={platformItems} />}
                 {isAdmin && sections.includes('edm') && <NavGroup label="EDM" icon={Mail} items={edmNav} />}
                 {isAdmin && sections.includes('chat') && <NavGroup label="Chat" icon={MessagesSquare} items={chatAdminNav} />}

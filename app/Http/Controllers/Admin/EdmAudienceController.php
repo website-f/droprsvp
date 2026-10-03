@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EmailConsent;
 use App\Models\EmailSuppression;
 use App\Support\Dates;
+use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
 use App\Support\Edm\Settings;
 use App\Support\Edm\Throttle;
@@ -95,7 +96,10 @@ class EdmAudienceController extends Controller
 
         // One lookup for the page, not one per row.
         $suppressed = EmailSuppression::whereIn('email', collect($rows->items())->pluck('email'))->pluck('email')->flip();
-        $rows->through(fn (array $r) => [...$r, 'suppressed' => $suppressed->has($r['email'])]);
+        // An organizer's campaigns reach only people who joined one of their
+        // events; show which rows those are, and how many events each joined.
+        $joined = $this->scopeId() !== null ? Audience::joinedEvents($this->scopeId(), collect($rows->items())->pluck('email')->all()) : null;
+        $rows->through(fn (array $r) => [...$r, 'suppressed' => $suppressed->has($r['email']), 'joined' => $joined === null ? null : ($joined[$r['email']] ?? 0)]);
 
         return $this->render($request, $q, $status, $rows);
     }
@@ -115,6 +119,7 @@ class EdmAudienceController extends Controller
                 'subscribed' => (clone $base)->where('status', 'subscribed')->count(),
                 'unsubscribed' => (clone $base)->where('status', 'unsubscribed')->count(),
                 'suppressed' => $this->suppressions()->count(),
+                'reachable' => $this->scopeId() !== null ? Audience::reachable($this->scopeId()) : null,
             ],
             'sources' => (clone $base)->where('status', 'subscribed')
                 ->selectRaw('source, count(*) as total')->groupBy('source')->pluck('total', 'source'),

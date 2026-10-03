@@ -6,6 +6,7 @@ use App\Models\EdmAccount;
 use App\Models\EmailBounce;
 use App\Models\EmailCampaign;
 use App\Models\EmailSend;
+use App\Support\Edm\OrganizerRules;
 use App\Support\PlatformAlert;
 
 /**
@@ -55,7 +56,7 @@ final class OrganizerGuard
     /** Why this organizer should be suspended, or null if they are fine. */
     public static function breach(int $organizerId): ?string
     {
-        $g = config('edm.organizers.guard');
+        $g = OrganizerRules::global()['guard'];
         $r = self::rates($organizerId);
 
         if ($r['sent'] < (int) ($g['min_sent'] ?? 200)) {

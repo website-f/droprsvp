@@ -6,6 +6,7 @@ use App\Models\EdmAccount;
 use App\Models\EdmCreditEntry;
 use App\Models\EmailCampaign;
 use App\Models\User;
+use App\Support\Edm\OrganizerRules;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -47,8 +48,8 @@ final class Credits
         }
 
         return (int) ($organizer->isPremium()
-            ? config('edm.organizers.premium_allowance', 2000)
-            : config('edm.organizers.free_allowance', 0));
+            ? OrganizerRules::global()['premium_allowance']
+            : OrganizerRules::global()['free_allowance']);
     }
 
     public static function allowanceUsed(int $organizerId): int

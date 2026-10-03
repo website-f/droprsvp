@@ -9,6 +9,7 @@ use App\Models\EmailSend;
 use App\Models\User;
 use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
+use App\Support\Edm\OrganizerRules;
 use App\Support\Edm\Personalizer;
 use App\Support\Edm\Renderer;
 use App\Support\Edm\Settings;
@@ -51,6 +52,13 @@ class CampaignSender
             $this->freeze($campaign);
 
             $count = $this->enqueue($campaign);
+
+            // Size and frequency rules, judged on the real list. Throwing here
+            // rolls the whole start back, list and all.
+            if ($campaign->organizer_id && ($campaign->kind ?? 'standard') === 'standard'
+                && ($blocker = OrganizerRules::startBlocker($campaign->organizer_id, $count))) {
+                throw new RuntimeException($blocker);
+            }
 
             // An organizer's campaign takes its whole recipient count from
             // their quota up front; not enough, and the whole start rolls back.
@@ -145,24 +153,66 @@ class CampaignSender
             return 0;
         }
 
+        // Each organizer's own hourly / daily / weekly room. One who has used
+        // theirs waits for the window to move; nobody else waits behind them.
+        $organizers = EmailCampaign::where('status', 'sending')->whereNotNull('organizer_id')->distinct()->pluck('organizer_id')->map(fn ($id) => (int) $id);
+        $room = [];
+
+        foreach ($organizers as $id) {
+            // Switched off by an admin (or the master switch) since starting:
+            // their campaigns pause with the reason, and automation emails
+            // already queued wait instead of going out.
+            if (! OrganizerRules::allowed($id)) {
+                EmailCampaign::where('organizer_id', $id)->where('status', 'sending')->where('kind', 'standard')
+                    ->update(['status' => 'paused', 'paused_reason' => 'Email marketing is switched off for this account.']);
+                $room[$id] = 0;
+
+                continue;
+            }
+
+            if (($left = OrganizerRules::remaining($id)) !== null) {
+                $room[$id] = $left;
+            }
+        }
+        $full = array_keys(array_filter($room, fn ($left) => $left <= 0));
+
         $sends = EmailSend::query()
             ->where('status', 'queued')
-            ->whereHas('campaign', fn ($q) => $q->where('status', 'sending'))
+            ->whereHas('campaign', fn ($q) => $q->where('status', 'sending')
+                ->when($full !== [], fn ($w) => $w->where(fn ($o) => $o->whereNull('organizer_id')->orWhereNotIn('organizer_id', $full))))
             ->with('campaign')
             ->orderBy('id')
-            ->limit($budget)
+            // More than the budget, so an organizer reaching their limit part-way
+            // through this batch does not leave the rest of it unused.
+            ->limit($budget * 3)
             ->get();
 
         $sent = 0;
+        $processed = 0;
         $failuresInARow = 0;
         $threshold = (int) config('edm.auto_pause.consecutive_failures', 10);
 
         foreach ($sends as $send) {
+            if ($processed >= $budget) {
+                break;
+            }
+
             // A pause can land mid-run (an admin, or the bounce check below).
             if ($send->campaign->fresh()->status !== 'sending') {
                 continue;
             }
 
+            $org = $send->campaign->organizer_id;
+
+            if ($org !== null && array_key_exists($org, $room)) {
+                if ($room[$org] <= 0) {
+                    continue;
+                }
+
+                $room[$org]--;
+            }
+
+            $processed++;
             $result = $this->deliver($send);
 
             if ($result === 'sent') {
@@ -215,6 +265,24 @@ class CampaignSender
             return 'skipped';
         }
 
+        // How much one person hears from one organizer in a week. Mail about
+        // their own booking (a non-promotional automation) is not counted.
+        $rules = $campaign->organizer_id ? OrganizerRules::for($campaign->organizer_id) : null;
+        $promotional = $campaign->kind !== 'automation' || ! empty($campaign->audience['marketing']);
+
+        if ($rules && $promotional && $rules['per_person_per_week'] > 0) {
+            $received = EmailSend::where('email', $send->email)
+                ->where('sent_at', '>=', now()->subWeek())
+                ->whereIn('campaign_id', EmailCampaign::where('organizer_id', $campaign->organizer_id)->select('id'))
+                ->count();
+
+            if ($received >= $rules['per_person_per_week']) {
+                $send->forceFill(['status' => 'skipped', 'error' => "Already received {$received} emails from this organizer this week"])->save();
+
+                return 'skipped';
+            }
+        }
+
         $message = Personalizer::forRecipient($campaign, $send);
 
         // An organizer's own verified domain: From that address, and signed
@@ -222,6 +290,7 @@ class CampaignSender
         // removed since) falls back to the platform address — never unsigned.
         $domain = $campaign->sending_domain_id ? $campaign->sendingDomain : null;
         $ownDomain = $domain && $domain->isVerified() && $campaign->from_address
+            && ($rules === null || $rules['domains'])
             && str_ends_with(strtolower($campaign->from_address), '@'.$domain->domain);
 
         $mailer = Mail::mailer(config('edm.mailer', 'edm'));
@@ -384,6 +453,13 @@ class CampaignSender
     {
         if (! $campaign->organizer_id) {
             return;
+        }
+
+        $organizer = User::find($campaign->organizer_id);
+        $access = $organizer ? OrganizerRules::access($organizer) : ['allowed' => false, 'reason' => 'This organizer no longer exists.'];
+
+        if (! $access['allowed']) {
+            throw new RuntimeException((string) $access['reason']);
         }
 
         $account = EdmAccount::where('organizer_id', $campaign->organizer_id)->first();

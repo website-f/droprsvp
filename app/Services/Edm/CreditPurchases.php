@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\FakePaymentGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Support\Edm\OrganizerRules;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -21,7 +22,7 @@ class CreditPurchases
     /** @return list<array{key: string, name: string, credits: int, price: float}> */
     public static function packs(): array
     {
-        return array_values((array) config('edm.organizers.packs', []));
+        return OrganizerRules::global()['packs'];
     }
 
     public static function pack(string $key): ?array

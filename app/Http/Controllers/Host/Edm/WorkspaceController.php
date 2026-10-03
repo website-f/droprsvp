@@ -16,7 +16,9 @@ use App\Services\Edm\SendingDomains;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
 use App\Support\Dates;
+use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
+use App\Support\Edm\OrganizerRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -38,8 +40,12 @@ class WorkspaceController extends Controller
             'credits' => Credits::summary($user),
             'account' => ['suspended' => (bool) $account?->isSuspended(), 'reason' => $account?->suspended_reason],
             'rates' => OrganizerGuard::rates($user->id),
-            'limits' => config('edm.organizers.guard'),
+            'limits' => OrganizerRules::global()['guard'],
             'subscribers' => EmailConsent::where('scope', $scope)->where('status', 'subscribed')->count(),
+            // Of those, the ones who joined one of their events: who a campaign can actually reach.
+            'reachable' => Audience::reachable($user->id),
+            'rules' => array_intersect_key($rules = OrganizerRules::for($user->id), OrganizerRules::LIMITS + OrganizerRules::FEATURES),
+            'usage' => OrganizerRules::usage($user->id, $rules),
             'joined30' => EmailConsent::where('scope', $scope)->where('status', 'subscribed')->where('consented_at', '>=', now()->subDays(30))->count(),
             'campaigns' => EmailCampaign::where('organizer_id', $user->id)->where('kind', '!=', 'automation')->latest('updated_at')->limit(5)->get()
                 ->map(fn (EmailCampaign $c) => [
@@ -65,7 +71,7 @@ class WorkspaceController extends Controller
         return Inertia::render('host/edm/credits', [
             'credits' => Credits::summary($user),
             'packs' => CreditPurchases::packs(),
-            'premiumAllowance' => (int) config('edm.organizers.premium_allowance'),
+            'premiumAllowance' => OrganizerRules::global()['premium_allowance'],
             'ledger' => EdmCreditEntry::where('organizer_id', $user->id)
                 ->with('campaign:id,name')
                 ->latest('id')

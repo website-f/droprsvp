@@ -62,6 +62,13 @@ final class Audience
                 ->whereColumn('email_suppressions.email', 'email_consents.email'))
             ->select('email_consents.email', 'email_consents.user_id', 'users.name');
 
+        // An organizer may only email people who JOINED one of their events —
+        // a paid order (free tickets included). Ticking "email me" at their
+        // checkout and then not paying is not joining; neither is following.
+        if ($organizerId) {
+            $query->whereExists(fn (QueryBuilder $q) => self::paidOrders($q, $organizerId));
+        }
+
         if ($f['cities']) {
             // Their profile city, or the city they gave at any checkout.
             $query->where(fn (Builder $w) => $w
@@ -96,6 +103,37 @@ final class Audience
     public static function count(?array $spec, ?int $organizerId = null): int
     {
         return self::query($spec, $organizerId)->count();
+    }
+
+    /**
+     * Of these addresses, which have joined one of this organizer's events,
+     * and how many events each. For the subscriber list.
+     *
+     * @param  array<int, string>  $emails
+     * @return array<string, int> email => events joined
+     */
+    public static function joinedEvents(int $organizerId, array $emails): array
+    {
+        if ($emails === []) {
+            return [];
+        }
+
+        return DB::table('orders')
+            ->selectRaw('LOWER(buyer_email) as email, COUNT(DISTINCT event_id) as events')
+            ->whereIn(DB::raw('LOWER(buyer_email)'), array_map('strtolower', $emails))
+            ->whereIn('status', ['paid', 'refunded'])
+            ->whereNotNull('paid_at')
+            ->whereIn('event_id', DB::table('events')->select('id')->where('user_id', $organizerId))
+            ->groupBy(DB::raw('LOWER(buyer_email)'))
+            ->pluck('events', 'email')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /** People on an organizer's list who have joined one of their events: the ones a campaign can reach. */
+    public static function reachable(int $organizerId): int
+    {
+        return self::query([], $organizerId)->count();
     }
 
     /**

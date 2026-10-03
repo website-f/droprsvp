@@ -80,6 +80,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Middleware\ChatIpGuard;
 use App\Http\Middleware\EnsureAboutYou;
 use App\Http\Middleware\EnsureOrganizerApproved;
+use App\Http\Middleware\EnsureOrganizerEdm;
 use App\Http\Middleware\EnsureSectionAccess;
 use App\Support\SiteContent;
 use App\Support\Url;
@@ -316,9 +317,10 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
     // Hard-gated to vendors: a free attendee account must upgrade (become a
     // vendor) before it can create or manage events.
     Route::middleware(['role:organizer|superadmin', EnsureOrganizerApproved::class])->prefix('host')->name('host.')->group(function () {
-        // Email marketing: the organizer's own campaigns to their opted-in
-        // followers. Same engine and builder as DropRSVP's (see Host\Edm).
-        Route::prefix('edm')->name('edm.')->group(function () {
+        // Email marketing: the organizer's own campaigns to the people who
+        // joined their events and opted in. Same engine and builder as
+        // DropRSVP's (see Host\Edm), behind the rules a superadmin sets.
+        Route::prefix('edm')->name('edm.')->middleware(EnsureOrganizerEdm::class)->group(function () {
             Route::get('/', [HostEdm\WorkspaceController::class, 'overview'])->name('overview');
 
             Route::get('campaigns', [HostEdm\CampaignController::class, 'index'])->name('campaigns.index');
@@ -354,30 +356,34 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
             Route::get('subscribers/export', [HostEdm\SubscriberController::class, 'export'])->name('subscribers.export');
             Route::post('subscribers/{consent}/unsubscribe', [HostEdm\SubscriberController::class, 'unsubscribe'])->whereNumber('consent')->name('subscribers.unsubscribe');
 
-            // Automations.
-            Route::get('automations', [HostEdm\AutomationController::class, 'index'])->name('automations.index');
-            Route::post('automations', [HostEdm\AutomationController::class, 'store'])->name('automations.store');
-            Route::get('automations/{automation}', [HostEdm\AutomationController::class, 'show'])->whereNumber('automation')->name('automations.show');
-            Route::put('automations/{automation}', [HostEdm\AutomationController::class, 'update'])->whereNumber('automation')->name('automations.update');
-            Route::delete('automations/{automation}', [HostEdm\AutomationController::class, 'destroy'])->whereNumber('automation')->name('automations.destroy');
-            Route::post('automations/{automation}/activate', [HostEdm\AutomationController::class, 'activate'])->whereNumber('automation')->name('automations.activate');
-            Route::post('automations/{automation}/pause', [HostEdm\AutomationController::class, 'pause'])->whereNumber('automation')->name('automations.pause');
-            Route::post('automations/{automation}/steps', [HostEdm\AutomationController::class, 'addStep'])->whereNumber('automation')->name('automations.steps.store');
-            Route::put('automations/{automation}/steps/{step}', [HostEdm\AutomationController::class, 'updateStep'])->whereNumber(['automation', 'step'])->name('automations.steps.update');
-            Route::delete('automations/{automation}/steps/{step}', [HostEdm\AutomationController::class, 'destroyStep'])->whereNumber(['automation', 'step'])->name('automations.steps.destroy');
-            Route::get('automations/{automation}/steps/{step}/editor', [HostEdm\AutomationController::class, 'stepEditor'])->whereNumber(['automation', 'step'])->name('automations.steps.editor');
-            Route::post('automations/{automation}/steps/{step}/design', [HostEdm\AutomationController::class, 'saveStepDesign'])->whereNumber(['automation', 'step'])->name('automations.steps.design');
-            Route::get('automations/{automation}/steps/{step}/preview', [HostEdm\AutomationController::class, 'stepPreview'])->whereNumber(['automation', 'step'])->name('automations.steps.preview');
-            Route::post('automations/{automation}/steps/{step}/test', [HostEdm\AutomationController::class, 'stepTest'])->whereNumber(['automation', 'step'])->middleware('throttle:10,1')->name('automations.steps.test');
+            // Automations (can be switched off per organizer).
+            Route::middleware(EnsureOrganizerEdm::class.':automations')->group(function () {
+                Route::get('automations', [HostEdm\AutomationController::class, 'index'])->name('automations.index');
+                Route::post('automations', [HostEdm\AutomationController::class, 'store'])->name('automations.store');
+                Route::get('automations/{automation}', [HostEdm\AutomationController::class, 'show'])->whereNumber('automation')->name('automations.show');
+                Route::put('automations/{automation}', [HostEdm\AutomationController::class, 'update'])->whereNumber('automation')->name('automations.update');
+                Route::delete('automations/{automation}', [HostEdm\AutomationController::class, 'destroy'])->whereNumber('automation')->name('automations.destroy');
+                Route::post('automations/{automation}/activate', [HostEdm\AutomationController::class, 'activate'])->whereNumber('automation')->name('automations.activate');
+                Route::post('automations/{automation}/pause', [HostEdm\AutomationController::class, 'pause'])->whereNumber('automation')->name('automations.pause');
+                Route::post('automations/{automation}/steps', [HostEdm\AutomationController::class, 'addStep'])->whereNumber('automation')->name('automations.steps.store');
+                Route::put('automations/{automation}/steps/{step}', [HostEdm\AutomationController::class, 'updateStep'])->whereNumber(['automation', 'step'])->name('automations.steps.update');
+                Route::delete('automations/{automation}/steps/{step}', [HostEdm\AutomationController::class, 'destroyStep'])->whereNumber(['automation', 'step'])->name('automations.steps.destroy');
+                Route::get('automations/{automation}/steps/{step}/editor', [HostEdm\AutomationController::class, 'stepEditor'])->whereNumber(['automation', 'step'])->name('automations.steps.editor');
+                Route::post('automations/{automation}/steps/{step}/design', [HostEdm\AutomationController::class, 'saveStepDesign'])->whereNumber(['automation', 'step'])->name('automations.steps.design');
+                Route::get('automations/{automation}/steps/{step}/preview', [HostEdm\AutomationController::class, 'stepPreview'])->whereNumber(['automation', 'step'])->name('automations.steps.preview');
+                Route::post('automations/{automation}/steps/{step}/test', [HostEdm\AutomationController::class, 'stepTest'])->whereNumber(['automation', 'step'])->middleware('throttle:10,1')->name('automations.steps.test');
+            });
 
             Route::get('credits', [HostEdm\WorkspaceController::class, 'credits'])->name('credits');
             Route::post('credits', [HostEdm\WorkspaceController::class, 'buy'])->middleware('throttle:10,1')->name('credits.buy');
             Route::get('credits/return', [HostEdm\WorkspaceController::class, 'creditsReturn'])->name('credits.return');
 
-            Route::get('domains', [HostEdm\WorkspaceController::class, 'domains'])->name('domains');
-            Route::post('domains', [HostEdm\WorkspaceController::class, 'addDomain'])->middleware('throttle:10,1')->name('domains.store');
-            Route::post('domains/{domain}/verify', [HostEdm\WorkspaceController::class, 'verifyDomain'])->whereNumber('domain')->middleware('throttle:20,1')->name('domains.verify');
-            Route::delete('domains/{domain}', [HostEdm\WorkspaceController::class, 'removeDomain'])->whereNumber('domain')->name('domains.destroy');
+            Route::middleware(EnsureOrganizerEdm::class.':domains')->group(function () {
+                Route::get('domains', [HostEdm\WorkspaceController::class, 'domains'])->name('domains');
+                Route::post('domains', [HostEdm\WorkspaceController::class, 'addDomain'])->middleware('throttle:10,1')->name('domains.store');
+                Route::post('domains/{domain}/verify', [HostEdm\WorkspaceController::class, 'verifyDomain'])->whereNumber('domain')->middleware('throttle:20,1')->name('domains.verify');
+                Route::delete('domains/{domain}', [HostEdm\WorkspaceController::class, 'removeDomain'])->whereNumber('domain')->name('domains.destroy');
+            });
         });
 
         // Analytics across all the organizer's events (links out to each event's own).
@@ -639,6 +645,10 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
             Route::post('organizers/{organizer}/suspend', [EdmOrganizerController::class, 'suspend'])->whereNumber('organizer')->name('organizers.suspend');
             Route::post('organizers/{organizer}/reinstate', [EdmOrganizerController::class, 'reinstate'])->whereNumber('organizer')->name('organizers.reinstate');
             Route::post('organizers/{organizer}/adjust', [EdmOrganizerController::class, 'adjust'])->whereNumber('organizer')->name('organizers.adjust');
+            Route::post('organizers/{organizer}/rules', [EdmOrganizerController::class, 'rules'])->whereNumber('organizer')->name('organizers.rules');
+            // The rules every organizer sends under (overridable per organizer above).
+            Route::get('organizer-rules', [EdmOrganizerController::class, 'globalRules'])->name('organizer-rules');
+            Route::post('organizer-rules', [EdmOrganizerController::class, 'saveGlobalRules'])->name('organizer-rules.save');
 
             // Deliverability: setup checklist, DNS, blocklists, bounces.
             Route::get('deliverability', [EdmDeliverabilityController::class, 'index'])->name('deliverability');

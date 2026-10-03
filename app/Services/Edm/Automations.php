@@ -13,7 +13,9 @@ use App\Models\Order;
 use App\Models\User;
 use App\Support\CheckoutFunnel;
 use App\Support\Dates;
+use App\Support\Edm\Audience;
 use App\Support\Edm\Consent;
+use App\Support\Edm\OrganizerRules;
 use App\Support\Edm\Renderer;
 use App\Support\SeoTemplate;
 use App\Support\Url;
@@ -254,7 +256,7 @@ class Automations
         $summary = ['enrolled' => 0, 'queued' => 0, 'skipped' => 0, 'exited' => 0];
 
         foreach (EdmAutomation::where('status', 'active')->with('steps')->get() as $automation) {
-            if ($automation->steps->isEmpty()) {
+            if ($automation->steps->isEmpty() || ! self::organizerMayRun($automation)) {
                 continue;
             }
 
@@ -272,6 +274,28 @@ class Automations
         }
 
         return $summary;
+    }
+
+    /**
+     * Whether an organizer's sequence may enroll anyone today, under the rules
+     * a superadmin set: email marketing on for them, automations allowed, and
+     * — for the abandoned-checkout reminder, which writes to people who did
+     * NOT buy — that trigger allowed too. A sequence that may not run simply
+     * enrolls nobody; it stays switched on and resumes if the rule changes.
+     */
+    public static function organizerMayRun(EdmAutomation $automation): bool
+    {
+        if (! $automation->organizer_id) {
+            return true;
+        }
+
+        if (! OrganizerRules::allowed($automation->organizer_id)) {
+            return false;
+        }
+
+        $rules = OrganizerRules::for($automation->organizer_id);
+
+        return $rules['automations'] && ($automation->trigger !== 'abandoned_checkout' || $rules['abandoned_checkout']);
     }
 
     /** Ticket holders of events starting soon (reminders) or just ended (follow-up). */
@@ -355,6 +379,9 @@ class Automations
         EmailConsent::where('scope', Consent::scope($a->organizer_id))
             ->where('status', 'subscribed')
             ->where('consented_at', '>=', $a->activated_at ?? now())
+            // An organizer welcomes people who joined one of their events, not
+            // everyone who ticked the box and then left checkout.
+            ->when($a->organizer_id, fn ($q) => $q->whereIn('email', Audience::query([], $a->organizer_id)->select('email_consents.email')))
             ->with('user:id,name')
             ->limit(1000)
             ->get()

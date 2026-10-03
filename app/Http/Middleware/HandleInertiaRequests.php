@@ -9,6 +9,7 @@ use App\Services\Chat\Messenger;
 use App\Support\Chat\PollToken;
 use App\Support\Chat\Realtime;
 use App\Support\Cities;
+use App\Support\Edm\OrganizerRules;
 use App\Support\Impersonation;
 use App\Support\RolePermissions;
 use App\Support\SeoManager;
@@ -58,6 +59,11 @@ class HandleInertiaRequests extends Middleware
                 'is_admin' => RolePermissions::isAdmin($request->user()),
                 'admin_sections' => RolePermissions::allowedSections($request->user()),
                 'must_set_password' => (bool) $request->user()?->must_set_password,
+                // Organizer email marketing: shown, shown locked (Premium would
+                // unlock it), or hidden — per the rules a superadmin sets.
+                'organizer_edm' => $request->user()?->hasAnyRole(['organizer', 'superadmin'])
+                    ? OrganizerRules::navState($request->user())
+                    : null,
                 'unread_notifications' => $request->user()
                     ? AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
                     : 0,

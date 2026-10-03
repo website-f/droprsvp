@@ -200,6 +200,12 @@ class EdmAutomationController extends Controller
             return back()->with('flash_error', 'Add at least one email first.');
         }
 
+        if ($automation->organizer_id && ! Automations::organizerMayRun($automation)) {
+            return back()->with('flash_error', $automation->trigger === 'abandoned_checkout'
+                ? 'Abandoned-checkout reminders write to people who have not bought a ticket, so they are not available on your account.'
+                : 'Automations are not available on your account.');
+        }
+
         Automations::activate($automation);
 
         return back()->with('flash_success', 'Switched on. It picks people up from now — nobody already past the trigger is emailed retroactively.');

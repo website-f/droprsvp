@@ -58,9 +58,28 @@ class OrganizerEdmTest extends TestCase
 
     private function subscribers(int $n, ?int $organizerId = null): void
     {
+        $organizerId ??= $this->org->id;
+
         for ($i = 0; $i < $n; $i++) {
-            Consent::grant("fan{$i}@example.com", 'checkout', null, $organizerId ?? $this->org->id);
+            Consent::grant("fan{$i}@example.com", 'checkout', null, $organizerId);
+            // Opted in AND joined: only people with a ticket can be emailed.
+            $this->joined("fan{$i}@example.com", $organizerId);
         }
+    }
+
+    /** A paid order for one of this organizer's events. */
+    private function joined(string $email, ?int $organizerId = null): void
+    {
+        $organizerId ??= $this->org->id;
+        $event = $organizerId === $this->org->id ? $this->event : (Event::where('user_id', $organizerId)->first() ?? Event::create([
+            'user_id' => $organizerId, 'title' => 'Other night', 'slug' => 'other-'.$organizerId,
+            'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
+        ]));
+
+        Order::create([
+            'reference' => 'DRSVP-'.strtoupper(substr(md5($email.$organizerId), 0, 8)), 'event_id' => $event->id, 'buyer_email' => $email,
+            'buyer_name' => 'Fan', 'status' => 'paid', 'paid_at' => now()->subDay(), 'total' => 0, 'currency' => 'MYR',
+        ]);
     }
 
     private function campaign(array $attrs = []): EmailCampaign
@@ -132,13 +151,16 @@ class OrganizerEdmTest extends TestCase
 
     public function test_an_organizer_audience_counts_only_purchases_from_their_events(): void
     {
-        $this->subscribers(2);
+        Consent::grant('fan0@example.com', 'checkout', null, $this->org->id);
+        Consent::grant('fan1@example.com', 'checkout', null, $this->org->id);
         $other = $this->organizer();
         $otherEvent = Event::create(['user_id' => $other->id, 'category_id' => $this->event->category_id, 'title' => 'Elsewhere', 'slug' => 'elsewhere', 'status' => 'published', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur', 'starts_at' => now()->addWeek(), 'published_at' => now()]);
         Order::create(['reference' => 'R1', 'event_id' => $otherEvent->id, 'status' => 'paid', 'buyer_email' => 'fan0@example.com', 'paid_at' => now(), 'total' => 10]);
         Order::create(['reference' => 'R2', 'event_id' => $this->event->id, 'status' => 'paid', 'buyer_email' => 'fan1@example.com', 'paid_at' => now(), 'total' => 10]);
 
         $this->assertSame(1, Audience::count(['purchase' => 'buyers'], $this->org->id));
+        // And with no filter at all: a ticket from someone else is not joining THEIR event.
+        $this->assertSame(1, Audience::count([], $this->org->id));
     }
 
     public function test_organizer_subscribers_hide_platform_suppression_controls(): void
