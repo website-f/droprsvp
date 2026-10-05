@@ -32,7 +32,8 @@ interface EventView {
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
 }
-interface Participants { count: number; unlocked: boolean; list: { name: string; chat?: string | null }[]; page: number; pages: number }
+/** `count` is tickets going; `others` are the ones held under someone else's name. */
+interface Participants { count: number; unlocked: boolean; list: { name: string; chat?: string | null }[]; others: number; page: number; pages: number }
 interface Review { id: number; author: string; rating: number; body: string | null; when: string; mine: boolean }
 interface Reviews { average: number; count: number; distribution: Record<string, number>; list: Review[]; page: number; pages: number; mine: { rating: number; body: string | null } | null }
 interface Discussion { count: number; page: number; pages: number; list: Comment[] }
@@ -206,7 +207,9 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
     const goDiscussion = (page: number) =>
         router.reload({ only: ['discussion'], data: { discussion_page: page } });
 
-    const hiddenParticipants = Math.max(0, participants.count - participants.list.length);
+    // Tickets behind the paywall: the total less the names shown and the
+    // unnamed ones already accounted for by the "others" card.
+    const hiddenParticipants = Math.max(0, participants.count - participants.list.length - participants.others);
 
     const TABS: { key: Tab; label: string; icon: typeof Info; tint: string; badge?: number }[] = [
         { key: 'about', label: 'About', icon: Info, tint: '#3b82f6' },
@@ -373,6 +376,19 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                                         <MessagePersonButton href={m.chat} name={m.name} />
                                                     </div>
                                                 ))}
+
+                                                {/* Tickets bought for someone else: counted, but nobody gave us a name. */}
+                                                {participants.others > 0 && (
+                                                    <div
+                                                        className="flex items-center gap-3 rounded-xl border border-dashed border-border p-3"
+                                                        title="Extra tickets bought for guests whose names were not given."
+                                                    >
+                                                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">+{participants.others}</span>
+                                                        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                                                            {participants.others === 1 ? '1 other guest' : `${participants.others} other guests`}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Paywall for free/guest viewers */}

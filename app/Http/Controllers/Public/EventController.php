@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\EventReview;
-use App\Models\Order;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Chat\ChatLink;
 use App\Support\Cities;
@@ -239,40 +239,81 @@ class EventController extends Controller
     }
 
     /**
-     * People who got tickets. Free/guest see the first 4 (the rest paywalled);
-     * premium + the organizer see the full list, paginated.
+     * People who got tickets.
+     *
+     * "Going" counts tickets, not buyers, so it tallies with the tickets sold:
+     * one person buying four seats brings four people. Only the holder has a
+     * name on the platform, so the list shows a card per named holder and
+     * gathers the rest into "N others" — four names and three others for seven
+     * tickets, rather than four names claiming to be everyone.
+     *
+     * Free/guest see the first 4 names (the rest paywalled); premium + the
+     * organizer see the full list, paginated.
      */
     private function participants(Event $event, bool $canSeeAll, int $page, ?User $viewer = null, bool $isOwner = false): array
     {
         $perPage = 12;
-        $paid = Order::where('event_id', $event->id)->where('status', 'paid')->whereNotNull('buyer_email');
-        $total = (int) (clone $paid)->distinct('buyer_email')->count('buyer_email');
-        $rows = (clone $paid)->orderByDesc('paid_at')->get(['buyer_name', 'buyer_email', 'user_id'])->unique('buyer_email')->values();
+
+        $tickets = $event->tickets()->live()
+            ->with('order:id,buyer_name,buyer_email,user_id,paid_at')
+            ->get(['id', 'order_id', 'attendee_name', 'attendee_email']);
+
+        $going = $tickets->count();
+
+        // One entry per person we can name, newest ticket first. A ticket that
+        // was passed on carries the new holder's details, so it stands on its
+        // own rather than under the buyer.
+        $holders = $tickets
+            ->map(function (Ticket $ticket) {
+                $email = $ticket->attendee_email ?: $ticket->order?->buyer_email;
+
+                return [
+                    'email' => $email ? mb_strtolower($email) : null,
+                    'name' => $ticket->attendee_name ?: ($ticket->order?->buyer_name ?: 'Guest'),
+                    // Only the buyer's own ticket points back at their account.
+                    'user_id' => $email && strcasecmp($email, (string) $ticket->order?->buyer_email) === 0
+                        ? $ticket->order?->user_id
+                        : null,
+                    'at' => $ticket->order?->paid_at,
+                ];
+            })
+            ->filter(fn (array $h) => $h['email'] !== null)
+            ->sortByDesc('at')
+            ->unique('email')
+            ->values();
+
+        $named = $holders->count();
 
         // Message buttons only between people at the same event: the organizer,
         // or someone holding a ticket themselves.
-        $canMessage = $viewer && ($isOwner || $rows->contains(fn ($o) => (int) $o->user_id === $viewer->id
-            || strcasecmp((string) $o->buyer_email, (string) $viewer->email) === 0));
-        $person = fn ($o) => ['name' => $o->buyer_name ?: 'Guest', 'chat' => $canMessage ? ChatLink::for($viewer, $o->user_id) : null];
+        $canMessage = $viewer && ($isOwner || $holders->contains(fn (array $h) => (int) $h['user_id'] === $viewer->id
+            || strcasecmp((string) $h['email'], (string) $viewer->email) === 0));
+        $person = fn (array $h) => ['name' => $h['name'], 'chat' => $canMessage ? ChatLink::for($viewer, $h['user_id']) : null];
 
         if (! $canSeeAll) {
+            $list = $holders->take(4);
+
             return [
-                'count' => $total,
+                'count' => $going,
                 'unlocked' => false,
-                'list' => $rows->take(4)->map($person)->values()->all(),
+                'list' => $list->map($person)->values()->all(),
+                // The remainder only makes sense once every name is on screen;
+                // otherwise it would double up with what the paywall hides.
+                'others' => $named <= $list->count() ? max(0, $going - $named) : 0,
                 'page' => 1,
                 'pages' => 1,
             ];
         }
 
-        $pages = max(1, (int) ceil($rows->count() / $perPage));
+        $pages = max(1, (int) ceil($named / $perPage));
         $page = min($page, $pages);
 
         return [
-            'count' => $total,
+            'count' => $going,
             'unlocked' => true,
-            'list' => $rows->slice(($page - 1) * $perPage, $perPage)
+            'list' => $holders->slice(($page - 1) * $perPage, $perPage)
                 ->map($person)->values()->all(),
+            'others' => $page === $pages ? max(0, $going - $named) : 0,
             'page' => $page,
             'pages' => $pages,
         ];

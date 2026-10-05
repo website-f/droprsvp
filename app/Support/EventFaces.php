@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\Order;
+use App\Models\Ticket;
 use Illuminate\Support\Collection;
 
 /**
@@ -15,9 +15,13 @@ use Illuminate\Support\Collection;
  * per-request multiplier that turns ordinary crawler traffic into a database
  * the host suspends you for.
  *
- * The GROUP BY does the de-duplication in MySQL rather than fetching every paid
- * order and uniquing in PHP: a popular event can have thousands of orders, and
- * only its distinct buyer names are ever wanted.
+ * The GROUP BY does the de-duplication in MySQL rather than fetching every
+ * ticket and uniquing in PHP: a popular event can have thousands of them, and
+ * only its distinct attendee names are ever wanted.
+ *
+ * Names come from the tickets rather than the orders so that the faces match
+ * the "going" count beside them (one buyer, three tickets, one face), and so a
+ * ticket passed on shows whoever holds it now.
  */
 class EventFaces
 {
@@ -26,7 +30,7 @@ class EventFaces
 
     /**
      * @param  iterable<int|string>  $eventIds
-     * @return array<int|string, list<string>> event id => up to 3 buyer names
+     * @return array<int|string, list<string>> event id => up to 3 attendee names
      */
     public static function for(iterable $eventIds): array
     {
@@ -36,21 +40,22 @@ class EventFaces
             return [];
         }
 
-        // One row per (event, distinct buyer name), most recent purchase first.
-        $rows = Order::query()
-            ->selectRaw('event_id, buyer_name, MAX(paid_at) as last_paid_at')
+        // One row per (event, distinct attendee name), newest ticket first.
+        $rows = Ticket::query()
+            ->selectRaw('event_id, attendee_name, MAX(id) as last_id')
             ->whereIn('event_id', $ids)
-            ->where('status', 'paid')
-            ->whereNotNull('buyer_name')
-            ->groupBy('event_id', 'buyer_name')
-            ->orderByDesc('last_paid_at')
+            ->live()
+            ->whereNotNull('attendee_name')
+            ->where('attendee_name', '!=', '')
+            ->groupBy('event_id', 'attendee_name')
+            ->orderByDesc('last_id')
             ->get();
 
         return $rows
             ->groupBy('event_id')
             ->map(fn (Collection $group) => $group
                 ->take(self::PER_EVENT)
-                ->pluck('buyer_name')
+                ->pluck('attendee_name')
                 ->all())
             ->all();
     }

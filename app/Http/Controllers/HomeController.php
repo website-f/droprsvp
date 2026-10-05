@@ -132,7 +132,7 @@ class HomeController extends Controller
     {
         return Event::published()
             ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
-            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
+            ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
             ->withAvg('reviews as reviews_avg', 'rating')
             ->notEnded()

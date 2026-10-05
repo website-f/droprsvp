@@ -34,9 +34,13 @@ class ChatLinksTest extends TestCase
 
     private function ticket(User $u): void
     {
-        Order::create([
+        $order = Order::create([
             'reference' => 'DRSVP-'.strtoupper(substr(md5($u->email), 0, 6)), 'user_id' => $u->id, 'buyer_name' => $u->name,
             'buyer_email' => $u->email, 'event_id' => $this->event->id, 'status' => 'paid', 'paid_at' => now(), 'total' => 0, 'currency' => 'MYR',
+        ]);
+
+        $order->tickets()->create([
+            'event_id' => $this->event->id, 'attendee_name' => $u->name, 'attendee_email' => $u->email, 'status' => 'valid',
         ]);
     }
 

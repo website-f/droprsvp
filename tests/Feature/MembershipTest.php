@@ -27,12 +27,20 @@ class MembershipTest extends TestCase
         ]);
     }
 
-    private function paidOrder(Event $event, string $email): void
+    /** A settled order with its tickets, the way checkout leaves them. */
+    private function paidOrder(Event $event, string $email, int $tickets = 1): void
     {
-        Order::create([
+        $order = Order::create([
             'reference' => 'M-'.Str::random(6), 'event_id' => $event->id, 'status' => 'paid',
             'buyer_name' => 'Buyer '.$email, 'buyer_email' => $email, 'total' => 10, 'currency' => 'MYR', 'paid_at' => now(),
         ]);
+
+        foreach (range(1, $tickets) as $ignored) {
+            $order->tickets()->create([
+                'event_id' => $event->id, 'attendee_name' => $order->buyer_name,
+                'attendee_email' => $email, 'status' => 'valid',
+            ]);
+        }
     }
 
     public function test_free_viewer_sees_only_top_4_members(): void

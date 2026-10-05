@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -35,6 +36,16 @@ class Ticket extends Model
                 $ticket->qr_token = (string) Str::ulid();
             }
         });
+    }
+
+    /**
+     * Tickets that still stand for someone turning up — everything except the
+     * voided, cancelled and refunded ones. This is what "sold" and "going"
+     * mean everywhere in the app, so counts tally wherever they are shown.
+     */
+    public function scopeLive(Builder $query): Builder
+    {
+        return $query->whereIn('status', ['valid', 'checked_in']);
     }
 
     public function order(): BelongsTo

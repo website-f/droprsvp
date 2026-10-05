@@ -33,7 +33,7 @@ class OrganizerController extends Controller
 
         $events = $organizer->events()->published()
             ->with(['ticketTypes:id,event_id,kind,price,is_active', 'category:id,name,slug'])
-            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
+            ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
             ->withAvg('reviews as reviews_avg', 'rating')
             ->orderByRaw('starts_at is null, starts_at asc')
@@ -305,7 +305,7 @@ class OrganizerController extends Controller
 
         return Event::published()
             ->with(['ticketTypes:id,event_id,kind,price,is_active'])
-            ->withCount(['orders as participants_count' => fn ($q) => $q->where('status', 'paid')])
+            ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')->withAvg('reviews as reviews_avg', 'rating')
             ->whereIn('category_id', $categoryIds)
             ->whereNotIn('id', $ownEventIds)
