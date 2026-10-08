@@ -76,7 +76,17 @@ class User extends Authenticatable implements PasskeyUser
         'event_reminders' => 'Reminders before events you’re attending',
         'organizer_updates' => 'Updates from organizers you follow',
         'chat_messages' => 'Emails about unread messages',
+        'organizer_sales' => 'Emails when someone books one of your events',
     ];
+
+    /**
+     * Channels that only mean something to an organizer. They are hidden from
+     * everyone else's settings page rather than offering a switch for mail
+     * that could never arrive.
+     *
+     * @var list<string>
+     */
+    public const ORGANIZER_NOTIFICATION_CHANNELS = ['organizer_sales'];
 
     protected static function booted(): void
     {
@@ -101,6 +111,20 @@ class User extends Authenticatable implements PasskeyUser
         }
 
         return $out;
+    }
+
+    /**
+     * The channels worth showing this user, in registry order.
+     *
+     * @return array<string, string>
+     */
+    public function notificationChannels(): array
+    {
+        if ($this->hasAnyRole(['organizer', 'superadmin'])) {
+            return self::NOTIFICATION_CHANNELS;
+        }
+
+        return array_diff_key(self::NOTIFICATION_CHANNELS, array_flip(self::ORGANIZER_NOTIFICATION_CHANNELS));
     }
 
     /** Whether the user still wants a given non-transactional notification. */

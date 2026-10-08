@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\AccountStatusMail;
 use App\Mail\ContactMessageMail;
 use App\Mail\GuestAccountMail;
+use App\Mail\OrderPlacedOrganizerMail;
 use App\Mail\OrderRefundedMail;
 use App\Mail\OrganizerApplicationMail;
 use App\Mail\OrganizerApplicationReceivedMail;
@@ -98,6 +99,7 @@ class SendTestEmails extends Command
             'Welcome (on register / Google sign-up)' => new WelcomeMail($user),
             'Registration code (organizer sign-up)' => new RegistrationCodeMail('482913'),
             'Tickets issued (after purchase)' => new TicketsIssued($order),
+            'New booking (to the organizer)' => new OrderPlacedOrganizerMail($order),
             'Order refunded' => new OrderRefundedMail($order),
             'Payout paid (organizer)' => new PayoutPaidMail($payout),
             'Vendor application — received' => new OrganizerApplicationReceivedMail($profile),

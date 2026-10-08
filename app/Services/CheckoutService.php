@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\GuestAccountMail;
 use App\Mail\OrderPlacedAdminMail;
+use App\Mail\OrderPlacedOrganizerMail;
 use App\Mail\OrderRefundedMail;
 use App\Mail\TicketsIssued;
 use App\Models\DiscountCode;
@@ -301,6 +302,25 @@ class CheckoutService
                         Mail::to($inbox)->send(new OrderPlacedAdminMail($order));
                     } catch (\Throwable $e) {
                         report($e); // a failed notification must never affect the buyer
+                    }
+                }
+
+                // The organizer's own copy. The platform inbox knew about every
+                // sale while the person running the event did not, and only
+                // found out by opening their dashboard. Theirs is a notification
+                // rather than a receipt, so the organizer_sales switch on
+                // Settings → Notifications turns it off.
+                $organizer = $order->event?->user;
+
+                if ($organizer?->email
+                    && ! $organizer->isDisabled()
+                    && $organizer->wantsNotification('organizer_sales')
+                    // No point telling someone they bought their own ticket.
+                    && strcasecmp($organizer->email, (string) $order->buyer_email) !== 0) {
+                    try {
+                        Mail::to($organizer->email)->send(new OrderPlacedOrganizerMail($order));
+                    } catch (\Throwable $e) {
+                        report($e);
                     }
                 }
             });

@@ -17,7 +17,8 @@ class NotificationController extends Controller
     public function edit(Request $request): Response
     {
         return Inertia::render('settings/notifications', [
-            'channels' => User::NOTIFICATION_CHANNELS,
+            // Organizer-only switches are left out for everyone else.
+            'channels' => $request->user()->notificationChannels(),
             'preferences' => $request->user()->notificationSettings(),
             // Marketing EMAIL is not one of the in-app channels above: it is
             // consent, recorded in email_consents with when and where it was
