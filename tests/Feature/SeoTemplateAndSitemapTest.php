@@ -25,6 +25,18 @@ class SeoTemplateAndSitemapTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The sample event sits on a fixed date so the title and description
+        // assertions below can quote it word for word. The clock has to be
+        // held before that date too: the organizer page lists only upcoming
+        // events, so the morning the date passed, this class began failing
+        // for reasons that had nothing to do with SEO.
+        $this->travelTo('2026-09-01 09:00:00');
+    }
+
     private function event(array $attributes = []): Event
     {
         $host = User::factory()->create(['name' => 'BoardLah Entertainment', 'slug' => 'boardlah-entertainment']);

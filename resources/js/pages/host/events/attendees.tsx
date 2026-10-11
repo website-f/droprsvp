@@ -21,7 +21,8 @@ interface Paginated<T> {
     from: number | null; to: number | null; prev_page_url: string | null; next_page_url: string | null;
 }
 interface Filters { q: string; status: string; type: string; facets?: Record<string, string> }
-interface Stats { total: number; checked_in: number }
+interface TypeCount { id: number | null; name: string; total: number; checked_in: number }
+interface Stats { total: number; checked_in: number; by_type: TypeCount[] }
 interface Props {
     event: { title: string; slug: string; mode?: string };
     tickets: Paginated<Row>;
@@ -250,6 +251,10 @@ p.set('type', filters.type);
 
     const pct = liveStats.total ? Math.round((liveStats.checked_in / liveStats.total) * 100) : 0;
 
+    // An older page in a browser tab can still be holding stats from before
+    // the split existed, so never assume the array is there.
+    const byType = liveStats.by_type ?? [];
+
     // Only grow an Answers column when the event actually asked something.
     const hasAnswers = rows.some((r) => Object.keys(r.answers ?? {}).length > 0);
 
@@ -288,6 +293,53 @@ p.set('type', filters.type);
                         <div className="mt-1 text-xs text-muted-foreground">{pct}% arrived</div>
                     </div>
                 </div>
+
+                {/* How the admissions split across the ticket types, so the count
+                    for each one is on screen instead of being filtered for. */}
+                {byType.length > 1 && (
+                    <div className="mb-5 overflow-hidden rounded-xl border border-border bg-card">
+                        <div className="border-b border-border px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">By ticket type</div>
+                        <ul className="divide-y divide-border">
+                            {byType.map((t) => {
+                                const active = t.id !== null && filters.type === String(t.id);
+                                const share = liveStats.total ? Math.round((t.total / liveStats.total) * 100) : 0;
+
+                                const row = (
+                                    <>
+                                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                                            <span className="truncate text-sm font-medium">{t.name}</span>
+                                            {active && <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">filtered</span>}
+                                        </span>
+                                        {/* Stacked, so the caption still fits on a phone at the door. */}
+                                        <span className="flex shrink-0 flex-col items-end leading-tight">
+                                            <span className="text-lg font-bold tabular-nums">{t.total}</span>
+                                            <span className="text-[11px] text-muted-foreground">{t.checked_in} checked in</span>
+                                        </span>
+                                    </>
+                                );
+
+                                return (
+                                    <li key={t.id ?? 'other'} className={active ? 'bg-accent/50' : undefined}>
+                                        {/* Clicking a type does the filtering they were doing by hand. */}
+                                        {t.id === null ? (
+                                            <div className="flex items-center gap-3 px-4 py-3">{row}</div>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => applyFilters({ type: active ? 'all' : String(t.id) })}
+                                                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent"
+                                                aria-pressed={active}
+                                            >
+                                                {row}
+                                            </button>
+                                        )}
+                                        <div className="h-1 bg-muted"><div className="h-full bg-foreground/70 transition-all" style={{ width: `${share}%` }} /></div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
 
                 {/* Toolbar */}
                 <div className="mb-4 flex flex-wrap items-center gap-2">

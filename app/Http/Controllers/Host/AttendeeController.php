@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Host;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Ticket;
+use App\Models\TicketType;
 use App\Support\AttendeeDirectory;
 use App\Support\Cities;
 use App\Support\CustomFields;
@@ -349,12 +350,59 @@ class AttendeeController extends Controller
         ];
     }
 
-    /** @return array{total: int, checked_in: int} */
+    /**
+     * The numbers above the list.
+     *
+     * `by_type` answers "how many Ticket A, how many Ticket B" without making
+     * the organizer filter to one type, count, then filter to the next. It is
+     * counted off the tickets themselves rather than ticket_types.sold, which
+     * records units bought at checkout and drifts from reality once a ticket
+     * is voided — the split has to add up to the Admissions figure beside it.
+     *
+     * Deliberately ignores the active filters, like the totals beside it: the
+     * point is the whole split, always on screen.
+     *
+     * @return array{total: int, checked_in: int, by_type: list<array{id: int|null, name: string, total: int, checked_in: int}>}
+     */
     private function stats(Event $event): array
     {
+        $counts = $event->tickets()
+            ->whereIn('status', ['valid', 'checked_in'])
+            ->selectRaw('ticket_type_id, count(*) as total, sum(case when status = ? then 1 else 0 end) as checked_in', ['checked_in'])
+            ->groupBy('ticket_type_id')
+            ->get()
+            ->keyBy('ticket_type_id');
+
+        // Every type the event sells, in the organizer's own order, including
+        // the ones nobody has bought yet.
+        $byType = $event->ticketTypes()->orderBy('sort_order')->get(['id', 'name'])
+            ->map(fn (TicketType $type) => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'total' => (int) ($counts[$type->id]->total ?? 0),
+                'checked_in' => (int) ($counts[$type->id]->checked_in ?? 0),
+            ])
+            ->values()
+            ->all();
+
+        // Tickets whose type has since been deleted still admit someone, so
+        // they are gathered here instead of leaving the split short.
+        $known = array_column($byType, 'id');
+        $orphans = $counts->reject(fn ($row) => in_array($row->ticket_type_id, $known, true));
+
+        if ($orphans->isNotEmpty()) {
+            $byType[] = [
+                'id' => null,
+                'name' => 'Other',
+                'total' => (int) $orphans->sum('total'),
+                'checked_in' => (int) $orphans->sum('checked_in'),
+            ];
+        }
+
         return [
             'total' => $event->tickets()->whereIn('status', ['valid', 'checked_in'])->count(),
             'checked_in' => $event->tickets()->where('status', 'checked_in')->count(),
+            'by_type' => $byType,
         ];
     }
 }
