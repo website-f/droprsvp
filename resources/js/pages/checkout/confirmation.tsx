@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { CheckCircle2, Clock, Ticket } from 'lucide-react';
+import { CheckCircle2, Clock, KeyRound, Ticket } from 'lucide-react';
 import { useEffect } from 'react';
 import { PurchaseEvent } from '@/components/analytics-events';
 import { Wordmark } from '@/components/brand';
@@ -101,7 +101,22 @@ export default function CheckoutConfirmation({ order, analytics }: { order: Orde
                         </div>
                     )}
 
-                    <div className="mt-8 flex justify-center gap-3">
+                    {/* An account checkout made for them. Asked here, after the
+                        tickets, rather than as a wall in front of them. */}
+                    {paid && auth?.must_set_password && (
+                        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-3">
+                                <KeyRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                <div className="text-sm">
+                                    <div className="font-medium">Choose a password</div>
+                                    <div className="text-muted-foreground">So you can sign in next time and find these tickets again.</div>
+                                </div>
+                            </div>
+                            <Button asChild variant="outline" size="sm" className="shrink-0"><Link href="/set-password">Set password</Link></Button>
+                        </div>
+                    )}
+
+                    <div className="mt-8 flex flex-wrap justify-center gap-3">
                         {auth?.user && <Button asChild><Link href="/my/tickets">My tickets</Link></Button>}
                         <Button asChild variant="outline"><Link href={`/en-my/e/${order.event.slug}/`}>Back to event</Link></Button>
                     </div>

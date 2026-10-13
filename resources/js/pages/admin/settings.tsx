@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, ClipboardList, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Users } from 'lucide-react';
+import { ArmchairIcon, Banknote, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Users } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -7,29 +7,19 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { TagInput } from '@/components/ui/tag-input';
 
-interface CheckoutRequired { phone: boolean; gender: boolean; age_band: boolean; city: boolean; source: boolean; notes: boolean }
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
 interface Announcement { active: boolean; style: string; level: string; title: string; body: string; cta_label: string; cta_url: string; version: number }
 interface SettingsData {
     fee_percent: number; fee_flat: number;
     boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
-    checkout_required: CheckoutRequired; ticketing_modes: TicketingModes; announcement: Announcement; trending_keywords: string;
+    ticketing_modes: TicketingModes; announcement: Announcement; trending_keywords: string;
 }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'checkout' | 'ticketing' | 'search' | 'general';
-
-const CHECKOUT_FIELDS: { key: keyof CheckoutRequired; label: string }[] = [
-    { key: 'phone', label: 'Phone number' },
-    { key: 'gender', label: 'Gender' },
-    { key: 'age_band', label: 'Age band' },
-    { key: 'city', label: 'City' },
-    { key: 'source', label: 'How they heard about it' },
-    { key: 'notes', label: 'Notes / remarks' },
-];
+type Tab = 'payments' | 'tax' | 'ticketing' | 'search' | 'general';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
@@ -63,13 +53,11 @@ export default function Settings({ settings, rolePermissions, permissionSections
         tax_label: settings.tax_label ?? '',
         tax_inclusive: settings.tax_inclusive,
         support_email: settings.support_email ?? '',
-        checkout_required: settings.checkout_required,
         ticketing_modes: settings.ticketing_modes,
         announcement: settings.announcement,
         trending_keywords: settings.trending_keywords ?? '',
     });
     const { data, setData, processing } = form;
-    const setRequired = (key: keyof CheckoutRequired, v: boolean) => setData('checkout_required', { ...data.checkout_required, [key]: v });
     const setMode = (key: keyof TicketingModes, v: boolean) => setData('ticketing_modes', { ...data.ticketing_modes, [key]: v });
     const setAnnounce = (key: keyof Announcement, v: string | boolean) => setData('announcement', { ...data.announcement, [key]: v });
 
@@ -79,7 +67,6 @@ export default function Settings({ settings, rolePermissions, permissionSections
     const TABS: { key: Tab; label: string; icon: typeof Banknote }[] = [
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
-        { key: 'checkout', label: 'Checkout', icon: ClipboardList },
         { key: 'ticketing', label: 'Ticketing', icon: ArmchairIcon },
         { key: 'search', label: 'Search', icon: Flame },
         { key: 'general', label: 'General', icon: Settings2 },
@@ -161,21 +148,6 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                 <div><div className="text-sm font-medium">Prices include tax</div><div className="text-xs text-muted-foreground">Show ticket prices as tax-inclusive.</div></div>
                                 <Switch checked={data.tax_inclusive} onCheckedChange={(v) => setData("tax_inclusive", v)} />
                             </div>
-                        </div>
-                    )}
-
-                    {tab === 'checkout' && (
-                        <div className="grid gap-3">
-                            <p className="text-sm text-muted-foreground">Choose which buyer fields are required at checkout. Name and email are always required.</p>
-                            {CHECKOUT_FIELDS.map((f) => (
-                                <div key={f.key} className="flex items-center justify-between rounded-lg border border-border p-3">
-                                    <div className="text-sm font-medium">{f.label}</div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">{data.checkout_required[f.key] ? 'Required' : 'Optional'}</span>
-                                        <Switch checked={data.checkout_required[f.key]} onCheckedChange={(v) => setRequired(f.key, v)} />
-                                    </div>
-                                </div>
-                            ))}
                         </div>
                     )}
 

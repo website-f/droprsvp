@@ -123,33 +123,39 @@ class ProfileSyncFromCheckoutTest extends TestCase
         $this->assertSame('25-34', $user->age_band);
     }
 
-    public function test_the_profile_completes_only_when_nothing_required_is_missing(): void
+    public function test_a_phone_from_checkout_is_enough_to_finish_the_profile(): void
     {
-        // Checkout never asks for country, so it alone cannot finish a profile.
-        $withoutCountry = User::factory()->create([
+        // Only the phone is required now; nothing else from checkout is needed
+        // — not gender, not a birth year, not the country checkout never asks.
+        $user = User::factory()->create([
             'phone' => null, 'gender' => null, 'age_band' => null, 'country' => null,
             'profile_completed_at' => null,
         ]);
 
-        $this->paidOrder([
-            'buyer_name' => 'X', 'buyer_email' => $withoutCountry->email,
-            'buyer_phone' => '011', 'buyer_gender' => 'male', 'buyer_age_band' => '25-34',
-        ], $withoutCountry);
+        $this->paidOrder(['buyer_name' => 'X', 'buyer_email' => $user->email, 'buyer_phone' => '011'], $user);
 
-        $this->assertNull($withoutCountry->refresh()->profile_completed_at);
+        $this->assertNotNull($user->refresh()->profile_completed_at);
+        $this->assertNull($user->country);
+    }
 
-        // A returning buyer who already has a country is finished by checkout.
-        $withCountry = User::factory()->create([
-            'phone' => null, 'gender' => null, 'age_band' => null,
-            'country' => 'Malaysia', 'profile_completed_at' => null,
-        ]);
+    public function test_the_profile_finishes_even_when_checkout_had_nothing_new_to_add(): void
+    {
+        // A guest account is created WITH the phone on it, so the order has no
+        // blank column left to fill — the profile must still count as done.
+        $user = User::factory()->create(['phone' => '011', 'profile_completed_at' => null]);
 
-        $this->paidOrder([
-            'buyer_name' => 'Y', 'buyer_email' => $withCountry->email,
-            'buyer_phone' => '012', 'buyer_gender' => 'female', 'buyer_age_band' => '35-44',
-        ], $withCountry);
+        $this->paidOrder(['buyer_name' => 'X', 'buyer_email' => $user->email, 'buyer_phone' => '011'], $user);
 
-        $this->assertNotNull($withCountry->refresh()->profile_completed_at);
+        $this->assertNotNull($user->refresh()->profile_completed_at);
+    }
+
+    public function test_without_a_phone_the_profile_is_not_finished(): void
+    {
+        $user = User::factory()->create(['phone' => null, 'profile_completed_at' => null]);
+
+        $this->paidOrder(['buyer_name' => 'X', 'buyer_email' => $user->email, 'buyer_gender' => 'male'], $user);
+
+        $this->assertNull($user->refresh()->profile_completed_at);
     }
 
     public function test_an_unpaid_order_syncs_nothing(): void
@@ -210,15 +216,16 @@ class ProfileSyncFromCheckoutTest extends TestCase
         $this->assertSame('Kuala Lumpur', $user->city);
     }
 
-    public function test_is_complete_requires_every_mandatory_column(): void
+    public function test_is_complete_needs_only_the_phone(): void
     {
         $user = User::factory()->create([
-            'phone' => '011', 'gender' => 'male', 'age_band' => '25-34', 'country' => null,
+            'phone' => null, 'gender' => 'male', 'age_band' => '25-34', 'country' => 'Malaysia',
         ]);
 
         $this->assertFalse(Profile::isComplete($user));
 
-        $user->update(['country' => 'Malaysia']);
+        // Gender, age and country are optional; the phone alone completes it.
+        $user->update(['phone' => '011', 'gender' => null, 'age_band' => null, 'country' => null]);
 
         $this->assertTrue(Profile::isComplete($user->fresh()));
     }

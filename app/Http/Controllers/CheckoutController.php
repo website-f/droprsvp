@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Admin\SettingsController;
 use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\EventDailyStat;
@@ -99,7 +98,6 @@ class CheckoutController extends Controller
 
         return Inertia::render('checkout/show', [
             'order' => $this->orderPayload($order),
-            'required' => SettingsController::checkoutRequired(),
             // For the state -> city picker. A free-text city gave us "KL",
             // "kuala lumpur" and "K.L." for one place, and the city is what the
             // browse pages and the organizer's audience breakdown key on.
@@ -209,23 +207,24 @@ class CheckoutController extends Controller
         $this->authorizeOrderAccess($order, $request);
         abort_unless($order->status === 'pending', 410);
 
-        // Which fields the superadmin marked required (name + email always are).
-        $req = SettingsController::checkoutRequired();
-        $need = fn (string $field) => $req[$field] ? 'required' : 'nullable';
-
+        // Name, email and phone are all a ticket needs: who it is for, where it
+        // goes, and how to reach them on the day. Everything after that is
+        // optional and always will be — these used to be switchable to
+        // required, and every one that was turned on cost sales at the last
+        // step. Only the organizer's own questions can insist (see below).
         $data = $request->validate([
             'buyer_name' => ['required', 'string', 'max:120'],
             'buyer_email' => ['required', 'email', 'max:180'],
-            'buyer_phone' => [$need('phone'), 'string', 'max:40'],
+            'buyer_phone' => ['required', 'string', 'max:40'],
             // Demographics — power the organizer's audience analytics.
-            'buyer_gender' => [$need('gender'), 'in:female,male,other,na'],
+            'buyer_gender' => ['nullable', 'in:female,male,other,na'],
             // Birth year rather than a band; the band is derived below so the
             // organizer's audience analytics are unaffected.
-            'buyer_birth_year' => [$need('age_band'), 'integer', 'min:'.Profile::EARLIEST_BIRTH_YEAR, 'max:'.date('Y')],
-            'buyer_city' => [$need('city'), 'string', 'max:80'],
-            'buyer_source' => [$need('source'), 'in:instagram,facebook,tiktok,friend,search,email,other'],
+            'buyer_birth_year' => ['nullable', 'integer', 'min:'.Profile::EARLIEST_BIRTH_YEAR, 'max:'.date('Y')],
+            'buyer_city' => ['nullable', 'string', 'max:80'],
+            'buyer_source' => ['nullable', 'in:instagram,facebook,tiktok,friend,search,email,other'],
             // Free-text notes / remarks for the organizer (dietary needs, questions…).
-            'notes' => [$need('notes'), 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
             // The organizer's own questions, one answer set per ticket. Shape is
             // checked here; the values are validated against the event's field
             // definitions by CustomFields::normalise below, which is the only
@@ -246,7 +245,13 @@ class CheckoutController extends Controller
             // Agreeing to DropRSVP's emails is not agreeing to every
             // organizer's, so each is its own list and its own choice.
             'organizer_opt_in' => ['nullable', 'boolean'],
-        ], ['consent.accepted' => 'Please agree to the terms to continue.']);
+        ], [
+            'buyer_name.required' => 'Please enter your name.',
+            'buyer_email.required' => 'Please enter your email — your tickets are sent there.',
+            'buyer_email.email' => 'That email address does not look right.',
+            'buyer_phone.required' => 'Please enter a phone number, in case the organizer needs to reach you.',
+            'consent.accepted' => 'Please agree to the terms to continue.',
+        ]);
         unset($data['consent']);
 
         // Recorded now, when they chose it, rather than on payment: the choice

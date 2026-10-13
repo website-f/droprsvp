@@ -80,8 +80,17 @@ class Profile
         return $diff->y.' year'.($diff->y === 1 ? '' : 's').' on DropRSVP';
     }
 
-    /** Everything the "about you" form insists on before a profile counts as done. */
-    private const REQUIRED = ['phone', 'gender', 'age_band', 'country'];
+    /**
+     * Everything a profile needs before it counts as done.
+     *
+     * Name and email come with the account, so only the phone is asked for.
+     * Gender, birth year, city and country used to be on this list, which
+     * sent every buyer who had just paid back to a form demanding them — the
+     * ticket bought, then a wall of questions before they could see it. They
+     * are still asked, and still feed the organizer's audience analytics, but
+     * nobody is held up for skipping them.
+     */
+    private const REQUIRED = ['phone'];
 
     /**
      * Carry a settled order's buyer details onto the account behind it.
@@ -101,23 +110,25 @@ class Profile
     public static function syncFromOrder(Order $order): void
     {
         $user = $order->user;
-        $fill = self::changesFromOrder($order);
 
-        if (! $user || $fill === []) {
+        if (! $user) {
             return;
         }
 
-        $user->fill($fill);
+        $user->fill(self::changesFromOrder($order));
 
-        // Flip the "incomplete profile" flag only once everything the about-you
-        // form requires is actually present. Checkout never asks for country, so
-        // this usually completes only for a returning buyer who already has one —
-        // the rest still see the form, now pre-filled down to a single question.
+        // Checkout always takes a phone number, so a buyer leaves it with a
+        // finished profile and goes straight to their tickets rather than to
+        // the about-you form. Checked even when there was nothing to fill:
+        // a guest account is created WITH the phone already on it, which
+        // left nothing blank for the order to fill — and the flag unflipped.
         if ($user->profile_completed_at === null && self::isComplete($user)) {
             $user->profile_completed_at = now();
         }
 
-        $user->save();
+        if ($user->isDirty()) {
+            $user->save();
+        }
     }
 
     /**

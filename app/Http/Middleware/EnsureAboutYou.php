@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Profile;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -22,6 +23,16 @@ class EnsureAboutYou
             && $request->isMethod('GET')
             && ! $request->expectsJson()
             && ! $request->routeIs('profile.about-you')) {
+            // Someone who already has everything the form would ask for is
+            // simply marked done. Without this, every buyer from before the
+            // form was cut down to a phone number would be stopped once more
+            // to confirm details they had already given at checkout.
+            if (Profile::isComplete($user)) {
+                $user->forceFill(['profile_completed_at' => now()])->save();
+
+                return $next($request);
+            }
+
             return redirect()->route('profile.about-you');
         }
 
