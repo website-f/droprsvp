@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Media;
+use App\Support\Dates;
 use App\Support\ImageOptimizer;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +37,7 @@ class MediaController extends Controller
         ]);
 
         $file = $request->file('file');
+        $originalName = $file->getClientOriginalName();
         $info = @getimagesize($file->getRealPath());
 
         // Raster formats only. SVG (getimagesize → false) stays rejected — it can
@@ -69,6 +73,104 @@ class MediaController extends Controller
         // Also best effort — the frontend falls back to the original on error.
         ImageOptimizer::thumbnail($disk->path('cms/'.$name));
 
-        return response()->json(['url' => $disk->url('cms/'.$name)]);
+        // Into the Media Library, after optimising, so the size and dimensions
+        // it records are the ones actually served.
+        $media = Media::record('cms/'.$name, $request->user()?->id, $originalName);
+
+        // `url` stays first-class: every existing uploader reads just that.
+        return response()->json(['url' => $disk->url('cms/'.$name), 'media' => $media->payload($request->user())]);
+    }
+
+    /** The Media Library page (Content → Media). The images themselves load from index(). */
+    public function page()
+    {
+        return inertia('admin/cms/media/index');
+    }
+
+    /**
+     * The library as JSON, newest first, 40 at a time — for the Media page and
+     * for the picker in the page and email builders. Admins get every image;
+     * anyone else, their own.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'month' => ['nullable', 'regex:/^\d{4}-\d{2}$/'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $user = $request->user();
+        $query = Media::visibleTo($user)->with('user:id,name')->latest('created_at')->latest('id');
+
+        if (($q = trim((string) ($data['q'] ?? ''))) !== '') {
+            $query->where(fn ($w) => $w->where('original_name', 'like', "%{$q}%")->orWhere('alt', 'like', "%{$q}%"));
+        }
+
+        if (! empty($data['month'])) {
+            $start = Carbon::createFromFormat('Y-m-d', $data['month'].'-01', Dates::tz())->startOfMonth()->utc();
+            $query->whereBetween('created_at', [$start, $start->copy()->addMonth()->subSecond()]);
+        }
+
+        $page = $query->paginate(40);
+
+        return response()->json([
+            'data' => $page->getCollection()->map(fn (Media $m) => $m->payload($user))->values(),
+            'next' => $page->hasMorePages() ? $page->currentPage() + 1 : null,
+            'total' => $page->total(),
+            // The "All dates" filter, only with the first page.
+            'months' => $page->currentPage() === 1 ? $this->months($user) : null,
+        ]);
+    }
+
+    /** Rename an image or give it alt text. */
+    public function update(Request $request, Media $media): JsonResponse
+    {
+        abort_unless($media->editableBy($request->user()), 403);
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:191'],
+            'alt' => ['nullable', 'string', 'max:300'],
+        ]);
+
+        $media->update(array_filter([
+            'original_name' => isset($data['name']) ? Media::cleanName($data['name']) : null,
+        ]) + (array_key_exists('alt', $data) ? ['alt' => $data['alt']] : []));
+
+        return response()->json(['media' => $media->fresh('user')->payload($request->user())]);
+    }
+
+    /**
+     * Delete an image: the file, its thumbnail and the library entry. Anywhere
+     * it is still used shows a missing image from then on — the library page
+     * says so before asking.
+     */
+    public function destroy(Request $request, Media $media): JsonResponse
+    {
+        abort_unless($media->editableBy($request->user()), 403);
+
+        $disk = Storage::disk('public');
+        $disk->delete([
+            $media->path,
+            trim(dirname($media->path), './').'/'.ImageOptimizer::THUMB_DIR.'/'.basename($media->path),
+        ]);
+        $media->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Months that have images in them, newest first: ["2026-10" => "October 2026", …]. */
+    private function months($user): array
+    {
+        return Media::visibleTo($user)
+            ->orderByDesc('created_at')
+            ->pluck('created_at')
+            ->filter()
+            ->mapWithKeys(function ($at) {
+                $local = Carbon::parse($at)->setTimezone(Dates::tz());
+
+                return [$local->format('Y-m') => $local->format('F Y')];
+            })
+            ->all();
     }
 }

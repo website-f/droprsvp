@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\HtmlSanitizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -56,6 +57,9 @@ class SecurityHardeningTest extends TestCase
 
     public function test_image_upload_accepts_png(): void
     {
+        // Without this every run of the suite left a black 100×100 PNG in the
+        // real storage/app/public/cms — dozens of them in a local Media Library.
+        Storage::fake('public');
         $user = User::factory()->create();
         $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])->post('/uploads', [
             'file' => UploadedFile::fake()->image('x.png', 100, 100),

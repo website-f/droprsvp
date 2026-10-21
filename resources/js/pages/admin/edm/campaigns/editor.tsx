@@ -3,11 +3,12 @@ import { Puck, usePuck } from '@measured/puck';
 import type { Data } from '@measured/puck';
 import '@measured/puck/puck.css';
 import { ArrowLeft, Code2, ExternalLink, LayoutTemplate, Upload } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { emailConfig } from '@/components/edm/email-puck-config';
 import type { EventChoice } from '@/components/edm/email-puck-config';
 import { HtmlPreview } from '@/components/html-preview';
+import { InsertImageButton } from '@/components/media/insert-image-button';
 import { Button } from '@/components/ui/button';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
@@ -92,6 +93,8 @@ export default function EmailEditor({ campaign, design, events, saveUrl, backUrl
     // Both versions are kept: switching to HTML and back never loses the blocks.
     const [mode, setMode] = useState<Mode>(design.editor === 'html' ? 'html' : 'builder');
     const [html, setHtml] = useState(design.html ?? '');
+    // The HTML editor, so "Insert image" can put the tag where the cursor is.
+    const htmlRef = useRef<HTMLTextAreaElement>(null);
     const [blocks, setBlocks] = useState<Data>({ root: design.root, content: design.content } as Data);
     const [saved, setSaved] = useState(() => snapshot(blocks, mode, html));
     const [saving, setSaving] = useState(false);
@@ -163,13 +166,17 @@ export default function EmailEditor({ campaign, design, events, saveUrl, backUrl
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
                                 <span className="flex items-center gap-2 text-sm font-medium"><Code2 className="size-4" /> Email HTML</span>
                                 {target.editable && (
-                                    <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-accent">
-                                        <Upload className="size-3.5" /> Load .html file
-                                        <input type="file" accept=".html,.htm,text/html" className="sr-only" onChange={loadFile} />
-                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        <InsertImageButton textarea={htmlRef} value={html} onChange={setHtml} kind="email" />
+                                        <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-accent">
+                                            <Upload className="size-3.5" /> Load .html file
+                                            <input type="file" accept=".html,.htm,text/html" className="sr-only" onChange={loadFile} />
+                                        </label>
+                                    </div>
                                 )}
                             </div>
                             <textarea
+                                ref={htmlRef}
                                 aria-label="Email HTML"
                                 spellCheck={false}
                                 readOnly={!target.editable}

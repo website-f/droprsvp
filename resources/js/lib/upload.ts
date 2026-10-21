@@ -53,6 +53,13 @@ export async function uploadImageWithToast(file: File): Promise<string | null> {
     }
 }
 
+/** One image in the Media Library (App\Models\Media::payload). */
+export interface MediaItem {
+    id: number; url: string; thumb: string; name: string; alt: string | null;
+    width: number | null; height: number | null; size: number | null;
+    uploaded: string; uploader: string | null; editable: boolean;
+}
+
 function cookie(name: string): string | undefined {
     return document.cookie
         .split('; ')
@@ -60,9 +67,23 @@ function cookie(name: string): string | undefined {
         ?.split('=')[1];
 }
 
+/** The CSRF token Laravel reads from the X-XSRF-TOKEN header. */
+export function xsrfToken(): string {
+    return decodeURIComponent(cookie('XSRF-TOKEN') ?? '');
+}
+
 /** Upload an image to the CMS media endpoint and resolve its public URL. */
 export async function uploadImage(file: File): Promise<string> {
-    const token = decodeURIComponent(cookie('XSRF-TOKEN') ?? '');
+    return (await postUpload(file)).url;
+}
+
+/** Upload an image and get its Media Library entry back. */
+export async function uploadMedia(file: File): Promise<MediaItem> {
+    return (await postUpload(file)).media;
+}
+
+async function postUpload(file: File): Promise<{ url: string; media: MediaItem }> {
+    const token = xsrfToken();
     const body = new FormData();
     body.append('file', file);
 
@@ -91,7 +112,5 @@ export async function uploadImage(file: File): Promise<string> {
         throw new Error(message);
     }
 
-    const data = (await res.json()) as { url: string };
-
-    return data.url;
+    return (await res.json()) as { url: string; media: MediaItem };
 }

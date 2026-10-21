@@ -99,6 +99,7 @@ const chatAdminNav: NavItem[] = [
 const cmsNav: NavItem[] = [
     { title: 'Pages', href: '/admin/cms/pages', icon: FileText },
     { title: 'Posts', href: '/admin/cms/posts', icon: Newspaper },
+    { title: 'Media', href: '/admin/cms/media', icon: GalleryHorizontalEnd },
     { title: 'Blog sidebar', href: '/admin/site/blog', icon: PanelRight },
     { title: 'Help center', href: '/admin/cms/help', icon: LifeBuoy },
     { title: 'Legal pages', href: '/admin/site/legal', icon: ScrollText },

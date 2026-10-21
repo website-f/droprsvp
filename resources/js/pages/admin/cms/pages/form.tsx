@@ -1,10 +1,11 @@
 import { Head, useForm } from '@inertiajs/react';
 import type {Data} from '@measured/puck';
 import { Code2, ExternalLink, LayoutTemplate, Loader2, Upload } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import type {PostCard} from '@/components/cms/puck-config';
 import { HtmlPreview } from '@/components/html-preview';
+import { InsertImageButton } from '@/components/media/insert-image-button';
 import { SeoFields  } from '@/components/seo-fields';
 import type {SeoData} from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,8 @@ export default function PageForm({ page }: { page: PageProp | null }) {
         html: page?.html ?? '',
     });
     const { data, setData, processing, errors } = form;
+    // The HTML editor, so "Insert image" can put the tag where the cursor is.
+    const htmlRef = useRef<HTMLTextAreaElement>(null);
     useUnsavedChanges(form.isDirty && !processing);
     const published = page?.status === 'published';
     const built = !!(page && page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
@@ -184,6 +187,7 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
                                     <span className="flex items-center gap-2 text-sm font-medium"><Code2 className="size-4" /> HTML</span>
                                     <div className="flex flex-wrap gap-2">
+                                        <InsertImageButton textarea={htmlRef} value={data.html} onChange={(v) => setData('html', v)} kind="page" />
                                         <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-accent">
                                             <Upload className="size-3.5" /> Load .html file
                                             <input type="file" accept=".html,.htm,text/html" className="sr-only" onChange={loadFile} />
@@ -196,6 +200,7 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                     </div>
                                 </div>
                                 <textarea
+                                    ref={htmlRef}
                                     aria-label="Page HTML"
                                     spellCheck={false}
                                     value={data.html}

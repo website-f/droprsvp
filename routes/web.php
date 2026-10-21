@@ -258,6 +258,12 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
     // Image uploads (event covers, CMS media) — any signed-in user.
     Route::post('uploads', [MediaController::class, 'store'])->middleware('throttle:uploads')->name('uploads');
 
+    // The Media Library behind the image pickers. Admins see every image,
+    // everyone else only their own uploads (App\Models\Media::visibleTo).
+    Route::get('media-library', [MediaController::class, 'index'])->name('media.index');
+    Route::patch('media-library/{media}', [MediaController::class, 'update'])->name('media.update');
+    Route::delete('media-library/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
+
     // Premium membership.
     Route::get('premium', [MembershipController::class, 'show'])->name('premium');
     Route::post('premium/subscribe', [MembershipController::class, 'subscribe'])->name('premium.subscribe');
@@ -472,6 +478,8 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
 
     // Headless CMS — superadmin or staff granted the Content section.
     Route::middleware(['role:superadmin|staff', EnsureSectionAccess::class])->prefix('admin/cms')->name('admin.cms.')->group(function () {
+        // Content → Media: the whole library, to browse, upload, rename and delete.
+        Route::get('media', [MediaController::class, 'page'])->name('media');
         Route::get('pages', [CmsPageController::class, 'index'])->name('pages.index');
         Route::get('pages/create', [CmsPageController::class, 'create'])->name('pages.create');
         Route::post('pages', [CmsPageController::class, 'store'])->name('pages.store');

@@ -1,12 +1,13 @@
 import { FieldLabel } from '@measured/puck';
 import type { Config, CustomField, Data } from '@measured/puck';
 import {
-    BarChart3, Building2, HelpCircle, Image as ImageIcon, Images,
+    BarChart3, Building2, GalleryHorizontalEnd, HelpCircle, Image as ImageIcon, Images,
     ImageUp, LayoutGrid, Loader2, Megaphone, Minus, MousePointerClick, Newspaper, Pilcrow, Quote, ListOrdered,
     Sparkles, StretchVertical, Trash2, Type, Video as VideoIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
+import { MediaPicker } from '@/components/media/media-picker';
 import { uploadImageWithToast } from '@/lib/upload';
 import { renderComponents } from './puck-render';
 import type { PostCard, Props } from './puck-render';
@@ -46,11 +47,13 @@ const OVERLAY = {
     ],
 };
 
-/* ---- custom field: real image uploader (→ /uploads) --------------------- */
+/* ---- custom field: image from the Media Library, or a new upload --------- */
 
 function ImageUploadField({ name, value, onChange }: { name: string; value: string; onChange: (v: string) => void }) {
     'use no memo';
     const [busy, setBusy] = useState(false);
+    // The Media Library: reuse an image already uploaded instead of uploading it again.
+    const [picking, setPicking] = useState(false);
     const pick = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -83,17 +86,26 @@ function ImageUploadField({ name, value, onChange }: { name: string; value: stri
                         <button type="button" onClick={pick} disabled={busy} className="flex flex-1 items-center justify-center gap-1.5 border-t border-border py-2 text-xs font-medium hover:bg-muted">
                             {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ImageUp className="size-3.5" />} Replace
                         </button>
+                        <button type="button" onClick={() => setPicking(true)} className="flex flex-1 items-center justify-center gap-1.5 border-l border-t border-border py-2 text-xs font-medium hover:bg-muted">
+                            <GalleryHorizontalEnd className="size-3.5" /> Library
+                        </button>
                         <button type="button" onClick={() => onChange('')} className="flex items-center justify-center gap-1.5 border-l border-t border-border px-3 py-2 text-xs font-medium text-destructive hover:bg-muted">
                             <Trash2 className="size-3.5" /> Remove
                         </button>
                     </div>
                 </div>
             ) : (
-                <button type="button" onClick={pick} disabled={busy} className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-6 text-sm text-muted-foreground hover:bg-muted">
-                    {busy ? <Loader2 className="size-5 animate-spin" /> : <ImageUp className="size-5" />}
-                    {busy ? 'Uploading…' : 'Upload image'}
-                </button>
+                <div className="grid gap-1.5">
+                    <button type="button" onClick={pick} disabled={busy} className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-6 text-sm text-muted-foreground hover:bg-muted">
+                        {busy ? <Loader2 className="size-5 animate-spin" /> : <ImageUp className="size-5" />}
+                        {busy ? 'Uploading…' : 'Upload image'}
+                    </button>
+                    <button type="button" onClick={() => setPicking(true)} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-medium hover:bg-muted">
+                        <GalleryHorizontalEnd className="size-3.5" /> Choose from Media Library
+                    </button>
+                </div>
             )}
+            <MediaPicker open={picking} onOpenChange={setPicking} onPick={(item) => onChange(item.url)} />
         </FieldLabel>
     );
 }
