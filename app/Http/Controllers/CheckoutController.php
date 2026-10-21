@@ -29,6 +29,13 @@ class CheckoutController extends Controller
     {
         abort_unless($event->status === 'published', 404);
 
+        // An event that is over keeps its page, but nothing on it is for sale.
+        // Tickets stayed buyable after the day unless the organizer happened
+        // to set a sales end date.
+        if ($event->hasEnded()) {
+            return back()->with('flash_error', 'This event has ended, so tickets are no longer on sale.');
+        }
+
         $data = $request->validate([
             'items' => ['nullable', 'array'],
             'items.*.ticket_type_id' => ['required', 'integer'],

@@ -1,5 +1,5 @@
 import { Link, router, useForm } from '@inertiajs/react';
-import { CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Tag, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
+import { CalendarCheck, CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Tag, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
@@ -31,7 +31,14 @@ interface EventView {
     seating_enabled: boolean; seating: SeatMapSection[];
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
+    /** Over: the page stays, but says so and stops selling. */
+    has_ended: boolean;
+    /** "Free", "RM 25.00", "RM 25.00 – RM 80.00" — null when there is nothing to price. */
+    price_label: string | null;
+    price_list: { name: string; price: string }[];
 }
+/** An upcoming event to send the visitor on to. */
+interface RelatedEvent { slug: string; title: string; cover_image: string | null; when: string | null; venue: string | null; price: string | null; same_organizer: boolean }
 /** `count` is tickets going; `others` are the ones held under someone else's name. */
 interface Participants { count: number; unlocked: boolean; list: { name: string; chat?: string | null }[]; others: number; page: number; pages: number }
 interface Review { id: number; author: string; rating: number; body: string | null; when: string; mine: boolean }
@@ -92,7 +99,7 @@ interface Offer {
     remaining: number | null;
 }
 
-export default function PublicEvent({ event, participants, discussion, reviews, viewer, offers = [] }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer; offers?: Offer[] }) {
+export default function PublicEvent({ event, participants, discussion, reviews, viewer, offers = [], related = [] }: { event: EventView; seo: Seo; participants: Participants; discussion: Discussion; reviews: Reviews; viewer: Viewer; offers?: Offer[]; related?: RelatedEvent[] }) {
     const [qty, setQty] = useState<Record<number, number>>({});
     const [submitting, setSubmitting] = useState(false);
     const [tab, setTab] = useState<Tab>('about');
@@ -232,6 +239,29 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                     </div>
                 )}
 
+                {/* A past event keeps its page — old links and the blog point
+                    here — but says plainly that it is over, and where to go next. */}
+                {event.has_ended && (
+                    <div className="border-b border-border bg-muted/50">
+                        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm sm:px-6">
+                            <span className="flex items-center gap-2 font-semibold"><CalendarCheck className="size-4" /> This event has ended</span>
+                            {event.when && <span className="text-muted-foreground">It took place on {event.when}.</span>}
+                            <span className="flex flex-wrap gap-x-4 gap-y-1 sm:ml-auto">
+                                {event.gallery.length > 0 && (
+                                    <button type="button" className="font-medium underline underline-offset-4"
+                                        onClick={() => {
+                                            setTab('gallery');
+                                            document.getElementById('event-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }}>
+                                        See photos
+                                    </button>
+                                )}
+                                {related.length > 0 && <a href="#upcoming" className="font-medium underline underline-offset-4">See upcoming events</a>}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Shown at the shape it was uploaded in — see EventBanner. The
                     old fixed 3:1 crop cut the text off a story-format poster.
                     Constrained to the content width now that it is no longer a
@@ -261,7 +291,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                             {event.when && (
                                 <div className="flex flex-wrap items-center gap-3">
                                     <CalendarDays className="size-5 text-muted-foreground" /><span>{event.when}</span>
-                                    {event.status === 'published' && event.google_url && event.ics_url && (
+                                    {event.status === 'published' && !event.has_ended && event.google_url && event.ics_url && (
                                         <AddToCalendar googleUrl={event.google_url} icsUrl={event.ics_url} label="Add to calendar" />
                                     )}
                                 </div>
@@ -270,6 +300,17 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                 <div className="flex items-center gap-3"><Video className="size-5 text-muted-foreground" /><span>Online event</span></div>
                             ) : (event.venue_name || event.venue_address) && (
                                 <div className="flex items-start gap-3"><MapPin className="size-5 shrink-0 text-muted-foreground" /><span className="min-w-0 break-words">{[event.venue_name, event.venue_address].filter(Boolean).join(' · ')}</span></div>
+                            )}
+                            {/* What it costs, where people look first — not only in
+                                the ticket box, which on a phone is far below. */}
+                            {event.price_label && (
+                                <div className="flex items-center gap-3">
+                                    <Ticket className="size-5 text-muted-foreground" />
+                                    <span>
+                                        <span className="font-semibold">{event.price_label}</span>
+                                        {event.has_ended && <span className="text-muted-foreground"> · sales closed</span>}
+                                    </span>
+                                </div>
                             )}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <span className="text-muted-foreground">Hosted by</span>
@@ -305,7 +346,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                         )}
 
                         {/* Tabs */}
-                        <div className="mt-8">
+                        <div id="event-tabs" className="mt-8 scroll-mt-6">
                             {/* One scrollable row on phones. Wrapping five tabs
                                 into two ragged lines read as a broken layout;
                                 a swipeable strip is the familiar pattern and
@@ -584,12 +625,58 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                 )}
                             </div>
                         </div>
+
+                        {/* Somewhere to go next. On a past event this is the point
+                            of the page; on any other it is "more like this". */}
+                        {related.length > 0 && (
+                            <section id="upcoming" className="mt-12 scroll-mt-6" aria-labelledby="upcoming-heading">
+                                <h2 id="upcoming-heading" className="text-lg font-semibold">
+                                    {related.every((r) => r.same_organizer) ? `More from ${event.organizer}` : 'Upcoming events you might like'}
+                                </h2>
+                                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    {related.map((r) => (
+                                        <Link key={r.slug} href={`/en-my/e/${r.slug}/`} className="group flex min-w-0 gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
+                                            <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                                                {r.cover_image
+                                                    ? <img src={r.cover_image} alt="" loading="lazy" className="size-full object-cover" />
+                                                    : <CalendarDays className="size-6 text-muted-foreground" />}
+                                            </span>
+                                            <span className="min-w-0">
+                                                <span className="line-clamp-2 font-medium group-hover:underline">{r.title}</span>
+                                                {r.when && <span className="mt-1 block text-xs text-muted-foreground">{r.when}</span>}
+                                                {r.venue && <span className="block truncate text-xs text-muted-foreground">{r.venue}</span>}
+                                                {r.price && <span className="mt-1 block text-xs font-semibold">{r.price}</span>}
+                                            </span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
                     </div>
 
                     {/* Ticket selector */}
                     <aside id="tickets" className="min-w-0 lg:sticky lg:top-6 lg:self-start">
                         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                            <h2 className="mb-4 font-semibold">{event.seating_enabled ? 'Choose your seats' : 'Tickets'}</h2>
+                            <h2 className="mb-4 font-semibold">{event.seating_enabled && !event.has_ended ? 'Choose your seats' : 'Tickets'}</h2>
+
+                            {event.has_ended ? (
+                                <>
+                                    <p className="text-sm text-muted-foreground">This event has ended, so tickets are no longer on sale.</p>
+                                    {event.price_list.length > 0 && (
+                                        <ul className="mt-4 grid gap-2">
+                                            {event.price_list.map((t, i) => (
+                                                <li key={i} className="flex items-baseline justify-between gap-3 rounded-xl border border-border p-3 text-sm">
+                                                    <span className="min-w-0 break-words">{t.name}</span>
+                                                    <span className="shrink-0 font-semibold">{t.price}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    {related.length > 0 && (
+                                        <Button asChild variant="outline" className="mt-4 w-full"><a href="#upcoming">See upcoming events</a></Button>
+                                    )}
+                                </>
+                            ) : (<>
 
                             {/* Advertised promo codes.
                                 Only codes the organizer flagged public and that
@@ -689,10 +776,11 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                 <Ticket className="size-4" /> {count === 0 ? (event.seating_enabled ? 'Select seats' : 'Get tickets') : `Checkout · RM ${total.toFixed(2)}`}
                             </Button>
                             <p className="mt-2 text-center text-xs text-muted-foreground">Secure checkout · powered by DropRSVP</p>
+                            </>)}
                         </div>
 
                         {/* Waitlist — offered when the event is sold out */}
-                        {event.sold_out && (
+                        {event.sold_out && !event.has_ended && (
                             <div className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
                                 <h2 className="font-semibold">Sold out — join the waitlist</h2>
                                 <p className="mt-1 text-sm text-muted-foreground">We’ll email you if a spot opens up.</p>

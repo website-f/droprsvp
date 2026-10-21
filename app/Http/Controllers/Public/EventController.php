@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventDailyStat;
 use App\Models\EventReview;
 use App\Models\Ticket;
+use App\Models\TicketType;
 use App\Models\User;
 use App\Support\Chat\ChatLink;
 use App\Support\Cities;
@@ -16,6 +17,7 @@ use App\Support\SeoManager;
 use App\Support\SeoTemplate;
 use App\Support\Url;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class EventController extends Controller
@@ -58,6 +60,11 @@ class EventController extends Controller
         $seo = $event->seo;
         $isPublic = $event->status === 'published' && in_array($event->visibility, ['public', 'unlisted'], true);
 
+        // Whether it is over, and what its tickets cost. Both feed the page, the
+        // crawler text and the JSON-LD, so they are worked out once here.
+        $ended = $event->hasEnded();
+        $priced = $this->pricedTicketTypes($event, $ended);
+
         // Ratings (shown on the page + as aggregateRating in JSON-LD).
         $ratingCount = (int) $event->reviews()->count();
         $ratingAvg = $ratingCount ? round((float) $event->reviews()->avg('rating'), 1) : 0.0;
@@ -89,7 +96,7 @@ class EventController extends Controller
             ->keywords($seoKeywords ?: SeoTemplate::eventKeywords($event))
             ->canonical($seo?->canonical_url ?: $canonical)
             ->image($seo?->og_image ? $this->absolute($seo->og_image) : $cover, null, null, $houseTitle ?: $event->title)
-            ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount))
+            ->schema($this->eventSchema($event, $description, $cover, $canonical, $organizer, $ratingAvg, $ratingCount, $priced, $ended))
             ->breadcrumb([
                 ['name' => 'Home', 'url' => Url::to()],
                 ['name' => 'Events', 'url' => Url::to('all')],
@@ -113,7 +120,8 @@ class EventController extends Controller
         // The event as text. There is no Node/SSR in production, so without this
         // a crawler that doesn't run JavaScript got the meta tags and an empty
         // body. Real visitors get the React version and never see it.
-        $manager->crawlable($this->crawlableEvent($event, $description, $organizer));
+        $related = $this->relatedEvents($event);
+        $manager->crawlable($this->crawlableEvent($event, $description, $organizer, $priced, $ended, $related));
 
         // --- social: members + discussion (with free/premium gating) ---
         // Superadmins + the organizer always have full access; everyone else needs Premium.
@@ -139,7 +147,9 @@ class EventController extends Controller
                 'description' => $event->description,
                 'cover_image' => $cover,
                 'banner_image' => $banner,
-                'gallery' => collect($event->gallery ?? [])->map(fn ($g) => $this->absolute($g))->values()->all(),
+                // The organizer's photos from the day lead, then the promo images:
+                // once an event is over, what it looked like is the better page.
+                'gallery' => $this->galleryFor($event),
                 'category' => $event->category?->name,
                 'is_online' => $event->is_online,
                 'venue_name' => $event->venue_name,
@@ -147,6 +157,13 @@ class EventController extends Controller
                 'online_url' => $event->online_url,
                 'starts_at' => optional($event->starts_at)->toIso8601String(),
                 'ends_at' => optional($event->ends_at)->toIso8601String(),
+                // Past events keep their page (links in the wild, the blog, receipts)
+                // but say so, stop selling, and point at what is coming up instead.
+                'has_ended' => $ended,
+                // What a ticket costs, stated in the header rather than only in the
+                // ticket box further down — "Free", "RM 25.00", "RM 25.00 – RM 80.00".
+                'price_label' => $this->priceLabel($priced),
+                'price_list' => $priced->map(fn ($t) => ['name' => $t->name, 'price' => $this->money($t)])->values()->all(),
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
                 'sold_out' => $event->ticketTypes->isNotEmpty() && $event->ticketTypes->every(fn ($t) => $t->remaining() === 0),
                 'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
@@ -199,7 +216,7 @@ class EventController extends Controller
                     'price' => (float) $t->price,
                     'compare_at_price' => $t->compare_at_price ? (float) $t->compare_at_price : null,
                     'currency' => $t->currency,
-                    'on_sale' => $t->isOnSale(),
+                    'on_sale' => ! $ended && $t->isOnSale(),
                     'sold_out' => $t->remaining() === 0,
                     'min_per_order' => $t->min_per_order,
                     'max_per_order' => $t->max_per_order,
@@ -222,6 +239,7 @@ class EventController extends Controller
             'seo' => [
                 'title' => $pageTitle,
             ],
+            'related' => $related,
             'participants' => $this->participants($event, $canSeeAllMembers, $participantsPage, $user, $isOwner),
             'discussion' => $this->discussion($event, $discussionPage, $user),
             'reviews' => $this->reviews($event, $myReview, $reviewsPage),
@@ -407,6 +425,130 @@ class EventController extends Controller
         return Str::limit($text, 155);
     }
 
+    /**
+     * The ticket types whose prices the page states.
+     *
+     * Every active type, including the seat-section ones (bought through the
+     * seat map, so absent from the ticket selector, but a price all the same).
+     * Once an event is over its organizer often switches the tickets off, which
+     * left the page saying nothing about price and the JSON-LD calling the event
+     * free; a past event falls back to every type it sold.
+     */
+    private function pricedTicketTypes(Event $event, bool $ended): Collection
+    {
+        // Both halves are already loaded with the page, so the usual case
+        // costs no query of its own.
+        $active = $event->ticketTypes
+            ->concat($event->seatSections->pluck('ticketType')->filter(fn ($t) => $t && $t->is_active))
+            ->unique('id')
+            ->sortBy('sort_order')
+            ->values();
+
+        if ($active->isNotEmpty() || ! $ended) {
+            return $active;
+        }
+
+        return $event->ticketTypes()->orderBy('sort_order')->get();
+    }
+
+    /** One ticket's price as the page shows it: "Free", "Donation", "RM 25.00". */
+    private function money(TicketType $type): string
+    {
+        if ($type->kind === 'donation') {
+            return 'Donation';
+        }
+
+        if ($type->kind === 'free' || (float) $type->price <= 0) {
+            return 'Free';
+        }
+
+        return $this->currency($type->currency).' '.number_format((float) $type->price, 2);
+    }
+
+    private function currency(?string $code): string
+    {
+        return ($code ?: 'MYR') === 'MYR' ? 'RM' : (string) $code;
+    }
+
+    /**
+     * The price at a glance: "Free", "RM 25.00", "RM 25.00 – RM 80.00", or
+     * "Free – RM 80.00" when there are free and paid tickets. Null when the
+     * event has no tickets to price.
+     */
+    private function priceLabel(Collection $types): ?string
+    {
+        if ($types->isEmpty()) {
+            return null;
+        }
+
+        $paid = $types->filter(fn ($t) => $t->kind === 'paid' && (float) $t->price > 0);
+
+        if ($paid->isEmpty()) {
+            return $types->every(fn ($t) => $t->kind === 'donation') ? 'Donation' : 'Free';
+        }
+
+        $symbol = $this->currency($paid->first()->currency);
+        $format = fn (float $amount) => $symbol.' '.number_format($amount, 2);
+        $low = (float) $paid->min(fn ($t) => (float) $t->price);
+        $high = (float) $paid->max(fn ($t) => (float) $t->price);
+
+        if ($paid->count() < $types->count()) {
+            return 'Free – '.$format($high);
+        }
+
+        return $low === $high ? $format($low) : $format($low).' – '.$format($high);
+    }
+
+    /** The organizer's own photos from the day first, then the promo images. */
+    private function galleryFor(Event $event): array
+    {
+        return $event->photos()->limit(60)->pluck('path')
+            ->concat($event->gallery ?? [])
+            ->filter(fn ($path) => is_string($path) && $path !== '')
+            ->unique()
+            ->map(fn (string $path) => $this->absolute($path))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Upcoming events to send someone on to: the same organizer's first, then
+     * others in the same category.
+     *
+     * On a past event's page this is the point of the page — whoever lands on
+     * it from an old link or the blog should find what is on next rather than
+     * a dead end. On an upcoming event it is simply "more like this".
+     */
+    private function relatedEvents(Event $event): array
+    {
+        $upcoming = fn () => Event::published()->notEnded()
+            ->where('id', '!=', $event->id)
+            ->with('ticketTypes:id,event_id,kind,price,currency,is_active')
+            ->orderByRaw('starts_at is null, starts_at asc');
+
+        $mine = $upcoming()->where('user_id', $event->user_id)->limit(4)->get();
+
+        $similar = $mine->count() < 4 && $event->category_id
+            ? $upcoming()->where('category_id', $event->category_id)
+                ->whereNotIn('id', $mine->pluck('id'))
+                ->limit(4 - $mine->count())
+                ->get()
+            : collect();
+
+        return $mine->concat($similar)
+            ->map(fn (Event $e) => [
+                'slug' => $e->slug,
+                'title' => $e->title,
+                'cover_image' => $e->cover_image ? $this->absolute($e->cover_image) : null,
+                'when' => $e->starts_at?->setTimezone($e->timezone ?: config('app.timezone'))->format('D, j M Y'),
+                'venue' => $e->is_online ? 'Online' : ($e->venue_name ?: $e->city),
+                'price' => $this->priceLabel($e->ticketTypes->where('is_active', true)->values()),
+                'same_organizer' => $e->user_id === $event->user_id,
+            ])
+            ->values()
+            ->all();
+    }
+
     private function absolute(string $path): string
     {
         return Str::startsWith($path, ['http://', 'https://']) ? $path : asset($path);
@@ -418,7 +560,7 @@ class EventController extends Controller
      * React page shows (what, when, where, who, and the description), so this is
      * the same content rather than an alternative version of it.
      */
-    private function crawlableEvent(Event $event, string $description, string $organizer): string
+    private function crawlableEvent(Event $event, string $description, string $organizer, Collection $priced, bool $ended, array $related): string
     {
         $tz = $event->timezone ?: config('app.timezone');
         $starts = $event->starts_at?->setTimezone($tz);
@@ -435,6 +577,12 @@ class EventController extends Controller
 
         if ($event->subtitle) {
             $html .= '<p>'.e($event->subtitle).'</p>';
+        }
+
+        if ($ended) {
+            $html .= '<p><strong>This event has ended.</strong>'
+                .($starts ? ' It took place on '.e($starts->format('l, j F Y')).'.' : '')
+                .($related !== [] ? ' See the upcoming events below.' : '').'</p>';
         }
 
         // ---- the facts -------------------------------------------------------
@@ -490,12 +638,14 @@ class EventController extends Controller
         }
 
         // ---- tickets: what it costs and whether you can still get in ------------
-        $tickets = $event->ticketTypes->map(function ($t) {
+        // Seat-section types are listed below by their section instead.
+        $tickets = $priced->whereNull('seat_section_id')->map(function ($t) use ($ended) {
             $price = $t->kind === 'free' || (float) $t->price <= 0
                 ? 'Free'
                 : ($t->currency ?: 'MYR').' '.number_format((float) $t->price, 2);
             $remaining = $t->remaining();
             $state = match (true) {
+                $ended => 'Event ended',
                 $remaining === 0 => 'Sold out',
                 ! $t->isOnSale() => 'Not on sale',
                 $remaining !== null && $remaining <= 20 => $remaining.' left',
@@ -517,8 +667,18 @@ class EventController extends Controller
             $html .= '<h2>Tickets</h2><ul>'.$tickets->implode('').$sections->implode('').'</ul>';
         }
 
-        if ($event->status === 'published') {
+        if ($event->status === 'published' && ! $ended) {
             $html .= '<p><a href="'.e($url.'#tickets').'">Get tickets for '.e($event->title).' on DropRSVP</a></p>';
+        }
+
+        // ---- where to go next ----------------------------------------------------
+        if ($related !== []) {
+            $html .= '<h2>Upcoming events</h2><ul>';
+            foreach ($related as $card) {
+                $html .= '<li><a href="'.e(Url::path('e', $card['slug'])).'">'.e($card['title']).'</a>'
+                    .($card['when'] ? ' — '.e($card['when']) : '').'</li>';
+            }
+            $html .= '</ul>';
         }
 
         return $html.'</article>';
@@ -533,7 +693,7 @@ class EventController extends Controller
      * free-text address line, no offer validity window, no price range, no
      * capacity, no geo.
      */
-    private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer, float $ratingAvg = 0.0, int $ratingCount = 0): array
+    private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer, float $ratingAvg, int $ratingCount, Collection $priced, bool $ended): array
     {
         $timezone = $event->timezone ?: config('app.timezone');
         $starts = $event->starts_at?->setTimezone($timezone);
@@ -544,8 +704,8 @@ class EventController extends Controller
             collect($event->gallery ?? [])->take(4)->map(fn ($g) => $this->absolute($g))->all(),
         )));
 
-        $offers = $this->offerSchema($event, $url);
-        $prices = collect($event->ticketTypes)->map(fn ($t) => (float) $t->price)->filter(fn ($p) => $p > 0);
+        $offers = $this->offerSchema($event, $url, $priced, $ended);
+        $prices = $priced->filter(fn ($t) => $t->kind === 'paid')->map(fn ($t) => (float) $t->price)->filter(fn ($p) => $p > 0);
 
         $schema = [
             '@type' => 'Event',
@@ -573,7 +733,10 @@ class EventController extends Controller
             // the organizer is the closest true answer, and leaving the field
             // out entirely loses something the rich result can show.
             'performer' => ['@type' => 'Organization', 'name' => $organizer],
-            'isAccessibleForFree' => $prices->isEmpty(),
+            // Only a claim when there are tickets to judge by. With none it
+            // used to say true, so a paid event whose tickets had been switched
+            // off was announced to search engines as free.
+            'isAccessibleForFree' => $priced->isNotEmpty() ? $prices->isEmpty() : null,
             'offers' => $offers ?: null,
         ];
 
@@ -591,15 +754,17 @@ class EventController extends Controller
         if ($prices->isNotEmpty() && $offers) {
             // An aggregate in front of the individual offers, so a result can
             // say "from RM25" without reading every ticket type.
-            $schema['offers'] = array_merge([[
+            $schema['offers'] = array_merge([array_filter([
                 '@type' => 'AggregateOffer',
-                'priceCurrency' => $event->ticketTypes->first()?->currency ?: 'MYR',
+                'priceCurrency' => $priced->first()?->currency ?: 'MYR',
                 'lowPrice' => number_format($prices->min(), 2, '.', ''),
                 'highPrice' => number_format($prices->max(), 2, '.', ''),
                 'offerCount' => count($offers),
-                'availability' => $this->availability($event),
+                // Nothing is on sale for an event that is over, and saying
+                // InStock about it would be wrong; the prices stay, as a record.
+                'availability' => $ended ? null : $this->availability($priced),
                 'url' => $url,
-            ]], $offers);
+            ])], $offers);
         }
 
         if ($ratingCount > 0) {
@@ -615,11 +780,15 @@ class EventController extends Controller
         return array_filter($schema, fn ($v) => $v !== null && $v !== []);
     }
 
-    /** One Offer per ticket type, with its own availability and validity window. */
-    private function offerSchema(Event $event, string $url): array
+    /**
+     * One Offer per ticket type, with its own availability and validity window.
+     * Free tickets are offers too — price 0.00 in MYR — so a free event still
+     * states its price rather than leaving it to be guessed.
+     */
+    private function offerSchema(Event $event, string $url, Collection $priced, bool $ended): array
     {
-        return $event->ticketTypes
-            ->map(function ($t) use ($event, $url) {
+        return $priced
+            ->map(function ($t) use ($event, $url, $ended) {
                 $remaining = $t->remaining();
 
                 return array_filter([
@@ -627,9 +796,11 @@ class EventController extends Controller
                     'name' => $t->name,
                     'price' => number_format((float) $t->price, 2, '.', ''),
                     'priceCurrency' => $t->currency ?: 'MYR',
-                    'availability' => $remaining === 0
-                        ? 'https://schema.org/SoldOut'
-                        : 'https://schema.org/InStock',
+                    'availability' => match (true) {
+                        $ended => null,
+                        $remaining === 0 => 'https://schema.org/SoldOut',
+                        default => 'https://schema.org/InStock',
+                    },
                     // When this offer can be bought. Google warns about offers
                     // with no validity window, and "from publication until the
                     // doors open" is the honest answer for an event ticket.
@@ -643,9 +814,9 @@ class EventController extends Controller
     }
 
     /** Whether any ticket at all is still available. */
-    private function availability(Event $event): string
+    private function availability(Collection $priced): string
     {
-        return $event->ticketTypes->contains(fn ($t) => $t->remaining() !== 0)
+        return $priced->contains(fn ($t) => $t->remaining() !== 0)
             ? 'https://schema.org/InStock'
             : 'https://schema.org/SoldOut';
     }

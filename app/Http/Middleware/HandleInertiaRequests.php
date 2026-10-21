@@ -78,6 +78,11 @@ class HandleInertiaRequests extends Middleware
             // resolves closures when the response is built, which is after the
             // controller has populated it.
             'pageTitle' => fn () => app(SeoManager::class)->displayTitle(),
+            // The page's meta, Open Graph and JSON-LD for the browser to put in
+            // <head> when it arrives without a reload (resources/js/lib/seo-head.ts).
+            // A full load already has them in the HTML, so they are only sent
+            // with in-app visits rather than doubled up in every page's payload.
+            'seoHead' => fn () => $request->header('X-Inertia') ? app(SeoManager::class)->headTags() : null,
             // Messages badge + a token for the session-free poll, signed-in only.
             'chat' => fn () => $request->user() ? [
                 'unread' => Messenger::unreadTotal($request->user()->id) + Messenger::requestCount($request->user()->id),

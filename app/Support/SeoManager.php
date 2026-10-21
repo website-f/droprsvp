@@ -249,7 +249,36 @@ class SeoManager
             : $this->title;
     }
 
+    /**
+     * Comments either side of the head tags, so the browser can find the block
+     * and swap it when the app moves to another page without a reload.
+     */
+    public const HEAD_START = 'seo-head';
+
+    public const HEAD_END = '/seo-head';
+
+    /** The whole SEO head for a full page load: the title, then the marked block. */
     public function render(): string
+    {
+        return implode("\n        ", [
+            '<title>'.e($this->displayTitle()).'</title>',
+            '<!--'.self::HEAD_START.'-->',
+            $this->headTags(),
+            '<!--'.self::HEAD_END.'-->',
+        ]);
+    }
+
+    /**
+     * Everything render() prints except the title: meta, canonical, Open Graph,
+     * Twitter and the JSON-LD.
+     *
+     * Also handed to the browser on every in-app navigation (the seoHead prop).
+     * The <head> is only written by the server on a full load, so after moving
+     * from the homepage to an event the live page still carried the homepage's
+     * og:type and a graph with no Event in it — which is exactly what a browser
+     * SEO extension, or anyone inspecting the page, then reported.
+     */
+    public function headTags(): string
     {
         // The admin panel must never be indexed or its links followed, regardless of
         // any per-page SEO — force noindex,nofollow on every /admin page.
@@ -260,14 +289,11 @@ class SeoManager
 
         $site = config('seo.site_name', 'DropRSVP');
 
-        $displayTitle = $this->displayTitle();
-
         $canonical = $this->trailingSlash($this->canonical ?: url()->current());
         $image = $this->image ?: ($this->absolute(config('seo.default_image')) ?: null);
         $ogTitle = $this->ogTitle ?: ($this->title ?: $site);
 
         $lines = [];
-        $lines[] = '<title>'.e($displayTitle).'</title>';
 
         if ($this->description) {
             $lines[] = $this->tag('name', 'description', $this->description);
@@ -389,9 +415,12 @@ class SeoManager
 
         $graph = array_merge([$organization, $website], array_map(fn ($n) => $this->prune($n), $this->graph));
 
-        $json = json_encode(
+        // A single malformed character in an organizer's description used to
+        // make json_encode return false — an empty script tag, and no Event
+        // markup at all. Substitute instead of failing the whole graph.
+        $json = (string) json_encode(
             ['@context' => 'https://schema.org', '@graph' => array_values($graph)],
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR,
         );
 
         // Guard against premature </script> in any string field.
