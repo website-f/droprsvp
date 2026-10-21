@@ -2,6 +2,7 @@ import { Monitor, Smartphone, Tablet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cleanFragment, partialClass } from '@/components/html-content';
 import type { HtmlLayout } from '@/components/html-content';
+import { hasScripts, sandboxDocument } from '@/components/sandboxed-html';
 import { disarm } from '@/components/shadow-html';
 import { cn } from '@/lib/utils';
 
@@ -72,25 +73,38 @@ export function HtmlPreview({
     empty = 'Paste your HTML to see it here.',
     devices = ['desktop', 'tablet', 'phone'],
     layout = 'full',
+    scripts = true,
     className,
 }: {
     html: string;
     /** "content" shows partial HTML in the site's styling, as the page will. */
     layout?: HtmlLayout;
+    /** Run the HTML's scripts (pages). Off for emails, which no inbox would run. */
+    scripts?: boolean;
     height?: number;
     empty?: string;
     devices?: PreviewDevice[];
     className?: string;
 }) {
     const [device, setDevice] = useState<PreviewDevice>(devices[0]);
-    const render = (source: string) => (layout === 'content' ? asSiteContent(source) : disarmed(source));
+    // HTML with scripts previews the way the page runs it: scripts on, in a
+    // sandbox of its own (see SandboxedHtml). Everything else as before.
+    const scripted = scripts && hasScripts(html);
+    const render = (source: string) => {
+        if (scripts && hasScripts(source)) {
+            return sandboxDocument(source, layout, { viewportHeight: height, autoHeight: false, linkTarget: '_blank', contentClass: partialClass, container: true });
+        }
+
+        return layout === 'content' ? asSiteContent(source) : disarmed(source);
+    };
     const [shown, setShown] = useState(() => render(html));
 
     useEffect(() => {
-        const timer = window.setTimeout(() => setShown(layout === 'content' ? asSiteContent(html) : disarmed(html)), 400);
+        const timer = window.setTimeout(() => setShown(render(html)), 400);
 
         return () => window.clearTimeout(timer);
-    }, [html, layout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- render reads only html, layout and height
+    }, [html, layout, height]);
 
     return (
         <div className={cn('overflow-hidden rounded-2xl border border-border bg-card shadow-sm', className)}>
@@ -121,7 +135,13 @@ export function HtmlPreview({
                 ) : (
                     <iframe
                         title="Preview"
-                        sandbox="allow-same-origin"
+                        // Scripts and same-origin are never granted together: that
+                        // pair would undo the sandbox. A scripted preview gets
+                        // scripts and an origin of its own; any other gets the
+                        // site's origin (for its fonts) and no scripts.
+                        sandbox={scripted ? 'allow-scripts allow-forms allow-popups allow-modals' : 'allow-same-origin'}
+                        // A fresh frame when that switches, as a sandbox is fixed at load.
+                        key={scripted ? 'scripted' : 'static'}
                         srcDoc={shown}
                         className="mx-auto shrink-0 rounded-lg border border-border bg-white"
                         // At its true width even when that overflows (it scrolls),

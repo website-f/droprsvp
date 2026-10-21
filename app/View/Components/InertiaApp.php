@@ -2,6 +2,7 @@
 
 namespace App\View\Components;
 
+use Inertia\Ssr\SsrState;
 use Inertia\View\Components\App;
 
 /**
@@ -30,6 +31,19 @@ use Inertia\View\Components\App;
  */
 class InertiaApp extends App
 {
+    public function __construct(string $id = 'app')
+    {
+        parent::__construct($id);
+
+        // The page data sits inside a <script> tag, so no "<" in it may read as
+        // markup. Pasted HTML is carried as-is now, scripts and comments
+        // included, and a commented-out "<!-- <script>" can make a browser
+        // misjudge where the tag ends and swallow the rest of the page.
+        // \u003C decodes to the same "<" in JavaScript; to the HTML parser it
+        // is just text.
+        $this->pageJson = (string) json_encode(app(SsrState::class)->page, JSON_HEX_TAG);
+    }
+
     public function render(): string
     {
         return <<<'blade'

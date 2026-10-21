@@ -63,7 +63,7 @@ HTML;
 
     // ---- saving --------------------------------------------------------------
 
-    public function test_a_pasted_page_keeps_its_design_and_loses_its_scripts(): void
+    public function test_a_pasted_page_is_kept_as_written_scripts_and_all(): void
     {
         $page = $this->create();
 
@@ -73,13 +73,37 @@ HTML;
         $this->assertStringContainsString('fonts.googleapis.com', $page->html);
         $this->assertStringContainsString('<body class="landing">', $page->html);
         $this->assertStringContainsString('viewBox="0 0 10 10"', $page->html);
-        // Text that merely looks like an attribute is left alone.
         $this->assertStringContainsString('Someone = everyone', $page->html);
 
-        // Anything that could run does not.
-        $this->assertStringNotContainsString('<script', $page->html);
-        $this->assertStringNotContainsString('onerror', $page->html);
-        $this->assertStringNotContainsString('javascript:', $page->html);
+        // So does its JavaScript: it runs, in the sandboxed frame only.
+        $this->assertStringContainsString("<script>alert('head')</script>", $page->html);
+        $this->assertStringContainsString('onerror="alert(1)"', $page->html);
+    }
+
+    public function test_its_scripts_never_reach_the_page_as_markup(): void
+    {
+        $this->create();
+
+        $html = $this->get('/en-my/landing/')->assertOk()->getContent();
+
+        // Not in the crawler text, and not readable as tags in the page data:
+        // every "<" there is \u003C, decoded only by JavaScript.
+        $this->assertStringNotContainsString("<script>alert('head')", $html);
+        $this->assertStringNotContainsString('onerror="alert(1)"', $html);
+        $this->assertStringContainsString(chr(92).'u003Cscript'.chr(92).'u003Ealert', $html);
+    }
+
+    public function test_a_commented_out_script_cannot_break_the_page(): void
+    {
+        // "<!-- <script>" inside the page data can make a browser lose track of
+        // where that <script> tag ends and swallow the rest of the page.
+        $this->create(['html' => '<p>Before</p><!-- <script>old()</script> --><p>After</p>']);
+
+        $html = $this->get('/en-my/landing/')->assertOk()->getContent();
+
+        preg_match('#<script data-page="app" type="application/json">(.*?)</script>#s', $html, $m);
+        $this->assertStringNotContainsString('<', $m[1]);
+        $this->assertSame('<p>Before</p><!-- <script>old()</script> --><p>After</p>', json_decode($m[1], true)['props']['page']['html']);
     }
 
     public function test_its_text_is_what_crawlers_and_the_description_get(): void
@@ -101,7 +125,8 @@ HTML;
         $this->get('/en-my/landing/')->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('public/page')
                 ->where('page.editor', 'html')
-                ->where('page.html', fn ($html) => str_contains($html, '.hero {') && ! str_contains($html, '<script')))
+                // Carried as written, scripts included, for the sandboxed frame.
+                ->where('page.html', fn ($html) => str_contains($html, '.hero {') && str_contains($html, '<script')))
             // Crawlers read the page's words without JavaScript.
             ->assertSee('Run your events')
             ->assertSee('Someone = everyone, at DropRSVP.');
@@ -310,21 +335,24 @@ HTML;
             'content' => [
                 ['type' => 'Heading', 'props' => ['id' => 'h', 'text' => 'Plans', 'level' => 'h2', 'align' => 'text-left']],
                 ['type' => 'Html', 'props' => ['id' => 'x', 'layout' => 'auto', 'html' => '<style>.p{color:red}</style><table><tr><td>RM3 per ticket</td></tr></table><img src=x onerror="alert(1)"><script>alert(2)</script>']],
+                // Any other block still has script stripped from its HTML.
+                ['type' => 'Text', 'props' => ['id' => 't', 'text' => '<p>Hi</p><script>alert(3)</script>', 'align' => 'text-left']],
             ],
         ]])->assertOk();
 
         $page->refresh();
         $block = $page->puck_data['content'][1]['props'];
 
-        // Kept: the markup and its styles. Gone: what could run.
+        // The HTML block is kept as written — its JavaScript runs in the sandbox.
         $this->assertStringContainsString('<table>', $block['html']);
         $this->assertStringContainsString('.p{color:red}', $block['html']);
-        $this->assertStringNotContainsString('<script', $block['html']);
-        $this->assertStringNotContainsString('onerror', $block['html']);
+        $this->assertStringContainsString('<script>alert(2)</script>', $block['html']);
+        $this->assertStringNotContainsString('alert(3)', $page->puck_data['content'][2]['props']['text']);
 
-        // Search and crawlers get its words, not its CSS or tags.
+        // Search and crawlers get its words, not its CSS, scripts or tags.
         $this->assertStringContainsString('RM3 per ticket', $page->body);
         $this->assertStringNotContainsString('color:red', $page->body);
+        $this->assertStringNotContainsString('alert', $page->body);
         $this->assertStringNotContainsString('<table', $page->body);
 
         $this->get('/en-my/mixed/')->assertOk()

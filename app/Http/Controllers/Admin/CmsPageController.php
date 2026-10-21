@@ -118,8 +118,10 @@ class CmsPageController extends Controller
         ]);
 
         // Strip active-content (scripts, event handlers, js: URLs) from any HTML
-        // an author placed in the builder before it's stored/rendered raw.
-        $clean = HtmlSanitizer::cleanTree($data['data']);
+        // an author placed in the builder before it's stored/rendered raw —
+        // except the HTML block's code, kept as written like a pasted page and,
+        // like one, only ever run inside the sandboxed frame.
+        $clean = $this->withHtmlBlocksKept($data['data'], fn (array $tree) => HtmlSanitizer::cleanTree($tree));
 
         $page->update([
             'puck_data' => $clean,
@@ -204,16 +206,62 @@ class CmsPageController extends Controller
             $attributes['editor'] = $data['editor'];
         }
 
-        // A pasted document: stored cleaned of anything that could run, and its
-        // readable text kept in `body` for crawlers and the meta description.
+        // A pasted document, stored as written — scripts included, so they can
+        // run. That is safe because of where it is shown: every path that puts
+        // it in the site's own page strips scripts first, and the only place
+        // they run is the sandboxed frame (resources/js/components/
+        // sandboxed-html.tsx), which cannot reach the site. Its readable text
+        // goes in `body` for crawlers and the meta description, rebuilt
+        // without scripts or handlers by PageHtml::content().
         if (($data['editor'] ?? null) === 'html') {
-            $html = PageHtml::clean((string) ($data['html'] ?? ''));
+            $html = (string) ($data['html'] ?? '');
             $attributes['html'] = $html;
             $attributes['html_layout'] = $data['html_layout'] ?? null;
             $attributes['body'] = PageHtml::content($html);
         }
 
         return $attributes;
+    }
+
+    /**
+     * Run $clean over a Puck tree with every HTML block's code set aside, then
+     * put that code back as written. Blocks can sit in zones as well as the top
+     * level, so the whole tree is walked.
+     */
+    private function withHtmlBlocksKept(array $tree, callable $clean): array
+    {
+        $kept = [];
+
+        $stash = function (array $node) use (&$stash, &$kept): array {
+            if (($node['type'] ?? null) === 'Html' && is_string($node['props']['html'] ?? null)) {
+                $kept[] = $node['props']['html'];
+                $node['props']['html'] = '%%HTMLBLOCK'.(count($kept) - 1).'%%';
+            }
+
+            foreach ($node as $key => $value) {
+                if (is_array($value)) {
+                    $node[$key] = $stash($value);
+                }
+            }
+
+            return $node;
+        };
+
+        $restore = function ($node) use (&$restore, &$kept) {
+            if (is_string($node) && preg_match('/^%%HTMLBLOCK(\d+)%%$/', $node, $m)) {
+                return $kept[(int) $m[1]] ?? '';
+            }
+
+            if (is_array($node)) {
+                foreach ($node as $key => $value) {
+                    $node[$key] = $restore($value);
+                }
+            }
+
+            return $node;
+        };
+
+        return $restore($clean($stash($tree)));
     }
 
     /** Flatten a Puck document into readable plain text for search/excerpts/SEO. */

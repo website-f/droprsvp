@@ -118,12 +118,19 @@ export function Footer({
 
             {(legal.length > 0 || rights) && (
                 <div className="border-t border-border">
-                    {/* Legal row — the brand already appears above, so no second mark here. */}
-                    <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 py-6 text-sm text-muted-foreground sm:justify-end">
-                        {legal.map((l, i) => (
-                            <Link key={i} href={l.url} className="hover:text-foreground">{l.label}</Link>
-                        ))}
-                        {rights && <span>{rights}</span>}
+                    {/* Legal row — the brand already appears above, so no second mark here.
+                        On a phone it stacks, left-aligned like the columns above:
+                        centring the links let a long company line wrap ragged
+                        beneath them. Wider screens: copyright left, links right. */}
+                    <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+                        {legal.length > 0 && (
+                            <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2 sm:order-last sm:shrink-0">
+                                {legal.map((l, i) => (
+                                    <Link key={i} href={l.url} className="hover:text-foreground">{l.label}</Link>
+                                ))}
+                            </nav>
+                        )}
+                        {rights && <p className="leading-relaxed">{rights}</p>}
                     </div>
                 </div>
             )}

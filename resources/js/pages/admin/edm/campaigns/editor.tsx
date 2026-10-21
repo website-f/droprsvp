@@ -191,7 +191,7 @@ export default function EmailEditor({ campaign, design, events, saveUrl, backUrl
                             </p>
                         </div>
                         <div className="min-h-0 overflow-auto p-4">
-                            <HtmlPreview html={html} height={720} devices={['desktop', 'phone']} empty="Paste your email’s HTML to see it here." />
+                            <HtmlPreview html={html} height={720} devices={['desktop', 'phone']} scripts={false} empty="Paste your email’s HTML to see it here." />
                         </div>
                     </div>
                 </div>

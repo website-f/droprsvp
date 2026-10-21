@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { contentClass } from '@/components/rich-editor';
+import { SandboxedHtml, hasScripts } from '@/components/sandboxed-html';
 import { ShadowHtml, disarm } from '@/components/shadow-html';
 import { cn } from '@/lib/utils';
 
@@ -55,7 +56,13 @@ export const partialClass = cn(contentClass, '[&>*:first-child]:mt-0');
 /** Pasted HTML on a public page, a builder block, or the page preview. */
 export function HtmlContent({ html, layout = 'auto', className }: { html: string; layout?: HtmlLayoutChoice | null; className?: string }) {
     const resolved = resolveLayout(html, layout);
-    const fragment = useMemo(() => (resolved === 'content' ? cleanFragment(html) : ''), [html, resolved]);
+    const scripted = useMemo(() => hasScripts(html), [html]);
+    const fragment = useMemo(() => (resolved === 'content' && !scripted ? cleanFragment(html) : ''), [html, resolved, scripted]);
+
+    // JavaScript runs, but only in a sandboxed frame of its own (SandboxedHtml).
+    if (scripted) {
+        return <SandboxedHtml html={html} layout={resolved} contentClass={partialClass} className={className} />;
+    }
 
     if (resolved === 'full') {
         return <ShadowHtml html={html} className={className} />;
