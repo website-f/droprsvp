@@ -1,12 +1,13 @@
 import { FieldLabel } from '@measured/puck';
 import type { Config, CustomField, Data } from '@measured/puck';
 import {
-    BarChart3, Building2, GalleryHorizontalEnd, HelpCircle, Image as ImageIcon, Images,
+    BarChart3, Building2, Code2, GalleryHorizontalEnd, HelpCircle, Image as ImageIcon, Images,
     ImageUp, LayoutGrid, Loader2, Megaphone, Minus, MousePointerClick, Newspaper, Pilcrow, Quote, ListOrdered,
     Sparkles, StretchVertical, Trash2, Type, Video as VideoIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { InsertImageButton } from '@/components/media/insert-image-button';
 import { MediaPicker } from '@/components/media/media-picker';
 import { uploadImageWithToast } from '@/lib/upload';
 import { renderComponents } from './puck-render';
@@ -116,12 +117,42 @@ export const imageUpload: CustomField<string> = {
     render: ({ name, onChange, value }) => <ImageUploadField name={name} value={value ?? ''} onChange={onChange} />,
 };
 
+/* ---- custom field: HTML, with images from the Media Library ------------- */
+
+function HtmlCodeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    'use no memo';
+    const ref = useRef<HTMLTextAreaElement>(null);
+
+    return (
+        <FieldLabel label="HTML">
+            <div className="grid gap-1.5">
+                <textarea
+                    ref={ref}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    spellCheck={false}
+                    rows={14}
+                    placeholder={'<h2>A heading</h2>\n<p>Some text…</p>'}
+                    className="w-full resize-y rounded-lg border border-border bg-background p-2 font-mono text-xs leading-relaxed outline-none focus-visible:border-ring"
+                />
+                <InsertImageButton textarea={ref} value={value} onChange={onChange} kind="page" />
+                <p className="text-xs text-muted-foreground">Scripts are removed for safety.</p>
+            </div>
+        </FieldLabel>
+    );
+}
+
+const htmlCode: CustomField<string> = {
+    type: 'custom',
+    render: ({ onChange, value }) => <HtmlCodeField value={value ?? ''} onChange={onChange} />,
+};
+
 /* ---- config ------------------------------------------------------------ */
 
 export const config: Config<Props> = {
     categories: {
         sections: { title: 'Sections', components: ['Hero', 'Features', 'Steps', 'CTA', 'FAQ', 'Carousel', 'Video', 'Posts'] },
-        content: { title: 'Content', components: ['Heading', 'Text', 'Button', 'Image', 'Gallery', 'Testimonial', 'Stats', 'Logos'] },
+        content: { title: 'Content', components: ['Heading', 'Text', 'Button', 'Image', 'Gallery', 'Testimonial', 'Stats', 'Logos', 'Html'] },
         layout: { title: 'Layout', components: ['Spacer', 'Divider'] },
     },
     components: {
@@ -219,6 +250,25 @@ export const config: Config<Props> = {
             fields: { url: { type: 'text' } },
             defaultProps: { url: '' },
         },
+        // Pasted HTML among the blocks. Partial HTML takes the site's styling;
+        // a full snippet with its own <style> keeps its own design.
+        Html: {
+            ...renderComponents.Html,
+            label: 'HTML',
+            fields: {
+                html: htmlCode,
+                layout: {
+                    type: 'radio',
+                    label: 'Display as',
+                    options: [
+                        { label: 'Auto', value: 'auto' },
+                        { label: 'Partial (site style)', value: 'content' },
+                        { label: 'Full (own design)', value: 'full' },
+                    ],
+                },
+            },
+            defaultProps: { html: '', layout: 'auto' },
+        },
         Testimonial: {
             ...renderComponents.Testimonial,
             fields: { quote: { type: 'textarea' }, author: { type: 'text' }, role: { type: 'text' } },
@@ -283,6 +333,7 @@ export const COMPONENT_ICONS: Record<string, LucideIcon> = {
     Testimonial: Quote,
     Stats: BarChart3,
     Logos: Building2,
+    Html: Code2,
     Spacer: StretchVertical,
     Divider: Minus,
 };

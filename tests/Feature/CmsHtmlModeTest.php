@@ -214,4 +214,120 @@ HTML;
         $this->assertSame('<p>Just a paragraph</p>', PageHtml::content('<p>Just a paragraph</p>'));
         $this->assertSame('', PageHtml::content('   '));
     }
+
+    // ---- partial vs full ----------------------------------------------------------
+
+    public function test_a_page_from_before_the_choice_is_left_to_auto_detection(): void
+    {
+        // What /pricing is: pasted content, no styles, saved before the choice
+        // existed. Null tells the page to work it out — partial, site styling.
+        $page = CmsPage::create([
+            'title' => 'Pricing', 'slug' => 'pricing', 'status' => 'published', 'published_at' => now(),
+            'editor' => 'html', 'html' => '<h1>Simple Pricing</h1><table><tr><td>RM10</td></tr></table>',
+        ]);
+
+        $this->assertNull($page->html_layout);
+        $this->get('/en-my/pricing/')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->where('page.editor', 'html')->where('page.html_layout', null));
+    }
+
+    public function test_the_choice_is_saved_and_sent_everywhere(): void
+    {
+        $page = $this->create(['html_layout' => 'content']);
+
+        $this->assertSame('content', $page->html_layout);
+        $this->get('/en-my/landing/')->assertInertia(fn (Assert $p) => $p->where('page.html_layout', 'content'));
+        $this->get(route('admin.cms.pages.edit', $page->id))->assertInertia(fn (Assert $p) => $p->where('page.html_layout', 'content'));
+        $this->get(route('admin.cms.pages.preview', $page->id))->assertInertia(fn (Assert $p) => $p->where('page.html_layout', 'content'));
+
+        // Back to Auto.
+        $this->put(route('admin.cms.pages.update', $page->id), [
+            'title' => 'Landing', 'slug' => 'landing', 'publish' => true, 'editor' => 'html', 'html' => self::DOC, 'html_layout' => '',
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($page->fresh()->html_layout);
+    }
+
+    public function test_only_the_two_layouts_are_accepted(): void
+    {
+        $this->actingAs($this->superadmin())->post(route('admin.cms.pages.store'), [
+            'title' => 'Odd', 'editor' => 'html', 'html' => '<p>x</p>', 'html_layout' => 'sideways',
+        ])->assertSessionHasErrors('html_layout');
+    }
+
+    // ---- structured data that came with the paste -----------------------------------
+
+    public function test_pasted_faq_schema_is_kept_and_served_in_the_head(): void
+    {
+        $faq = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Free events cost nothing."}}]}</script>';
+
+        $page = $this->create(['html' => '<h1>Pricing</h1><p>Free to host.</p>'.$faq, 'html_layout' => 'content']);
+
+        // Stored, unlike every other script.
+        $this->assertStringContainsString('application/ld+json', $page->html);
+
+        $html = $this->get('/en-my/landing/')->assertOk()->getContent();
+        preg_match('#<script type="application/ld\+json">(.*?)</script>#s', $html, $m);
+        $graph = json_decode(str_replace('<\/', '</', $m[1]), true)['@graph'];
+
+        $node = collect($graph)->firstWhere('@type', 'FAQPage');
+        $this->assertSame('Is it free?', $node['mainEntity'][0]['name']);
+    }
+
+    public function test_json_ld_cannot_smuggle_a_script_out(): void
+    {
+        // Valid JSON whose text, once decoded, holds a closing tag and a script.
+        $clean = PageHtml::clean(
+            '<script type="application/ld+json">{"@type":"Thing","name":"<\/script><script>alert(1)<\/script>"}</script>'
+            .'<script>alert(2)</script>'
+        );
+
+        // One script element, closed once: the "</" inside the data is escaped,
+        // so the browser never sees the block end early.
+        $this->assertSame(1, substr_count(strtolower($clean), '</script>'));
+        $this->assertStringNotContainsString('alert(2)', $clean);
+
+        // And what is inside is still the same data.
+        preg_match('#<script type="application/ld\+json">(.*)</script>#s', $clean, $m);
+        $this->assertSame('</script><script>alert(1)</script>', json_decode($m[1], true)['name']);
+    }
+
+    public function test_broken_json_ld_is_dropped_rather_than_kept_as_a_script(): void
+    {
+        $clean = PageHtml::clean('<p>Hi</p><script type="application/ld+json">{not json</script>');
+
+        $this->assertSame('<p>Hi</p>', $clean);
+    }
+
+    // ---- the HTML block in the Drop Builder ----------------------------------------
+
+    public function test_an_html_block_mixes_in_with_the_builder_blocks(): void
+    {
+        $this->actingAs($this->superadmin());
+        $page = CmsPage::create(['title' => 'Mixed', 'slug' => 'mixed', 'status' => 'published', 'published_at' => now()]);
+
+        $this->postJson(route('admin.cms.pages.builder.save', $page->id), ['data' => [
+            'root' => ['props' => []],
+            'content' => [
+                ['type' => 'Heading', 'props' => ['id' => 'h', 'text' => 'Plans', 'level' => 'h2', 'align' => 'text-left']],
+                ['type' => 'Html', 'props' => ['id' => 'x', 'layout' => 'auto', 'html' => '<style>.p{color:red}</style><table><tr><td>RM3 per ticket</td></tr></table><img src=x onerror="alert(1)"><script>alert(2)</script>']],
+            ],
+        ]])->assertOk();
+
+        $page->refresh();
+        $block = $page->puck_data['content'][1]['props'];
+
+        // Kept: the markup and its styles. Gone: what could run.
+        $this->assertStringContainsString('<table>', $block['html']);
+        $this->assertStringContainsString('.p{color:red}', $block['html']);
+        $this->assertStringNotContainsString('<script', $block['html']);
+        $this->assertStringNotContainsString('onerror', $block['html']);
+
+        // Search and crawlers get its words, not its CSS or tags.
+        $this->assertStringContainsString('RM3 per ticket', $page->body);
+        $this->assertStringNotContainsString('color:red', $page->body);
+        $this->assertStringNotContainsString('<table', $page->body);
+
+        $this->get('/en-my/mixed/')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->where('page.puck.content.1.type', 'Html'));
+    }
 }

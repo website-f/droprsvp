@@ -19,7 +19,8 @@ function DrawerItem({ name }: { name: string }) {
     return (
         <span className="flex items-center gap-2">
             {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
-            {name}
+            {/* A block's own label when it has one ("HTML", not "Html"). */}
+            {(config.components as Record<string, { label?: string }>)[name]?.label ?? name}
         </span>
     );
 }

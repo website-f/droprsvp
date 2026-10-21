@@ -33,6 +33,69 @@ final class PageHtml
      */
     public static function clean(string $html): string
     {
+        // Structured data is kept: it never runs, and it is often why the HTML
+        // was pasted (the pricing page came with its FAQ schema). Each block is
+        // set aside, then put back re-encoded from parsed JSON — so what is
+        // stored is data and only data, whatever the original script held.
+        $jsonLd = [];
+        $html = (string) preg_replace_callback(self::JSON_LD, function (array $m) use (&$jsonLd) {
+            $data = json_decode(html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5), true);
+
+            if (! is_array($data)) {
+                return '';
+            }
+
+            $jsonLd[] = $data;
+
+            return '%%JSONLD'.(count($jsonLd) - 1).'%%';
+        }, $html);
+
+        $html = self::removeExecutable($html);
+
+        return (string) preg_replace_callback('/%%JSONLD(\d+)%%/', fn (array $m) => isset($jsonLd[(int) $m[1]])
+            ? '<script type="application/ld+json">'.self::encodeJsonLd($jsonLd[(int) $m[1]]).'</script>'
+            : '', $html);
+    }
+
+    /** `<script type="application/ld+json">…</script>`, the one kind of script kept. */
+    private const JSON_LD = '#<\s*script\b[^>]*\btype\s*=\s*["\']?application/ld\+json["\']?[^>]*>(.*?)<\s*/\s*script\s*>#is';
+
+    /**
+     * The structured data in a pasted page, for SeoManager to put in <head>,
+     * where search engines read it.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function jsonLd(string $html): array
+    {
+        preg_match_all(self::JSON_LD, $html, $matches);
+
+        $nodes = [];
+        foreach ($matches[1] as $json) {
+            $data = json_decode(html_entity_decode(trim($json), ENT_QUOTES | ENT_HTML5), true);
+
+            if (! is_array($data)) {
+                continue;
+            }
+
+            // A @graph is several nodes; a list is several documents.
+            foreach (isset($data['@graph']) ? (array) $data['@graph'] : (array_is_list($data) ? $data : [$data]) as $node) {
+                if (is_array($node) && isset($node['@type'])) {
+                    $nodes[] = $node;
+                }
+            }
+        }
+
+        return $nodes;
+    }
+
+    private static function encodeJsonLd(array $data): string
+    {
+        return str_replace('</', '<\/', (string) json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+    }
+
+    private static function removeExecutable(string $html): string
+    {
         $html = HtmlSanitizer::clean($html);
 
         $html = (string) preg_replace([

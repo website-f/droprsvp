@@ -151,6 +151,7 @@ class CmsPageController extends Controller
                 'puck' => $page->puck_data,
                 'editor' => $page->editor,
                 'html' => $page->usesHtml() ? $page->html : null,
+                'html_layout' => $page->html_layout,
                 'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $page->title],
@@ -170,6 +171,9 @@ class CmsPageController extends Controller
             // whole document pasted in, styles and all.
             'editor' => ['sometimes', 'in:builder,html'],
             'html' => ['nullable', 'string', 'max:'.PageHtml::MAX],
+            // Partial HTML in the site's styling, or a full page in its own;
+            // empty means work it out from the HTML.
+            'html_layout' => ['nullable', 'in:content,full'],
             'publish' => ['boolean'],
             'add_to_menu' => ['boolean'],
             'seo' => ['array'],
@@ -205,6 +209,7 @@ class CmsPageController extends Controller
         if (($data['editor'] ?? null) === 'html') {
             $html = PageHtml::clean((string) ($data['html'] ?? ''));
             $attributes['html'] = $html;
+            $attributes['html_layout'] = $data['html_layout'] ?? null;
             $attributes['body'] = PageHtml::content($html);
         }
 
@@ -226,6 +231,15 @@ class CmsPageController extends Controller
                         $out = array_merge($out, $walk($value));
                     } elseif (is_string($value) && in_array($key, $textKeys, true) && trim($value) !== '') {
                         $out[] = trim($value);
+                    } elseif ($key === 'html' && is_string($value) && trim($value) !== '') {
+                        // An HTML block: its words, not its markup or CSS.
+                        $words = trim((string) preg_replace('/\s+/', ' ', strip_tags(
+                            (string) preg_replace('#<\s*(style|script|head)\b[^>]*>.*?<\s*/\s*\1\s*>#is', ' ', $value)
+                        )));
+
+                        if ($words !== '') {
+                            $out[] = $words;
+                        }
                     }
                 }
             }
@@ -288,6 +302,7 @@ class CmsPageController extends Controller
             'puck' => $page->puck_data,
             'editor' => $page->editor,
             'html' => $page->html,
+            'html_layout' => $page->html_layout,
             'posts' => PostCards::recent(),
             'layout' => $page->layout,
             'status' => $page->status,

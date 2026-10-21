@@ -1,5 +1,7 @@
 import { Monitor, Smartphone, Tablet } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { cleanFragment, partialClass } from '@/components/html-content';
+import type { HtmlLayout } from '@/components/html-content';
 import { disarm } from '@/components/shadow-html';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +22,32 @@ function disarmed(html: string): string {
     return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
 }
 
+/**
+ * Partial HTML as the public page will show it: inside the site's own
+ * stylesheet, typography and readable column. The frame borrows the
+ * stylesheets this page already loaded, so it is the real site CSS rather
+ * than an imitation of it.
+ */
+function asSiteContent(html: string): string {
+    if (html.trim() === '') {
+        return '';
+    }
+
+    const sheets = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))
+        .map((link) => `<link rel="stylesheet" href="${link.href}">`)
+        .join('');
+    // Vite's dev server injects CSS as <style> tags rather than links.
+    const inline = Array.from(document.head.querySelectorAll('style'))
+        .map((style) => style.outerHTML)
+        .join('');
+    const theme = document.documentElement.classList.contains('dark') ? 'dark' : '';
+
+    return `<!DOCTYPE html><html class="${theme}"><head><meta charset="utf-8">${sheets}${inline}</head>`
+        + '<body class="bg-background font-sans text-foreground antialiased">'
+        + `<main class="mx-auto w-full max-w-3xl px-6 py-12"><article class="${partialClass}">${cleanFragment(html)}</article></main>`
+        + '</body></html>';
+}
+
 export type PreviewDevice = 'desktop' | 'tablet' | 'phone';
 
 const WIDTHS: Record<PreviewDevice, number | '100%'> = { desktop: '100%', tablet: 768, phone: 390 };
@@ -30,31 +58,39 @@ const ICONS = { desktop: Monitor, tablet: Tablet, phone: Smartphone };
  *
  * A frame rather than the shadow root the page itself uses, because a frame
  * has its own viewport: the document's media queries respond to the width
- * chosen here, which is the whole point of a phone preview. sandbox="" — no
- * scripts, no access to this page — so whatever is pasted can only be looked
- * at. Typing is debounced so the frame isn't rebuilt on every keystroke.
+ * chosen here, which is the whole point of a phone preview. Scripts never run
+ * in it (no allow-scripts, and they are stripped before it is built), so
+ * whatever is pasted can only be looked at. It does share this page's origin:
+ * a frame with an origin of its own is refused the site's self-hosted fonts,
+ * and partial HTML is meant to preview in exactly those. Without scripts,
+ * nothing inside can use that access. Typing is debounced so the frame isn't
+ * rebuilt on every keystroke.
  */
 export function HtmlPreview({
     html,
     height = 640,
     empty = 'Paste your HTML to see it here.',
     devices = ['desktop', 'tablet', 'phone'],
+    layout = 'full',
     className,
 }: {
     html: string;
+    /** "content" shows partial HTML in the site's styling, as the page will. */
+    layout?: HtmlLayout;
     height?: number;
     empty?: string;
     devices?: PreviewDevice[];
     className?: string;
 }) {
     const [device, setDevice] = useState<PreviewDevice>(devices[0]);
-    const [shown, setShown] = useState(() => disarmed(html));
+    const render = (source: string) => (layout === 'content' ? asSiteContent(source) : disarmed(source));
+    const [shown, setShown] = useState(() => render(html));
 
     useEffect(() => {
-        const timer = window.setTimeout(() => setShown(disarmed(html)), 400);
+        const timer = window.setTimeout(() => setShown(layout === 'content' ? asSiteContent(html) : disarmed(html)), 400);
 
         return () => window.clearTimeout(timer);
-    }, [html]);
+    }, [html, layout]);
 
     return (
         <div className={cn('overflow-hidden rounded-2xl border border-border bg-card shadow-sm', className)}>
@@ -85,7 +121,7 @@ export function HtmlPreview({
                 ) : (
                     <iframe
                         title="Preview"
-                        sandbox=""
+                        sandbox="allow-same-origin"
                         srcDoc={shown}
                         className="mx-auto shrink-0 rounded-lg border border-border bg-white"
                         // At its true width even when that overflows (it scrolls),

@@ -5,6 +5,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
+import { HtmlContent, resolveLayout } from '@/components/html-content';
+import type { HtmlLayoutChoice } from '@/components/html-content';
 
 /**
  * The DropRSVP page-builder RENDER side.
@@ -110,6 +112,8 @@ export type Props = {
     FAQ: { title: string; items: { q: string; a: string }[] };
     CTA: { title: string; text: string; buttonText: string; buttonUrl: string; background: string; bgImage: string; overlay: number };
     Video: { url: string };
+    /** Pasted HTML among the other blocks: partial (site styling) or full (its own design). */
+    Html: { html: string; layout: HtmlLayoutChoice };
     Testimonial: { quote: string; author: string; role: string };
     Stats: { items: { value: string; label: string }[] };
     Steps: { title: string; items: { title: string; text: string }[] };
@@ -346,6 +350,26 @@ export const renderComponents: Config<Props>['components'] = {
                         ))}
                     </div>
                 </section>
+            );
+        },
+    },
+    Html: {
+        render: ({ html, layout, puck }) => {
+            if (!html?.trim()) {
+                // Only the editor needs something to click on; a visitor sees nothing.
+                return puck?.isEditing ? (
+                    <div className="mx-auto max-w-3xl px-6 py-6">
+                        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Paste HTML in the panel →</div>
+                    </div>
+                ) : <></>;
+            }
+
+            return resolveLayout(html, layout) === 'content' ? (
+                <div className="mx-auto max-w-3xl px-6 py-6">
+                    <HtmlContent html={html} layout="content" />
+                </div>
+            ) : (
+                <HtmlContent html={html} layout="full" />
             );
         },
     },

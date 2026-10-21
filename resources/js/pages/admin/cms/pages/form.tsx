@@ -4,6 +4,8 @@ import { Code2, ExternalLink, LayoutTemplate, Loader2, Upload } from 'lucide-rea
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import type {PostCard} from '@/components/cms/puck-config';
+import { detectLayout, resolveLayout } from '@/components/html-content';
+import type { HtmlLayout } from '@/components/html-content';
 import { HtmlPreview } from '@/components/html-preview';
 import { InsertImageButton } from '@/components/media/insert-image-button';
 import { SeoFields  } from '@/components/seo-fields';
@@ -16,9 +18,16 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 // Heavy (pulls the Puck runtime) — only loaded when a built page is previewed.
 const PagePreview = lazy(() => import('@/components/cms/page-preview'));
 
-interface PageProp { id: number; title: string; slug: string; puck: Data | null; editor?: string; html?: string | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[] }
+interface PageProp { id: number; title: string; slug: string; puck: Data | null; editor?: string; html?: string | null; html_layout?: HtmlLayout | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[] }
 
 type Editor = 'builder' | 'html';
+
+/** Partial HTML (site styling) or a full page (its own design); '' decides from the HTML. */
+const LAYOUTS: { value: HtmlLayout | ''; label: string }[] = [
+    { value: '', label: 'Auto' },
+    { value: 'content', label: 'Partial HTML' },
+    { value: 'full', label: 'Full HTML' },
+];
 
 const EDITORS: { value: Editor; label: string; icon: typeof Code2 }[] = [
     { value: 'builder', label: 'Drag & drop', icon: LayoutTemplate },
@@ -41,10 +50,14 @@ export default function PageForm({ page }: { page: PageProp | null }) {
         // kept, so switching modes never loses the other version.
         editor: (page?.editor === 'html' ? 'html' : 'builder') as Editor,
         html: page?.html ?? '',
+        // '' = decide from the HTML; see components/html-content.
+        html_layout: (page?.html_layout ?? '') as HtmlLayout | '',
     });
     const { data, setData, processing, errors } = form;
     // The HTML editor, so "Insert image" can put the tag where the cursor is.
     const htmlRef = useRef<HTMLTextAreaElement>(null);
+    // How the pasted HTML will actually be shown: the choice, or what Auto detects.
+    const layout = resolveLayout(data.html, data.html_layout || null);
     useUnsavedChanges(form.isDirty && !processing);
     const published = page?.status === 'published';
     const built = !!(page && page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
@@ -208,12 +221,34 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                     placeholder={'<!DOCTYPE html>\n<html>\n<head>\n  <style>…</style>\n</head>\n<body>\n  …\n</body>\n</html>'}
                                     className="block min-h-[320px] w-full resize-y bg-transparent p-4 font-mono text-xs leading-relaxed outline-none"
                                 />
-                                <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-                                    Shown between the site’s header and footer. Styles, fonts, images and links are kept; scripts are removed for safety.
-                                </p>
+                                {/* Partial HTML wants the site's look; a full page brings its own. */}
+                                <div className="grid gap-2 border-t border-border px-4 py-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs font-medium">Display as</span>
+                                        <div className="inline-flex rounded-lg border border-border bg-card p-0.5" role="group" aria-label="How to display this HTML">
+                                            {LAYOUTS.map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    aria-pressed={data.html_layout === option.value}
+                                                    onClick={() => setData('html_layout', option.value)}
+                                                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${data.html_layout === option.value ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+                                                >
+                                                    {option.value === '' ? `Auto (${detectLayout(data.html) === 'full' ? 'full' : 'partial'})` : option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {layout === 'content'
+                                            ? 'Partial HTML: styled like the rest of the site — headings, lists, tables and links — in a readable column between the header and footer.'
+                                            : 'Full HTML: your own design, exactly as written, full width between the header and footer. Styles, fonts, images and links are kept.'}
+                                        {' '}Scripts are removed for safety.
+                                    </p>
+                                </div>
                             </div>
                             {errors.html && <p className="text-xs text-destructive">{errors.html}</p>}
-                            <HtmlPreview html={data.html} />
+                            <HtmlPreview html={data.html} layout={layout} />
                         </div>
                     ) : built ? (
                         // Built with the Drop Builder — show the page big in the centre; continue from there.

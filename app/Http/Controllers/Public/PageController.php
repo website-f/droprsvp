@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\CmsPage;
+use App\Support\PageHtml;
 use App\Support\PostCards;
 use App\Support\SeoManager;
 use App\Support\Url;
@@ -64,6 +65,12 @@ class PageController extends Controller
             // emit for one and the heading alone is served.
             ->crawlable('<article><h1>'.e($page->title).'</h1>'.((string) $page->body).'</article>');
 
+        // Structured data that came with pasted HTML (an FAQ, say) goes in
+        // <head> with the rest of the page's JSON-LD.
+        if ($page->usesHtml()) {
+            app(SeoManager::class)->schemas(PageHtml::jsonLd((string) $page->html));
+        }
+
         return Inertia::render('public/page', [
             'page' => [
                 'title' => $page->title,
@@ -73,6 +80,7 @@ class PageController extends Controller
                 // A pasted document, rendered in its own shadow root.
                 'editor' => $page->editor,
                 'html' => $page->usesHtml() ? $page->html : null,
+                'html_layout' => $page->html_layout,
                 'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $seo?->seo_title ?: $page->title],

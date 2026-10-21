@@ -49,7 +49,7 @@ function scope(css: string): string {
 }
 
 /** Fonts only load when declared in the main document, so lift them there. */
-function hoistFonts(doc: Document, css: string[]): void {
+function hoistFonts(doc: Document, css: string[], target: Document): void {
     const hrefs = new Set<string>();
 
     doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"][href]').forEach((link) => {
@@ -71,22 +71,22 @@ function hoistFonts(doc: Document, css: string[]): void {
     }
 
     hrefs.forEach((href) => {
-        if (!document.head.querySelector(`link[data-page-font="${CSS.escape(href)}"]`)) {
-            const link = document.createElement('link');
+        if (!target.head.querySelector(`link[data-page-font="${CSS.escape(href)}"]`)) {
+            const link = target.createElement('link');
             link.rel = 'stylesheet';
             link.href = href;
             link.dataset.pageFont = href;
-            document.head.append(link);
+            target.head.append(link);
         }
     });
 
     if (faces.length > 0) {
-        let style = document.getElementById('page-html-fonts');
+        let style = target.getElementById('page-html-fonts');
 
         if (!style) {
-            style = document.createElement('style');
+            style = target.createElement('style');
             style.id = 'page-html-fonts';
-            document.head.append(style);
+            target.head.append(style);
         }
 
         const known = style.textContent ?? '';
@@ -94,8 +94,12 @@ function hoistFonts(doc: Document, css: string[]): void {
     }
 }
 
-/** The nodes that go into the shadow root. */
-function build(html: string): Node[] {
+/**
+ * The nodes that go into the shadow root, made in `target` — the document the
+ * root lives in. That is not always this one: in the page builder the canvas
+ * is an iframe, and fonts lifted into the editor's <head> never reach it.
+ */
+function build(html: string, target: Document): Node[] {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     disarm(doc);
 
@@ -103,18 +107,18 @@ function build(html: string): Node[] {
     styles.forEach((style) => {
         style.textContent = scope(style.textContent ?? '');
     });
-    hoistFonts(doc, styles.map((style) => style.textContent ?? ''));
+    hoistFonts(doc, styles.map((style) => style.textContent ?? ''), target);
 
-    const base = document.createElement('style');
+    const base = target.createElement('style');
     base.textContent = ':host { display: block; } .drop-body { display: block; min-height: 1px; }';
 
     // The <head>'s stylesheets, in their own order, ahead of the content.
     const head = Array.from(doc.head.querySelectorAll('style, link[rel~="stylesheet"]'))
-        .map((node) => document.importNode(node, true));
+        .map((node) => target.importNode(node, true));
 
     // <body> itself, with its class and inline style, so rules aimed at the
     // body still have something to land on.
-    const wrapper = document.createElement('div');
+    const wrapper = target.createElement('div');
     wrapper.className = ['drop-body', doc.body.getAttribute('class') ?? ''].join(' ').trim();
 
     for (const attribute of Array.from(doc.body.attributes)) {
@@ -123,7 +127,7 @@ function build(html: string): Node[] {
         }
     }
 
-    wrapper.append(...Array.from(doc.body.childNodes).map((node) => document.importNode(node, true)));
+    wrapper.append(...Array.from(doc.body.childNodes).map((node) => target.importNode(node, true)));
 
     return [base, ...head, wrapper];
 }
@@ -139,7 +143,7 @@ export function ShadowHtml({ html, className }: { html: string; className?: stri
         }
 
         const root = element.shadowRoot ?? element.attachShadow({ mode: 'open' });
-        root.replaceChildren(...build(html));
+        root.replaceChildren(...build(html, element.ownerDocument));
 
         // "#pricing" means the section in this page, not an id in the main document.
         const onClick = (event: Event) => {
