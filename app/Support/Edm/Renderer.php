@@ -3,6 +3,7 @@
 namespace App\Support\Edm;
 
 use App\Models\Event;
+use App\Support\PageHtml;
 use App\Support\SiteContent;
 use App\Support\Url;
 
@@ -37,6 +38,11 @@ final class Renderer
      */
     public static function render(array $design, array $context = []): array
     {
+        // A whole email pasted in rather than built from blocks.
+        if (self::isHtml($design)) {
+            return self::pasted((string) $design['html'], $context);
+        }
+
         $root = (array) ($design['root']['props'] ?? []);
         $brand = self::color($root['brandColor'] ?? null, self::DEFAULT_BRAND);
         $background = self::color($root['backgroundColor'] ?? null, '#f3f4f6');
@@ -69,6 +75,103 @@ final class Renderer
             ),
             'text' => trim(implode("\n\n", array_filter($textBlocks))).self::textFooter($context),
         ];
+    }
+
+    /** A pasted email this large is a mistake, not a newsletter. */
+    public const MAX_HTML = 500_000;
+
+    /** Whether a design is a pasted HTML email ("HTML mode") rather than blocks. */
+    public static function isHtml(array $design): bool
+    {
+        return ($design['editor'] ?? null) === 'html'
+            && is_string($design['html'] ?? null)
+            && trim($design['html']) !== '';
+    }
+
+    /** Validation for a design posted from the editor: blocks, a pasted email, or both. */
+    public static function designRules(): array
+    {
+        return [
+            'design' => ['required', 'array'],
+            'design.content' => ['present', 'array', 'max:80'],
+            'design.root' => ['nullable', 'array'],
+            'design.editor' => ['nullable', 'in:builder,html'],
+            'design.html' => ['nullable', 'string', 'max:'.self::MAX_HTML],
+        ];
+    }
+
+    /**
+     * A posted design as it is stored. The blocks and the pasted email are both
+     * kept, whichever is in use, so switching modes in the editor loses neither.
+     */
+    public static function designFrom(array $posted): array
+    {
+        $design = [
+            'root' => $posted['root'] ?? ['props' => []],
+            'content' => array_values((array) ($posted['content'] ?? [])),
+        ];
+
+        if (array_key_exists('editor', $posted) || array_key_exists('html', $posted)) {
+            $design['editor'] = ($posted['editor'] ?? null) === 'html' ? 'html' : 'builder';
+            $design['html'] = (string) ($posted['html'] ?? '');
+        }
+
+        return $design;
+    }
+
+    /**
+     * A whole email pasted in, its own tables, inline styles and <style> kept.
+     *
+     * It goes through the same send pipeline as a built email — merge tags,
+     * tracked links, the open pixel — and gets the same footer: who sent it,
+     * why, and the unsubscribe and view-in-browser links. Pasting HTML is not
+     * a way round the unsubscribe link. What could run is removed, and so is
+     * anything an inbox would not load anyway (frames, forms, media).
+     *
+     * @return array{html:string,text:string}
+     */
+    private static function pasted(string $html, array $c): array
+    {
+        $html = PageHtml::clean($html);
+        $html = (string) preg_replace('#<\s*(iframe|form|video|audio)\b[^>]*>.*?<\s*/\s*\1\s*>#is', '', $html);
+
+        // Links in single quotes are tracked like the rest (Personalizer only
+        // rewrites double-quoted ones).
+        $html = (string) preg_replace("#href='(https?://[^'\"]+)'#i", 'href="$1"', $html);
+
+        // A fragment becomes a document.
+        if (! preg_match('#<body\b#i', $html)) {
+            $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+                .'<meta name="viewport" content="width=device-width,initial-scale=1">'
+                .'<title>'.e((string) ($c['subject'] ?? '')).'</title></head>'
+                .'<body style="margin:0;padding:0;">'.$html.'</body></html>';
+        }
+
+        // The plain-text part from the body alone: strip_tags would otherwise
+        // keep the CSS inside <style> and the <title> as words.
+        $body = preg_match('#<body\b[^>]*>(.*)</body>#is', $html, $m) ? $m[1] : $html;
+        $body = (string) preg_replace('#<\s*(style|script|title|head)\b[^>]*>.*?<\s*/\s*\1\s*>#is', '', $body);
+        $text = EmailHtml::toText($body);
+
+        // The preheader, hidden, straight after <body>.
+        $preheader = trim((string) ($c['preheader'] ?? ''));
+        if ($preheader !== '' && preg_match('#<body\b[^>]*>#i', $html, $open, PREG_OFFSET_CAPTURE)) {
+            $at = $open[0][1] + strlen($open[0][0]);
+            $hidden = '<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">'
+                .e($preheader).str_repeat('&#847;&zwnj;&nbsp;', 40).'</div>';
+            $html = substr($html, 0, $at).$hidden.substr($html, $at);
+        }
+
+        // The footer, before </body>. Inserted by position rather than by a
+        // regex replacement, so a "$1" in a sender's postal address stays text.
+        $footer = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'
+            .'<tr><td align="center" style="padding:8px 12px 24px 12px;">'
+            .self::htmlFooter($c, self::DEFAULT_BRAND)
+            .'</td></tr></table>';
+        $close = strripos($html, '</body>');
+        $html = $close === false ? $html.$footer : substr($html, 0, $close).$footer.substr($html, $close);
+
+        return ['html' => $html, 'text' => trim($text).self::textFooter($c)];
     }
 
     /** @return array{0:string,1:string} [html, text] */

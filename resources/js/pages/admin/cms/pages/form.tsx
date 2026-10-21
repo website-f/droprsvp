@@ -1,9 +1,10 @@
 import { Head, useForm } from '@inertiajs/react';
 import type {Data} from '@measured/puck';
-import { ExternalLink, LayoutTemplate, Loader2 } from 'lucide-react';
+import { Code2, ExternalLink, LayoutTemplate, Loader2, Upload } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import type {PostCard} from '@/components/cms/puck-config';
+import { HtmlPreview } from '@/components/html-preview';
 import { SeoFields  } from '@/components/seo-fields';
 import type {SeoData} from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,14 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 // Heavy (pulls the Puck runtime) — only loaded when a built page is previewed.
 const PagePreview = lazy(() => import('@/components/cms/page-preview'));
 
-interface PageProp { id: number; title: string; slug: string; puck: Data | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[] }
+interface PageProp { id: number; title: string; slug: string; puck: Data | null; editor?: string; html?: string | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[] }
+
+type Editor = 'builder' | 'html';
+
+const EDITORS: { value: Editor; label: string; icon: typeof Code2 }[] = [
+    { value: 'builder', label: 'Drag & drop', icon: LayoutTemplate },
+    { value: 'html', label: 'HTML', icon: Code2 },
+];
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, meta_keywords: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
 
@@ -28,6 +36,10 @@ export default function PageForm({ page }: { page: PageProp | null }) {
         add_to_menu: page?.in_menu ?? false,
         publish: false,
         seo: page?.seo ?? emptySeo(),
+        // Drag-and-drop blocks, or a whole HTML document pasted in. Both are
+        // kept, so switching modes never loses the other version.
+        editor: (page?.editor === 'html' ? 'html' : 'builder') as Editor,
+        html: page?.html ?? '',
     });
     const { data, setData, processing, errors } = form;
     useUnsavedChanges(form.isDirty && !processing);
@@ -59,6 +71,17 @@ export default function PageForm({ page }: { page: PageProp | null }) {
             form.put(`/admin/cms/pages/${page!.id}`);
         } else {
             form.post('/admin/cms/pages');
+        }
+    };
+
+    // An .html file from disk, for anyone who has the page as a file rather
+    // than on the clipboard.
+    const loadFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+
+        if (file) {
+            file.text().then((text) => setData('html', text));
         }
     };
 
@@ -133,7 +156,61 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                         {errors.title && <p className="mt-1 px-1 text-xs text-destructive">{errors.title}</p>}
                     </div>
 
-                    {built ? (
+                    {/* How the page is made. */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="inline-flex rounded-lg border border-border bg-card p-1" role="group" aria-label="Page editor">
+                            {EDITORS.map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    aria-pressed={data.editor === value}
+                                    onClick={() => setData('editor', value)}
+                                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${data.editor === value ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    <Icon className="size-4" /> {label}
+                                </button>
+                            ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                            {data.editor === 'html'
+                                ? 'Paste a whole page — its styles, fonts and layout are kept.'
+                                : 'Build the page from blocks in the Drop Builder.'}
+                        </span>
+                    </div>
+
+                    {data.editor === 'html' ? (
+                        <div className="grid gap-4">
+                            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+                                    <span className="flex items-center gap-2 text-sm font-medium"><Code2 className="size-4" /> HTML</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-accent">
+                                            <Upload className="size-3.5" /> Load .html file
+                                            <input type="file" accept=".html,.htm,text/html" className="sr-only" onChange={loadFile} />
+                                        </label>
+                                        {isEdit && (
+                                            <a href={`/admin/cms/pages/${page!.id}/preview`} target="_blank" rel="noopener" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-accent">
+                                                <ExternalLink className="size-3.5" /> On the site (last saved)
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                                <textarea
+                                    aria-label="Page HTML"
+                                    spellCheck={false}
+                                    value={data.html}
+                                    onChange={(e) => setData('html', e.target.value)}
+                                    placeholder={'<!DOCTYPE html>\n<html>\n<head>\n  <style>…</style>\n</head>\n<body>\n  …\n</body>\n</html>'}
+                                    className="block min-h-[320px] w-full resize-y bg-transparent p-4 font-mono text-xs leading-relaxed outline-none"
+                                />
+                                <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+                                    Shown between the site’s header and footer. Styles, fonts, images and links are kept; scripts are removed for safety.
+                                </p>
+                            </div>
+                            {errors.html && <p className="text-xs text-destructive">{errors.html}</p>}
+                            <HtmlPreview html={data.html} />
+                        </div>
+                    ) : built ? (
                         // Built with the Drop Builder — show the page big in the centre; continue from there.
                         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">

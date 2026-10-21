@@ -12,7 +12,15 @@ class CmsPage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'puck_data', 'status', 'published_at', 'builder_edited_at'];
+    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'puck_data', 'editor', 'html', 'status', 'published_at', 'builder_edited_at'];
+
+    /** "builder" (Puck blocks) or "html" (a pasted document); see App\Support\PageHtml. */
+    protected $attributes = ['editor' => 'builder'];
+
+    public function usesHtml(): bool
+    {
+        return $this->editor === 'html';
+    }
 
     protected function casts(): array
     {

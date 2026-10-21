@@ -475,7 +475,7 @@ class CampaignSender
             throw new RuntimeException('Add a subject line before sending.');
         }
 
-        if (empty($campaign->design['content'])) {
+        if (empty($campaign->design['content']) && ! Renderer::isHtml((array) $campaign->design)) {
             throw new RuntimeException('The email has no content yet.');
         }
 

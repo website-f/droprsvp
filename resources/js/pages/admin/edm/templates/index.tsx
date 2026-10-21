@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-interface Saved { id: number; name: string; description: string | null; subject: string | null; blocks: number; updated_at: string | null; creator: string | null }
+interface Saved { id: number; name: string; description: string | null; subject: string | null; blocks: number; html?: boolean; updated_at: string | null; creator: string | null }
 interface Starter { key: string; name: string; description: string; subject: string; blocks: number }
 interface Props { templates: Saved[]; starters: Starter[]; base?: string }
 
@@ -89,7 +89,7 @@ export default function EdmTemplates({ base = '/admin/edm', templates, starters 
                                         </DropdownMenu>
                                     </div>
                                     {t.description && <p className="line-clamp-2 text-xs text-muted-foreground">{t.description}</p>}
-                                    <p className="text-[11px] text-muted-foreground">{t.blocks} block{t.blocks === 1 ? '' : 's'} · edited {t.updated_at}{t.creator ? ` by ${t.creator}` : ''}</p>
+                                    <p className="text-[11px] text-muted-foreground">{t.html ? 'HTML' : `${t.blocks} block${t.blocks === 1 ? '' : 's'}`} · edited {t.updated_at}{t.creator ? ` by ${t.creator}` : ''}</p>
                                     <div className="mt-auto flex gap-2 pt-3">
                                         <Button size="sm" className="flex-1" onClick={() => use({ template_id: t.id })}><Send className="size-4" /> Use</Button>
                                         <Button size="sm" variant="outline" className="flex-1" asChild><Link href={`${base}/templates/${t.id}/editor`}><Pencil className="size-4" /> Edit</Link></Button>

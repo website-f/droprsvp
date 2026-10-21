@@ -57,6 +57,8 @@ class EdmTemplateController extends Controller
                     'description' => $t->description,
                     'subject' => $t->subject,
                     'blocks' => count((array) ($t->design['content'] ?? [])),
+                    // A pasted email has no blocks to count.
+                    'html' => Renderer::isHtml((array) $t->design),
                     'updated_at' => Dates::display($t->updated_at, 'j M Y'),
                     'creator' => $t->creator?->name,
                 ]),
@@ -142,16 +144,10 @@ class EdmTemplateController extends Controller
     {
         $this->own($template);
 
-        $data = $request->validate([
-            'design' => ['required', 'array'],
-            'design.content' => ['present', 'array', 'max:80'],
-            'design.root' => ['nullable', 'array'],
-        ]);
+        // Blocks, or a whole email pasted in ("HTML mode") — see Renderer.
+        $data = $request->validate(Renderer::designRules());
 
-        $template->update(['design' => [
-            'root' => $data['design']['root'] ?? ['props' => []],
-            'content' => array_values($data['design']['content']),
-        ]]);
+        $template->update(['design' => Renderer::designFrom($data['design'])]);
 
         return response()->json(['ok' => true]);
     }

@@ -70,6 +70,9 @@ class PageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
                 'puck' => $page->puck_data,
+                // A pasted document, rendered in its own shadow root.
+                'editor' => $page->editor,
+                'html' => $page->usesHtml() ? $page->html : null,
                 'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $seo?->seo_title ?: $page->title],

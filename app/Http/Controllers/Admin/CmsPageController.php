@@ -7,6 +7,7 @@ use App\Models\CmsPage;
 use App\Models\MenuItem;
 use App\Support\Dates;
 use App\Support\HtmlSanitizer;
+use App\Support\PageHtml;
 use App\Support\PostCards;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -65,8 +66,15 @@ class CmsPageController extends Controller
     public function update(Request $request, CmsPage $page)
     {
         $data = $this->validated($request, $page->id);
+        $wasHtml = $page->usesHtml();
 
         $page->fill($this->pageAttributes($data));
+
+        // Back to the builder: body is the builder's text snapshot again, not
+        // the pasted page's (which stays in `html` in case they switch back).
+        if ($wasHtml && ! $page->usesHtml()) {
+            $page->body = $this->plainTextFromPuck($page->puck_data ?? []);
+        }
         $page->slug = $this->uniqueSlug(($data['slug'] ?? '') ?: $data['title'], $page->id);
         $page->save();
         $page->seo()->updateOrCreate([], $this->seoAttributes($data));
@@ -118,6 +126,9 @@ class CmsPageController extends Controller
             // A plain-text snapshot powers search, excerpts and SEO fallbacks.
             'body' => $this->plainTextFromPuck($clean),
             'layout' => null,
+            // Saving from the builder means the builder is what this page uses;
+            // a pasted HTML version, if any, stays put for switching back.
+            'editor' => 'builder',
             'builder_edited_at' => now(),
         ]);
 
@@ -138,6 +149,8 @@ class CmsPageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
                 'puck' => $page->puck_data,
+                'editor' => $page->editor,
+                'html' => $page->usesHtml() ? $page->html : null,
                 'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $page->title],
@@ -152,8 +165,11 @@ class CmsPageController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:180'],
             'slug' => ['nullable', 'string', 'max:180', Rule::unique('cms_pages', 'slug')->ignore($ignoreId)],
-            // Page content is owned by the Puck builder (saveBuilder); this form
-            // only edits metadata, so it never touches puck_data/body.
+            // Builder content is owned by the Puck builder (saveBuilder) and this
+            // form never touches puck_data. HTML mode is edited right here: a
+            // whole document pasted in, styles and all.
+            'editor' => ['sometimes', 'in:builder,html'],
+            'html' => ['nullable', 'string', 'max:'.PageHtml::MAX],
             'publish' => ['boolean'],
             'add_to_menu' => ['boolean'],
             'seo' => ['array'],
@@ -172,14 +188,27 @@ class CmsPageController extends Controller
 
     private function pageAttributes(array $data): array
     {
-        // Note: puck_data/body are NOT touched here — page content is owned by
-        // the Drop Builder (saveBuilder). This form only edits metadata, so
-        // saving it never wipes the built content.
-        return [
+        // Note: puck_data is NOT touched here — builder content is owned by
+        // the Drop Builder (saveBuilder), so saving this form never wipes it.
+        $attributes = [
             'title' => $data['title'],
             'status' => ($data['publish'] ?? false) ? 'published' : 'draft',
             'published_at' => ($data['publish'] ?? false) ? now() : null,
         ];
+
+        if (isset($data['editor'])) {
+            $attributes['editor'] = $data['editor'];
+        }
+
+        // A pasted document: stored cleaned of anything that could run, and its
+        // readable text kept in `body` for crawlers and the meta description.
+        if (($data['editor'] ?? null) === 'html') {
+            $html = PageHtml::clean((string) ($data['html'] ?? ''));
+            $attributes['html'] = $html;
+            $attributes['body'] = PageHtml::content($html);
+        }
+
+        return $attributes;
     }
 
     /** Flatten a Puck document into readable plain text for search/excerpts/SEO. */
@@ -257,6 +286,8 @@ class CmsPageController extends Controller
             'title' => $page->title,
             'slug' => $page->slug,
             'puck' => $page->puck_data,
+            'editor' => $page->editor,
+            'html' => $page->html,
             'posts' => PostCards::recent(),
             'layout' => $page->layout,
             'status' => $page->status,

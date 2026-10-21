@@ -328,16 +328,10 @@ class EdmAutomationController extends Controller
     {
         $this->ownStep($automation, $step);
 
-        $data = $request->validate([
-            'design' => ['required', 'array'],
-            'design.content' => ['present', 'array', 'max:80'],
-            'design.root' => ['nullable', 'array'],
-        ]);
+        // Blocks, or a whole email pasted in ("HTML mode") — see Renderer.
+        $data = $request->validate(Renderer::designRules());
 
-        $step->campaign->update(['design' => [
-            'root' => $data['design']['root'] ?? ['props' => []],
-            'content' => array_values($data['design']['content']),
-        ]]);
+        $step->campaign->update(['design' => Renderer::designFrom($data['design'])]);
         Automations::freeze($step->campaign->fresh());
 
         return response()->json(['ok' => true]);

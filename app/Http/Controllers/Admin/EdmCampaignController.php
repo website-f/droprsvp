@@ -239,16 +239,10 @@ class EdmCampaignController extends Controller
         $this->own($campaign);
         $this->editable($campaign);
 
-        $data = $request->validate([
-            'design' => ['required', 'array'],
-            'design.content' => ['present', 'array', 'max:80'],
-            'design.root' => ['nullable', 'array'],
-        ]);
+        // Blocks, or a whole email pasted in ("HTML mode") — see Renderer.
+        $data = $request->validate(Renderer::designRules());
 
-        $campaign->update(['design' => [
-            'root' => $data['design']['root'] ?? ['props' => []],
-            'content' => array_values($data['design']['content']),
-        ]]);
+        $campaign->update(['design' => Renderer::designFrom($data['design'])]);
 
         return response()->json(['ok' => true]);
     }

@@ -8,9 +8,10 @@ import type {PostCard} from '@/components/cms/puck-render';
 import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
+import { ShadowHtml } from '@/components/shadow-html';
 
 interface Seo { title: string }
-interface Page { title: string; body: string | null; layout: PageSection[] | null; puck: Data | null; posts?: PostCard[] }
+interface Page { title: string; body: string | null; layout: PageSection[] | null; puck: Data | null; editor?: string; html?: string | null; posts?: PostCard[] }
 
 export default function PublicPage({ page, preview }: { page: Page; seo: Seo; preview?: boolean }) {
     const built = !!(page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
@@ -28,7 +29,13 @@ export default function PublicPage({ page, preview }: { page: Page; seo: Seo; pr
                 )}
                 <PublicHeader />
 
-                {built ? (
+                {page.editor === 'html' && page.html ? (
+                    // A pasted document, between the site's own header and footer.
+                    // Its own shadow root keeps its CSS and the site's apart.
+                    <main className="flex-1">
+                        <ShadowHtml html={page.html} />
+                    </main>
+                ) : built ? (
                     // Puck page: rendered from structured data with the same widgets as the editor.
                     <main className="flex-1">
                         <Render config={renderConfig} data={page.puck!} metadata={{ posts: page.posts ?? [] }} />
