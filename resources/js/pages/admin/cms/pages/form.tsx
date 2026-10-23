@@ -8,6 +8,7 @@ import { detectLayout, resolveLayout } from '@/components/html-content';
 import type { HtmlLayout } from '@/components/html-content';
 import { HtmlPreview } from '@/components/html-preview';
 import { InsertImageButton } from '@/components/media/insert-image-button';
+import { ScriptsNote } from '@/components/scripts-note';
 import { SeoFields  } from '@/components/seo-fields';
 import type {SeoData} from '@/components/seo-fields';
 import { Badge } from '@/components/ui/badge';
@@ -243,7 +244,7 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                         {layout === 'content'
                                             ? 'Partial HTML: styled like the rest of the site — headings, lists, tables and links — in a readable column between the header and footer.'
                                             : 'Full HTML: your own design, exactly as written, full width between the header and footer. Styles, fonts, images and links are kept.'}
-                                        {' '}Scripts are removed for safety.
+                                        {' '}<ScriptsNote />
                                     </p>
                                 </div>
                             </div>

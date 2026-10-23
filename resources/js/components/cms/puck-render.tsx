@@ -364,12 +364,16 @@ export const renderComponents: Config<Props>['components'] = {
                 ) : <></>;
             }
 
+            // Scripts run in the page only on a superadmin-saved page, and
+            // never inside the editor's own canvas.
+            const trusted = !puck?.isEditing && puck?.metadata?.trusted === true;
+
             return resolveLayout(html, layout) === 'content' ? (
                 <div className="mx-auto max-w-3xl px-6 py-6">
-                    <HtmlContent html={html} layout="content" />
+                    <HtmlContent html={html} layout="content" trusted={trusted} />
                 </div>
             ) : (
-                <HtmlContent html={html} layout="full" />
+                <HtmlContent html={html} layout="full" trusted={trusted} />
             );
         },
     },

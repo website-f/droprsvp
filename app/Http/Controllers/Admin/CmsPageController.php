@@ -39,6 +39,7 @@ class CmsPageController extends Controller
 
         $page = new CmsPage($this->pageAttributes($data));
         $page->author_id = $request->user()->id;
+        $page->html_trusted = $this->trusts($request);
         $page->slug = $this->uniqueSlug(($data['slug'] ?? '') ?: $data['title'], null);
         $page->save();
         $page->seo()->create($this->seoAttributes($data));
@@ -69,6 +70,7 @@ class CmsPageController extends Controller
         $wasHtml = $page->usesHtml();
 
         $page->fill($this->pageAttributes($data));
+        $page->html_trusted = $this->trusts($request);
 
         // Back to the builder: body is the builder's text snapshot again, not
         // the pasted page's (which stays in `html` in case they switch back).
@@ -131,6 +133,7 @@ class CmsPageController extends Controller
             // Saving from the builder means the builder is what this page uses;
             // a pasted HTML version, if any, stays put for switching back.
             'editor' => 'builder',
+            'html_trusted' => $this->trusts($request),
             'builder_edited_at' => now(),
         ]);
 
@@ -154,6 +157,7 @@ class CmsPageController extends Controller
                 'editor' => $page->editor,
                 'html' => $page->usesHtml() ? $page->html : null,
                 'html_layout' => $page->html_layout,
+                'html_trusted' => $page->html_trusted,
                 'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $page->title],
@@ -221,6 +225,17 @@ class CmsPageController extends Controller
         }
 
         return $attributes;
+    }
+
+    /**
+     * Whoever saves a page decides whether its scripts may run in the page
+     * itself: a superadmin's do, anyone else's stay in the sealed frame. Set on
+     * every save, so a page last touched by staff is never trusted on the
+     * strength of an earlier superadmin save.
+     */
+    private function trusts(Request $request): bool
+    {
+        return (bool) $request->user()?->hasRole('superadmin');
     }
 
     /**
@@ -351,6 +366,7 @@ class CmsPageController extends Controller
             'editor' => $page->editor,
             'html' => $page->html,
             'html_layout' => $page->html_layout,
+            'html_trusted' => $page->html_trusted,
             'posts' => PostCards::recent(),
             'layout' => $page->layout,
             'status' => $page->status,

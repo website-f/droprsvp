@@ -12,10 +12,10 @@ class CmsPage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'puck_data', 'editor', 'html', 'html_layout', 'status', 'published_at', 'builder_edited_at'];
+    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'puck_data', 'editor', 'html', 'html_layout', 'html_trusted', 'status', 'published_at', 'builder_edited_at'];
 
     /** "builder" (Puck blocks) or "html" (a pasted document); see App\Support\PageHtml. */
-    protected $attributes = ['editor' => 'builder'];
+    protected $attributes = ['editor' => 'builder', 'html_trusted' => false];
 
     public function usesHtml(): bool
     {
@@ -24,7 +24,7 @@ class CmsPage extends Model
 
     protected function casts(): array
     {
-        return ['published_at' => 'datetime', 'builder_edited_at' => 'datetime', 'layout' => 'array', 'puck_data' => 'array'];
+        return ['published_at' => 'datetime', 'builder_edited_at' => 'datetime', 'layout' => 'array', 'puck_data' => 'array', 'html_trusted' => 'boolean'];
     }
 
     public function getRouteKeyName(): string

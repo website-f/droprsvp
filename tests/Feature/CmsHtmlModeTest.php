@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\CmsPage;
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\PageHtml;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -357,5 +358,75 @@ HTML;
 
         $this->get('/en-my/mixed/')->assertOk()
             ->assertInertia(fn (Assert $p) => $p->where('page.puck.content.1.type', 'Html'));
+    }
+
+    // ---- whose scripts run in the page itself -----------------------------------------
+
+    private function staffWithContent(): User
+    {
+        Role::findOrCreate('staff', 'web');
+        Setting::putArray('role_permissions', ['staff' => ['content']]);
+        $staff = User::factory()->create();
+        $staff->assignRole('staff');
+
+        return $staff;
+    }
+
+    public function test_a_superadmin_save_lets_the_pages_scripts_run_in_the_page(): void
+    {
+        $page = $this->create();
+
+        $this->assertTrue($page->html_trusted);
+        $this->get('/en-my/landing/')->assertInertia(fn (Assert $p) => $p->where('page.html_trusted', true));
+    }
+
+    public function test_a_staff_save_keeps_them_in_the_sealed_frame(): void
+    {
+        $staff = $this->staffWithContent();
+
+        $this->actingAs($staff)->post(route('admin.cms.pages.store'), [
+            'title' => 'Staff page', 'slug' => 'staff-page', 'publish' => true,
+            'editor' => 'html', 'html' => '<p>Hi</p><script>steal()</script>',
+            'seo' => ['robots_index' => true, 'robots_follow' => true],
+        ])->assertSessionHasNoErrors();
+
+        $page = CmsPage::where('slug', 'staff-page')->firstOrFail();
+        $this->assertFalse($page->html_trusted);
+        $this->get('/en-my/staff-page/')->assertInertia(fn (Assert $p) => $p->where('page.html_trusted', false));
+    }
+
+    public function test_staff_touching_a_trusted_page_makes_it_untrusted_again(): void
+    {
+        $page = $this->create();
+        $this->assertTrue($page->html_trusted);
+
+        // Even a small edit: what is saved is now theirs.
+        $this->actingAs($this->staffWithContent())->put(route('admin.cms.pages.update', $page->id), [
+            'title' => 'Landing', 'slug' => 'landing', 'publish' => true, 'editor' => 'html', 'html' => $page->html.'<script>more()</script>',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertFalse($page->fresh()->html_trusted);
+    }
+
+    public function test_the_builder_records_who_saved_too(): void
+    {
+        $page = $this->create();
+
+        $this->actingAs($this->staffWithContent())->postJson(route('admin.cms.pages.builder.save', $page->id), [
+            'data' => ['root' => ['props' => []], 'content' => [['type' => 'Html', 'props' => ['id' => 'x', 'layout' => 'auto', 'html' => '<script>x()</script>']]]],
+        ])->assertOk();
+        $this->assertFalse($page->fresh()->html_trusted);
+
+        $this->actingAs($this->superadmin())->postJson(route('admin.cms.pages.builder.save', $page->id), [
+            'data' => ['root' => ['props' => []], 'content' => [['type' => 'Html', 'props' => ['id' => 'x', 'layout' => 'auto', 'html' => '<script>x()</script>']]]],
+        ])->assertOk();
+        $this->assertTrue($page->fresh()->html_trusted);
+    }
+
+    public function test_pages_from_before_this_start_untrusted(): void
+    {
+        $page = CmsPage::create(['title' => 'Old', 'slug' => 'old', 'status' => 'published', 'published_at' => now(), 'editor' => 'html', 'html' => '<script>x()</script>']);
+
+        $this->assertFalse($page->fresh()->html_trusted);
     }
 }

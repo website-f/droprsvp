@@ -12,7 +12,7 @@ import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 
 interface Seo { title: string }
-interface Page { title: string; body: string | null; layout: PageSection[] | null; puck: Data | null; editor?: string; html?: string | null; html_layout?: HtmlLayoutChoice | null; posts?: PostCard[] }
+interface Page { title: string; body: string | null; layout: PageSection[] | null; puck: Data | null; editor?: string; html?: string | null; html_layout?: HtmlLayoutChoice | null; html_trusted?: boolean; posts?: PostCard[] }
 
 export default function PublicPage({ page, preview }: { page: Page; seo: Seo; preview?: boolean }) {
     const built = !!(page.puck && Array.isArray(page.puck.content) && page.puck.content.length > 0);
@@ -36,17 +36,17 @@ export default function PublicPage({ page, preview }: { page: Page; seo: Seo; pr
                     // column; a full page keeps its own design, full width.
                     resolveLayout(page.html, page.html_layout) === 'content' ? (
                         <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-                            <HtmlContent html={page.html} layout="content" />
+                            <HtmlContent html={page.html} layout="content" trusted={!!page.html_trusted} />
                         </main>
                     ) : (
                         <main className="flex-1">
-                            <HtmlContent html={page.html} layout="full" />
+                            <HtmlContent html={page.html} layout="full" trusted={!!page.html_trusted} />
                         </main>
                     )
                 ) : built ? (
                     // Puck page: rendered from structured data with the same widgets as the editor.
                     <main className="flex-1">
-                        <Render config={renderConfig} data={page.puck!} metadata={{ posts: page.posts ?? [] }} />
+                        <Render config={renderConfig} data={page.puck!} metadata={{ posts: page.posts ?? [], trusted: !!page.html_trusted }} />
                     </main>
                 ) : (
                     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">

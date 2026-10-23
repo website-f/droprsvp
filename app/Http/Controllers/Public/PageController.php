@@ -77,10 +77,12 @@ class PageController extends Controller
                 'body' => $page->body,
                 'layout' => $page->layout,
                 'puck' => $page->puck_data,
-                // A pasted document, rendered in its own shadow root.
+                // Pasted HTML, written into the page (components/html-content).
                 'editor' => $page->editor,
                 'html' => $page->usesHtml() ? $page->html : null,
                 'html_layout' => $page->html_layout,
+                // Last saved by a superadmin: its scripts run in the page itself.
+                'html_trusted' => $page->html_trusted,
                 'posts' => PostCards::recent(),
             ],
             'seo' => ['title' => $seo?->seo_title ?: $page->title],

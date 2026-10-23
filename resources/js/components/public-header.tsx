@@ -53,9 +53,12 @@ export function PublicHeader() {
     return (
         <>
         <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
-                <Link href="/en-my/" aria-label="DropRSVP home" className="shrink-0">
-                    <Wordmark height={branding?.header_height ?? 44} />
+            {/* Tighter on a phone: logo, four 40px buttons, the gaps and the
+                side padding came to more than a 390px screen, so the row
+                overflowed and pushed the menu button half off the edge. */}
+            <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+                <Link href="/en-my/" aria-label="DropRSVP home" className="min-w-0 shrink">
+                    <Wordmark height={branding?.header_height ?? 44} className="max-h-9 max-w-full sm:max-h-none" />
                 </Link>
 
                 {/* Search + location (desktop) */}
@@ -66,8 +69,9 @@ export function PublicHeader() {
                     {items.map((item, i) => <NavLink key={`${item.url}-${i}`} item={item} />)}
                 </nav>
 
-                <div className="ml-auto flex items-center gap-2 md:ml-0">
-                    <AppearanceToggle />
+                <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:ml-0">
+                    {/* In the menu on a phone, where the bar has no room for it. */}
+                    <AppearanceToggle className="hidden sm:inline-flex" />
                     {auth?.user && <MessagesButton />}
                     {auth?.user && <NotificationBell />}
                     {/* Search toggle (mobile only) */}
@@ -116,12 +120,16 @@ export function PublicHeader() {
             {/* Mobile drawer */}
             {open && (
                 <div className="border-t border-border bg-background md:hidden">
-                    <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
+                    <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 sm:px-6">
                         {items.map((item, i) => (
                             <div key={`m-${item.url}-${i}`} className="py-1.5">
                                 <NavLink item={item} onClick={() => setOpen(false)} />
                             </div>
                         ))}
+                        <div className="flex items-center justify-between py-1.5 sm:hidden">
+                            <span className="text-sm text-foreground/70">Appearance</span>
+                            <AppearanceToggle className="border border-border" />
+                        </div>
                         <div className="mt-2 flex gap-2 border-t border-border pt-3">
                             {auth?.user ? (
                                 <Button asChild className="flex-1"><Link href={dashboard()}>Dashboard</Link></Button>

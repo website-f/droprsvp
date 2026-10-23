@@ -95,6 +95,9 @@ export function sandboxDocument(html: string, layout: HtmlLayout, options: { vie
     }
 
     const helpers = `<base target="${options.linkTarget}">`
+        // The browser's 8px body margin showed as a gap under the site's
+        // header. First in <head>, so the page's own CSS still overrides it.
+        + '<style>body{margin:0}</style>'
         + (options.autoHeight ? `<style>${SCREEN_CLASSES}</style>` : '')
         + `<script>${bootstrap(options.viewportHeight, options.autoHeight)}</script>`;
 

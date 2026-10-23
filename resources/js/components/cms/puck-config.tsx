@@ -9,6 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { InsertImageButton } from '@/components/media/insert-image-button';
 import { MediaPicker } from '@/components/media/media-picker';
+import { ScriptsNote } from '@/components/scripts-note';
 import { uploadImageWithToast } from '@/lib/upload';
 import { renderComponents } from './puck-render';
 import type { PostCard, Props } from './puck-render';
@@ -136,7 +137,7 @@ function HtmlCodeField({ value, onChange }: { value: string; onChange: (v: strin
                     className="w-full resize-y rounded-lg border border-border bg-background p-2 font-mono text-xs leading-relaxed outline-none focus-visible:border-ring"
                 />
                 <InsertImageButton textarea={ref} value={value} onChange={onChange} kind="page" />
-                <p className="text-xs text-muted-foreground">Scripts are removed for safety.</p>
+                <ScriptsNote className="text-xs text-muted-foreground" />
             </div>
         </FieldLabel>
     );
