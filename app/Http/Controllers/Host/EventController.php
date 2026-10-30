@@ -492,8 +492,9 @@ class EventController extends Controller
             // HTML from an organizer — a less trusted author than the superadmin
             // writing CMS pages. Same sanitiser, applied here for the same
             // reason: strip scripts, inline handlers and javascript: URLs while
-            // leaving the formatting they actually wrote.
-            'description' => HtmlSanitizer::clean($data['description'] ?? null) ?: null,
+            // leaving the formatting they actually wrote. Colours that came in
+            // with pasted text go too (see withoutColours).
+            'description' => HtmlSanitizer::withoutColours(HtmlSanitizer::clean($data['description'] ?? null)) ?: null,
             'cover_image' => $data['cover_image'] ?? null,
             'banner_image' => $data['banner_image'] ?? null,
             'gallery' => $data['gallery'] ?? [],

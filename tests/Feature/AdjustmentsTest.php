@@ -224,6 +224,47 @@ class AdjustmentsTest extends TestCase
         $this->assertStringNotContainsString('onclick', $description);
     }
 
+    public function test_text_pasted_from_a_dark_page_loses_its_colour_but_keeps_its_formatting(): void
+    {
+        $host = $this->organizer();
+        EventCategory::firstOrCreate(['slug' => 'community'], ['name' => 'Community', 'sort_order' => 1]);
+
+        // Copied from the site in dark mode: every run carries its near-white.
+        $white = 'oklab(0.985098 0.0000447631 0.0000197291 / 0.9)';
+
+        $this->actingAs($host)->post(route('host.events.store'), [
+            'title' => 'Pasted Night',
+            'description' => '<p><span style="color: '.$white.';"><b>Session A</b> - For beginners.</span></p>'
+                .'<p><span style="border-color: rgb(38, 38, 41); font-weight: bolder; scrollbar-color: color(srgb 0.98 0.98 0.98 / 0.22) rgba(0, 0, 0, 0); color: '.$white.';">Session C</span></p>'
+                .'<p><font color="'.$white.'">Top Notch KL</font></p>'
+                .'<p style="text-align: center; background-color: rgb(10, 10, 10);">Centred</p>',
+            'visibility' => 'public',
+            'timezone' => 'Asia/Kuala_Lumpur',
+            'sessions' => [['starts_at' => now()->addDays(5)->format('Y-m-d H:i:s')]],
+            'ticketTypes' => [['name' => 'Free', 'kind' => 'free', 'price' => 0, 'min_per_order' => 1, 'max_per_order' => 5]],
+        ])->assertSessionHasNoErrors();
+
+        $description = Event::where('title', 'Pasted Night')->value('description');
+
+        $this->assertStringNotContainsString('oklab', $description);
+        $this->assertStringNotContainsString('color', $description);
+        $this->assertStringNotContainsString('rgb', $description);
+        $this->assertStringContainsString('<span><b>Session A</b> - For beginners.</span>', $description);
+        $this->assertStringContainsString('style="font-weight: bolder;"', $description);
+        $this->assertStringContainsString('style="text-align: center;"', $description);
+        $this->assertStringContainsString('<font>Top Notch KL</font>', $description);
+    }
+
+    public function test_existing_descriptions_lose_their_pasted_colours_on_migrate(): void
+    {
+        $event = $this->eventWithTwoSessions();
+        $event->update(['description' => '<p><span style="color: oklab(0.985 0 0 / 0.9);">Seats are limited.</span> <strong>Ages 16+.</strong></p>']);
+
+        (require database_path('migrations/2026_10_30_090000_strip_pasted_colours_from_event_descriptions.php'))->up();
+
+        $this->assertSame('<p><span>Seats are limited.</span> <strong>Ages 16+.</strong></p>', $event->fresh()->description);
+    }
+
     // ---- 4. "View as" -------------------------------------------------------
 
     public function test_a_superadmin_can_view_the_site_as_an_organizer_and_come_back(): void

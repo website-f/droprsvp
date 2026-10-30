@@ -55,6 +55,30 @@ const Btn = ({ onClick, title, active, children }: { onClick: () => void; title:
 );
 const Sep = () => <span className="mx-0.5 h-5 w-px shrink-0 bg-border" />;
 
+const COLOUR_PROPERTIES = [
+    'color', 'background', 'background-color', 'border-color', 'outline-color',
+    'text-decoration-color', 'caret-color', 'scrollbar-color', 'column-rule-color',
+    '-webkit-text-fill-color', '-webkit-text-stroke-color',
+];
+
+/**
+ * Text pasted into a contenteditable keeps the colour it had where it was
+ * copied — copied from this site in dark mode, that is a near-white which
+ * is invisible on the light page. The compact editor has no colour tool, so
+ * any colour is one of these; the server strips them too
+ * (HtmlSanitizer::withoutColours). Only attributes change, so the caret stays put.
+ */
+function dropColours(root: HTMLElement) {
+    root.querySelectorAll<HTMLElement>('[style]').forEach((node) => {
+        COLOUR_PROPERTIES.forEach((property) => node.style.removeProperty(property));
+
+        if (!node.getAttribute('style')?.trim()) {
+            node.removeAttribute('style');
+        }
+    });
+    root.querySelectorAll('font[color]').forEach((font) => font.removeAttribute('color'));
+}
+
 const isEmptyHtml = (html: string) => {
     const t = html.replace(/<br\s*\/?>/gi, '').replace(/<p>\s*<\/p>/gi, '').replace(/&nbsp;/g, ' ').replace(/<[^>]+>/g, '').trim();
 
@@ -212,6 +236,10 @@ export function RichEditor({ value, onChange, placeholder, compact = false, minH
         const el = editorRef.current;
 
         if (el) {
+            if (compact) {
+                dropColours(el);
+            }
+
             const html = el.innerHTML;
             onChangeRef.current(isEmptyHtml(html) ? '' : html);
         }
