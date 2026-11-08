@@ -109,6 +109,27 @@ final class SocialLinks
         return false;
     }
 
+    /** The platform a link belongs to, from its host; null for any other site. */
+    public static function detect(string $value): ?string
+    {
+        $url = WebsiteUrl::normalise($value);
+        $host = $url ? strtolower((string) parse_url($url, PHP_URL_HOST)) : '';
+
+        if ($host === '') {
+            return null;
+        }
+
+        foreach (self::PLATFORMS as $platform => [, $hosts]) {
+            foreach ($hosts as $allowed) {
+                if ($host === $allowed || str_ends_with($host, '.'.$allowed)) {
+                    return $platform;
+                }
+            }
+        }
+
+        return preg_match('/(^|\.)pinterest\.[a-z.]+$/', $host) ? 'pinterest' : null;
+    }
+
     /**
      * Clean a whole submitted set.
      *

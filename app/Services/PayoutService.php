@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\PayoutPaidMail;
+use App\Models\Event;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\User;
@@ -25,9 +26,10 @@ class PayoutService
     public function balanceFor(User $organizer): array
     {
         $eventIds = $organizer->events()->pluck('id');
-        // The organizer receives the ticket revenue + tax (total − fees): the buyer
-        // paid the platform booking fee separately, so it's NOT part of the payout.
-        // Refunds (partial keep the order 'paid') are netted out too.
+        // The organizer receives what the buyer paid (ticket revenue + any tax)
+        // less the platform's commission, which comes out of their share — the
+        // buyer pays no booking fee. Refunds (partial keep the order 'paid') are
+        // netted out too.
         $paid = Order::whereIn('event_id', $eventIds)->where('status', 'paid');
         $net = (float) (clone $paid)->sum(DB::raw('total - fees - refunded_amount'));
 
@@ -40,9 +42,12 @@ class PayoutService
         })->pluck('id');
         $maturedNet = (float) Order::whereIn('event_id', $maturedIds)->where('status', 'paid')->sum(DB::raw('total - fees - refunded_amount'));
 
-        // Everything already requested or paid out is no longer available.
+        // Everything already requested, in transfer or paid out is no longer
+        // available. 'processing' (a CHIP Send transfer not yet confirmed) was
+        // missing here, so money on its way to the organizer showed as
+        // available again and could be requested a second time.
         $withdrawn = (float) Payout::where('user_id', $organizer->id)
-            ->whereIn('status', ['pending', 'paid'])
+            ->whereIn('status', ['pending', 'processing', 'paid'])
             ->sum('amount');
 
         return [
@@ -95,6 +100,115 @@ class PayoutService
             ->sortBy(fn ($row) => [$row['available'] ? 1 : 0, $row['releases_at'] ?? ''])
             ->values()
             ->all();
+    }
+
+    /**
+     * One event's money, line by line: what buyers paid, what went back as
+     * refunds, the platform's commission and the organizer's share — the
+     * figures behind "how much do we owe them for this event".
+     *
+     * Same arithmetic as balanceFor(): the organizer's share is
+     * total − fees − refunded_amount on paid orders. A fully refunded order
+     * keeps its total and refunded_amount (its fee is zeroed), so it shows in
+     * sales and in refunds and nets to nothing.
+     *
+     * @return array<string, mixed>
+     */
+    public function eventStatement(Event $event): array
+    {
+        $orders = Order::where('event_id', $event->id)->whereIn('status', ['paid', 'refunded']);
+
+        $sums = (clone $orders)->selectRaw(
+            'COUNT(*) as orders, COALESCE(SUM(total), 0) as sales, COALESCE(SUM(refunded_amount), 0) as refunds, '
+            .'COALESCE(SUM(fees), 0) as fees, COALESCE(SUM(tax), 0) as tax, COALESCE(SUM(discount), 0) as discounts, '
+            ."SUM(CASE WHEN status = 'refunded' THEN 1 ELSE 0 END) as refunded_orders, "
+            .'SUM(CASE WHEN total > 0 THEN 1 ELSE 0 END) as paying_orders'
+        )->first();
+
+        $sales = round((float) $sums->sales, 2);
+        $refunds = round((float) $sums->refunds, 2);
+        $fees = round((float) $sums->fees, 2);
+        $netSales = round($sales - $refunds, 2);
+        $releasesAt = $event->ends_at ?? $event->starts_at;
+        $organizer = $event->user;
+
+        // Per ticket type, from the order lines. The commission is charged per
+        // order, so it is shared out over each order's lines by value.
+        $types = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.event_id', $event->id)
+            ->where('orders.status', 'paid')
+            ->groupBy('order_items.name')
+            ->selectRaw('order_items.name as name, SUM(order_items.quantity) as tickets, SUM(order_items.line_total) as sales, '
+                .'SUM(CASE WHEN orders.subtotal > 0 THEN orders.fees * order_items.line_total / orders.subtotal ELSE 0 END) as fees')
+            ->orderByDesc('sales')
+            ->get()
+            ->map(fn ($t) => [
+                'name' => $t->name,
+                'tickets' => (int) $t->tickets,
+                'sales' => round((float) $t->sales, 2),
+                'fees' => round((float) $t->fees, 2),
+                'net' => round((float) $t->sales - (float) $t->fees, 2),
+            ])
+            ->all();
+
+        return [
+            'orders' => (int) $sums->orders,
+            'paying_orders' => (int) $sums->paying_orders,
+            'refunded_orders' => (int) $sums->refunded_orders,
+            'sales' => $sales,
+            'discounts' => round((float) $sums->discounts, 2),
+            'tax' => round((float) $sums->tax, 2),
+            'refunds' => $refunds,
+            'net_sales' => $netSales,
+            'fees' => $fees,
+            // What the commission came to as a share of the money kept.
+            'effective_rate' => $netSales > 0 ? round($fees / $netSales * 100, 1) : 0.0,
+            'organizer_share' => round($netSales - $fees, 2),
+            'fee' => PlatformFee::toArray($organizer),
+            'released' => $releasesAt === null || $releasesAt->isPast(),
+            'releases_on' => $releasesAt?->setTimezone($event->timezone ?: config('app.timezone'))->format('j M Y, g:i A'),
+            'ticket_types' => $types,
+        ];
+    }
+
+    /**
+     * Everything between the platform and one organizer, across all their
+     * events: their share, what has been paid, what is waiting on a request,
+     * what they can withdraw now and what is still clearing — and so what the
+     * platform still owes them in total.
+     *
+     * @return array<string, mixed>
+     */
+    public function organizerStatement(User $organizer): array
+    {
+        $balance = $this->balanceFor($organizer);
+
+        $payouts = Payout::where('user_id', $organizer->id)->latest('requested_at')->latest('id')->get();
+        $paid = round((float) $payouts->where('status', 'paid')->sum('amount'), 2);
+        $requested = round((float) $payouts->whereIn('status', ['pending', 'processing'])->sum('amount'), 2);
+
+        return [
+            'name' => $organizer->organizerProfile?->business_name ?: $organizer->name,
+            'email' => $organizer->email,
+            'events' => $organizer->events()->count(),
+            'earned' => $balance['net'],
+            'paid_out' => $paid,
+            'requested' => $requested,
+            'available' => $balance['available'],
+            'clearing' => $balance['pending_clearance'],
+            // Owed = earned − already paid. Requested-but-unpaid money is still owed.
+            'owed' => max(0.0, round($balance['net'] - $paid, 2)),
+            'fee' => PlatformFee::toArray($organizer),
+            'payouts' => $payouts->take(10)->map(fn (Payout $p) => [
+                'reference' => $p->reference,
+                'amount' => round((float) $p->amount, 2),
+                'status' => $p->status,
+                'method' => $p->method,
+                'requested_on' => $p->requested_at?->format('j M Y'),
+                'paid_on' => $p->paid_at?->format('j M Y'),
+            ])->values()->all(),
+        ];
     }
 
     /** Request a payout for the full available balance. */

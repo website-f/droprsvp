@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Mail\OrganizerApplicationReceivedMail;
 use App\Support\Dates;
 use App\Support\PlatformAlert;
+use App\Support\SocialLinks;
 use App\Support\WebsiteUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 /**
  * The vendor/organizer application. New organizers submit their business details
@@ -37,7 +39,7 @@ class OrganizerApplicationController extends Controller
                 // Prefilled from the account, which is the address we already
                 // reach them at — they can change it to a business one.
                 'email' => $profile?->email ?: $user->email,
-                'website' => $profile?->website,
+                'links' => $this->linksFor($profile),
                 'phone' => $profile?->phone,
                 'bio' => $profile?->bio,
                 'poster' => $profile?->poster,
@@ -47,7 +49,84 @@ class OrganizerApplicationController extends Controller
                 // A pending-but-still-editable application is being resubmitted/edited.
                 'editing' => (bool) ($profile && $profile->status === 'pending'),
             ],
+            'platforms' => collect(SocialLinks::PLATFORMS)
+                ->map(fn ($p, $value) => ['value' => $value, 'label' => $p[0], 'hosts' => $p[1]])
+                ->values(),
         ]);
+    }
+
+    /** The profile's website and socials as the form's rows, website first. */
+    private function linksFor($profile): array
+    {
+        $rows = $profile?->website ? [['type' => 'website', 'value' => $profile->website]] : [];
+
+        foreach ((array) ($profile?->socials ?? []) as $platform => $url) {
+            $rows[] = ['type' => $platform, 'value' => $url];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The "Links" rows — a website and any social profiles, as many as they
+     * have — into the profile's website and socials, which the public
+     * organizer page and Branding settings already show and edit.
+     *
+     * A link pasted with the wrong type is filed under the right one (an
+     * Instagram URL left on "Website" is their Instagram). Each platform holds
+     * one link, so the first of a kind is kept; a second website, which has
+     * nowhere else to go, is an error rather than silently dropped.
+     *
+     * @return array{website: ?string, socials: array<string,string>}
+     */
+    private function cleanLinks(mixed $rows): array
+    {
+        $website = null;
+        $socials = [];
+        $errors = [];
+
+        foreach (array_values(is_array($rows) ? $rows : []) as $i => $row) {
+            $type = is_array($row) ? (string) ($row['type'] ?? 'website') : 'website';
+            $value = is_array($row) && is_string($row['value'] ?? null) ? trim($row['value']) : '';
+
+            if ($value === '') {
+                continue;
+            }
+
+            if ($type === 'website') {
+                $type = SocialLinks::detect($value) ?? 'website';
+            }
+
+            if ($type === 'website') {
+                $url = WebsiteUrl::normalise($value);
+
+                if (! $url) {
+                    $errors["links.$i.value"] = 'That does not look like a web address.';
+                } elseif ($website !== null && $website !== $url) {
+                    $errors["links.$i.value"] = 'Only one website can be added. Use the other rows for social profiles.';
+                } else {
+                    $website = mb_substr($url, 0, 2048);
+                }
+
+                continue;
+            }
+
+            $url = SocialLinks::normalise($type, $value);
+
+            if ($url === false) {
+                $errors["links.$i.value"] = 'That does not look like a '.SocialLinks::label($type).' link.';
+            } elseif ($url !== null && ! isset($socials[$type])) {
+                $socials[$type] = mb_substr($url, 0, 2048);
+            } elseif ($url !== null && $socials[$type] !== $url) {
+                $errors["links.$i.value"] = SocialLinks::label($type).' is already added above.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return ['website' => $website, 'socials' => $socials];
     }
 
     public function submit(Request $request)
@@ -69,6 +148,10 @@ class OrganizerApplicationController extends Controller
             $request->merge(['website' => WebsiteUrl::normalise($request->input('website'))]);
         }
 
+        // The "Links" list replaces the single website box; an older form
+        // still posting `website` keeps working.
+        $links = $request->has('links') ? $this->cleanLinks($request->input('links')) : null;
+
         $data = $request->validate([
             'business_name' => ['required', 'string', 'max:120'],
             // Phone AND email are both required. An application used to be
@@ -79,6 +162,7 @@ class OrganizerApplicationController extends Controller
             'email' => ['required', 'email', 'max:180'],
             'phone' => ['required', 'string', 'max:40'],
             'website' => ['nullable', 'url', 'max:2048'],
+            'links' => ['nullable', 'array', 'max:12'],
             'bio' => ['nullable', 'string', 'max:2000'],
             'poster' => ['nullable', 'string', 'max:2048'],
             'gallery' => ['nullable', 'array', 'max:8'],
@@ -97,6 +181,13 @@ class OrganizerApplicationController extends Controller
         // their account; it only fills a gap.
         if (! $request->user()->phone && ! empty($data['phone'])) {
             $request->user()->forceFill(['phone' => $data['phone']])->save();
+        }
+
+        unset($data['links']);
+
+        if ($links !== null) {
+            $data['website'] = $links['website'];
+            $data['socials'] = $links['socials'] ?: null;
         }
 
         $profile = $request->user()->organizerProfile()->updateOrCreate(
@@ -127,6 +218,7 @@ class OrganizerApplicationController extends Controller
                 'Account email' => $request->user()->email,
                 'Phone' => $data['phone'] ?? null,
                 'Website' => $data['website'] ?? null,
+                ...collect($data['socials'] ?? [])->mapWithKeys(fn ($url, $platform) => [SocialLinks::label($platform) => $url])->all(),
             ]),
             level: 'warning', // it is blocking someone until it is reviewed
         );

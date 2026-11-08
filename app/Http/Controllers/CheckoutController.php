@@ -10,6 +10,7 @@ use App\Services\CheckoutService;
 use App\Services\GoogleAnalytics;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Services\TableAssignmentService;
 use App\Support\Cities;
 use App\Support\CustomFields;
 use App\Support\Edm\Consent;
@@ -115,6 +116,9 @@ class CheckoutController extends Controller
             // The organizer's own questions, asked once per ticket in the order.
             'customFields' => CustomFields::forEvent($order->event),
             'ticketCount' => (int) $order->items->sum('quantity'),
+            // "Choose your table", when the organizer lets buyers pick and
+            // this buyer is still within any "first N" limit.
+            'tableChoice' => app(TableAssignmentService::class)->options($order),
             // GA4 funnel entry. Same payload shape as the purchase event, so
             // begin_checkout and purchase are comparable line for line.
             'analytics' => Tracking::checkoutPayload($order),
@@ -238,6 +242,9 @@ class CheckoutController extends Controller
             // thing that knows what the options actually are.
             'custom_answers' => ['array', 'max:100'],
             'custom_answers.*' => ['array'],
+            // Order item id => the table picked for it (blank = no preference).
+            'tables' => ['nullable', 'array', 'max:50'],
+            'tables.*' => ['nullable', 'integer'],
             // "Keep me signed in" — honoured only when checkout creates a brand
             // new account for this buyer; see autoLoginIfRequested().
             'auto_login' => ['boolean'],
@@ -283,6 +290,13 @@ class CheckoutController extends Controller
         if ($answerErrors) {
             throw ValidationException::withMessages($answerErrors);
         }
+
+        // The tables they picked, held for this order until it is paid — and
+        // refused here, before any payment, if someone took the seats first.
+        if ($request->has('tables')) {
+            app(TableAssignmentService::class)->choose($order->loadMissing(['event', 'items']), (array) $request->input('tables', []));
+        }
+        unset($data['tables']);
 
         $data['buyer_age_band'] = Profile::bandFor(
             isset($data['buyer_birth_year']) ? (int) $data['buyer_birth_year'] : null,

@@ -9,6 +9,7 @@ use App\Models\EventReview;
 use App\Models\Ticket;
 use App\Models\TicketType;
 use App\Models\User;
+use App\Services\TableAssignmentService;
 use App\Support\Chat\ChatLink;
 use App\Support\Cities;
 use App\Support\HtmlSanitizer;
@@ -176,6 +177,11 @@ class EventController extends Controller
                 'show_participants' => (bool) $event->show_participants,
                 'show_reviews' => (bool) $event->show_reviews,
                 'seating_enabled' => (bool) $event->seating_enabled,
+                // Buyers pick their table at checkout; `left` counts the picks
+                // still open when only the first N orders may choose.
+                'table_choice' => ! $ended && $event->ticketing_mode === 'tables' && $event->table_choice && $event->seatingTables->isNotEmpty()
+                    ? ['left' => app(TableAssignmentService::class)->choicesLeft($event)]
+                    : null,
                 'seating' => $event->seating_enabled ? $event->seatSections->map(fn ($sec) => [
                     'id' => $sec->id,
                     'ticket_type_id' => $sec->ticket_type_id,
@@ -215,6 +221,9 @@ class EventController extends Controller
                     'kind' => $t->kind,
                     'price' => (float) $t->price,
                     'compare_at_price' => $t->compare_at_price ? (float) $t->compare_at_price : null,
+                    // "Buy 3 or more, RM15 each" — the checkout prices it the same way.
+                    'group_min' => $t->hasGroupPrice() ? (int) $t->group_min : null,
+                    'group_price' => $t->hasGroupPrice() ? (float) $t->group_price : null,
                     'currency' => $t->currency,
                     'on_sale' => ! $ended && $t->isOnSale(),
                     'sold_out' => $t->remaining() === 0,

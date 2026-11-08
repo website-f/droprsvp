@@ -15,24 +15,42 @@ class SeatingController extends Controller
     {
         $this->authorize('update', $event);
 
-        $event->load(['seatingTables' => fn ($q) => $q->withCount('tickets')]);
+        // Only live admissions take a seat; a refunded ticket keeps its table
+        // id for the record but no longer sits there.
+        $event->load(['seatingTables' => fn ($q) => $q->withCount(['tickets' => fn ($t) => $t->live()])]);
+
+        $tickets = $event->tickets()
+            ->whereIn('status', ['valid', 'checked_in'])
+            ->with(['ticketType:id,name', 'order:id', 'order.items:id,order_id,ticket_type_id,seating_table_id'])
+            ->orderBy('id')
+            ->get();
 
         return inertia('host/events/seating', [
-            'event' => ['title' => $event->title, 'slug' => $event->slug],
+            'event' => [
+                'title' => $event->title, 'slug' => $event->slug,
+                'table_choice' => (bool) $event->table_choice,
+                'table_choice_limit' => $event->table_choice_limit,
+                'choices_used' => app(TableAssignmentService::class)->choicesUsed($event),
+                'per_ticket_type' => (bool) $event->tables_per_ticket_type,
+            ],
             'tables' => $event->seatingTables->map(fn ($t) => [
                 'id' => $t->id, 'name' => $t->name, 'capacity' => $t->capacity, 'assigned' => $t->tickets_count,
+                // Per sitting, when each ticket type fills the tables on its own.
+                'by_type' => $event->tables_per_ticket_type
+                    ? $tickets->where('seating_table_id', $t->id)->countBy('ticket_type_id')->all()
+                    : null,
             ]),
-            'tickets' => $event->tickets()
-                ->whereIn('status', ['valid', 'checked_in'])
-                ->with('ticketType:id,name')
-                ->orderBy('id')
-                ->get()
-                ->map(fn ($t) => [
-                    'id' => $t->id,
-                    'name' => $t->attendee_name ?: 'Guest',
-                    'type' => $t->ticketType?->name,
-                    'table_id' => $t->seating_table_id,
-                ]),
+            'tickets' => $tickets->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->attendee_name ?: 'Guest',
+                'type' => $t->ticketType?->name,
+                'type_id' => $t->ticket_type_id,
+                'table_id' => $t->seating_table_id,
+                // The buyer picked this table themselves at checkout.
+                'chosen' => $t->seating_table_id !== null && (bool) $t->order?->items->first(
+                    fn ($i) => $i->ticket_type_id === $t->ticket_type_id && $i->seating_table_id === $t->seating_table_id
+                ),
+            ]),
         ]);
     }
 
@@ -72,8 +90,8 @@ class SeatingController extends Controller
             : 'Nothing to assign — everyone is already seated, or the tables are full.');
     }
 
-    /** Assign (or clear) a ticket's table, enforcing capacity. */
-    public function assign(Request $request, Event $event)
+    /** Assign (or clear) a ticket's table, enforcing capacity (and buyers' held picks). */
+    public function assign(Request $request, Event $event, TableAssignmentService $svc)
     {
         $this->authorize('update', $event);
 
@@ -91,10 +109,16 @@ class SeatingController extends Controller
             return back();
         }
 
-        DB::transaction(function () use ($event, $tableId, $ticket) {
+        DB::transaction(function () use ($event, $tableId, $ticket, $svc) {
             $table = $event->seatingTables()->whereKey($tableId)->lockForUpdate()->firstOrFail();
-            $assigned = $table->tickets()->where('id', '!=', $ticket->id)->count();
-            if ($assigned >= $table->capacity) {
+            $free = $svc->freeSeats($event, $ticket->ticket_type_id, collect([$table]))[$table->id] ?? 0;
+
+            // The ticket already sitting here is not taking a seat from itself.
+            if ((int) $ticket->seating_table_id === $table->id) {
+                $free++;
+            }
+
+            if ($free <= 0) {
                 throw ValidationException::withMessages(['seating' => "“{$table->name}” is full."]);
             }
             $ticket->update(['seating_table_id' => $table->id]);

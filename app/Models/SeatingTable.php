@@ -27,8 +27,12 @@ class SeatingTable extends Model
         return $this->hasMany(Ticket::class, 'seating_table_id');
     }
 
+    /**
+     * Seats not taken by a live admission. Refunded and cancelled tickets keep
+     * their table id for the record but no longer sit at it.
+     */
     public function seatsLeft(): int
     {
-        return max(0, $this->capacity - $this->tickets()->count());
+        return max(0, $this->capacity - $this->tickets()->live()->count());
     }
 }

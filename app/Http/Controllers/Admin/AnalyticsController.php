@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\GoogleAnalytics;
+use App\Services\PayoutService;
 use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
 use App\Support\AnswerInsights;
@@ -205,8 +206,16 @@ class AnalyticsController extends Controller
         $data = $this->eventBreakdown($event->slug, $w, $request);
         abort_unless($data, 404);
 
+        // The money side: what this event took, the platform's cut, and where
+        // the organizer's payout stands across everything they host.
+        $payouts = app(PayoutService::class);
+
         return inertia('admin/analytics/event', [
             'data' => $data,
+            'money' => [
+                'event' => $payouts->eventStatement($event),
+                'organizer' => $event->user ? $payouts->organizerStatement($event->user) : null,
+            ],
             'filters' => ['period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label'], 'city' => $data['city'], 'source' => $data['source']],
             'cityOptions' => $data['cityOptions'],
             'sourceOptions' => Analytics::sourceOptions(),

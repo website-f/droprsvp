@@ -100,6 +100,66 @@ class SocialLinksAndCopyTest extends TestCase
             ->assertSessionHasErrors('socials');
     }
 
+    // ---- the application's "Website & social media" rows ------------------------------
+
+    private function apply(User $user, array $links)
+    {
+        return $this->actingAs($user)->post('/host/apply', [
+            'business_name' => 'BoardLah Entertainment',
+            'email' => 'bookings@boardlah.test',
+            'phone' => '01129278984',
+            'links' => $links,
+        ]);
+    }
+
+    public function test_an_applicant_adds_a_website_and_several_social_profiles(): void
+    {
+        $user = $this->organizer();
+
+        $this->apply($user, [
+            ['type' => 'website', 'value' => 'boardlah.com'],
+            ['type' => 'instagram', 'value' => '@boardlah'],
+            ['type' => 'tiktok', 'value' => 'boardlah'],
+            ['type' => 'whatsapp', 'value' => '012-345 6789'],
+            ['type' => 'facebook', 'value' => ''],
+        ])->assertSessionHasNoErrors();
+
+        $profile = $user->fresh()->organizerProfile;
+        $this->assertSame('https://boardlah.com', $profile->website);
+        $this->assertSame([
+            'instagram' => 'https://www.instagram.com/boardlah',
+            'tiktok' => 'https://www.tiktok.com/@boardlah',
+            'whatsapp' => 'https://wa.me/60123456789',
+        ], $profile->socials);
+
+        // And they come back as rows when the form is opened again.
+        $profile->update(['status' => 'rejected']);
+        $this->actingAs($user->fresh())->get('/host/apply')->assertInertia(fn (Assert $page) => $page
+            ->where('application.links.0', ['type' => 'website', 'value' => 'https://boardlah.com'])
+            ->where('application.links.1', ['type' => 'instagram', 'value' => 'https://www.instagram.com/boardlah'])
+            ->has('platforms', count(SocialLinks::PLATFORMS)));
+    }
+
+    public function test_a_social_link_left_on_website_is_filed_under_its_platform(): void
+    {
+        $user = $this->organizer();
+
+        $this->apply($user, [['type' => 'website', 'value' => 'instagram.com/boardlah']])->assertSessionHasNoErrors();
+
+        $profile = $user->fresh()->organizerProfile;
+        $this->assertNull($profile->website);
+        $this->assertSame(['instagram' => 'https://instagram.com/boardlah'], $profile->socials);
+    }
+
+    public function test_a_bad_link_is_reported_on_its_own_row(): void
+    {
+        $this->apply($this->organizer(), [
+            ['type' => 'website', 'value' => 'boardlah.com'],
+            ['type' => 'instagram', 'value' => 'https://www.tiktok.com/@boardlah'],
+            ['type' => 'website', 'value' => 'another.com'],
+        ])->assertSessionHasErrors(['links.1.value', 'links.2.value'])->assertSessionDoesntHaveErrors('links.0.value');
+    }
+
     // ---- showing ---------------------------------------------------------------------
 
     public function test_the_organizer_page_shows_the_logos_and_tells_search_engines(): void

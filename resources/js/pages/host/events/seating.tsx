@@ -1,13 +1,13 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, ArrowLeft, Plus, Save, Trash2, Wand2 } from 'lucide-react';
+import { ArmchairIcon, ArrowLeft, Hand, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
-interface TableView { id: number; name: string; capacity: number; assigned: number }
-interface TicketView { id: number; name: string; type: string | null; table_id: number | null }
+interface TableView { id: number; name: string; capacity: number; assigned: number; by_type: Record<string, number> | null }
+interface TicketView { id: number; name: string; type: string | null; type_id: number | null; table_id: number | null; chosen: boolean }
 interface Props {
-    event: { title: string; slug: string };
+    event: { title: string; slug: string; table_choice: boolean; table_choice_limit: number | null; choices_used: number; per_ticket_type: boolean };
     tables: TableView[];
     tickets: TicketView[];
 }
@@ -77,6 +77,19 @@ export default function Seating({ event, tables, tickets }: Props) {
                     </div>
                 </div>
 
+                {event.table_choice && (
+                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm">
+                        <Hand className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <span>
+                            Buyers choose their own table at checkout
+                            {event.table_choice_limit !== null
+                                ? <> — <strong>{Math.min(event.choices_used, event.table_choice_limit)} of the first {event.table_choice_limit}</strong> picks used.</>
+                                : <> — <strong>{event.choices_used}</strong> order{event.choices_used === 1 ? '' : 's'} picked so far.</>}
+                            {' '}You can still move anyone below. Change this in the event’s Ticketing settings.
+                        </span>
+                    </div>
+                )}
+
                 {errors?.seating && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{errors.seating}</div>}
 
                 <div className="mb-6"><TablesEditor key={tablesKey} slug={event.slug} initial={tables} /></div>
@@ -99,10 +112,11 @@ export default function Seating({ event, tables, tickets }: Props) {
                         <ul className="grid gap-2">
                             {tickets.map((t) => (
                                 <li key={t.id} className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-0">
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <ArmchairIcon className="size-4 text-muted-foreground" />
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                                        <ArmchairIcon className="size-4 shrink-0 text-muted-foreground" />
                                         <span className="font-medium">{t.name}</span>
                                         {t.type && <span className="text-xs text-muted-foreground">· {t.type}</span>}
+                                        {t.chosen && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">Picked by buyer</span>}
                                     </div>
                                     <div className="w-48 shrink-0">
                                         <AppSelect
@@ -110,7 +124,12 @@ export default function Seating({ event, tables, tickets }: Props) {
                                             onChange={(v) => assign(t.id, v === 'none' ? '' : v)}
                                             options={[
                                                 { value: 'none', label: '— Unassigned —' },
-                                                ...tables.map((tb) => ({ value: String(tb.id), label: `${tb.name} (${tb.assigned}/${tb.capacity})`, disabled: tb.assigned >= tb.capacity && t.table_id !== tb.id })),
+                                                ...tables.map((tb) => {
+                                                    // Per sitting when each ticket type has the tables to itself.
+                                                    const used = tb.by_type ? (tb.by_type[String(t.type_id)] ?? 0) : tb.assigned;
+
+                                                    return { value: String(tb.id), label: `${tb.name} (${used}/${tb.capacity})`, disabled: used >= tb.capacity && t.table_id !== tb.id };
+                                                }),
                                             ]}
                                             className="h-10"
                                         />

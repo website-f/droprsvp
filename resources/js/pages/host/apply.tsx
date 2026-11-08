@@ -1,26 +1,46 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ImageUp, Loader2, Store, X } from 'lucide-react';
+import { Globe, ImageUp, Loader2, Plus, Store, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Wordmark } from '@/components/brand';
+import { SocialIcon } from '@/components/social-icons';
+import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { uploadImageWithToast } from '@/lib/upload';
+import { cn } from '@/lib/utils';
 
 interface Application {
-    business_name: string; email: string | null; website: string | null; phone: string | null; bio: string | null;
+    business_name: string; email: string | null; links: LinkRow[]; phone: string | null; bio: string | null;
     poster: string | null; gallery: string[]; status: string | null; reason: string | null;
+}
+
+interface LinkRow { type: string; value: string }
+interface Platform { value: string; label: string; hosts: string[] }
+
+/** The platform a pasted link is on, from its host; null for any other site. */
+function detectPlatform(value: string, platforms: Platform[]): string | null {
+    const typed = value.trim();
+    let host = '';
+
+    try {
+        host = new URL(/^[a-z][a-z0-9+.-]*:/i.test(typed) ? typed : `https://${typed}`).hostname.toLowerCase();
+    } catch {
+        return null;
+    }
+
+    return platforms.find((p) => p.hosts.some((h) => host === h || host.endsWith(`.${h}`)))?.value ?? null;
 }
 
 const field = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-export default function OrganizerApply({ application }: { application: Application }) {
+export default function OrganizerApply({ application, platforms }: { application: Application; platforms: Platform[] }) {
     const form = useForm({
         business_name: application.business_name ?? '',
         email: application.email ?? '',
         phone: application.phone ?? '',
-        website: application.website ?? '',
+        links: (application.links?.length ? application.links : [{ type: 'website', value: '' }]) as LinkRow[],
         bio: application.bio ?? '',
         poster: application.poster ?? '',
         gallery: application.gallery ?? [],
@@ -77,6 +97,40 @@ export default function OrganizerApply({ application }: { application: Applicati
         }
     };
 
+    const typeOptions = [{ value: 'website', label: 'Website' }, ...platforms.map((p) => ({ value: p.value, label: p.label }))];
+    const linkError = (i: number) => (errors as Record<string, string | undefined>)[`links.${i}.value`];
+
+    const setLink = (i: number, patch: Partial<LinkRow>) => {
+        setData('links', data.links.map((row, idx) => {
+            if (idx !== i) {
+                return row;
+            }
+
+            const next = { ...row, ...patch };
+
+            // An Instagram/TikTok/… link pasted into a row still on "Website"
+            // switches the row to that platform, so it shows with its logo.
+            if (patch.value !== undefined && next.type === 'website') {
+                next.type = detectPlatform(patch.value, platforms) ?? 'website';
+            }
+
+            return next;
+        }));
+    };
+
+    // A new row starts on the first kind not used yet.
+    const addLink = () => {
+        const used = new Set(data.links.map((l) => l.type));
+        const type = typeOptions.find((o) => !used.has(o.value))?.value ?? 'website';
+        setData('links', [...data.links, { type, value: '' }]);
+    };
+
+    const placeholderFor = (type: string) => {
+        const fixed: Record<string, string> = { website: 'yourbrand.com', whatsapp: '+60 12-345 6789', linkedin: 'linkedin.com/company/yourbrand' };
+
+        return fixed[type] ?? `@yourbrand or ${platforms.find((p) => p.value === type)?.hosts[0] ?? ''}/yourbrand`;
+    };
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         form.post('/host/apply');
@@ -121,12 +175,48 @@ export default function OrganizerApply({ application }: { application: Applicati
                                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="website">Website (optional)</Label>
-                                <input id="website" className={field} inputMode="url" value={data.website} onChange={(e) => setData('website', e.target.value)} placeholder="instagram.com/yourbrand" />
-                                {errors.website && <p className="text-xs text-destructive">{errors.website}</p>}
+                        <div className="grid gap-1.5">
+                            <Label>Website &amp; social media (optional)</Label>
+                            <p className="-mt-0.5 text-xs text-muted-foreground">Add as many as you have. Paste a link or type your @handle.</p>
+                            <div className="grid gap-2">
+                                {data.links.map((row, i) => (
+                                    <div key={i} className="grid gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <AppSelect
+                                                value={row.type}
+                                                onChange={(type) => setLink(i, { type })}
+                                                options={typeOptions}
+                                                className="w-32 shrink-0 rounded-xl bg-card sm:w-40"
+                                                aria-label={`Link ${i + 1} type`}
+                                            />
+                                            <div className="relative min-w-0 flex-1">
+                                                <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground">
+                                                    {row.type === 'website' ? <Globe className="size-4" /> : <SocialIcon platform={row.type} className="size-4" />}
+                                                </span>
+                                                <input
+                                                    className={cn(field, 'pl-10')}
+                                                    inputMode="url"
+                                                    autoCapitalize="none"
+                                                    autoCorrect="off"
+                                                    aria-label={`Link ${i + 1}`}
+                                                    value={row.value}
+                                                    onChange={(e) => setLink(i, { value: e.target.value })}
+                                                    placeholder={placeholderFor(row.type)}
+                                                />
+                                            </div>
+                                            {data.links.length > 1 && (
+                                                <button type="button" aria-label={`Remove link ${i + 1}`} onClick={() => setData('links', data.links.filter((_, idx) => idx !== i))} className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
+                                                    <X className="size-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                        {linkError(i) && <p className="text-xs text-destructive">{linkError(i)}</p>}
+                                    </div>
+                                ))}
                             </div>
+                            {data.links.length < typeOptions.length && (
+                                <Button type="button" variant="outline" size="sm" className="w-max" onClick={addLink}><Plus className="size-3.5" /> Add another link</Button>
+                            )}
                         </div>
                         <div className="grid gap-1.5">
                             <Label htmlFor="bio">About your events</Label>

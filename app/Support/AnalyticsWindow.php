@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 
 /**
  * A resolved date-range for the analytics pages. Parses a `period` preset
- * (7d / 30d / 90d / 12m) or an explicit `custom` from/to range into a window
+ * (7d / 30d / 90d / 12m), a calendar period (today, this or last week, this or
+ * last month, this year), `all` where the page allows it, or an explicit
+ * `custom` from/to range into a window
  * the aggregation helpers can bucket by day (short ranges) or month (long ones).
  * All inputs are sanitised here so the rest of the code trusts the window.
  */
@@ -19,23 +21,51 @@ class AnalyticsWindow
 
     public const DEFAULT = '30d';
 
+    /** Calendar periods: the current or previous week/month, Monday-first weeks. */
+    public const CALENDAR = ['today', 'week', 'last_week', 'month', 'last_month', 'year'];
+
     /**
      * @return array{period:string,from:CarbonInterface,to:CarbonInterface,from_date:string,to_date:string,bucket:'day'|'month',days:int,label:string}
      */
-    public static function fromRequest(Request $request): array
+    public static function fromRequest(Request $request, string $default = self::DEFAULT, ?CarbonInterface $since = null): array
     {
         return self::resolve(
-            (string) $request->query('period', self::DEFAULT),
+            (string) $request->query('period', $default),
             $request->query('from'),
             $request->query('to'),
+            $since,
         );
     }
 
     /** @return array{period:string,from:CarbonInterface,to:CarbonInterface,from_date:string,to_date:string,bucket:'day'|'month',days:int,label:string} */
-    public static function resolve(string $period, mixed $fromRaw = null, mixed $toRaw = null): array
+    public static function resolve(string $period, mixed $fromRaw = null, mixed $toRaw = null, ?CarbonInterface $since = null): array
     {
         $to = today()->endOfDay();
         $from = null;
+
+        // "All time" only where the page says when time starts (its first
+        // sale), so the range and its buckets stay finite.
+        if ($period === 'all' && $since) {
+            $from = $since->copy()->startOfDay()->min(today()->startOfDay());
+            $spanDays = (int) $from->diffInDays($to) + 1;
+
+            return [
+                'period' => 'all', 'from' => $from, 'to' => $to,
+                'from_date' => $from->toDateString(), 'to_date' => $to->toDateString(),
+                'bucket' => $spanDays > 92 ? 'month' : 'day', 'days' => $spanDays, 'label' => 'All time',
+            ];
+        }
+
+        if (in_array($period, self::CALENDAR, true)) {
+            [$from, $to] = match ($period) {
+                'today' => [today()->startOfDay(), today()->endOfDay()],
+                'week' => [today()->startOfWeek(CarbonInterface::MONDAY), today()->endOfDay()],
+                'last_week' => [today()->startOfWeek(CarbonInterface::MONDAY)->subWeek(), today()->startOfWeek(CarbonInterface::MONDAY)->subDay()->endOfDay()],
+                'month' => [today()->startOfMonth(), today()->endOfDay()],
+                'last_month' => [today()->subMonthNoOverflow()->startOfMonth(), today()->subMonthNoOverflow()->endOfMonth()],
+                'year' => [today()->startOfYear(), today()->endOfDay()],
+            };
+        }
 
         if ($period === 'custom') {
             $f = self::parseDate($fromRaw);
@@ -105,6 +135,12 @@ class AnalyticsWindow
             '30d' => 'Last 30 days',
             '90d' => 'Last 90 days',
             '12m' => 'Last 12 months',
+            'today' => 'Today',
+            'week' => 'This week',
+            'last_week' => 'Last week',
+            'month' => $from->format('F Y'),
+            'last_month' => $from->format('F Y'),
+            'year' => $from->format('Y'),
             default => $from->format('j M Y').' – '.$to->format('j M Y'),
         };
     }

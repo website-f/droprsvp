@@ -1,5 +1,5 @@
 import { Link, router, useForm } from '@inertiajs/react';
-import { CalendarCheck, CalendarDays, Clock, Crown, Images, Info, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Tag, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
+import { CalendarCheck, CalendarDays, Clock, Crown, Images, Info, LayoutGrid, Lock, MapPin, MessageCircle, Minus, Plus, Send, Star, Tag, Ticket, UserCheck, UserPlus, Users, Video } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddToCalendar } from '@/components/add-to-calendar';
@@ -19,7 +19,12 @@ interface TicketTypeView {
     id: number; name: string; description: string | null; kind: 'paid' | 'free' | 'donation';
     price: number; compare_at_price: number | null; currency: string; on_sale: boolean; sold_out: boolean;
     min_per_order: number; max_per_order: number; remaining: number | null;
+    /** Buy this many or more and each ticket costs group_price. */
+    group_min: number | null; group_price: number | null;
 }
+
+/** Each ticket's price when buying `n` at once — the group price from group_min up. */
+const unitPrice = (t: TicketTypeView, n: number) => (t.group_min && t.group_price != null && n >= t.group_min ? t.group_price : t.price);
 interface Reply { id: number; author: string; chat?: string | null; body: string; when: string; is_organizer: boolean }
 interface Comment extends Reply { replies: Reply[] }
 interface EventView {
@@ -29,6 +34,8 @@ interface EventView {
     when: string | null; sold_out: boolean; google_url: string | null; ics_url: string | null; organizer: string; organizer_id: number; organizer_slug: string; organizer_followers: number; status: string;
     show_participants: boolean; show_reviews: boolean;
     seating_enabled: boolean; seating: SeatMapSection[];
+    /** Buyers choose their table at checkout; `left` is null when every buyer may. */
+    table_choice: { left: number | null } | null;
     sessions: Array<{ id: number; title: string | null; label: string | null }>;
     ticket_types: TicketTypeView[];
     /** Over: the page stays, but says so and stops selling. */
@@ -147,7 +154,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
         ? selectedSeats.size + Object.values(gaQty).reduce((a, b) => a + b, 0)
         : 0;
 
-    const total = event.seating_enabled ? seatingTotal : event.ticket_types.reduce((sum, t) => sum + (qty[t.id] || 0) * t.price, 0);
+    const total = event.seating_enabled ? seatingTotal : event.ticket_types.reduce((sum, t) => sum + (qty[t.id] || 0) * unitPrice(t, qty[t.id] || 0), 0);
     const count = event.seating_enabled ? seatingCount : Object.values(qty).reduce((a, b) => a + b, 0);
 
     // Surface sold-out / limit / seat errors (from CheckoutService validation) as a
@@ -749,6 +756,17 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                                             <span className="rounded bg-[#2ec4b6]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#2ec4b6]">-{Math.round((1 - t.price / t.compare_at_price) * 100)}%</span>
                                                         )}
                                                     </div>
+                                                    {t.group_min && t.group_price != null && (
+                                                        (qty[t.id] || 0) >= t.group_min ? (
+                                                            <div className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-[#2ec4b6]/15 px-2 py-0.5 text-xs font-medium text-[#1f8f85] dark:text-[#5fe0d4]">
+                                                                <Users className="size-3" /> Group price: {t.currency} {t.group_price.toFixed(2)} each
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground">
+                                                                <Users className="size-3" /> Buy {t.group_min}+ for {t.currency} {t.group_price.toFixed(2)} each
+                                                            </div>
+                                                        )
+                                                    )}
                                                 </div>
                                                 {t.sold_out ? <Badge variant="destructive">Sold out</Badge>
                                                     : !t.on_sale ? <Badge variant="outline">Not on sale</Badge>
@@ -763,6 +781,17 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                         </div>
                                     ))}
                                 </div>
+                            )}
+
+                            {event.table_choice && !event.seating_enabled && (
+                                <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+                                    <LayoutGrid className="mt-0.5 size-3.5 shrink-0" />
+                                    {event.table_choice.left === null
+                                        ? 'You choose your table at checkout — your group sits together.'
+                                        : event.table_choice.left > 0
+                                            ? `The next ${event.table_choice.left} order${event.table_choice.left === 1 ? '' : 's'} can choose their table at checkout.`
+                                            : 'Table picks are taken — the organizer will seat you.'}
+                                </p>
                             )}
 
                             {count > 0 && (

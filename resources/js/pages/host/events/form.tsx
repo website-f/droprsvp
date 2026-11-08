@@ -20,13 +20,14 @@ import { Label } from '@/components/ui/label';
 import { Switch, SwitchField } from '@/components/ui/switch';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { imageError, uploadImage, uploadImageWithToast } from '@/lib/upload';
+import { cn } from '@/lib/utils';
 
 interface Category { id: number; name: string }
 interface City { name: string; slug: string; state: string }
 interface SessionRow { id?: number; title: string; starts_at: string; ends_at: string; capacity: string }
 interface TicketRow {
     id?: number; name: string; description: string; kind: 'paid' | 'free' | 'donation';
-    price: string; compare_at_price: string; quantity: string; min_per_order: string; max_per_order: string;
+    price: string; compare_at_price: string; group_min: string; group_price: string; quantity: string; min_per_order: string; max_per_order: string;
     sales_start: string; sales_end: string; is_active: boolean;
 }
 type SectionRow = LayoutSectionRow;
@@ -37,11 +38,12 @@ interface EventProp {
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null; show_participants: boolean; show_reviews: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
+    table_choice?: boolean; table_choice_limit?: number | null; tables_per_ticket_type?: boolean;
     // *_local are the same instants in the EVENT's timezone, computed server-side
     // for the datetime-local inputs, which carry no timezone of their own.
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; starts_at_local?: string | null; ends_at_local?: string | null; capacity: number | null }>;
     discount_codes?: Array<{ id: number; code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string | null; max_redemptions: number | null; starts_at: string | null; ends_at: string | null; is_active: boolean; is_public: boolean; redemptions: number }>;
-    ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
+    ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; group_min?: number | null; group_price?: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
     seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null; rotation?: number | null }>;
     seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number; rotation?: number }>;
     props?: Array<{ id: number; kind: string; label: string | null; color: string | null; pos_x: number; pos_y: number; width: number; height: number; rotation: number }>;
@@ -109,7 +111,7 @@ const emptyDiscount = (): DiscountRow => ({
     starts_at: '', ends_at: '', is_active: true, is_public: true,
 });
 
-const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
+const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', group_min: '', group_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
 interface PlatformFeeInfo { percent: number; flat: number; label: string; custom: boolean; min_ticket_price: number }
 
@@ -141,6 +143,9 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         seating_enabled: event?.seating_enabled ?? false,
         ticketing_mode: (event?.ticketing_mode ?? (event?.seating_enabled ? 'reserved' : 'general')) as TicketingMode,
         auto_assign_tables: event?.auto_assign_tables ?? false,
+        table_choice: event?.table_choice ?? false,
+        table_choice_limit: event?.table_choice_limit != null ? String(event.table_choice_limit) : '',
+        tables_per_ticket_type: event?.tables_per_ticket_type ?? false,
         tables: (event?.seating_tables ?? []).map((t): TableRow => ({ id: t.id, name: t.name, shape: t.shape, capacity: t.capacity, pos_x: t.pos_x, pos_y: t.pos_y, rotation: t.rotation ?? 0 })),
         props: (event?.props ?? []).map((p): PropRow => ({ id: p.id, kind: p.kind, label: p.label ?? '', color: p.color ?? '#6c63ff', pos_x: p.pos_x, pos_y: p.pos_y, width: p.width, height: p.height, rotation: p.rotation ?? 0 })),
         publish: false,
@@ -154,7 +159,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
             ends_at: d.ends_at ? String(d.ends_at).slice(0, 10) : '',
             is_active: d.is_active, is_public: d.is_public, redemptions: d.redemptions,
         })),
-        ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
+        ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', group_min: t.group_min != null ? String(t.group_min) : '', group_price: t.group_price != null ? String(t.group_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
         sections: (event?.seat_sections ?? []).map((s): SectionRow => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, price: String(s.price), rows: s.rows != null ? String(s.rows) : '4', cols: s.cols != null ? String(s.cols) : '8', capacity: s.capacity != null ? String(s.capacity) : '100', x: s.x ?? 20, y: s.y ?? 20, width: s.width ?? null, height: s.height ?? null, row_label_start: s.row_label_start || 'A', curve: s.curve != null ? String(s.curve) : '0', rotation: s.rotation != null ? String(s.rotation) : '0' })),
     });
     const { data, setData, errors, processing } = form;
@@ -646,10 +651,47 @@ form.post('/host/events', options);
                     {mode === 'tables' && (
                         <div className="mb-5 grid gap-4">
                             <SwitchField
+                                checked={data.table_choice}
+                                onCheckedChange={(v) => setData('table_choice', v)}
+                                label="Let buyers choose their table"
+                                description="At checkout, buyers see your tables with the seats left and pick one for their group. Everyone in one order sits together."
+                            />
+                            {data.table_choice && (
+                                <div className="-mt-1 grid gap-2 rounded-lg bg-muted/40 p-3">
+                                    <Label>Who can choose</Label>
+                                    <div className="inline-flex w-max flex-wrap rounded-lg border border-border bg-card p-0.5">
+                                        <button type="button" onClick={() => setData('table_choice_limit', '')} className={tabCls(data.table_choice_limit === '')}>Every buyer</button>
+                                        <button type="button" onClick={() => setData('table_choice_limit', data.table_choice_limit || '10')} className={tabCls(data.table_choice_limit !== '')}>Only the first few orders</button>
+                                    </div>
+                                    {data.table_choice_limit !== '' && (
+                                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                                            <span>The first</span>
+                                            <input type="number" min={1} className={cn(field, 'h-9 w-24')} value={data.table_choice_limit} onChange={(e) => setData('table_choice_limit', e.target.value)} aria-label="Number of orders that can choose a table" />
+                                            <span>orders can choose a table.</span>
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                        {data.table_choice_limit === ''
+                                            ? 'Every buyer can pick, while a table has room for their group.'
+                                            : `After ${data.table_choice_limit || 'that many'} orders, buyers can no longer pick — ${data.auto_assign_tables ? 'they are seated automatically.' : 'you seat them from the Seating page (or turn on auto-assign below).'}`}
+                                        {' '}Buyers can also choose “No preference”.
+                                    </p>
+                                    {errors.table_choice_limit && <p className="text-xs text-destructive">{errors.table_choice_limit}</p>}
+                                </div>
+                            )}
+                            <SwitchField
                                 checked={data.auto_assign_tables}
                                 onCheckedChange={(v) => setData('auto_assign_tables', v)}
                                 label="Auto-assign attendees to tables"
-                                description="Seat each paid attendee at a table with free space automatically on purchase. You can still rearrange anyone from the Seating page."
+                                description={data.table_choice
+                                    ? 'Anyone who did not pick a table is seated at one with room as soon as they pay — groups together where a table fits them. You can still rearrange anyone from the Seating page.'
+                                    : 'Seat each paid attendee at a table with free space automatically on purchase — groups together where a table fits them. You can still rearrange anyone from the Seating page.'}
+                            />
+                            <SwitchField
+                                checked={data.tables_per_ticket_type}
+                                onCheckedChange={(v) => setData('tables_per_ticket_type', v)}
+                                label="Each ticket type is its own sitting"
+                                description="Turn on when your ticket types are sessions or time slots (Session A, Session B…) at the same tables: every table's seats are free again for each ticket type."
                             />
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm text-muted-foreground">Design your floorplan — round/rect tables plus stage &amp; props. Buyers get seated at a table.</p>
@@ -727,6 +769,39 @@ form.post('/host/events', options);
                                         </div>
                                         {t.kind === 'paid' && (
                                             <p className="mt-2 text-xs text-muted-foreground">If the normal price is higher than the selling price, it shows struck-through so buyers see the discount.</p>
+                                        )}
+                                        {/* One ticket type with a cheaper price for groups, instead of
+                                            separate 1-pax and 3-pax tickets for every session. */}
+                                        {t.kind === 'paid' && (
+                                            <div className="mt-3 border-t border-border/60 pt-3">
+                                                <Label>Group price <span className="font-normal text-muted-foreground">— optional</span></Label>
+                                                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
+                                                    <span>Buy</span>
+                                                    <input type="number" min={2} className={cn(field, 'h-9 w-20')} value={t.group_min} onChange={(e) => patchTicket(i, 'group_min', e.target.value)} placeholder="3" aria-label="Group size" />
+                                                    <span>or more, and each ticket is RM</span>
+                                                    <input type="number" min={0} step="0.01" className={cn(field, 'h-9 w-28')} value={t.group_price} onChange={(e) => patchTicket(i, 'group_price', e.target.value)} placeholder="15.00" aria-label="Group price per ticket" />
+                                                </div>
+                                                {(() => {
+                                                    const min = parseInt(t.group_min || '0', 10);
+                                                    const each = parseFloat(t.group_price || '0');
+                                                    const price = parseFloat(t.price || '0');
+
+                                                    if (!t.group_min && !t.group_price) {
+                                                        return <p className="mt-1.5 text-xs text-muted-foreground">e.g. buy 3 or more at RM15 each — no need for a separate 3-pax ticket.</p>;
+                                                    }
+
+                                                    if (min < 2 || !(each > 0)) {
+                                                        return <p className="mt-1.5 text-xs text-muted-foreground">Fill in both: a group of 2 or more, and the price per ticket.</p>;
+                                                    }
+
+                                                    if (each >= price) {
+                                                        return <p className="mt-1.5 text-xs text-destructive">Make the group price lower than the selling price (RM{price.toFixed(2)}), or it won’t apply.</p>;
+                                                    }
+
+                                                    return <p className="mt-1.5 text-xs text-muted-foreground">{min} tickets cost RM{(min * each).toFixed(2)} instead of RM{(min * price).toFixed(2)}. Buyers see the deal on the event page.</p>;
+                                                })()}
+                                                {errors[`ticketTypes.${i}.group_price` as keyof typeof errors] && <p className="mt-1 text-xs text-destructive">{String(errors[`ticketTypes.${i}.group_price` as keyof typeof errors])}</p>}
+                                            </div>
                                         )}
                                     </div>
                                 )}

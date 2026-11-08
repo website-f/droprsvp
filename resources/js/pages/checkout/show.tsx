@@ -7,6 +7,8 @@ import { CustomFieldsSection   } from '@/components/custom-fields';
 import type {CustomAnswers, CustomField} from '@/components/custom-fields';
 import { StateCityPicker  } from '@/components/state-city-picker';
 import type {CityOption} from '@/components/state-city-picker';
+import { TablePicker } from '@/components/table-picker';
+import type { TableChoice } from '@/components/table-picker';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -42,8 +44,10 @@ interface Buyer { name: string | null; email: string | null; phone: string | nul
 
 interface Account { name: string; email: string }
 
-export default function CheckoutShow({ order, buyer, cities = [], customFields = [], ticketCount = 0, account = null, loginUrl, analytics = null }: {
+export default function CheckoutShow({ order, buyer, cities = [], customFields = [], ticketCount = 0, account = null, loginUrl, analytics = null, tableChoice = null }: {
     order: OrderView; buyer: Buyer | null;
+    /** Present when the buyer may pick their table. */
+    tableChoice?: TableChoice | null;
     cities?: CityOption[];
     customFields?: CustomField[]; ticketCount?: number;
     account?: Account | null; loginUrl?: string;
@@ -68,7 +72,11 @@ export default function CheckoutShow({ order, buyer, cities = [], customFields =
         marketing_opt_in: false,
         // A separate list per organizer; also off by default.
         organizer_opt_in: false,
+        // Order item id => picked table ('' = no preference), when they may pick.
+        tables: Object.fromEntries((tableChoice?.lines ?? []).map((l) => [String(l.item_id), l.chosen ? String(l.chosen) : ''])) as Record<string, string>,
     });
+    // Only an event that offers the pick hears about tables at all.
+    form.transform(({ tables, ...rest }) => (tableChoice ? { ...rest, tables } : rest));
     const isFree = order.total <= 0;
     const formRef = useRef<HTMLFormElement>(null);
 
@@ -253,6 +261,24 @@ export default function CheckoutShow({ order, buyer, cities = [], customFields =
                                     </Button>
                                 )}
                             </div>
+                        )}
+
+                        {/* Choose your table — only when the organizer lets buyers pick. */}
+                        {tableChoice && (
+                            <section className="mt-6 grid gap-3 rounded-xl border border-border p-4" aria-labelledby="your-table">
+                                <div>
+                                    <h2 id="your-table" className="text-sm font-semibold">Choose your table</h2>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                        Everyone in this order sits together. Seats are held for you while you check out.
+                                    </p>
+                                </div>
+                                <TablePicker
+                                    choice={tableChoice}
+                                    value={form.data.tables}
+                                    onChange={(itemId, tableId) => form.setData('tables', { ...form.data.tables, [String(itemId)]: tableId })}
+                                    errors={form.errors as Record<string, string | undefined>}
+                                />
+                            </section>
                         )}
 
                         {/* 1 — the only part that has to be filled in. */}

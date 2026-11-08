@@ -351,6 +351,13 @@ class EventController extends Controller
             'seating_enabled' => ['boolean'],
             'ticketing_mode' => ['nullable', 'in:general,reserved,tables'],
             'auto_assign_tables' => ['boolean'],
+            // Buyers pick their own table at checkout — every buyer, or only
+            // the first N orders (blank limit = everyone).
+            'table_choice' => ['boolean'],
+            'table_choice_limit' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            // Ticket types are separate sittings (Session A, Session B…) that
+            // reuse the same tables, so seats are counted per type.
+            'tables_per_ticket_type' => ['boolean'],
             'tables' => ['array'],
             'tables.*.id' => ['nullable', 'integer'],
             'tables.*.name' => ['required', 'string', 'max:80'],
@@ -424,6 +431,10 @@ class EventController extends Controller
             'ticketTypes.*.kind' => ['required', 'in:paid,free,donation'],
             'ticketTypes.*.price' => ['required', 'numeric', 'min:0'],
             'ticketTypes.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
+            // "Buy group_min or more and each costs group_price" — so a 3-pax
+            // deal does not need a ticket type of its own for every session.
+            'ticketTypes.*.group_min' => ['nullable', 'integer', 'min:2', 'max:1000'],
+            'ticketTypes.*.group_price' => ['nullable', 'numeric', 'min:0'],
             'ticketTypes.*.quantity' => ['nullable', 'integer', 'min:0'],
             'ticketTypes.*.min_per_order' => ['required', 'integer', 'min:1'],
             'ticketTypes.*.max_per_order' => ['required', 'integer', 'min:1'],
@@ -465,6 +476,15 @@ class EventController extends Controller
 
             $price = (float) ($type['price'] ?? 0);
 
+            // The group price is a price a ticket sells at too, so the same floor applies.
+            if (self::groupPriced($type) && (float) $type['group_price'] < $minimum) {
+                $errors["ticketTypes.{$i}.group_price"] = sprintf(
+                    'This is below the RM%s platform fee on your account. Make the group price RM%s or more.',
+                    number_format($minimum, 2),
+                    number_format($minimum, 2),
+                );
+            }
+
             if ($price > 0 && $price < $minimum) {
                 $errors["ticketTypes.{$i}.price"] = sprintf(
                     'This is below the RM%s platform fee on your account, so you would receive '
@@ -479,6 +499,21 @@ class EventController extends Controller
         if ($errors) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * Whether a submitted ticket type carries a usable group price: paid, a
+     * group of at least two, and cheaper per ticket than buying singly. Anything
+     * else is saved as no group price at all rather than as a "discount" that
+     * costs more.
+     */
+    private static function groupPriced(array $row): bool
+    {
+        return ($row['kind'] ?? null) === 'paid'
+            && ! empty($row['group_min']) && (int) $row['group_min'] >= 2
+            && isset($row['group_price']) && $row['group_price'] !== ''
+            && (float) $row['group_price'] > 0
+            && (float) $row['group_price'] < (float) ($row['price'] ?? 0);
     }
 
     /** Map validated input to the event's own columns (status derived from `publish`). */
@@ -510,6 +545,10 @@ class EventController extends Controller
             'ticketing_mode' => $data['ticketing_mode'] ?? 'general',
             'seating_enabled' => ($data['ticketing_mode'] ?? 'general') === 'reserved',
             'auto_assign_tables' => ($data['ticketing_mode'] ?? 'general') === 'tables' ? ($data['auto_assign_tables'] ?? false) : false,
+            'table_choice' => ($data['ticketing_mode'] ?? 'general') === 'tables' && ($data['table_choice'] ?? false),
+            'table_choice_limit' => ($data['ticketing_mode'] ?? 'general') === 'tables' && ($data['table_choice'] ?? false)
+                ? ($data['table_choice_limit'] ?? null) : null,
+            'tables_per_ticket_type' => ($data['ticketing_mode'] ?? 'general') === 'tables' && ($data['tables_per_ticket_type'] ?? false),
             'visibility' => $data['visibility'],
             'timezone' => $data['timezone'],
             'is_online' => $data['is_online'] ?? false,
@@ -571,6 +610,8 @@ class EventController extends Controller
                 // Normal price only counts when it's higher than the selling price.
                 'compare_at_price' => ($row['kind'] === 'paid' && ! empty($row['compare_at_price']) && (float) $row['compare_at_price'] > (float) $row['price'])
                     ? $row['compare_at_price'] : null,
+                'group_min' => self::groupPriced($row) ? (int) $row['group_min'] : null,
+                'group_price' => self::groupPriced($row) ? $row['group_price'] : null,
                 'quantity' => $row['quantity'] ?? null,
                 'min_per_order' => $row['min_per_order'],
                 'max_per_order' => $row['max_per_order'],

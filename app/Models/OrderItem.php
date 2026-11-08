@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
-    protected $fillable = ['order_id', 'ticket_type_id', 'seat_section_id', 'seat_id', 'seat_label', 'name', 'unit_price', 'quantity', 'line_total'];
+    protected $fillable = ['order_id', 'ticket_type_id', 'seat_section_id', 'seat_id', 'seat_label', 'seating_table_id', 'name', 'unit_price', 'quantity', 'line_total'];
 
     protected function casts(): array
     {
@@ -20,6 +20,12 @@ class OrderItem extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /** The table the buyer picked for this line, when the event lets them. */
+    public function seatingTable(): BelongsTo
+    {
+        return $this->belongsTo(SeatingTable::class);
     }
 
     public function ticketType(): BelongsTo

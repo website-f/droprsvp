@@ -35,14 +35,26 @@ export function AudienceFilters({ path, city = '', source = '', cities, sources 
 }
 
 const PRESETS: [string, string][] = [['7d', '7D'], ['30d', '30D'], ['90d', '90D'], ['12m', '12M']];
+
+/** Calendar periods (AnalyticsWindow::CALENDAR), picked from a list beside the chips. */
+const CALENDAR: { value: string; label: string }[] = [
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This week' },
+    { value: 'last_week', label: 'Last week' },
+    { value: 'month', label: 'This month' },
+    { value: 'last_month', label: 'Last month' },
+    { value: 'year', label: 'This year' },
+];
 const dateInput = 'h-9 rounded-lg border border-input bg-card px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 /**
- * Date-range filter shared by every analytics page. Preset chips (7D/30D/90D/12M)
- * plus a Custom range; selecting one navigates with the new query params while
- * preserving any other filters passed in `extra` (search, status, sort…).
+ * Date-range filter shared by every analytics page. Preset chips (7D/30D/90D/12M),
+ * calendar periods (today, this/last week, this/last month, this year), "All
+ * time" where the page offers it, and a Custom range; selecting one navigates
+ * with the new query params while preserving any other filters passed in
+ * `extra` (search, status, sort…).
  */
-export function AnalyticsToolbar({ path, filters, extra = {} }: { path: string; filters: AnalyticsPeriod; extra?: Record<string, string> }) {
+export function AnalyticsToolbar({ path, filters, extra = {}, allowAll = false }: { path: string; filters: AnalyticsPeriod; extra?: Record<string, string>; allowAll?: boolean }) {
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
     const isCustom = filters.period === 'custom';
@@ -59,8 +71,14 @@ export function AnalyticsToolbar({ path, filters, extra = {} }: { path: string; 
         router.get(path, clean, { preserveScroll: true, preserveState: true });
     };
 
+    const calendar = allowAll ? [{ value: 'all', label: 'All time' }, ...CALENDAR] : CALENDAR;
+    const onCalendar = calendar.some((c) => c.value === filters.period);
+
     return (
         <div className="flex flex-wrap items-center gap-2">
+            <div className={`w-36 ${onCalendar ? '[&_button]:border-foreground [&_button]:font-medium' : ''}`}>
+                <AppSelect aria-label="Period" placeholder="Period…" value={onCalendar ? filters.period : ''} onChange={(v) => go({ period: v })} options={calendar} className="h-9 text-xs" />
+            </div>
             <div className="inline-flex rounded-lg border border-border p-0.5">
                 {PRESETS.map(([val, label]) => (
                     <button key={val} type="button" onClick={() => go({ period: val })} className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${filters.period === val ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>

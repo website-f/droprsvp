@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\OrganizerApplicationMail;
 use App\Models\OrganizerProfile;
 use App\Support\Dates;
+use App\Support\SocialLinks;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -79,6 +80,7 @@ class OrganizerController extends Controller
                 'business_name' => $organizer->business_name,
                 'email' => $organizer->email ?: $organizer->user?->email,
                 'website' => $organizer->website,
+                'socials' => SocialLinks::forDisplay($organizer->socials),
                 'phone' => $organizer->phone,
                 'bio' => $organizer->bio,
                 'poster' => $organizer->poster,

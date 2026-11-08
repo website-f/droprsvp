@@ -1,13 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Check, ExternalLink, Globe, Mail, Phone, X } from 'lucide-react';
 import { useState } from 'react';
+import { SocialIcon } from '@/components/social-icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { prettyUrl, safeHref } from '@/lib/pretty-url';
 
 interface Application {
     id: number; name: string | null; email: string | null; member_since: string | null;
-    business_name: string | null; account_email: string | null; website: string | null; phone: string | null; bio: string | null;
+    business_name: string | null; account_email: string | null; website: string | null; socials: { platform: string; label: string; url: string }[]; phone: string | null; bio: string | null;
     poster: string | null; gallery: string[]; status: string; reason: string | null;
     submitted_at: string | null; reviewed_at: string | null;
 }
@@ -99,6 +100,21 @@ export default function OrganizerShow({ application: app }: { application: Appli
                             <span className="text-muted-foreground">—</span>
                         )}
                     </Field>
+                    {app.socials.length > 0 && (
+                        <Field label="Social media">
+                            <ul className="grid gap-1">
+                                {app.socials.map((s) => (
+                                    <li key={s.platform} className="min-w-0">
+                                        <a href={s.url} target="_blank" rel="noopener noreferrer" title={s.url} className="inline-flex max-w-full items-center gap-1.5 hover:underline">
+                                            <SocialIcon platform={s.platform} className="size-3.5 shrink-0" />
+                                            <span className="truncate">{prettyUrl(s.url)}</span>
+                                            <ExternalLink className="size-3 shrink-0" />
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </Field>
+                    )}
                     <Field label="Member since"><span className="inline-flex items-center gap-1.5"><Calendar className="size-3.5" /> {app.member_since ?? '—'}</span></Field>
                     {app.reviewed_at && <Field label="Last reviewed">{app.reviewed_at}</Field>}
                 </div>

@@ -25,7 +25,7 @@
             <tr>
                 <td style="padding:14px 16px;">
                     <div style="font-weight:600;font-size:14px;">{{ $ticket->attendee_name ?: 'Guest' }}</div>
-                    <div style="font-size:12px;color:#8a8a92;">{{ optional($ticket->ticketType)->name }}@if ($ticket->seat_label) · {{ $ticket->seat_label }}@endif</div>
+                    <div style="font-size:12px;color:#8a8a92;">{{ optional($ticket->ticketType)->name }}@if ($ticket->seat_label) · {{ $ticket->seat_label }}@elseif ($ticket->seatingTable) · {{ $ticket->seatingTable->name }}@endif</div>
                 </td>
                 <td align="right" style="padding:14px 16px;">
                     <a href="{{ route('tickets.show', $ticket) }}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:10px 18px;border-radius:999px;">View ticket</a>

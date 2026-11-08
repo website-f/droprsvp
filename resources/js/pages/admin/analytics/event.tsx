@@ -9,6 +9,8 @@ import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/comp
 import type { ReachMetric } from '@/components/charts';
 import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
+import { MoneyStatement } from '@/components/money-statement';
+import type { EventStatement, OrganizerStatement } from '@/components/money-statement';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
@@ -42,7 +44,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function AdminEventAnalytics({ data, filters, cityOptions, sourceOptions }: { data: Data; filters: AnalyticsPeriod; cityOptions: string[]; sourceOptions: { value: string; label: string }[] }) {
+export default function AdminEventAnalytics({ data, money, filters, cityOptions, sourceOptions }: { data: Data; money: { event: EventStatement; organizer: OrganizerStatement | null }; filters: AnalyticsPeriod; cityOptions: string[]; sourceOptions: { value: string; label: string }[] }) {
     const [metric, setMetric] = useState<ReachMetric>('both');
 
     return (
@@ -70,6 +72,8 @@ export default function AdminEventAnalytics({ data, filters, cityOptions, source
                     <Kpi icon={Percent} label="Conversion" value={`${data.kpis.conversion}%`} tint={PALETTE[4]} />
                     <Kpi icon={Wallet} label="Revenue" value={rm(data.kpis.revenue)} tint={PALETTE[6]} />
                 </div>
+
+                <MoneyStatement event={money.event} organizer={money.organizer} />
 
                 <div className="mt-6">
                     <CheckoutFunnel

@@ -71,7 +71,8 @@ class CheckoutService
                     throw ValidationException::withMessages(['items' => "Only {$remaining} left for “{$tt->name}”."]);
                 }
 
-                $unit = $tt->kind === 'free' ? 0.0 : (float) $tt->price;
+                // Buying group_min or more at once earns the group price.
+                $unit = $tt->unitPriceFor($row['quantity']);
                 $lineTotal = $unit * $row['quantity'];
                 $subtotal += $lineTotal;
                 $currency = $tt->currency;
@@ -253,6 +254,8 @@ class CheckoutService
                         'attendee_email' => $locked->buyer_email,
                         'status' => 'valid',
                         'seat_label' => $item->seat_label,
+                        // The table the buyer picked for this line, if they did.
+                        'seating_table_id' => $item->seating_table_id,
                         'custom_answers' => $answers[$slot++] ?? null,
                     ]);
                 }

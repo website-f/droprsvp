@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TicketType extends Model
 {
     protected $fillable = [
-        'event_id', 'seat_section_id', 'name', 'description', 'kind', 'price', 'compare_at_price', 'currency', 'quantity', 'sold',
+        'event_id', 'seat_section_id', 'name', 'description', 'kind', 'price', 'compare_at_price', 'group_min', 'group_price', 'currency', 'quantity', 'sold',
         'min_per_order', 'max_per_order', 'sales_start', 'sales_end', 'is_active', 'sort_order',
     ];
 
@@ -28,6 +28,8 @@ class TicketType extends Model
         return [
             'price' => 'decimal:2',
             'compare_at_price' => 'decimal:2',
+            'group_min' => 'integer',
+            'group_price' => 'decimal:2',
             'is_active' => 'boolean',
             'sales_start' => 'datetime',
             'sales_end' => 'datetime',
@@ -42,6 +44,25 @@ class TicketType extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    /** Whether buying enough at once earns the group price. */
+    public function hasGroupPrice(): bool
+    {
+        return $this->kind === 'paid' && $this->group_min !== null && $this->group_min > 1 && $this->group_price !== null;
+    }
+
+    /**
+     * The price of each ticket when buying `$quantity` at once: the group price
+     * from group_min tickets up, the normal price below it, nothing when free.
+     */
+    public function unitPriceFor(int $quantity): float
+    {
+        if ($this->kind === 'free') {
+            return 0.0;
+        }
+
+        return $this->hasGroupPrice() && $quantity >= $this->group_min ? (float) $this->group_price : (float) $this->price;
     }
 
     /** Units still available (null quantity = unlimited). */
