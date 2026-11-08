@@ -12,7 +12,7 @@ function TableGlyph({ table, mine }: { table: TableOption; mine: number }) {
     const round = table.shape !== 'rect';
 
     return (
-        <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden>
+        <svg viewBox="0 0 64 64" className="size-11 shrink-0" aria-hidden>
             {round ? <circle cx="32" cy="32" r="15" className="fill-muted stroke-border" strokeWidth="1.5" />
                 : <rect x="16" y="20" width="32" height="24" rx="4" className="fill-muted stroke-border" strokeWidth="1.5" />}
             {Array.from({ length: seats }, (_, i) => {
@@ -27,6 +27,38 @@ function TableGlyph({ table, mine }: { table: TableOption; mine: number }) {
                 );
             })}
         </svg>
+    );
+}
+
+/** One choice: a picture, the full name (wrapped, never cut off), a detail line and a radio mark. */
+function Option({ active, disabled = false, onClick, icon, title, detail }: {
+    active: boolean; disabled?: boolean; onClick: () => void; icon: React.ReactNode; title: string; detail: string;
+}) {
+    return (
+        <button
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={disabled}
+            onClick={onClick}
+            className={cn(
+                'flex min-h-16 w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55',
+                active ? 'border-foreground bg-foreground/[0.04] ring-1 ring-foreground' : 'border-border bg-card hover:border-foreground/40',
+            )}
+        >
+            {icon}
+            <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium leading-snug [overflow-wrap:anywhere]">{title}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{detail}</span>
+            </span>
+            <span
+                aria-hidden
+                className={cn('flex size-5 shrink-0 items-center justify-center rounded-full border',
+                    active ? 'border-foreground bg-foreground text-background' : 'border-muted-foreground/50')}
+            >
+                {active && <Check className="size-3" strokeWidth={3} />}
+            </span>
+        </button>
     );
 }
 
@@ -59,43 +91,31 @@ export function TablePicker({ choice, value, onChange, errors }: {
                                 No table has {line.quantity} seats left together right now — the organizer will seat your group.
                             </p>
                         )}
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label={`Table for ${line.name}`}>
-                            <button
-                                type="button"
-                                role="radio"
-                                aria-checked={picked === ''}
+                        {/* Cards size to the space the picker actually has (not the
+                            screen), so names are never squeezed: one per row on a
+                            phone or in a narrow column, two or three where it fits. */}
+                        <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,13.5rem),1fr))]" role="radiogroup" aria-label={`Table for ${line.name}`}>
+                            <Option
+                                active={picked === ''}
                                 onClick={() => onChange(line.item_id, '')}
-                                className={cn('relative flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-colors',
-                                    picked === '' ? 'border-foreground bg-foreground/[0.04] ring-1 ring-foreground' : 'border-border hover:border-foreground/40')}
-                            >
-                                <Shuffle className="size-5 text-muted-foreground" />
-                                <span className="text-sm font-medium">No preference</span>
-                                <span className="text-[11px] text-muted-foreground">{choice.auto_seat ? 'Seat us anywhere' : 'The organizer seats you'}</span>
-                            </button>
+                                icon={<span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted"><Shuffle className="size-5 text-muted-foreground" /></span>}
+                                title="No preference"
+                                detail={choice.auto_seat ? 'Seat us at any table' : 'The organizer seats you'}
+                            />
                             {line.tables.map((t) => {
                                 const fits = t.left >= line.quantity;
                                 const active = picked === String(t.id);
 
                                 return (
-                                    <button
+                                    <Option
                                         key={t.id}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={active}
+                                        active={active}
                                         disabled={!fits}
                                         onClick={() => onChange(line.item_id, String(t.id))}
-                                        className={cn('relative flex items-center gap-2 rounded-xl border p-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                                            active ? 'border-foreground bg-foreground/[0.04] ring-1 ring-foreground' : 'border-border hover:border-foreground/40')}
-                                    >
-                                        <TableGlyph table={t} mine={active ? line.quantity : 0} />
-                                        <span className="min-w-0">
-                                            <span className="block truncate text-sm font-medium">{t.name}</span>
-                                            <span className="block text-[11px] text-muted-foreground">
-                                                {t.left === 0 ? 'Full' : fits ? `${t.left} of ${t.capacity} seats left` : `Only ${t.left} left`}
-                                            </span>
-                                        </span>
-                                        {active && <Check className="absolute right-2 top-2 size-3.5" />}
-                                    </button>
+                                        icon={<TableGlyph table={t} mine={active ? line.quantity : 0} />}
+                                        title={t.name}
+                                        detail={t.left === 0 ? 'Full' : !fits ? `Only ${t.left} left — not enough for ${line.quantity}` : `${t.left} of ${t.capacity} seats left${active ? ` · ${line.quantity} for you` : ''}`}
+                                    />
                                 );
                             })}
                         </div>
