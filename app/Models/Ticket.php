@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Ticket extends Model
@@ -61,6 +62,12 @@ class Ticket extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    /** Every day this ticket was checked in (one row per day). */
+    public function checkIns(): HasMany
+    {
+        return $this->hasMany(CheckIn::class);
     }
 
     public function seatingTable(): BelongsTo

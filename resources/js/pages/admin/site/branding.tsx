@@ -20,6 +20,8 @@ function LogoSlot({ label, hint, value, fallback, invert, onUpload, onRemove }: 
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
+    // The URL that failed to load, if the saved logo is a dead link.
+    const [broken, setBroken] = useState<string | null>(null);
     const src = value || fallback;
     const isCustom = !!value && value !== fallback;
 
@@ -56,14 +58,20 @@ function LogoSlot({ label, hint, value, fallback, invert, onUpload, onRemove }: 
             {/* Previews on light + dark so the invert setting is obvious */}
             <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="flex h-24 items-center justify-center rounded-xl border border-border bg-white p-3">
-                    <img src={src} alt={`${label} on light`} className="max-h-full max-w-full object-contain" />
+                    <img key={src} src={src} alt={`${label} on light`} className="max-h-full max-w-full object-contain" onError={() => setBroken(src)} onLoad={() => setBroken(null)} />
                 </div>
                 <div className="flex h-24 items-center justify-center rounded-xl border border-border bg-neutral-900 p-3">
                     <img src={src} alt={`${label} on dark`} className={`max-h-full max-w-full object-contain ${invert ? 'invert' : ''}`} />
                 </div>
             </div>
 
-            <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={pick} />
+            {broken === src && (
+                <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    This image can’t be loaded, so the site is showing the default DropRSVP logo instead. Upload it again, or reset to default.
+                </p>
+            )}
+
+            <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={pick} />
             <div className="mt-4 flex items-center gap-2">
                 <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
                     {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ImageUp className="size-3.5" />} Upload

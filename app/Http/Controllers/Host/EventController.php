@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Host;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
+use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\EventProp;
@@ -111,6 +112,12 @@ class EventController extends Controller
         // stored in UTC (see sessionsToUtc) and the input has no timezone, so
         // without this an organizer in Kuala Lumpur would open their 3pm session
         // and find 7am in the box.
+        // Promo windows the same way: the days as the organizer picked them.
+        $event->discountCodes->each(function ($code) use ($event) {
+            $code->starts_on = $code->startsOn($event->timezone);
+            $code->ends_on = $code->endsOn($event->timezone);
+        });
+
         $event->sessions->each(function ($session) use ($event) {
             $session->starts_at_local = $session->starts_at?->copy()->setTimezone($event->timezone)->format('Y-m-d\TH:i');
             $session->ends_at_local = $session->ends_at?->copy()->setTimezone($event->timezone)->format('Y-m-d\TH:i');
@@ -346,6 +353,8 @@ class EventController extends Controller
             'gallery.*' => ['string', 'max:2048'],
             'show_participants' => ['boolean'],
             'show_reviews' => ['boolean'],
+            // Check people in once per day (multi-day events) instead of once.
+            'daily_checkin' => ['boolean'],
             'refund_policy' => ['nullable', 'in:no_refunds,until_event,anytime'],
             'refund_policy_note' => ['nullable', 'string', 'max:500'],
             'seating_enabled' => ['boolean'],
@@ -538,6 +547,7 @@ class EventController extends Controller
             'custom_fields' => CustomFields::sanitize($data['custom_fields'] ?? []),
             'show_participants' => $data['show_participants'] ?? true,
             'show_reviews' => $data['show_reviews'] ?? true,
+            'daily_checkin' => $data['daily_checkin'] ?? false,
             'refund_policy' => $data['refund_policy'] ?? 'until_event',
             'refund_policy_note' => $data['refund_policy_note'] ?? null,
             // seating_enabled is derived from the mode so the existing reserved-seating
@@ -698,8 +708,10 @@ class EventController extends Controller
                 'value' => $row['value'],
                 'min_subtotal' => $row['min_subtotal'] ?? null,
                 'max_redemptions' => $row['max_redemptions'] ?? null,
-                'starts_at' => $row['starts_at'] ?? null,
-                'ends_at' => $row['ends_at'] ?? null,
+                // Whole days in the event's timezone: 12:00 AM on the first,
+                // 11:59 PM on the last. See DiscountCode::startOfDayIn.
+                'starts_at' => DiscountCode::startOfDayIn($row['starts_at'] ?? null, $event->timezone),
+                'ends_at' => DiscountCode::endOfDayIn($row['ends_at'] ?? null, $event->timezone),
                 'is_active' => $row['is_active'] ?? true,
                 'is_public' => $row['is_public'] ?? false,
             ];

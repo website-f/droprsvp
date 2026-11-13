@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Clock, Download, FileText, Info, Landmark, Pencil, Plus } from 'lucide-react';
+import { CheckCircle2, Clock, Download, FileImage, FileText, Info, Landmark, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 
 interface Balance { gross: number; fee_label: string; net: number; withdrawn: number; available: number; pending_clearance: number }
-interface PayoutRow { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
+interface PayoutRow {
+    reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null;
+    method?: string | null; note?: string | null; proof?: string | null; by_admin?: boolean;
+}
 interface Bank { bank_code: string | null; account_number: string | null; account_name: string | null }
 interface Business { business_name: string | null; tax_number: string | null; business_address: string | null }
 interface BankOption { value: string; label: string }
@@ -302,12 +305,18 @@ export default function Payouts({ balance, payouts, bank, business, banks, sched
                     ) : (
                         <ul className="grid gap-1.5 text-sm">
                             {payouts.map((p) => (
-                                <li key={p.reference} className="flex items-center justify-between border-b border-border/60 py-2 last:border-0">
-                                    <div>
+                                <li key={p.reference} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-2 last:border-0">
+                                    <div className="min-w-0">
                                         <div className="font-medium">{rm(p.amount)}</div>
-                                        <div className="text-xs text-muted-foreground">{p.reference} · requested {p.requested_at}{p.paid_at ? ` · paid ${p.paid_at}` : ''}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {p.reference} · {p.by_admin ? 'sent by DropRSVP' : 'requested'} {p.requested_at}{p.paid_at ? ` · paid ${p.paid_at}${p.method ? ` by ${p.method}` : ''}` : ''}
+                                        </div>
+                                        {p.note && <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">“{p.note}”</div>}
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {p.proof && (
+                                            <a href={p.proof} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"><FileImage className="size-3.5" /> Transfer slip</a>
+                                        )}
                                         {p.status === 'paid' && (
                                             <a href={`/my/payouts/${p.reference}/receipt`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"><Download className="size-3.5" /> Receipt</a>
                                         )}

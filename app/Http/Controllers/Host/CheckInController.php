@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Services\CheckInService;
 use Illuminate\Http\Request;
 
 class CheckInController extends Controller
@@ -42,13 +43,15 @@ class CheckInController extends Controller
 
         if (! $ticket) {
             $result = ['ok' => false, 'message' => 'Ticket not found for this event.'];
-        } elseif (in_array($ticket->status, ['void', 'refunded'], true)) {
-            $result = ['ok' => false, 'name' => $ticket->attendee_name, 'message' => "Ticket is not valid ({$ticket->status})."];
-        } elseif ($ticket->status === 'checked_in') {
-            $result = ['ok' => false, 'already' => true, 'name' => $ticket->attendee_name, 'message' => 'Already checked in at '.$ticket->checked_in_at?->setTimezone($event->timezone)->format('g:i A').'.'];
         } else {
-            $ticket->update(['status' => 'checked_in', 'checked_in_at' => now(), 'checked_in_by' => $request->user()->id]);
-            $result = ['ok' => true, 'name' => $ticket->attendee_name ?: 'Guest', 'message' => 'Checked in.'];
+            // Same door rules as the scanner on the attendee page (CheckInService):
+            // live tickets only, once — or once a day on a daily event.
+            $door = app(CheckInService::class)->checkIn($event, $ticket, $request->user()->id, 'scan');
+            $result = match ($door['result']) {
+                'ok' => ['ok' => true, 'name' => $ticket->attendee_name ?: 'Guest', 'message' => $door['message']],
+                'already' => ['ok' => false, 'already' => true, 'name' => $ticket->attendee_name, 'message' => $door['message']],
+                default => ['ok' => false, 'name' => $ticket->attendee_name, 'message' => "Ticket is not valid ({$ticket->status})."],
+            };
         }
 
         return redirect()->route('host.events.checkin', $event)->with('scan', $result);

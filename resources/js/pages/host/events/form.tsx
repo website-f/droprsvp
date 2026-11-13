@@ -36,13 +36,13 @@ interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
     description: string | null; cover_image: string | null; banner_image: string | null; gallery: string[] | null; custom_fields: unknown[] | null; visibility: string; timezone: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
-    capacity: number | null; show_participants: boolean; show_reviews: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
+    capacity: number | null; show_participants: boolean; show_reviews: boolean; daily_checkin?: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
     table_choice?: boolean; table_choice_limit?: number | null; tables_per_ticket_type?: boolean;
     // *_local are the same instants in the EVENT's timezone, computed server-side
     // for the datetime-local inputs, which carry no timezone of their own.
     sessions: Array<{ id: number; title: string | null; starts_at: string | null; ends_at: string | null; starts_at_local?: string | null; ends_at_local?: string | null; capacity: number | null }>;
-    discount_codes?: Array<{ id: number; code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string | null; max_redemptions: number | null; starts_at: string | null; ends_at: string | null; is_active: boolean; is_public: boolean; redemptions: number }>;
+    discount_codes?: Array<{ id: number; code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string | null; max_redemptions: number | null; starts_at: string | null; ends_at: string | null; starts_on?: string | null; ends_on?: string | null; is_active: boolean; is_public: boolean; redemptions: number }>;
     ticket_types: Array<{ id: number; name: string; description: string | null; kind: TicketRow['kind']; price: string; compare_at_price: string | null; group_min?: number | null; group_price?: string | null; quantity: number | null; min_per_order: number; max_per_order: number; sales_start: string | null; sales_end: string | null; is_active: boolean }>;
     seat_sections?: Array<{ id: number; name: string; color: string; kind: 'seated' | 'ga' | 'stage'; price: string; rows: number | null; cols: number | null; capacity: number | null; x: number; y: number; width: number | null; height: number | null; row_label_start: string; curve: number | null; rotation?: number | null }>;
     seating_tables?: Array<{ id: number; name: string; shape: 'round' | 'rect'; capacity: number; pos_x: number; pos_y: number; rotation?: number }>;
@@ -50,6 +50,13 @@ interface EventProp {
 }
 type TicketingMode = 'general' | 'reserved' | 'tables';
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
+
+/** "2026-11-14" → "14 Nov 2026" (the date as picked; no timezone shift). */
+const niceDate = (ymd: string) => {
+    const [y, m, d] = ymd.split('-').map(Number);
+
+    return y && m && d ? new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ymd;
+};
 
 const field = 'h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 /**
@@ -138,6 +145,7 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         capacity: event?.capacity ? String(event.capacity) : '',
         show_participants: event?.show_participants ?? true,
         show_reviews: event?.show_reviews ?? true,
+        daily_checkin: event?.daily_checkin ?? false,
         refund_policy: event?.refund_policy ?? 'until_event',
         refund_policy_note: event?.refund_policy_note ?? '',
         seating_enabled: event?.seating_enabled ?? false,
@@ -155,8 +163,9 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
             id: d.id, code: d.code, kind: d.kind, value: String(d.value),
             min_subtotal: d.min_subtotal != null ? String(d.min_subtotal) : '',
             max_redemptions: d.max_redemptions != null ? String(d.max_redemptions) : '',
-            starts_at: d.starts_at ? String(d.starts_at).slice(0, 10) : '',
-            ends_at: d.ends_at ? String(d.ends_at).slice(0, 10) : '',
+            // The days in the event's own timezone (the UTC timestamps can fall on the day before).
+            starts_at: d.starts_on ?? (d.starts_at ? String(d.starts_at).slice(0, 10) : ''),
+            ends_at: d.ends_on ?? (d.ends_at ? String(d.ends_at).slice(0, 10) : ''),
             is_active: d.is_active, is_public: d.is_public, redemptions: d.redemptions,
         })),
         ticketTypes: (event?.ticket_types ?? []).map((t): TicketRow => ({ id: t.id, name: t.name, description: t.description ?? '', kind: t.kind, price: String(t.price), compare_at_price: t.compare_at_price != null ? String(t.compare_at_price) : '', group_min: t.group_min != null ? String(t.group_min) : '', group_price: t.group_price != null ? String(t.group_price) : '', quantity: t.quantity != null ? String(t.quantity) : '', min_per_order: String(t.min_per_order), max_per_order: String(t.max_per_order), sales_start: dt(t.sales_start), sales_end: dt(t.sales_end), is_active: t.is_active })),
@@ -461,8 +470,15 @@ form.post('/host/events', options);
                                     id="visibility"
                                     value={data.visibility}
                                     onChange={(v) => setData('visibility', v)}
-                                    options={[{ value: 'public', label: 'Public' }, { value: 'unlisted', label: 'Unlisted' }, { value: 'private', label: 'Private' }]}
+                                    options={[{ value: 'public', label: 'Public' }, { value: 'unlisted', label: 'Unlisted (hidden, link only)' }, { value: 'private', label: 'Private (only you)' }]}
                                 />
+                                <p className="text-xs text-muted-foreground">
+                                    {data.visibility === 'public'
+                                        ? 'Listed on DropRSVP, your organizer page and search engines.'
+                                        : data.visibility === 'unlisted'
+                                            ? 'Hidden from DropRSVP listings and search engines. Anyone you share the link with can still view it and register as usual.'
+                                            : 'Only you can see it. Nobody else can open the page or register.'}
+                                </p>
                             </div>
                         </div>
                         <div className="grid gap-1.5">
@@ -893,48 +909,53 @@ form.post('/host/events', options);
                     <div className="grid gap-3">
                         {data.discounts.map((d, i) => (
                             <div key={d.id ?? `new-${i}`} className="grid gap-3 rounded-lg border border-border p-3">
-                                <div className="flex flex-wrap items-start gap-3">
-                                    <div className="grid min-w-0 flex-1 gap-1.5">
-                                        <Label htmlFor={`discount-code-${i}`} className="text-xs">Code</Label>
-                                        <input
-                                            id={`discount-code-${i}`}
-                                            className={field + ' font-mono uppercase'}
-                                            value={d.code}
-                                            placeholder="EARLYBIRD"
-                                            onChange={(e) => updateDiscount(i, { code: e.target.value.toUpperCase().replace(/[^A-Z0-9._-]/g, '') })}
-                                        />
-                                        {discountError(i, 'code') && <p className="text-xs text-destructive">{discountError(i, 'code')}</p>}
-                                    </div>
-                                    <div className="grid w-28 gap-1.5">
-                                        <Label className="text-xs">Type</Label>
+                                {/* Header: which code, and remove. The code gets a full row of
+                                    its own — squeezed beside Type and Amount it shrank to a
+                                    sliver on a phone. */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Promo code {i + 1}</span>
+                                    <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => removeDiscount(i)} aria-label={`Remove ${d.code || 'promo code'}`}>
+                                        <Trash2 className="size-4" /> Remove
+                                    </Button>
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`discount-code-${i}`} className="text-xs">Code</Label>
+                                    <input
+                                        id={`discount-code-${i}`}
+                                        className={cn(field, 'font-mono text-base tracking-wider uppercase')}
+                                        value={d.code}
+                                        placeholder="EARLYBIRD"
+                                        autoCapitalize="characters"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        onChange={(e) => updateDiscount(i, { code: e.target.value.toUpperCase().replace(/[^A-Z0-9._-]/g, '') })}
+                                    />
+                                    {discountError(i, 'code') && <p className="text-xs text-destructive">{discountError(i, 'code')}</p>}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-1.5">
+                                        <Label className="text-xs">Discount type</Label>
                                         <AppSelect
                                             value={d.kind}
                                             onChange={(v) => updateDiscount(i, { kind: v as DiscountRow['kind'] })}
-                                            options={[{ value: 'percent', label: 'Percent' }, { value: 'fixed', label: 'Amount' }]}
+                                            options={[{ value: 'percent', label: 'Percent (%)' }, { value: 'fixed', label: 'Amount (RM)' }]}
                                         />
                                     </div>
-                                    <div className="grid w-28 gap-1.5">
+                                    <div className="grid gap-1.5">
                                         <Label htmlFor={`discount-value-${i}`} className="text-xs">{d.kind === 'percent' ? 'Percent off' : 'RM off'}</Label>
                                         <input
                                             id={`discount-value-${i}`}
                                             type="number" step="0.01" min="0.01" max={d.kind === 'percent' ? 100 : undefined}
+                                            inputMode="decimal"
                                             className={field}
                                             value={d.value}
                                             onChange={(e) => updateDiscount(i, { value: e.target.value })}
                                         />
                                         {discountError(i, 'value') && <p className="text-xs text-destructive">{discountError(i, 'value')}</p>}
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeDiscount(i)}
-                                        aria-label={`Remove ${d.code || 'promo code'}`}
-                                        className="mt-6 flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
-                                    >
-                                        <Trash2 className="size-4" />
-                                    </button>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                     <div className="grid gap-1.5">
                                         <Label htmlFor={`discount-min-${i}`} className="text-xs">Min spend (RM)</Label>
                                         <input id={`discount-min-${i}`} type="number" step="0.01" min="0" className={field} value={d.min_subtotal} placeholder="Any" onChange={(e) => updateDiscount(i, { min_subtotal: e.target.value })} />
@@ -953,6 +974,12 @@ form.post('/host/events', options);
                                         {discountError(i, 'ends_at') && <p className="text-xs text-destructive">{discountError(i, 'ends_at')}</p>}
                                     </div>
                                 </div>
+                                {(d.starts_at || d.ends_at) && (
+                                    <p className="-mt-1 text-xs text-muted-foreground">
+                                        {d.starts_at ? `Works from 12:00 AM on ${niceDate(d.starts_at)}` : 'Works from now'}
+                                        {d.ends_at ? ` until 11:59 PM on ${niceDate(d.ends_at)}` : ''} ({data.timezone.replace('_', ' ')} time).
+                                    </p>
+                                )}
 
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <div className="rounded-lg border border-border p-3">
@@ -986,6 +1013,14 @@ form.post('/host/events', options);
                     </div>
                     <div className="rounded-lg border border-border p-3">
                         <SwitchField checked={data.show_reviews} onCheckedChange={(v) => setData('show_reviews', v)} label="Show reviews & ratings" description="Let attendees rate and review; show the average on the page." />
+                    </div>
+                    <div className="rounded-lg border border-border p-3">
+                        <SwitchField
+                            checked={data.daily_checkin}
+                            onCheckedChange={(v) => setData('daily_checkin', v)}
+                            label="Check in every day"
+                            description="For events that run over several days (a week-long programme, volunteers): each ticket is scanned once per day, and the Attendance page shows who came on which day, with an export."
+                        />
                     </div>
                     <div className="grid gap-2 rounded-lg border border-border p-3">
                         <div>

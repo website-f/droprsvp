@@ -41,6 +41,10 @@ class PayoutController extends Controller
                 'status' => $p->status,
                 'requested_at' => Dates::display($p->requested_at, 'j M Y'),
                 'paid_at' => Dates::display($p->paid_at, 'j M Y'),
+                'method' => $p->method,
+                'note' => $p->note,
+                'proof' => $p->proof,
+                'by_admin' => $p->created_by !== null,
             ]),
         ]);
     }

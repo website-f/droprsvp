@@ -44,8 +44,10 @@ use App\Http\Controllers\EdmTrackingController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Host\AnalyticsController;
+use App\Http\Controllers\Host\AttendanceController;
 use App\Http\Controllers\Host\AttendeeController;
 use App\Http\Controllers\Host\CheckInController;
+use App\Http\Controllers\Host\CustomerController;
 use App\Http\Controllers\Host\DiscountController;
 use App\Http\Controllers\Host\Edm as HostEdm;
 use App\Http\Controllers\Host\EventController;
@@ -424,6 +426,9 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         // Visitor / admission management — list, detail, export + fullscreen scanner.
         Route::get('events/{event}/attendees', [AttendeeController::class, 'index'])->name('events.attendees');
         Route::get('events/{event}/attendees/export', [AttendeeController::class, 'export'])->name('events.attendees.export');
+        // Who came on which day (daily check-in), and its exports.
+        Route::get('events/{event}/attendance', [AttendanceController::class, 'index'])->name('events.attendance');
+        Route::get('events/{event}/attendance/export', [AttendanceController::class, 'export'])->name('events.attendance.export');
         Route::post('events/{event}/attendees/scan', [AttendeeController::class, 'scan'])->name('events.attendees.scan');
         Route::post('events/{event}/attendees/{ticket}/check-in', [AttendeeController::class, 'checkIn'])->whereNumber('ticket')->name('events.attendees.checkin');
         Route::post('events/{event}/attendees/{ticket}/undo', [AttendeeController::class, 'undo'])->whereNumber('ticket')->name('events.attendees.undo');
@@ -452,6 +457,9 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::get('invoices/events/{event}', [InvoiceController::class, 'event'])->name('invoices.event');
         Route::get('finance', [App\Http\Controllers\Host\FinanceController::class, 'index'])->name('finance.index');
+        // Everyone who has bought from this organizer, across all their events.
+        Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
 
         // Refund queue — approve/decline buyers' refund requests on the organizer's events.
         Route::get('refunds', [RefundController::class, 'index'])->name('refunds.index');
@@ -677,6 +685,9 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::post('archive/{type}/delete', [ArchiveController::class, 'destroy'])->name('archive.delete');
 
         Route::get('payouts', [AdminPayoutController::class, 'index'])->name('payouts.index');
+        // A payout raised for an organizer (who never pressed "Request payout").
+        Route::post('payouts', [AdminPayoutController::class, 'store'])->name('payouts.store');
+        Route::get('payouts/organizers', [AdminPayoutController::class, 'organizers'])->name('payouts.organizers');
         Route::post('payouts/{payout}/paid', [AdminPayoutController::class, 'markPaid'])->name('payouts.paid');
         Route::post('payouts/{payout}/send', [AdminPayoutController::class, 'send'])->name('payouts.send');
         Route::post('payouts/{payout}/sync', [AdminPayoutController::class, 'sync'])->name('payouts.sync');

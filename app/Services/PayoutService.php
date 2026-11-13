@@ -189,6 +189,7 @@ class PayoutService
         $requested = round((float) $payouts->whereIn('status', ['pending', 'processing'])->sum('amount'), 2);
 
         return [
+            'id' => $organizer->id,
             'name' => $organizer->organizerProfile?->business_name ?: $organizer->name,
             'email' => $organizer->email,
             'events' => $organizer->events()->count(),
@@ -230,14 +231,72 @@ class PayoutService
         ]);
     }
 
-    /** Superadmin marks a pending payout as paid (idempotent). */
-    public function markPaid(Payout $payout, ?string $method = null, ?string $note = null): void
+    /**
+     * Superadmin marks a pending payout as paid (idempotent) — with how it was
+     * paid, the bank's transfer reference or a note, and the transfer slip.
+     */
+    public function markPaid(Payout $payout, ?string $method = null, ?string $note = null, ?string $proof = null): void
     {
         if ($payout->status === 'paid') {
             return;
         }
-        $payout->update(['status' => 'paid', 'paid_at' => now(), 'method' => $method ?? 'Manual', 'note' => $note]);
+        $payout->update(['status' => 'paid', 'paid_at' => now(), 'method' => $method ?? 'Manual', 'note' => $note, 'proof' => $proof ?: $payout->proof]);
         $this->notifyPaid($payout);
+    }
+
+    /**
+     * What an admin can still pay an organizer: everything they have earned
+     * less what is already paid, requested or in transfer. Unlike `available`
+     * this includes money from events that have not happened yet — an admin
+     * may choose to pay early; an organizer's own request may not.
+     */
+    public function outstanding(User $organizer): float
+    {
+        $balance = $this->balanceFor($organizer);
+
+        return max(0.0, round($balance['net'] - $balance['withdrawn'], 2));
+    }
+
+    /**
+     * A payout raised by a superadmin on the organizer's behalf — for the
+     * organizer who never found the "Request payout" button. It lands in their
+     * payout list like one they requested, already marked paid when the money
+     * has gone out, otherwise pending for whoever pays it.
+     */
+    public function recordFor(User $organizer, float $amount, User $admin, bool $paid = false, ?string $method = null, ?string $note = null, ?string $proof = null): Payout
+    {
+        $amount = round($amount, 2);
+        $outstanding = $this->outstanding($organizer);
+
+        if ($amount <= 0) {
+            throw ValidationException::withMessages(['amount' => 'Enter an amount above zero.']);
+        }
+
+        if ($amount > $outstanding) {
+            throw ValidationException::withMessages(['amount' => sprintf(
+                'That is more than %s is owed: RM%s after what is already paid or requested.',
+                $organizer->organizerProfile?->business_name ?: $organizer->name,
+                number_format($outstanding, 2),
+            )]);
+        }
+
+        $payout = Payout::create([
+            'user_id' => $organizer->id,
+            'created_by' => $admin->id,
+            'reference' => $this->uniqueReference(),
+            'amount' => $amount,
+            'currency' => 'MYR',
+            'status' => 'pending',
+            'note' => $paid ? null : $note,
+            'proof' => $paid ? null : $proof,
+            'requested_at' => now(),
+        ]);
+
+        if ($paid) {
+            $this->markPaid($payout, $method ?: 'Bank transfer', $note, $proof);
+        }
+
+        return $payout->fresh();
     }
 
     /** Email the organizer that their payout went through (non-fatal). */

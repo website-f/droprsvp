@@ -17,7 +17,7 @@ class Event extends Model
     protected $fillable = [
         'user_id', 'category_id', 'title', 'slug', 'subtitle', 'description', 'cover_image', 'banner_image', 'gallery',
         'custom_fields',
-        'show_participants', 'show_reviews', 'seating_enabled', 'ticketing_mode', 'auto_assign_tables',
+        'show_participants', 'show_reviews', 'daily_checkin', 'seating_enabled', 'ticketing_mode', 'auto_assign_tables',
         'table_choice', 'table_choice_limit', 'tables_per_ticket_type',
         'status', 'cancelled_reason', 'appeal_status', 'appeal_reason', 'appeal_attachments', 'appealed_at',
         'refund_policy', 'refund_policy_note',
@@ -31,6 +31,7 @@ class Event extends Model
             'is_online' => 'boolean',
             'show_participants' => 'boolean',
             'show_reviews' => 'boolean',
+            'daily_checkin' => 'boolean',
             'seating_enabled' => 'boolean',
             'auto_assign_tables' => 'boolean',
             'table_choice' => 'boolean',

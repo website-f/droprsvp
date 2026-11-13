@@ -13,7 +13,7 @@ export interface EventStatement {
 }
 
 export interface OrganizerStatement {
-    name: string; email: string; events: number;
+    id: number; name: string; email: string; events: number;
     earned: number; paid_out: number; requested: number; available: number; clearing: number; owed: number;
     fee: FeeRate;
     payouts: { reference: string; amount: number; status: string; method: string | null; requested_on: string | null; paid_on: string | null }[];
@@ -126,7 +126,7 @@ export function MoneyStatement({ event, organizer }: { event: EventStatement; or
                                 <h3 className="truncate text-sm font-semibold">Payout to {organizer.name}</h3>
                                 <p className="text-xs text-muted-foreground">Across all {organizer.events} of their event{organizer.events === 1 ? '' : 's'} · {organizer.fee.label}{organizer.fee.custom ? ' (custom rate)' : ''}</p>
                             </div>
-                            <Link href="/admin/payouts" className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">Payouts <ExternalLink className="size-3" /></Link>
+                            <Link href={`/admin/payouts?organizer=${organizer.id}`} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">Record a payout <ExternalLink className="size-3" /></Link>
                         </div>
 
                         <div className="mt-3">

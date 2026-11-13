@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, AtSign, BadgeCheck, Ban, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, Flag, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, MessageCircle, MessagesSquare, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, SlidersHorizontal, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
+import { Archive, AtSign, Contact, BadgeCheck, Ban, Banknote, Bot, CalendarDays, ChartColumn, CircleDollarSign, Coins, Crown, FileSearch, FileText, Flag, GalleryHorizontalEnd, Gauge, Image as ImageIcon, Inbox, LayoutGrid, LayoutTemplate, LifeBuoy, Mail, Megaphone, Menu, MessageCircle, MessagesSquare, Newspaper, Palette, PanelBottom, PanelRight, Receipt, ScrollText, Search, Send, Settings2, Shapes, ShieldCheck, SlidersHorizontal, Ticket, Undo2, UserRoundCheck, Users, Wallet, Workflow } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavGroup } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
@@ -38,6 +38,7 @@ const sellerNav: NavItem[] = [
 const organizingNav: NavItem[] = [
     { title: 'Events', href: '/host/events', icon: CalendarDays },
     { title: 'Analytics', href: '/host/analytics', icon: ChartColumn },
+    { title: 'Customers', href: '/host/customers', icon: Contact },
     { title: 'Finance', href: '/host/finance', icon: CircleDollarSign },
     { title: 'Invoices', href: '/host/invoices', icon: Receipt },
     { title: 'Refunds', href: '/host/refunds', icon: Undo2 },

@@ -7,7 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payout extends Model
 {
-    protected $fillable = ['user_id', 'reference', 'amount', 'currency', 'status', 'method', 'chip_send_id', 'chip_send_state', 'note', 'requested_at', 'paid_at'];
+    protected $fillable = ['user_id', 'created_by', 'reference', 'amount', 'currency', 'status', 'method', 'chip_send_id', 'chip_send_state', 'note', 'proof', 'requested_at', 'paid_at'];
+
+    /** The superadmin who raised it on the organizer's behalf, if one did. */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
     protected function casts(): array
     {

@@ -10,6 +10,12 @@
         <tr><td style="padding:16px 18px;font-size:14px;line-height:1.7;color:#3f3f46;">
             <div>🔖&nbsp; Reference {{ $payout->reference }}</div>
             <div>💰&nbsp; Amount: {{ $payout->currency }} {{ number_format((float) $payout->amount, 2) }}</div>
+            @if ($payout->note)
+                <div>📝&nbsp; {{ $payout->note }}</div>
+            @endif
+            @if ($payout->proof)
+                <div>🧾&nbsp; <a href="{{ url($payout->proof) }}" style="color:#18181b;">View the transfer slip</a></div>
+            @endif
         </td></tr>
     </table>
 

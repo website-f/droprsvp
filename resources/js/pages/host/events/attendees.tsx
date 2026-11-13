@@ -24,7 +24,7 @@ interface Filters { q: string; status: string; type: string; facets?: Record<str
 interface TypeCount { id: number | null; name: string; total: number; checked_in: number }
 interface Stats { total: number; checked_in: number; by_type: TypeCount[] }
 interface Props {
-    event: { title: string; slug: string; mode?: string };
+    event: { title: string; slug: string; mode?: string; daily?: boolean; today?: string };
     tickets: Paginated<Row>;
     filters: Filters;
     ticketTypes: { id: number; name: string }[];
@@ -227,7 +227,9 @@ p.set('type', filters.type);
     const undo = async (id: number, name: string) => {
         const ok = await confirm({
             title: 'Undo check-in?',
-            description: `${name} will be marked as not arrived, and can be checked in again. The original check-in stays on record.`,
+            description: event.daily
+                ? `${name}'s check-in for today is removed, and they can be checked in again. Other days are kept.`
+                : `${name} will be marked as not arrived, and can be checked in again. The original check-in stays on record.`,
             confirmText: 'Undo check-in',
             destructive: true,
         });
@@ -270,7 +272,11 @@ p.set('type', filters.type);
                             {event.title}
                             {event.mode === 'tables' && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Table management</span>}
                             {event.mode === 'reserved' && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Reserved seating</span>}
+                            {event.daily && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Daily check-in · {event.today}</span>}
                         </p>
+                        {event.daily && (
+                            <Link href={`/host/events/${event.slug}/attendance`} className="mt-1 inline-flex text-xs font-medium underline-offset-2 hover:underline">See attendance by day →</Link>
+                        )}
                     </div>
                     <Button onClick={() => {
  setFeedback(null); setPending(null); setScanOpen(true); 
@@ -284,7 +290,7 @@ p.set('type', filters.type);
                         <div className="mt-1 text-2xl font-bold">{liveStats.total}</div>
                     </div>
                     <div className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"><CheckCircle2 className="size-3.5" /> Checked in</div>
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"><CheckCircle2 className="size-3.5" /> {event.daily ? 'Checked in today' : 'Checked in'}</div>
                         <div className="mt-1 text-2xl font-bold">{liveStats.checked_in} <span className="text-sm font-medium text-muted-foreground">/ {liveStats.total}</span></div>
                     </div>
                     <div className="rounded-xl border border-border bg-card p-4">
@@ -427,7 +433,7 @@ p.set('type', filters.type);
                                             <div className="text-xs text-muted-foreground">{r.purchased_at ?? ''}</div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <Badge variant={STATUS_BADGE[r.status] ?? 'secondary'}>{STATUS_LABEL[r.status] ?? r.status}</Badge>
+                                            <Badge variant={STATUS_BADGE[r.status] ?? 'secondary'}>{event.daily && (r.status === 'checked_in' || r.status === 'valid') ? (r.status === 'checked_in' ? 'In today' : 'Not in today') : (STATUS_LABEL[r.status] ?? r.status)}</Badge>
                                             {r.checked_in_at && <div className="mt-0.5 text-[11px] text-muted-foreground">{r.checked_in_at}</div>}
                                         </td>
                                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>

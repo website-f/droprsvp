@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
+use App\Models\CheckIn;
 use App\Models\Event;
 use App\Models\Ticket;
 use App\Models\TicketType;
+use App\Services\CheckInService;
 use App\Support\AttendeeDirectory;
 use App\Support\Cities;
 use App\Support\CustomFields;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -30,14 +33,19 @@ class AttendeeController extends Controller
         $fields = $directory->fields();
 
         $tickets = $this->listing($event, $filters, $directory)
-            ->with($this->rowRelations())
+            ->with($this->rowRelations($event))
             ->orderByDesc('id')
             ->paginate(25)
             ->withQueryString()
             ->through(fn (Ticket $t) => $this->row($t, $event, $fields));
 
         return inertia('host/events/attendees', [
-            'event' => ['title' => $event->title, 'slug' => $event->slug, 'mode' => $event->ticketing_mode],
+            'event' => [
+                'title' => $event->title, 'slug' => $event->slug, 'mode' => $event->ticketing_mode,
+                // Daily check-in: "checked in" on this page means checked in TODAY.
+                'daily' => (bool) $event->daily_checkin,
+                'today' => CarbonImmutable::parse($this->door()->today($event))->format('D, j M'),
+            ],
             'tickets' => $tickets,
             'filters' => $filters,
             'ticketTypes' => $event->ticketTypes()->orderBy('sort_order')->get(['id', 'name'])
@@ -61,15 +69,17 @@ class AttendeeController extends Controller
         $directory = $this->directory($event, $filters);
         $fields = $directory->fields();
 
-        // Exactly what is on screen: the same search and the same facets.
+        // Exactly what is on screen: the same search and the same facets —
+        // read 500 at a time, so a big event never sits in memory at once.
         $tickets = $this->listing($event, $filters, $directory)
-            ->with($this->rowRelations())
-            ->orderByDesc('id')
-            ->get();
+            ->with($this->rowRelations($event))
+            ->withCount('checkIns')
+            ->lazyByIdDesc(500);
+        $daily = (bool) $event->daily_checkin;
 
         $filename = 'attendees-'.$event->slug.'.csv';
 
-        return response()->streamDownload(function () use ($tickets, $event, $fields) {
+        return response()->streamDownload(function () use ($tickets, $event, $fields, $daily) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders names correctly
             // One extra column per booking question, in the order the organizer
@@ -79,7 +89,8 @@ class AttendeeController extends Controller
 
             fputcsv($out, array_merge(
                 ['Name', 'Email', 'Phone', 'Gender', 'Age', 'Birth year', 'City', 'Heard via',
-                    'Ticket type', 'Seat / Table', 'Order', 'Purchased', 'Status', 'Checked in at', 'Remarks', 'Token'],
+                    'Ticket type', 'Seat / Table', 'Order', 'Purchased', $daily ? 'Today' : 'Status', 'Checked in at', 'Remarks', 'Token'],
+                $daily ? ['Days attended'] : [],
                 $questions,
             ));
 
@@ -89,6 +100,7 @@ class AttendeeController extends Controller
                     [$r['name'], $r['email'], $r['phone'], $r['buyer']['gender'], $r['buyer']['age_band'], $r['buyer']['birth_year'],
                         $r['buyer']['city'], $r['buyer']['source'], $r['type'], $r['seat'], $r['order_ref'], $r['purchased_at'],
                         $r['status'], $r['checked_in_at'], $r['buyer']['notes'], $r['token']],
+                    $daily ? [(int) $t->check_ins_count] : [],
                     array_map(fn (string $q) => $r['answers'][$q] ?? '', $questions),
                 ));
             }
@@ -113,33 +125,29 @@ class AttendeeController extends Controller
 
         $token = basename(trim($data['token'])); // a scanned pass URL reduces to its token
         $ticket = $event->tickets()->where('qr_token', $token)
-            ->with($this->rowRelations())->first();
+            ->with($this->rowRelations($event))->first();
 
         if (! $ticket) {
             return response()->json(['result' => 'notfound', 'message' => 'No matching ticket for this event.']);
         }
 
-        if (in_array($ticket->status, ['void', 'refunded'], true)) {
+        // Only a live ticket gets in (valid or checked in) — refunded, void and
+        // cancelled ones are turned away.
+        if (! in_array($ticket->status, ['valid', 'checked_in'], true)) {
             return response()->json(['result' => 'invalid', 'message' => 'This ticket is '.$ticket->status.'.', 'ticket' => $this->row($ticket, $event)]);
         }
 
-        if ($ticket->status === 'checked_in') {
-            $when = $ticket->checked_in_at?->setTimezone($event->timezone)->format('g:i A');
+        // Auto-mode checks in now; manual mode only looks the ticket up so the
+        // operator can confirm — unless it is already in (for today).
+        if ($request->boolean('auto') || $this->door()->isIn($event, $ticket)) {
+            $result = $request->boolean('auto')
+                ? $this->door()->checkIn($event, $ticket, $request->user()->id, 'scan')
+                : ['result' => 'already', 'message' => $event->daily_checkin ? 'Already checked in today.' : 'Already checked in.'];
 
             return response()->json([
-                'result' => 'already',
-                'message' => 'Already checked in'.($when ? " at {$when}" : '').'.',
-                'ticket' => $this->row($ticket, $event),
-            ]);
-        }
-
-        // Valid ticket. Auto-mode stamps it now; manual mode waits for a confirm tap.
-        if ($request->boolean('auto')) {
-            $ticket->update(['status' => 'checked_in', 'checked_in_at' => now(), 'checked_in_by' => $request->user()->id]);
-
-            return response()->json([
-                'result' => 'ok', 'message' => 'Checked in.',
-                'ticket' => $this->row($ticket->refresh()->load($this->rowRelations()), $event), 'stats' => $this->stats($event),
+                ...$result,
+                'ticket' => $this->row($ticket->refresh()->load($this->rowRelations($event)), $event),
+                'stats' => $this->stats($event),
             ]);
         }
 
@@ -150,22 +158,16 @@ class AttendeeController extends Controller
     public function checkIn(Request $request, Event $event, int $ticket)
     {
         $this->authorize('update', $event);
-        $model = $event->tickets()->with($this->rowRelations())->findOrFail($ticket);
+        $model = $event->tickets()->with($this->rowRelations($event))->findOrFail($ticket);
 
-        if (in_array($model->status, ['void', 'refunded'], true)) {
-            return response()->json(['result' => 'invalid', 'message' => 'This ticket is '.$model->status.'.'], 422);
+        // Checking in someone already in is a quiet no-op, as before.
+        $result = $this->door()->checkIn($event, $model, $request->user()->id, 'manual');
+
+        if ($result['result'] === 'invalid') {
+            return response()->json($result, 422);
         }
 
-        if ($model->status !== 'checked_in') {
-            $model->update([
-                'status' => 'checked_in',
-                'checked_in_at' => now(),
-                'checked_in_by' => $request->user()->id,
-                'check_in_log' => $this->appendLog($model, 'in', $request->user()->id),
-            ]);
-        }
-
-        return response()->json(['ticket' => $this->row($model->refresh()->load($this->rowRelations()), $event), 'stats' => $this->stats($event)]);
+        return response()->json(['ticket' => $this->row($model->refresh()->load($this->rowRelations($event)), $event), 'stats' => $this->stats($event)]);
     }
 
     /**
@@ -186,45 +188,26 @@ class AttendeeController extends Controller
     public function undo(Request $request, Event $event, int $ticket)
     {
         $this->authorize('update', $event);
-        $model = $event->tickets()->with($this->rowRelations())->findOrFail($ticket);
+        $model = $event->tickets()->with($this->rowRelations($event))->findOrFail($ticket);
 
-        if (in_array($model->status, ['void', 'refunded'], true)) {
-            return response()->json(['result' => 'invalid', 'message' => 'This ticket is '.$model->status.'.'], 422);
+        $result = $this->door()->undo($event, $model, $request->user()->id);
+
+        if ($result['result'] === 'invalid') {
+            return response()->json($result, 422);
         }
 
-        if ($model->status !== 'checked_in') {
-            return response()->json([
-                'result' => 'invalid',
-                'message' => 'This ticket is not checked in, so there is nothing to undo.',
-            ], 422);
-        }
-
-        $model->update([
-            'status' => 'valid',
-            'checked_in_at' => null,
-            'checked_in_by' => null,
-            'check_in_log' => $this->appendLog($model, 'undo', $request->user()->id),
-        ]);
-
-        return response()->json(['ticket' => $this->row($model->refresh()->load($this->rowRelations()), $event), 'stats' => $this->stats($event)]);
+        return response()->json(['ticket' => $this->row($model->refresh()->load($this->rowRelations($event)), $event), 'stats' => $this->stats($event)]);
     }
 
-    /**
-     * Append one entry to a ticket's check-in history.
-     *
-     * Capped, because a ticket toggled back and forth at a busy door should not
-     * be able to grow its own row without bound. The oldest entries go first —
-     * the first check-in and the most recent reversal are what anyone asks
-     * about, and both survive a trim of the middle.
-     *
-     * @return array<int,array{action:string,at:string,by:int}>
-     */
-    private function appendLog(Ticket $ticket, string $action, int $userId): array
+    private function door(): CheckInService
     {
-        $log = $ticket->check_in_log ?? [];
-        $log[] = ['action' => $action, 'at' => now()->toIso8601String(), 'by' => $userId];
+        return app(CheckInService::class);
+    }
 
-        return array_slice($log, -20);
+    /** Today's check-in row, from the relation rowRelations() loads on a daily event. */
+    private function todaysCheckIn(Ticket $t): ?CheckIn
+    {
+        return $t->relationLoaded('checkIns') ? $t->checkIns->first() : null;
     }
 
     /**
@@ -256,8 +239,21 @@ class AttendeeController extends Controller
      */
     private function query(Event $event, array $filters): Builder
     {
+        $today = $event->daily_checkin ? $this->door()->today($event) : null;
+
         return $event->tickets()
-            ->when($filters['status'] !== 'all' && $filters['status'] !== '', fn (Builder $q) => $q->where('status', $filters['status']))
+            ->when($filters['status'] !== 'all' && $filters['status'] !== '', function (Builder $q) use ($filters, $today) {
+                // On a daily event "checked in" means checked in today.
+                if ($today && $filters['status'] === 'checked_in') {
+                    return $q->whereIn('status', ['valid', 'checked_in'])->whereHas('checkIns', fn ($c) => $c->where('day', $today));
+                }
+
+                if ($today && $filters['status'] === 'valid') {
+                    return $q->whereIn('status', ['valid', 'checked_in'])->whereDoesntHave('checkIns', fn ($c) => $c->where('day', $today));
+                }
+
+                return $q->where('status', $filters['status']);
+            })
             ->when($filters['type'] !== 'all' && $filters['type'] !== '', fn (Builder $q) => $q->where('ticket_type_id', $filters['type']));
     }
 
@@ -277,9 +273,13 @@ class AttendeeController extends Controller
     }
 
     /** What row() reads, loaded up front so a page of 25 is not 25 × N queries. */
-    private function rowRelations(): array
+    private function rowRelations(Event $event): array
     {
+        $today = $event->daily_checkin ? $this->door()->today($event) : null;
+
         return [
+            // Today's check-in, on a daily event — what "checked in" means there.
+            ...($today ? ['checkIns' => fn ($q) => $q->where('day', $today)] : []),
             'ticketType:id,name',
             'seatingTable:id,name',
             'order' => fn ($q) => $q
@@ -314,8 +314,12 @@ class AttendeeController extends Controller
             'seat' => $t->seat_label ?: $t->seatingTable?->name,
             'order_ref' => $order?->reference,
             'purchased_at' => $order?->paid_at?->setTimezone($event->timezone)->format('d M Y, g:i A'),
-            'status' => $t->status,
-            'checked_in_at' => $t->checked_in_at?->setTimezone($event->timezone)->format('d M Y, g:i A'),
+            // On a daily event, status and time are TODAY's: in or not yet.
+            'status' => $event->daily_checkin && in_array($t->status, ['valid', 'checked_in'], true)
+                ? ($this->todaysCheckIn($t) ? 'checked_in' : 'valid')
+                : $t->status,
+            'checked_in_at' => ($event->daily_checkin ? $this->todaysCheckIn($t)?->checked_in_at : $t->checked_in_at)
+                ?->setTimezone($event->timezone)->format('d M Y, g:i A'),
             // The organizer's own questions, answered per ticket at checkout, as
             // readable label => answer pairs. Resolved against the event's CURRENT
             // definitions, so a renamed question shows its new wording and a
@@ -366,9 +370,15 @@ class AttendeeController extends Controller
      */
     private function stats(Event $event): array
     {
+        // A daily event counts who is in TODAY; otherwise who has ever been in.
+        $today = $event->daily_checkin ? $this->door()->today($event) : null;
+        $inToday = fn ($q) => $q->select('ticket_id')->from('check_ins')->where('event_id', $event->id)->where('day', $today);
+
         $counts = $event->tickets()
             ->whereIn('status', ['valid', 'checked_in'])
-            ->selectRaw('ticket_type_id, count(*) as total, sum(case when status = ? then 1 else 0 end) as checked_in', ['checked_in'])
+            ->when($today,
+                fn ($q) => $q->selectRaw('ticket_type_id, count(*) as total, sum(case when id in (select ticket_id from check_ins where event_id = ? and day = ?) then 1 else 0 end) as checked_in', [$event->id, $today]),
+                fn ($q) => $q->selectRaw('ticket_type_id, count(*) as total, sum(case when status = ? then 1 else 0 end) as checked_in', ['checked_in']))
             ->groupBy('ticket_type_id')
             ->get()
             ->keyBy('ticket_type_id');
@@ -401,7 +411,9 @@ class AttendeeController extends Controller
 
         return [
             'total' => $event->tickets()->whereIn('status', ['valid', 'checked_in'])->count(),
-            'checked_in' => $event->tickets()->where('status', 'checked_in')->count(),
+            'checked_in' => $today
+                ? $event->tickets()->whereIn('status', ['valid', 'checked_in'])->whereIn('id', $inToday)->count()
+                : $event->tickets()->where('status', 'checked_in')->count(),
             'by_type' => $byType,
         ];
     }

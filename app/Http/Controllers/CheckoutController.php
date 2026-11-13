@@ -29,6 +29,9 @@ class CheckoutController extends Controller
     public function start(Request $request, Event $event)
     {
         abort_unless($event->status === 'published', 404);
+        // Public and unlisted events sell to anyone with the link; a private
+        // one only to its organizer (the same rule as viewing its page).
+        abort_unless(in_array($event->visibility, ['public', 'unlisted'], true) || $request->user()?->id === $event->user_id, 404);
 
         // An event that is over keeps its page, but nothing on it is for sale.
         // Tickets stayed buyable after the day unless the organizer happened

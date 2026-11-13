@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,36 @@ class DiscountCode extends Model
             'is_active' => 'boolean',
             'is_public' => 'boolean',
         ];
+    }
+
+    /**
+     * A promo window is picked as whole days — "from 10 Nov until 14 Nov" —
+     * and means those days where the event is: from 12:00 AM on the first
+     * until 11:59:59 PM on the last, in the event's timezone.
+     *
+     * The dates used to be stored as bare midnights in UTC, so a code
+     * "ending 14 Nov" in Kuala Lumpur stopped at 8:00 AM on the 14th and one
+     * "starting 10 Nov" only began at 8:00 AM.
+     */
+    public static function startOfDayIn(?string $date, string $timezone): ?CarbonImmutable
+    {
+        return $date ? CarbonImmutable::parse(substr($date, 0, 10), $timezone)->startOfDay()->utc() : null;
+    }
+
+    public static function endOfDayIn(?string $date, string $timezone): ?CarbonImmutable
+    {
+        return $date ? CarbonImmutable::parse(substr($date, 0, 10), $timezone)->endOfDay()->utc() : null;
+    }
+
+    /** The first and last day of the window as the organizer picked them (Y-m-d, event time). */
+    public function startsOn(string $timezone): ?string
+    {
+        return $this->starts_at?->copy()->setTimezone($timezone)->toDateString();
+    }
+
+    public function endsOn(string $timezone): ?string
+    {
+        return $this->ends_at?->copy()->setTimezone($timezone)->toDateString();
     }
 
     public function event(): BelongsTo

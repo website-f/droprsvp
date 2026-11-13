@@ -116,7 +116,11 @@ class EventController extends Controller
         }
 
         // Draft / owner-preview pages must never be indexed.
-        $isPublic ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true)) : $manager->noindex();
+        // Unlisted is a hidden listing: anyone with the link can open it and
+        // register, but it stays out of search engines as well as our own lists.
+        $isPublic && $event->visibility === 'public'
+            ? $manager->robots((bool) ($seo->robots_index ?? true), (bool) ($seo->robots_follow ?? true))
+            : $manager->noindex();
 
         // The event as text. There is no Node/SSR in production, so without this
         // a crawler that doesn't run JavaScript got the meta tags and an empty

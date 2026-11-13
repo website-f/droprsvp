@@ -68,6 +68,10 @@ class DiscountController extends Controller
         ]);
         $data['code'] = strtoupper($data['code']);
 
+        // Whole days in the event's timezone — see DiscountCode::startOfDayIn.
+        $data['starts_at'] = DiscountCode::startOfDayIn($data['starts_at'] ?? null, $event->timezone);
+        $data['ends_at'] = DiscountCode::endOfDayIn($data['ends_at'] ?? null, $event->timezone);
+
         return $data;
     }
 
@@ -84,8 +88,8 @@ class DiscountController extends Controller
             'max_redemptions' => $c->max_redemptions,
             'is_active' => $c->is_active,
             'is_public' => $c->is_public,
-            'starts_at' => optional($c->starts_at)->toDateString(),
-            'ends_at' => optional($c->ends_at)->toDateString(),
+            'starts_at' => $c->startsOn($c->event?->timezone ?: config('app.display_timezone', 'Asia/Kuala_Lumpur')),
+            'ends_at' => $c->endsOn($c->event?->timezone ?: config('app.display_timezone', 'Asia/Kuala_Lumpur')),
             'stats' => [
                 'redemptions' => (clone $settled)->count(),
                 'revenue' => (float) (clone $settled)->sum(\DB::raw('total - refunded_amount')),
