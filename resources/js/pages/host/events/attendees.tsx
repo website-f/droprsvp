@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Download, MessageSquareText, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
+import { ArmchairIcon, ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Download, LayoutGrid, MessageSquareText, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AttendeeFacets } from '@/components/attendee-facets';
@@ -270,8 +270,17 @@ p.set('type', filters.type);
                         <h1 className="text-xl font-bold tracking-tight">Attendees</h1>
                         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             {event.title}
-                            {event.mode === 'tables' && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Table management</span>}
-                            {event.mode === 'reserved' && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Reserved seating</span>}
+                            {/* Links, not labels: tapping them was the obvious thing to try. */}
+                            {event.mode === 'tables' && (
+                                <Link href={`/host/events/${event.slug}/seating`} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground underline-offset-2 hover:bg-accent hover:underline">
+                                    <LayoutGrid className="size-3" /> Table management <ChevronRight className="size-3" />
+                                </Link>
+                            )}
+                            {event.mode === 'reserved' && (
+                                <Link href={`/host/events/${event.slug}/edit`} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground underline-offset-2 hover:bg-accent hover:underline">
+                                    <ArmchairIcon className="size-3" /> Reserved seating <ChevronRight className="size-3" />
+                                </Link>
+                            )}
                             {event.daily && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">Daily check-in · {event.today}</span>}
                         </p>
                         {event.daily && (
