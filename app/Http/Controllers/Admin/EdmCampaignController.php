@@ -19,6 +19,7 @@ use App\Support\Edm\Settings;
 use App\Support\Edm\SpamCheck;
 use App\Support\Edm\StarterTemplates;
 use App\Support\Edm\Throttle;
+use App\Support\Url;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -585,7 +586,7 @@ class EdmCampaignController extends Controller
             'content' => [
                 ['type' => 'Heading', 'props' => ['id' => 'Heading-1', 'text' => 'Happening this week', 'level' => 'h1', 'align' => 'left']],
                 ['type' => 'Text', 'props' => ['id' => 'Text-1', 'html' => '<p>Hi {{first_name}},</p><p>Here is what is on near you.</p>', 'align' => 'left']],
-                ['type' => 'Button', 'props' => ['id' => 'Button-1', 'label' => 'Browse events', 'url' => url('/en-my/all/'), 'align' => 'center', 'color' => '']],
+                ['type' => 'Button', 'props' => ['id' => 'Button-1', 'label' => 'Browse events', 'url' => Url::global('all'), 'align' => 'center', 'color' => '']],
             ],
         ];
     }

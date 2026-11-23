@@ -39,7 +39,7 @@ class PageController extends Controller
 
         $seo = $page->seo;
         $description = $seo?->meta_description ?: Str::limit(trim(strip_tags((string) $page->body)), 155);
-        $canonical = $seo?->canonical_url ?: Url::to($page->slug);
+        $canonical = $seo?->canonical_url ?: Url::global($page->slug);
 
         app(SeoManager::class)
             ->title($seo?->seo_title ?: $page->title)

@@ -6,6 +6,7 @@ import { EventCalendar  } from '@/components/event-calendar';
 import type {CalendarEvent} from '@/components/event-calendar';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 import { dashboard } from '@/routes';
 
 interface Props {
@@ -55,7 +56,7 @@ export default function Dashboard({ stats, filters, eventOptions, sales_by_day, 
                         <h1 className="text-2xl font-bold tracking-tight">Find your next event</h1>
                         <p className="text-sm text-muted-foreground">Browse events and grab tickets — they’ll show up under My tickets, ready to re-download anytime.</p>
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                            <Button asChild><Link href="/en-my/all/"><Compass className="size-4" /> Browse events</Link></Button>
+                            <Button asChild><Link href={`/${region()}/all/`}><Compass className="size-4" /> Browse events</Link></Button>
                             <Button asChild variant="outline"><Link href="/my/tickets"><Ticket className="size-4" /> My tickets</Link></Button>
                         </div>
                         <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm">

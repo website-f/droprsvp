@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDays, Compass, UserRoundCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface Organizer { id: number; slug: string; name: string; followers: number }
 interface UpcomingEvent { slug: string; title: string; organizer: string | null; cover_image: string | null; when: string | null }
@@ -25,7 +26,7 @@ export default function Following({ organizers, upcoming }: Props) {
                     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
                         <UserRoundCheck className="size-8 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">You're not following any organizers yet.</p>
-                        <Button asChild><Link href="/en-my/all/"><Compass className="size-4" /> Discover events</Link></Button>
+                        <Button asChild><Link href={`/${region()}/all/`}><Compass className="size-4" /> Discover events</Link></Button>
                     </div>
                 ) : (
                     <div className="grid gap-6">
@@ -37,7 +38,7 @@ export default function Following({ organizers, upcoming }: Props) {
                                     <div key={o.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                                         <span className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: TINTS[i % TINTS.length] }}>{initials(o.name)}</span>
                                         <div className="min-w-0 flex-1">
-                                            <Link href={`/en-my/o/${o.slug}/`} className="truncate font-medium hover:underline">{o.name}</Link>
+                                            <Link href={`/${region()}/o/${o.slug}/`} className="truncate font-medium hover:underline">{o.name}</Link>
                                             <div className="flex items-center gap-1 text-xs text-muted-foreground"><Users className="size-3" /> {o.followers} follower{o.followers === 1 ? '' : 's'}</div>
                                         </div>
                                         <Button variant="outline" size="sm" onClick={() => unfollow(o.id)}>Following</Button>
@@ -54,7 +55,7 @@ export default function Following({ organizers, upcoming }: Props) {
                             ) : (
                                 <div className="grid gap-3">
                                     {upcoming.map((e) => (
-                                        <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="flex items-center gap-4 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
+                                        <Link key={e.slug} href={`/${region()}/e/${e.slug}/`} className="flex items-center gap-4 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
                                             <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-muted">
                                                 {e.cover_image
                                                     ? <img src={e.cover_image} alt={e.title} className="size-full object-cover" />

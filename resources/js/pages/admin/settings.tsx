@@ -1,6 +1,8 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, Flame, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Users } from 'lucide-react';
+import { ArmchairIcon, Banknote, Flame, Globe, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Store, Users } from 'lucide-react';
 import { useState } from 'react';
+import { RegionsSettings } from '@/components/admin/regions-settings';
+import type { CatalogCountry } from '@/components/admin/regions-settings';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -14,12 +16,13 @@ interface SettingsData {
     boost_price: number; boost_days: number; premium_price: number; premium_days: number;
     tax_percent: number; tax_label: string; tax_inclusive: boolean; support_email: string;
     ticketing_modes: TicketingModes; announcement: Announcement; trending_keywords: string;
+    organizer_auto_approve: boolean;
 }
 
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'ticketing' | 'search' | 'general';
+type Tab = 'payments' | 'tax' | 'ticketing' | 'organizers' | 'regions' | 'search' | 'general';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
@@ -32,7 +35,10 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 interface PermissionSection { key: string; label: string }
-export default function Settings({ settings, rolePermissions, permissionSections }: { settings: SettingsData; rolePermissions: { staff: string[] }; permissionSections: PermissionSection[] }) {
+export default function Settings({ settings, rolePermissions, permissionSections, regions, regionCatalog = [], regionAreas = [], regionEvents = {} }: {
+    settings: SettingsData; rolePermissions: { staff: string[] }; permissionSections: PermissionSection[];
+    regions: { enabled: string[]; default: string }; regionCatalog?: CatalogCountry[]; regionAreas?: string[]; regionEvents?: Record<string, number>;
+}) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const isSuperadmin = !!usePage().props.auth?.is_superadmin;
     const [tab, setTab] = useState<Tab>('payments');
@@ -56,6 +62,7 @@ export default function Settings({ settings, rolePermissions, permissionSections
         ticketing_modes: settings.ticketing_modes,
         announcement: settings.announcement,
         trending_keywords: settings.trending_keywords ?? '',
+        organizer_auto_approve: !!settings.organizer_auto_approve,
     });
     const { data, setData, processing } = form;
     const setMode = (key: keyof TicketingModes, v: boolean) => setData('ticketing_modes', { ...data.ticketing_modes, [key]: v });
@@ -68,6 +75,8 @@ export default function Settings({ settings, rolePermissions, permissionSections
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
         { key: 'ticketing', label: 'Ticketing', icon: ArmchairIcon },
+        { key: 'organizers', label: 'Organizers', icon: Store },
+        { key: 'regions', label: 'Regions', icon: Globe },
         { key: 'search', label: 'Search', icon: Flame },
         { key: 'general', label: 'General', icon: Settings2 },
     ];
@@ -167,6 +176,27 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                 <Switch checked={data.ticketing_modes.tables} onCheckedChange={(v) => setMode('tables', v)} />
                             </div>
                         </div>
+                    )}
+
+                    {tab === 'organizers' && (
+                        <div className="grid gap-3 rounded-xl border border-border p-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-sm font-semibold">Approve organizers automatically</h2>
+                                    <p className="mt-0.5 text-sm text-muted-foreground">
+                                        {data.organizer_auto_approve
+                                            ? 'On: anyone who applies to host is approved straight away and can create events at once. You’re notified of each new organizer, and can still reject them from Organizers.'
+                                            : 'Off: every application waits for you to approve it under Organizers before they can create events.'}
+                                    </p>
+                                </div>
+                                <Switch checked={data.organizer_auto_approve} onCheckedChange={(v) => setData('organizer_auto_approve', v)} aria-label="Approve organizers automatically" />
+                            </div>
+                            <p className="text-xs text-muted-foreground">Saves with the <strong>Save changes</strong> button above. Applications already waiting are not approved by turning this on — approve those under Organizers.</p>
+                        </div>
+                    )}
+
+                    {tab === 'regions' && (
+                        <RegionsSettings initial={regions} catalog={regionCatalog} areas={regionAreas} events={regionEvents} />
                     )}
 
                     {tab === 'general' && (

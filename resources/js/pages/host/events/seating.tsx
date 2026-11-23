@@ -1,8 +1,10 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, ArrowLeft, Hand, Plus, Save, Trash2, Wand2 } from 'lucide-react';
+import { ArmchairIcon, ArrowLeft, ChevronDown, Hand, Plus, Save, Trash2, Users, Wand2 } from 'lucide-react';
+import { useState } from 'react';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 interface TableView { id: number; name: string; capacity: number; assigned: number; by_type: Record<string, number> | null }
 interface TicketView { id: number; name: string; type: string | null; type_id: number | null; table_id: number | null; chosen: boolean }
@@ -13,6 +15,94 @@ interface Props {
 }
 
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
+
+/**
+ * Who is at each table: booked / seats, a bar, and — tapped open — the
+ * people themselves. Read straight off the attendee list below, so it is
+ * always the same picture. When each ticket type is its own sitting, the
+ * count is split per type, since a table holds that many for EACH one.
+ */
+function TableOverview({ tables, tickets, perType }: { tables: TableView[]; tickets: TicketView[]; perType: boolean }) {
+    const [open, setOpen] = useState<number | null>(null);
+    const unassigned = tickets.filter((t) => !t.table_id).length;
+    const seated = tickets.length - unassigned;
+    const seats = tables.reduce((n, t) => n + t.capacity, 0);
+
+    return (
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Who’s at each table</h2>
+                <span className="text-xs text-muted-foreground">
+                    {seated} seated{!perType && seats > 0 ? ` of ${seats} seats` : ''}{unassigned > 0 ? ` · ${unassigned} not seated yet` : ''}
+                </span>
+            </div>
+            <p className="mb-4 text-xs text-muted-foreground">Tap a table to see who is booked there.</p>
+
+            <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr))]">
+                {tables.map((table) => {
+                    const people = tickets.filter((t) => t.table_id === table.id);
+                    const isOpen = open === table.id;
+                    // Per sitting, the fullest sitting is the one that limits the table.
+                    const sittings = perType
+                        ? Object.entries(people.reduce<Record<string, { name: string; n: number }>>((acc, t) => {
+                            const key = String(t.type_id ?? 'other');
+                            acc[key] = { name: t.type ?? 'Other', n: (acc[key]?.n ?? 0) + 1 };
+
+                            return acc;
+                        }, {}))
+                        : [];
+                    const used = perType ? Math.max(0, ...sittings.map(([, v]) => v.n)) : people.length;
+                    const pct = table.capacity ? Math.min(100, Math.round((used / table.capacity) * 100)) : 0;
+                    const full = used >= table.capacity;
+
+                    return (
+                        <div key={table.id} className={cn('rounded-xl border transition-colors', isOpen ? 'border-foreground/40' : 'border-border')}>
+                            <button type="button" onClick={() => setOpen(isOpen ? null : table.id)} aria-expanded={isOpen} className="flex w-full items-start gap-3 p-3 text-left">
+                                <span className="min-w-0 flex-1">
+                                    <span className="block font-medium [overflow-wrap:anywhere]">{table.name}</span>
+                                    <span className="mt-0.5 flex items-center gap-1.5 text-sm">
+                                        <Users className="size-3.5 text-muted-foreground" />
+                                        <span className="font-semibold tabular-nums">{perType ? people.length : `${people.length} / ${table.capacity}`}</span>
+                                        <span className="text-xs text-muted-foreground">{perType ? `booked · ${table.capacity} seats per session` : (full ? 'full' : `${table.capacity - people.length} free`)}</span>
+                                    </span>
+                                    <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted">
+                                        <span className={cn('block h-full rounded-full', full ? 'bg-amber-500' : 'bg-[#2ec4b6]')} style={{ width: `${pct}%` }} />
+                                    </span>
+                                </span>
+                                <ChevronDown className={cn('mt-1 size-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-180')} />
+                            </button>
+
+                            {isOpen && (
+                                <div className="border-t border-border px-3 py-2">
+                                    {perType && sittings.length > 0 && (
+                                        <div className="mb-2 flex flex-wrap gap-1.5">
+                                            {sittings.map(([key, v]) => (
+                                                <span key={key} className="rounded-full bg-muted px-2 py-0.5 text-[11px] [overflow-wrap:anywhere]">{v.name}: {v.n}/{table.capacity}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {people.length === 0 ? (
+                                        <p className="py-1 text-xs text-muted-foreground">Nobody booked here yet.</p>
+                                    ) : (
+                                        <ul className="grid gap-1">
+                                            {people.map((p) => (
+                                                <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                                                    <span className="[overflow-wrap:anywhere]">{p.name}</span>
+                                                    {p.type && <span className="text-xs text-muted-foreground">· {p.type}</span>}
+                                                    {p.chosen && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Picked</span>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 /** Table editor — keyed on the table ids by the parent so it re-inits after a save. */
 function TablesEditor({ slug, initial }: { slug: string; initial: TableView[] }) {
@@ -92,6 +182,8 @@ export default function Seating({ event, tables, tickets }: Props) {
 
                 {errors?.seating && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{errors.seating}</div>}
 
+                {tables.length > 0 && <div className="mb-6"><TableOverview tables={tables} tickets={tickets} perType={event.per_ticket_type} /></div>}
+
                 <div className="mb-6"><TablesEditor key={tablesKey} slug={event.slug} initial={tables} /></div>
 
                 {/* Assign attendees */}
@@ -118,7 +210,7 @@ export default function Seating({ event, tables, tickets }: Props) {
                                         {t.type && <span className="text-xs text-muted-foreground">· {t.type}</span>}
                                         {t.chosen && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">Picked by buyer</span>}
                                     </div>
-                                    <div className="w-48 shrink-0">
+                                    <div className="w-44 shrink-0 sm:w-72">
                                         <AppSelect
                                             value={t.table_id ? String(t.table_id) : 'none'}
                                             onChange={(v) => assign(t.id, v === 'none' ? '' : v)}

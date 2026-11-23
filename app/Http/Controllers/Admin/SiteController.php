@@ -9,6 +9,7 @@ use App\Support\Dates;
 use App\Support\HtmlSanitizer;
 use App\Support\ReceiptTemplate;
 use App\Support\SiteContent;
+use App\Support\Url;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -138,9 +139,9 @@ class SiteController extends Controller
             // screen is easier to keep consistent than two copies of it.
             'page' => [
                 'title' => 'Blog SEO',
-                'description' => 'Title, description and share image for the blog index at /en-my/blog/.',
+                'description' => 'Title, description and share image for the blog index at '.Url::pathIn(Url::LOCALE, 'blog').'.',
                 'action' => '/admin/site/blog-seo',
-                'previewUrl' => url('/en-my/blog/'),
+                'previewUrl' => Url::global('blog'),
             ],
         ]);
     }

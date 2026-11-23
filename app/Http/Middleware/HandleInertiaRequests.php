@@ -11,6 +11,7 @@ use App\Support\Chat\Realtime;
 use App\Support\Cities;
 use App\Support\Edm\OrganizerRules;
 use App\Support\Impersonation;
+use App\Support\Regions;
 use App\Support\RolePermissions;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
@@ -112,7 +113,16 @@ class HandleInertiaRequests extends Middleware
             // Whether "Continue with Google" is available (keys configured).
             'googleAuth' => (bool) config('services.google.client_id') && (bool) config('services.google.client_secret'),
             // Cities for the header location selector (curated, small).
-            'cities' => Cities::all(),
+            // Lazy: resolved at render time, after SetRegion has run, so they
+            // describe the region being browsed. Pages outside a region URL
+            // (account, host, admin) get the one the visitor last browsed.
+            'region' => function () use ($request) {
+                Regions::hasCurrent() || Regions::setCurrent(Regions::preferred($request));
+
+                return Regions::current();
+            },
+            'regions' => fn () => array_map(fn (array $r) => array_intersect_key($r, array_flip(['code', 'name', 'flag', 'country', 'default', 'timezone'])), Regions::enabled()),
+            'cities' => fn () => Cities::all(),
         ];
     }
 }

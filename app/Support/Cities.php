@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Http\Controllers\Public\DiscoverController;
+use App\Models\Event;
 use Illuminate\Support\Str;
 
 /**
@@ -116,20 +117,43 @@ class Cities
         'Labuan' => [5.2831, 115.2308],
     ];
 
-    /** Every city name, flat, in state order. @return string[] */
+    /** Region code => its cities, worked out once per request. */
+    private static array $regionCities = [];
+
+    /**
+     * Every city name of the region being browsed. Malaysia has the curated
+     * state-by-state list below; any other region has the cities its events
+     * are in, so /en-sg/singapore/ resolves like /en-my/kuala-lumpur/ does.
+     *
+     * @return string[]
+     */
     public static function names(): array
     {
-        return array_merge(...array_values(self::BY_STATE));
+        if (self::isMalaysia()) {
+            return array_merge(...array_values(self::BY_STATE));
+        }
+
+        $code = Regions::current()['code'];
+
+        return self::$regionCities[$code] ??= Event::where('region', $code)
+            ->where('status', 'published')
+            ->whereNotNull('city')->where('city', '!=', '')
+            ->distinct()->orderBy('city')->pluck('city')->all();
     }
 
     /**
-     * Flat list of every city, unchanged in shape from before the states were
-     * introduced so existing callers keep working.
+     * Flat list of every city in the region being browsed — unchanged in shape
+     * from before the states were introduced, so existing callers keep
+     * working. Outside Malaysia there are no states, so `state` is null.
      *
-     * @return array<int, array{name: string, slug: string, state: string}>
+     * @return array<int, array{name: string, slug: string, state: ?string}>
      */
     public static function all(): array
     {
+        if (! self::isMalaysia()) {
+            return array_map(fn (string $name) => ['name' => $name, 'slug' => Str::slug($name), 'state' => null], self::names());
+        }
+
         $out = [];
 
         foreach (self::BY_STATE as $state => $cities) {
@@ -161,6 +185,32 @@ class Cities
         }
 
         return $out;
+    }
+
+    /** Malaysia's curated list, whatever region is being browsed (the event form's state picker). */
+    public static function malaysia(): array
+    {
+        $out = [];
+
+        foreach (self::BY_STATE as $state => $cities) {
+            foreach ($cities as $name) {
+                $out[] = ['name' => $name, 'slug' => Str::slug($name), 'state' => $state];
+            }
+        }
+
+        return $out;
+    }
+
+    /** Whether the region being browsed is Malaysia (the one with a curated city list). */
+    public static function isMalaysia(): bool
+    {
+        return Regions::current()['country'] === 'MY';
+    }
+
+    /** Forget the per-request city lists (tests, long-running workers). */
+    public static function flush(): void
+    {
+        self::$regionCities = [];
     }
 
     /** @return string[] */

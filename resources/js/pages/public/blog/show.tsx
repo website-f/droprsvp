@@ -6,6 +6,7 @@ import { PageTitle } from '@/components/page-title';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { Badge } from '@/components/ui/badge';
+import { region } from '@/lib/routes';
 
 interface PostView {
     title: string;
@@ -35,7 +36,7 @@ export default function BlogShow({ post, toc, hasInlineToc, sidebar }: { post: P
                 <PublicHeader />
 
                 <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-                    <Link href="/en-my/blog/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                    <Link href={`/${region()}/blog/`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                         <ArrowLeft className="size-4" /> All posts
                     </Link>
 

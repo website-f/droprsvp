@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import { HtmlContent, resolveLayout } from '@/components/html-content';
 import type { HtmlLayoutChoice } from '@/components/html-content';
+import { region } from '@/lib/routes';
 
 /**
  * The DropRSVP page-builder RENDER side.
@@ -332,7 +333,7 @@ export const renderComponents: Config<Props>['components'] = {
                     {heading && <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>}
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {posts.map((p) => (
-                            <a key={p.slug} href={`/en-my/blog/${p.slug}/`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+                            <a key={p.slug} href={`/${region()}/blog/${p.slug}/`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
                                 <div className="aspect-[16/10] overflow-hidden bg-muted">
                                     {p.cover_image
                                         ? <img src={p.cover_image} alt={p.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />

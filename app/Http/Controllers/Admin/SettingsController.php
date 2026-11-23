@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\Setting;
 use App\Support\PlatformFee;
+use App\Support\RegionCatalog;
+use App\Support\Regions;
 use App\Support\RolePermissions;
 use App\Support\SiteContent;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Central, superadmin-editable platform settings — fees, tax and general config.
@@ -32,11 +36,50 @@ class SettingsController extends Controller
                 'ticketing_modes' => self::ticketingModes(),
                 'announcement' => SiteContent::announcement(),
                 'trending_keywords' => (string) Setting::get('trending_keywords', ''),
+                'organizer_auto_approve' => (bool) Setting::get('organizer_auto_approve', false),
             ],
+            // Regions: what is on, the default, every country that could be,
+            // and how many events each region already has.
+            'regions' => [
+                'enabled' => array_column(Regions::enabled(), 'country'),
+                'default' => Regions::default()['country'],
+            ],
+            'regionCatalog' => collect(RegionCatalog::COUNTRIES)->map(fn ($c, $code) => [
+                'country' => $code, 'name' => $c[0], 'currency' => $c[1], 'timezone' => $c[2], 'area' => $c[3], 'flag' => Regions::flag($code),
+            ])->values(),
+            'regionAreas' => RegionCatalog::AREAS,
+            'regionEvents' => Event::query()->selectRaw('region, count(*) as n')->groupBy('region')->pluck('n', 'region'),
             // Role → admin-section permission matrix (superadmin edits this).
             'rolePermissions' => RolePermissions::matrix(),
             'permissionSections' => RolePermissions::sectionList(),
         ]);
+    }
+
+    /**
+     * Save which regions the site runs in, and the default one. At least one
+     * must stay on, and the default must be one of them. Turning a region off
+     * does not touch its events: their pages move to the default region's
+     * address, and turning it back on restores them.
+     */
+    public function saveRegions(Request $request)
+    {
+        $data = $request->validate([
+            'enabled' => ['required', 'array', 'min:1', 'max:300'],
+            'enabled.*' => ['string', 'size:2', Rule::in(array_keys(RegionCatalog::COUNTRIES))],
+            'default' => ['required', 'string', 'size:2', Rule::in((array) $request->input('enabled', []))],
+        ], [
+            'enabled.required' => 'Keep at least one region on.',
+            'enabled.min' => 'Keep at least one region on.',
+            'default.in' => 'The default region has to be one that is on.',
+        ]);
+
+        Setting::putArray('regions', [
+            'enabled' => array_values(array_unique(array_map('strtoupper', $data['enabled']))),
+            'default' => strtoupper($data['default']),
+        ]);
+        Regions::forget();
+
+        return back()->with('flash_success', count($data['enabled']).' region'.(count($data['enabled']) === 1 ? '' : 's').' on · '.Regions::default()['name'].' is the default.');
     }
 
     /** Save the role → section permission matrix. Superadmin only. */
@@ -89,6 +132,7 @@ class SettingsController extends Controller
             'tax_inclusive' => ['boolean'],
             'support_email' => ['nullable', 'email', 'max:180'],
             'trending_keywords' => ['nullable', 'string', 'max:1000'],
+            'organizer_auto_approve' => ['boolean'],
             'announcement.active' => ['boolean'],
             'announcement.style' => ['nullable', 'in:banner,modal'],
             'announcement.level' => ['nullable', 'in:info,success,warning'],
@@ -109,6 +153,7 @@ class SettingsController extends Controller
         Setting::put('tax_inclusive', $request->boolean('tax_inclusive') ? '1' : '0');
         Setting::put('support_email', $data['support_email'] ?? '');
         Setting::put('trending_keywords', $data['trending_keywords'] ?? '');
+        Setting::put('organizer_auto_approve', $request->boolean('organizer_auto_approve') ? '1' : '0');
 
         // Which ticketing modes organizers may use (general is always on).
         Setting::putArray('ticketing_modes', [

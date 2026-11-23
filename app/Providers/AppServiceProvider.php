@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\Payments\ChipGateway;
 use App\Services\Payments\FakePaymentGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Support\Regions;
 use App\Support\SeoManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -38,6 +39,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // route() for a region page (events.show, events.ics…) needs a region;
+        // outside a region request (an email, the account pages) that is the
+        // default one. SetRegion replaces it with the region being browsed.
+        try {
+            URL::defaults(['region' => Regions::default()['code']]);
+        } catch (\Throwable) {
+            URL::defaults(['region' => 'en-my']); // before the settings table exists
+        }
         $this->configureRateLimiting();
     }
 

@@ -46,7 +46,7 @@
     @elseif ($done)
         <h1>You're in</h1>
         <p>We'll email you now and then about upcoming events. Every email has a one-click unsubscribe at the bottom.</p>
-        <a class="link" href="{{ url('/en-my/all/') }}">Browse events</a>
+        <a class="link" href="{{ \App\Support\Url::global('all') }}">Browse events</a>
     @else
         <h1>Stay in the loop?</h1>
         <p>We'd like to email you now and then about events on DropRSVP — only if you want us to.</p>

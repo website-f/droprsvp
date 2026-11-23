@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { region } from '@/lib/routes';
 
 interface TicketRow { qr_token: string; attendee_name: string | null; type: string | null; status: string }
 interface EventRow { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; cover_image: string | null; google_url: string | null; ics_url: string | null }
@@ -88,7 +89,7 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
                                                     {o.event
-                                                        ? <Link href={`/en-my/e/${o.event.slug}/`} className="truncate text-base font-semibold hover:underline">{o.event.title}</Link>
+                                                        ? <Link href={`/${region()}/e/${o.event.slug}/`} className="truncate text-base font-semibold hover:underline">{o.event.title}</Link>
                                                         : <span className="text-base font-semibold text-muted-foreground">Event removed</span>}
                                                     {o.event?.when && <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground"><CalendarDays className="size-3.5" />{o.event.when}</p>}
                                                     {o.event && (o.event.is_online

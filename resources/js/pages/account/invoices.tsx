@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { region } from '@/lib/routes';
 
 interface Row {
     reference: string; event: string | null; total: number; refunded_amount: number; currency: string;
@@ -46,7 +47,7 @@ export default function MyInvoices({ orders }: { orders: Paginated }) {
                     <div className="rounded-2xl border border-dashed border-border p-12 text-center">
                         <Receipt className="mx-auto size-8 text-muted-foreground" />
                         <p className="mt-3 text-sm text-muted-foreground">No invoices yet. Once you buy a ticket, your receipts show up here.</p>
-                        <Button asChild className="mt-4"><Link href="/en-my/all/">Browse events</Link></Button>
+                        <Button asChild className="mt-4"><Link href={`/${region()}/all/`}>Browse events</Link></Button>
                     </div>
                 ) : (
                     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">

@@ -14,6 +14,7 @@ use App\Support\Chat\ChatLink;
 use App\Support\Cities;
 use App\Support\HtmlSanitizer;
 use App\Support\Ics;
+use App\Support\Regions;
 use App\Support\SeoManager;
 use App\Support\SeoTemplate;
 use App\Support\Url;
@@ -33,6 +34,14 @@ class EventController extends Controller
         }
 
         abort_unless($this->visibleTo($request, $event), 404);
+
+        // An event has one address: its own region's. Reached through another
+        // region (a link built while browsing /en-sg/), it moves there.
+        if (($event->region ?: Url::LOCALE) !== Regions::current()['code'] && Regions::isEnabled($event->region)) {
+            $query = $request->getQueryString();
+
+            return redirect(Url::in($event->region, 'e', $event->slug).($query ? '?'.$query : ''), 301);
+        }
 
         $event->load([
             'category',
@@ -54,7 +63,7 @@ class EventController extends Controller
         $description = $this->metaDescription($event);
         $cover = $event->cover_image ? $this->absolute($event->cover_image) : null;
         $banner = $event->banner_image ? $this->absolute($event->banner_image) : null;
-        $canonical = url("/en-my/e/{$event->slug}");
+        $canonical = Url::in($event->region ?: Url::LOCALE, 'e', $event->slug);
         // The trading name, as the title and description use — the JSON-LD
         // organizer was still the account holder's personal name.
         $organizer = SeoTemplate::organizerName($event->user);
@@ -172,7 +181,7 @@ class EventController extends Controller
                 'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
                 'sold_out' => $event->ticketTypes->isNotEmpty() && $event->ticketTypes->every(fn ($t) => $t->remaining() === 0),
                 'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
-                'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
+                'ics_url' => $event->status === 'published' ? route('events.ics', ['region' => $event->region ?: Url::LOCALE, 'event' => $event]) : null,
                 'organizer' => $organizer,
                 'organizer_id' => $event->user_id,
                 'organizer_slug' => $event->user?->ensureSlug(),
@@ -534,7 +543,7 @@ class EventController extends Controller
      */
     private function relatedEvents(Event $event): array
     {
-        $upcoming = fn () => Event::published()->notEnded()
+        $upcoming = fn () => Event::published()->inRegion($event->region ?: Url::LOCALE)->notEnded()
             ->where('id', '!=', $event->id)
             ->with('ticketTypes:id,event_id,kind,price,currency,is_active')
             ->orderByRaw('starts_at is null, starts_at asc');
@@ -863,7 +872,7 @@ class EventController extends Controller
                 'streetAddress' => $street ?: null,
                 'addressLocality' => $city ?: null,
                 'addressRegion' => $city !== '' ? Cities::stateForCity($city) : null,
-                'addressCountry' => 'MY',
+                'addressCountry' => Regions::describe(substr($event->region ?: Url::LOCALE, 3))['country'],
             ]),
         ];
 

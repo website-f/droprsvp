@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\Setting;
 use App\Support\Cities;
+use App\Support\Regions;
 use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -20,6 +21,10 @@ class SearchController extends Controller
      */
     public function suggest(Request $request)
     {
+        // Not under a region URL, so suggest from the region being browsed
+        // (remembered in a cookie), else the visitor's country, else the default.
+        Regions::setCurrent(Regions::preferred($request));
+
         $q = trim((string) $request->query('q', ''));
         $like = '%'.$q.'%';
         $has = fn (string $s) => $q === '' || Str::contains(Str::lower($s), Str::lower($q));
@@ -31,7 +36,7 @@ class SearchController extends Controller
             ->map(fn ($k) => ['label' => $k, 'url' => Url::path('all').'?q='.urlencode($k), 'source' => 'trending']);
 
         // 🔥 System hot: categories with the most upcoming published events.
-        $topCatIds = Event::published()
+        $topCatIds = Event::published()->inRegion()
             ->notEnded()
             ->whereNotNull('category_id')
             ->selectRaw('category_id, count(*) as c')->groupBy('category_id')->orderByDesc('c')->limit(4)->pluck('category_id');
@@ -42,7 +47,7 @@ class SearchController extends Controller
         $hot = $adminHot->concat($systemHot)->unique('label')->take(6)->values();
 
         // Live type-ahead matches (only once the user has typed something).
-        $events = $q === '' ? collect() : Event::published()->notEnded()->where('title', 'like', $like)->limit(6)->get(['title', 'slug'])
+        $events = $q === '' ? collect() : Event::published()->inRegion()->notEnded()->where('title', 'like', $like)->limit(6)->get(['title', 'slug'])
             ->map(fn ($e) => ['label' => $e->title, 'url' => Url::path('e', $e->slug)]);
         $categories = $q === '' ? collect() : EventCategory::where('name', 'like', $like)->limit(5)->get(['name', 'slug'])
             ->map(fn ($c) => ['label' => $c->name, 'url' => Url::path('all', $c->slug)]);

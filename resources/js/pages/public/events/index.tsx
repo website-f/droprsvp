@@ -9,7 +9,7 @@ import { Framed } from '@/components/smart-image';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ANY, lp } from '@/lib/routes';
+import { ANY, lp, region } from '@/lib/routes';
 
 interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; has_free: boolean; participants: number; faces: string[]; rating: number | null; rating_count: number }
 interface Featured { slug: string; title: string; subtitle: string | null; banner_image: string; category: string | null; city: string | null; when: string | null; venue: string | null; url: string }
@@ -268,7 +268,7 @@ export default function Discover({ events, categories, cities, active, filters, 
                     ) : (
                         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {events.data.map((e) => (
-                                <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
+                                <Link key={e.slug} href={`/${region()}/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-foreground/30">
                                     <div className="relative w-full">
                                         {e.cover_image
                                             ? <Framed src={e.cover_image} alt={e.title} />

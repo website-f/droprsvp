@@ -6,6 +6,7 @@ import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { region } from '@/lib/routes';
 
 interface Category { value: string; label: string }
 interface Seo { title: string }
@@ -20,7 +21,7 @@ export default function Contact({ categories }: { categories: Category[]; seo: S
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.post('/en-my/contact', { preserveScroll: true, onSuccess: () => {
+        form.post(`/${region()}/contact`, { preserveScroll: true, onSuccess: () => {
             form.reset(); setSent(true);
         } });
     };

@@ -4,6 +4,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface PostRow { id: number; title: string; slug: string; status: string; category: string | null; updated_at: string; published_at: string | null }
 
@@ -50,7 +51,7 @@ export default function PostsIndex({ posts }: { posts: PostRow[] }) {
                                         <td className="px-4 py-3"><Badge variant={p.status === 'published' ? 'default' : p.status === 'scheduled' ? 'outline' : 'secondary'} className="capitalize">{p.status}</Badge></td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-2">
-                                                {p.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/en-my/blog/${p.slug}/`} target="_blank" rel="noreferrer"><ExternalLink className="size-3.5" /></a></Button>}
+                                                {p.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/${region()}/blog/${p.slug}/`} target="_blank" rel="noreferrer"><ExternalLink className="size-3.5" /></a></Button>}
                                                 <Button asChild variant="outline" size="sm"><Link href={`/admin/cms/posts/${p.id}/edit`}><Pencil className="size-3.5" /> Edit</Link></Button>
                                                 <Button variant="ghost" size="sm" onClick={() => remove(p)}><Trash2 className="size-3.5" /></Button>
                                             </div>

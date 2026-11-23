@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { PurchaseEvent } from '@/components/analytics-events';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface OrderView {
     reference: string; status: string; currency: string; total: number;
@@ -118,7 +119,7 @@ export default function CheckoutConfirmation({ order, analytics }: { order: Orde
 
                     <div className="mt-8 flex flex-wrap justify-center gap-3">
                         {auth?.user && <Button asChild><Link href="/my/tickets">My tickets</Link></Button>}
-                        <Button asChild variant="outline"><Link href={`/en-my/e/${order.event.slug}/`}>Back to event</Link></Button>
+                        <Button asChild variant="outline"><Link href={`/${region()}/e/${order.event.slug}/`}>Back to event</Link></Button>
                     </div>
                 </main>
             </div>

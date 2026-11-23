@@ -15,12 +15,59 @@
  */
 export const LOCALE = 'en-my';
 
+const REGION = /^[a-z]{2}-[a-z]{2}$/;
+
+/**
+ * The region being browsed — the first segment of every public URL (en-my,
+ * en-sg…; Admin → Settings → Regions). Set from the `region` page prop: read
+ * from the page data in the HTML before the first render, then kept up to
+ * date on every Inertia visit (see app.tsx).
+ */
+let current = LOCALE;
+
+export function setRegion(code?: string | null): void {
+    if (code && REGION.test(code)) {
+        current = code;
+    }
+}
+
+/**
+ * "en-sg" — for building links: `/${region()}/e/${slug}/`.
+ *
+ * On a region page the address bar is the truth: Inertia updates the URL
+ * before it renders the next page, whereas its `navigate` event (which keeps
+ * `current` up to date) fires only after — too late for that first render.
+ * Elsewhere (dashboard, account) it is the region last browsed.
+ */
+export function region(): string {
+    if (typeof window !== 'undefined') {
+        const first = window.location.pathname.split('/')[1] ?? '';
+
+        if (REGION.test(first)) {
+            return first;
+        }
+    }
+
+    return current;
+}
+
+// The first page's props, straight from the HTML, so links in the very first
+// render already carry the right region.
+if (typeof document !== 'undefined') {
+    try {
+        const raw = document.querySelector('script[data-page]')?.textContent;
+        setRegion(raw ? (JSON.parse(raw) as { props?: { region?: { code?: string } } }).props?.region?.code : null);
+    } catch {
+        /* no page data (tests, error pages): stay on the default */
+    }
+}
+
 /** The "browse everything" city slug — /en-my/all/. */
 export const ANY = 'all';
 
 /**
- * Build a canonical locale path. Empty/nullish segments are dropped, so
- * lp(city, category) works when either is null.
+ * Build a canonical path in the region being browsed. Empty/nullish segments
+ * are dropped, so lp(city, category) works when either is null.
  *
  *   lp()                  -> "/en-my/"
  *   lp('blog', 'my-post') -> "/en-my/blog/my-post/"
@@ -31,7 +78,7 @@ export function lp(...segments: Array<string | null | undefined>): string {
         .map((s) => s.replace(/^\/+/, '').replace(/\/+$/, ''))
         .filter((s) => s !== '');
 
-    return `/${[LOCALE, ...parts].join('/')}/`;
+    return `/${[current, ...parts].join('/')}/`;
 }
 
 /**

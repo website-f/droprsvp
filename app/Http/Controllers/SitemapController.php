@@ -128,8 +128,9 @@ class SitemapController extends Controller
     {
         return Event::published()
             ->orderByDesc('updated_at')
-            ->get(['slug', 'cover_image', 'banner_image', 'updated_at'])
-            ->map(fn ($e) => $this->url(Url::to('e', $e->slug), $e->updated_at, $e->cover_image ?: $e->banner_image))
+            ->get(['slug', 'region', 'cover_image', 'banner_image', 'updated_at'])
+            // Each at its own region's address.
+            ->map(fn ($e) => $this->url(Url::in($e->region ?: Url::LOCALE, 'e', $e->slug), $e->updated_at, $e->cover_image ?: $e->banner_image))
             ->all();
     }
 
@@ -170,8 +171,9 @@ class SitemapController extends Controller
     /** Only cities that actually have a published event to show. */
     private function cities(): array
     {
-        return Event::published()->whereNotNull('city')->distinct()->pluck('city')
-            ->map(fn ($name) => $this->url(Url::to(Cities::slugForName($name))))
+        // A city page per region it has events in: /en-my/kuala-lumpur/, /en-sg/singapore/.
+        return Event::published()->whereNotNull('city')->where('city', '!=', '')->select(['region', 'city'])->distinct()->get()
+            ->map(fn ($e) => $this->url(Url::in($e->region ?: Url::LOCALE, Cities::slugForName($e->city))))
             ->all();
     }
 

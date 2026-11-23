@@ -8,8 +8,10 @@ import { Footer } from '@/components/cms/footer-blocks';
 import type { FooterData } from '@/components/cms/footer-blocks';
 import { HeaderSearch } from '@/components/header-search';
 import { NotificationBell } from '@/components/notification-bell';
+import { RegionSwitcher } from '@/components/region-switcher';
 import { SiteAnnouncement } from '@/components/site-announcement';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 import { dashboard, login } from '@/routes';
 import type { PublicNavItem } from '@/types';
 
@@ -31,6 +33,7 @@ function NavLink({ item, onClick }: { item: PublicNavItem; onClick?: () => void 
  */
 export function PublicHeader() {
     const { auth, nav, branding } = usePage().props;
+    const regionCount = ((usePage().props as { regions?: unknown[] }).regions ?? []).length;
     const items = (nav ?? []) as PublicNavItem[];
     const [open, setOpen] = useState(false);
     // Mobile: search + location are hidden until the search icon is tapped, then
@@ -57,7 +60,7 @@ export function PublicHeader() {
                 side padding came to more than a 390px screen, so the row
                 overflowed and pushed the menu button half off the edge. */}
             <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
-                <Link href="/en-my/" aria-label="DropRSVP home" className="min-w-0 shrink">
+                <Link href={`/${region()}/`} aria-label="DropRSVP home" className="min-w-0 shrink">
                     <Wordmark height={branding?.header_height ?? 44} className="max-h-9 max-w-full sm:max-h-none" />
                 </Link>
 
@@ -70,7 +73,8 @@ export function PublicHeader() {
                 </nav>
 
                 <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:ml-0">
-                    {/* In the menu on a phone, where the bar has no room for it. */}
+                    {/* In the menu on a phone, where the bar has no room for them. */}
+                    <RegionSwitcher className="hidden sm:flex" />
                     <AppearanceToggle className="hidden sm:inline-flex" />
                     {auth?.user && <MessagesButton />}
                     {auth?.user && <NotificationBell />}
@@ -85,7 +89,7 @@ export function PublicHeader() {
                         {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
                     </button>
                     <div className="hidden items-center gap-2 md:flex">
-                        <Link href="/en-my/help/" className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
+                        <Link href={`/${region()}/help/`} className="mr-1 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">Help</Link>
                         {auth?.user ? (
                             <Button asChild><Link href={dashboard()}>Dashboard</Link></Button>
                         ) : (
@@ -126,6 +130,12 @@ export function PublicHeader() {
                                 <NavLink item={item} onClick={() => setOpen(false)} />
                             </div>
                         ))}
+                        {regionCount > 1 && (
+                            <div className="flex items-center justify-between gap-3 py-1.5 sm:hidden">
+                                <span className="text-sm text-foreground/70">Region</span>
+                                <RegionSwitcher label />
+                            </div>
+                        )}
                         <div className="flex items-center justify-between py-1.5 sm:hidden">
                             <span className="text-sm text-foreground/70">Appearance</span>
                             <AppearanceToggle className="border border-border" />

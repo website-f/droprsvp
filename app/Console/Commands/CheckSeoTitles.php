@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Event;
 use App\Models\User;
 use App\Support\SeoTemplate;
+use App\Support\Url;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -60,7 +61,7 @@ class CheckSeoTitles extends Command
         }
 
         $this->components->info($event->title);
-        $this->line('  URL          '.url('/en-my/e/'.$event->slug).'/');
+        $this->line('  URL          '.Url::in($event->region ?: Url::LOCALE, 'e', $event->slug));
         $this->line('');
 
         $override = $event->seo?->seo_title;
@@ -109,7 +110,7 @@ class CheckSeoTitles extends Command
         foreach ($events as $event) {
             $source = $event->seo?->seo_title ? 'OVERRIDE' : 'template';
             $this->line(sprintf('  [%s] %s', $source, $this->titleFor($event)));
-            $this->line('            /en-my/e/'.$event->slug.'/');
+            $this->line('            '.Url::pathIn($event->region ?: Url::LOCALE, 'e', $event->slug));
         }
 
         $this->line('');
@@ -117,7 +118,7 @@ class CheckSeoTitles extends Command
 
         foreach (User::role('organizer')->with('organizerProfile')->limit(20)->get() as $organizer) {
             $this->line('  [template] '.SeoTemplate::forOrganizer('organizer_title', $organizer));
-            $this->line('             /en-my/o/'.($organizer->slug ?: '(no slug yet)').'/');
+            $this->line('             '.Url::path('o', $organizer->slug ?: '(no slug yet)'));
         }
 
         $this->line('');

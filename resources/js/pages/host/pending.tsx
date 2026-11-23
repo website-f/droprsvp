@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { region } from '@/lib/routes';
 
 export default function OrganizerPending({ submitted_at, editable = false }: { submitted_at: string | null; editable?: boolean }) {
     const [lockedOpen, setLockedOpen] = useState(false);
@@ -39,7 +40,7 @@ export default function OrganizerPending({ submitted_at, editable = false }: { s
                         ) : (
                             <Button variant="outline" onClick={() => setLockedOpen(true)}><Lock className="size-4" /> Edit application</Button>
                         )}
-                        <Button asChild><Link href="/en-my/">Browse events</Link></Button>
+                        <Button asChild><Link href={`/${region()}/`}>Browse events</Link></Button>
                     </div>
                 </div>
             </div>
@@ -53,7 +54,7 @@ export default function OrganizerPending({ submitted_at, editable = false }: { s
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button asChild variant="outline"><Link href="/en-my/contact/">Contact support</Link></Button>
+                        <Button asChild variant="outline"><Link href={`/${region()}/contact/`}>Contact support</Link></Button>
                         <Button onClick={() => setLockedOpen(false)}>Got it</Button>
                     </DialogFooter>
                 </DialogContent>

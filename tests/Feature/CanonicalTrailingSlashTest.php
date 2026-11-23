@@ -50,9 +50,9 @@ class CanonicalTrailingSlashTest extends TestCase
         $block = substr($htaccess, $start, $end - $start);
 
         $this->assertStringContainsString(
-            'RewriteCond %{REQUEST_URI} ^/en-my(/|$)',
+            'RewriteCond %{REQUEST_URI} ^/[a-z]{2}-[a-z]{2}(/|$)',
             $block,
-            'The trailing-slash 301 must only apply to /en-my/ public pages, never to app screens.',
+            'The trailing-slash 301 must only apply to region pages (/en-my/, /en-sg/…), never to app screens.',
         );
     }
 
@@ -119,11 +119,12 @@ class CanonicalTrailingSlashTest extends TestCase
      */
     private function slashlessLinks(string $line): array
     {
-        $prefix = '/'.Url::LOCALE;
+        // Literal /en-my/… paths, and the same built through the region helper: `/${region()}/…`.
+        $prefix = '(?:/'.Url::LOCALE.'|/\$\{region\(\)\})';
         $found = [];
 
         // href="/en-my/…"  |  href={`/en-my/…`}  |  router.get('/en-my/…'
-        $pattern = '~(?:href=|router\.(?:get|visit|replace)\()\s*\{?\s*[\'"`]('.preg_quote($prefix, '~').'[^\'"`]*)[\'"`]~';
+        $pattern = '~(?:href=|router\.(?:get|visit|replace)\()\s*\{?\s*[\'"`]('.$prefix.'[^\'"`]*)[\'"`]~';
 
         preg_match_all($pattern, $line, $matches, PREG_SET_ORDER);
 

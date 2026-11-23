@@ -4,6 +4,7 @@ import { AddToCalendar } from '@/components/add-to-calendar';
 import { LogoMark } from '@/components/brand';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface TicketView {
     qr_token: string;
@@ -97,11 +98,11 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                     {!voided && ticket.event.google_url && ticket.event.ics_url && (
                         <AddToCalendar googleUrl={ticket.event.google_url} icsUrl={ticket.event.ics_url} />
                     )}
-                    <Link href={`/en-my/e/${ticket.event.slug}/`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
+                    <Link href={`/${region()}/e/${ticket.event.slug}/`} className="text-sm text-muted-foreground underline underline-offset-4">View event</Link>
                 </div>
 
                 {/* Powered by */}
-                <Link href="/en-my/" className="mt-8 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-label="DropRSVP home">
+                <Link href={`/${region()}/`} className="mt-8 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-label="DropRSVP home">
                     powered by <LogoMark className="size-4" /> <span className="font-semibold">Drop RSVP</span>
                 </Link>
             </div>

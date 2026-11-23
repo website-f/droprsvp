@@ -17,6 +17,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch, SwitchField } from '@/components/ui/switch';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { imageError, uploadImage, uploadImageWithToast } from '@/lib/upload';
@@ -34,7 +35,7 @@ type SectionRow = LayoutSectionRow;
 interface SeatTemplate { id: number; name: string; data: Array<Partial<LayoutSectionRow> & { name: string; kind: 'seated' | 'ga' | 'stage' }> }
 interface EventProp {
     slug: string; title: string; subtitle: string | null; category_id: number | null;
-    description: string | null; cover_image: string | null; banner_image: string | null; gallery: string[] | null; custom_fields: unknown[] | null; visibility: string; timezone: string;
+    description: string | null; cover_image: string | null; banner_image: string | null; gallery: string[] | null; custom_fields: unknown[] | null; visibility: string; timezone: string; region?: string;
     is_online: boolean; venue_name: string | null; venue_address: string | null; city: string | null; online_url: string | null;
     capacity: number | null; show_participants: boolean; show_reviews: boolean; daily_checkin?: boolean; refund_policy?: string; refund_policy_note?: string | null; seating_enabled: boolean;
     ticketing_mode?: 'general' | 'reserved' | 'tables'; auto_assign_tables?: boolean;
@@ -50,6 +51,26 @@ interface EventProp {
 }
 type TicketingMode = 'general' | 'reserved' | 'tables';
 interface TicketingModes { general: boolean; reserved: boolean; tables: boolean }
+
+interface RegionOption { code: string; name: string; flag: string; country: string; timezone: string; area: string; default: boolean; zones: string[] }
+
+/**
+ * The region a NEW event starts in: the organizer's last event's region, else
+ * the one whose country this browser's clock is in (auto-detected), else the
+ * default region.
+ */
+function startingRegion(regions: RegionOption[], suggested: string | null): RegionOption | undefined {
+    const byCode = (code: string | null) => regions.find((r) => r.code === code);
+    let zone = '';
+
+    try {
+        zone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+    } catch {
+        /* no Intl: fall through */
+    }
+
+    return byCode(suggested) ?? regions.find((r) => r.zones.includes(zone)) ?? regions.find((r) => r.default) ?? regions[0];
+}
 
 /** "2026-11-14" → "14 Nov 2026" (the date as picked; no timezone shift). */
 const niceDate = (ymd: string) => {
@@ -122,7 +143,7 @@ const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid',
 
 interface PlatformFeeInfo { percent: number; flat: number; label: string; custom: boolean; min_ticket_price: number }
 
-export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false, platformFee }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean; platformFee?: PlatformFeeInfo }) {
+export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false, platformFee, regions = [], suggestedRegion = null }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean; platformFee?: PlatformFeeInfo; regions?: RegionOption[]; suggestedRegion?: string | null }) {
     const isEdit = !!event;
     // A mode is offered if the platform allows it (superadmins always see all).
     const modeAllowed = (m: TicketingMode) => m === 'general' || isSuperadmin || ticketingModes[m];
@@ -136,7 +157,8 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         banner_image: event?.banner_image ?? '',
         gallery: (event?.gallery ?? []) as string[],
         visibility: event?.visibility ?? 'public',
-        timezone: event?.timezone ?? 'Asia/Kuala_Lumpur',
+        timezone: event?.timezone ?? startingRegion(regions, suggestedRegion)?.timezone ?? 'Asia/Kuala_Lumpur',
+        region: event?.region ?? startingRegion(regions, suggestedRegion)?.code ?? 'en-my',
         is_online: event?.is_online ?? false,
         venue_name: event?.venue_name ?? '',
         venue_address: event?.venue_address ?? '',
@@ -177,6 +199,8 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     // saved. Seed it from the event's existing city so editing opens on the
     // right state instead of an empty box.
     const states = useMemo<string[]>(() => [...new Set(cities.map((c) => c.state))], [cities]);
+    // Malaysia has the state → city picker; elsewhere the city is typed.
+    const isMalaysia = (regions.find((r) => r.code === data.region)?.country ?? 'MY') === 'MY';
     const citiesFor = (state: string) => (state ? cities.filter((c) => c.state === state) : []);
     const [stateValue, setStateValue] = useState(
         () => cities.find((c) => c.name === (event?.city ?? ''))?.state ?? '',
@@ -530,6 +554,40 @@ form.post('/host/events', options);
                 {/* Location */}
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
+                    {regions.length > 0 && (
+                        <div className="mb-4 grid gap-1.5">
+                            <Label htmlFor="region">Region</Label>
+                            <SearchableSelect
+                                id="region"
+                                value={data.region ?? ''}
+                                onChange={(code) => {
+                                    const next = regions.find((r) => r.code === code);
+
+                                    if (!next) {
+                                        return;
+                                    }
+
+                                    // The event keeps its region's clock: a Singapore
+                                    // event is in Singapore time. A timezone already in
+                                    // that country (Sabah, say) is left alone.
+                                    setData((d) => ({
+                                        ...d,
+                                        region: next.code,
+                                        timezone: next.zones.includes(d.timezone) ? d.timezone : next.timezone,
+                                        // Malaysia's city list does not apply elsewhere.
+                                        city: next.country === 'MY' || !cities.some((c) => c.name === d.city) ? d.city : '',
+                                    }));
+                                }}
+                                options={regions.map((r) => ({ value: r.code, label: `${r.flag} ${r.name}`, hint: r.area }))}
+                                searchPlaceholder="Search a country"
+                                aria-label="Region"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Listed on the {regions.find((r) => r.code === data.region)?.name ?? ''} pages of DropRSVP · times in {data.timezone.replace(/_/g, ' ')}.
+                            </p>
+                            {errors.region && <p className="text-xs text-destructive">{errors.region}</p>}
+                        </div>
+                    )}
                     <span className="mb-4 flex items-center gap-2 text-sm">
                         <Switch checked={data.is_online} onCheckedChange={(v) => setData('is_online', v)} aria-label="This is an online event" />
                         This is an online event
@@ -552,6 +610,7 @@ form.post('/host/events', options);
                                     one state leaves a handful. Only the city is stored
                                     — the state is derived from it, so nothing about
                                     the saved data or the city URLs changes. */}
+                                {isMalaysia ? (<>
                                 <div className="grid gap-1.5">
                                     <Label htmlFor="state">State</Label>
                                     <AppSelect
@@ -583,6 +642,13 @@ form.post('/host/events', options);
                                     />
                                     <p className="text-xs text-muted-foreground">Used for search &amp; the city landing pages.</p>
                                 </div>
+                                </>) : (
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="city">City</Label>
+                                        <input id="city" className={field} value={data.city} onChange={(e) => setData('city', e.target.value)} placeholder="e.g. Singapore, Jakarta, Bangkok" maxLength={80} />
+                                        <p className="text-xs text-muted-foreground">Used for search &amp; the city landing pages.</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="venue_address">Address</Label>

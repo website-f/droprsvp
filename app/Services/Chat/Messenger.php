@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Support\Chat\ChatSettings;
 use App\Support\Chat\Realtime;
 use App\Support\RolePermissions;
+use App\Support\Url;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -544,7 +545,7 @@ class Messenger
             'name' => $profile?->business_name ?: $u->name,
             'avatar' => $profile?->poster ?: $u->avatar,
             'organizer' => $profile?->status === 'approved',
-            'profile_url' => $profile && $u->slug ? '/en-my/o/'.$u->slug.'/' : null,
+            'profile_url' => $profile && $u->slug ? Url::path('o', $u->slug) : null,
             'online' => $seen !== null && now()->getTimestamp() - $seen <= 90,
             'last_seen' => $seen ? date(DATE_ATOM, $seen) : null,
         ];

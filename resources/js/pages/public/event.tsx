@@ -14,6 +14,7 @@ import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
 import { SmartImage } from '@/components/smart-image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface TicketTypeView {
     id: number; name: string; description: string | null; kind: 'paid' | 'free' | 'donation';
@@ -321,7 +322,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                             )}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <span className="text-muted-foreground">Hosted by</span>
-                                <Link href={`/en-my/o/${event.organizer_slug}/`} className="font-medium hover:underline">{event.organizer}</Link>
+                                <Link href={`/${region()}/o/${event.organizer_slug}/`} className="font-medium hover:underline">{event.organizer}</Link>
                                 {event.organizer_followers > 0 && <span className="text-xs text-muted-foreground">· {event.organizer_followers} follower{event.organizer_followers === 1 ? '' : 's'}</span>}
                                 {!viewer.is_owner && (
                                     viewer.authed ? (
@@ -642,7 +643,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                 </h2>
                                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                     {related.map((r) => (
-                                        <Link key={r.slug} href={`/en-my/e/${r.slug}/`} className="group flex min-w-0 gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
+                                        <Link key={r.slug} href={`/${region()}/e/${r.slug}/`} className="group flex min-w-0 gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/30">
                                             <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
                                                 {r.cover_image
                                                     ? <img src={r.cover_image} alt="" loading="lazy" className="size-full object-cover" />

@@ -18,10 +18,12 @@ use App\Support\Cities;
 use App\Support\CustomFields;
 use App\Support\HtmlSanitizer;
 use App\Support\PlatformFee;
+use App\Support\Regions;
 use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class EventController extends Controller
@@ -65,7 +67,11 @@ class EventController extends Controller
         return inertia('host/events/form', [
             'event' => null,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
-            'cities' => Cities::all(),
+            'cities' => Cities::malaysia(),
+            // Where the event happens: its region decides which region's pages
+            // list it, and its timezone.
+            'regions' => $this->regionOptions(),
+            'suggestedRegion' => $this->suggestedRegion($request),
             'seatTemplates' => SeatTemplate::where('user_id', $request->user()->id)
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
             'ticketingModes' => SettingsController::ticketingModes(),
@@ -77,7 +83,7 @@ class EventController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validated($request);
+        $data = $this->settleRegion($this->validated($request), $request);
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
         $data = $this->sessionsToUtc($data);
         $this->assertTicketPricesCoverTheFee($data, $request->user());
@@ -126,7 +132,11 @@ class EventController extends Controller
         return inertia('host/events/form', [
             'event' => $event,
             'categories' => EventCategory::orderBy('name')->get(['id', 'name']),
-            'cities' => Cities::all(),
+            'cities' => Cities::malaysia(),
+            // Where the event happens: its region decides which region's pages
+            // list it, and its timezone.
+            'regions' => $this->regionOptions(),
+            'suggestedRegion' => $this->suggestedRegion($request),
             'seatTemplates' => SeatTemplate::where('user_id', $request->user()->id)
                 ->orderByDesc('id')->get(['id', 'name', 'data']),
             'ticketingModes' => SettingsController::ticketingModes(),
@@ -140,7 +150,7 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
-        $data = $this->validated($request);
+        $data = $this->settleRegion($this->validated($request), $request, $event);
         $data = $this->sessionsToUtc($data);
         // The floor follows the EVENT's owner, not whoever is editing — an admin
         // editing on someone's behalf must not be measured against their own rate.
@@ -403,6 +413,7 @@ class EventController extends Controller
             'sections.*.rotation' => ['nullable', 'integer', 'min:0', 'max:359'],
             'visibility' => ['required', 'in:public,unlisted,private'],
             'timezone' => ['required', 'string', 'max:64'],
+            'region' => ['nullable', 'string', Rule::in(Regions::codes())],
             'is_online' => ['boolean'],
             'venue_name' => ['nullable', 'string', 'max:180'],
             'venue_address' => ['nullable', 'string', 'max:255'],
@@ -525,6 +536,62 @@ class EventController extends Controller
             && (float) $row['group_price'] < (float) ($row['price'] ?? 0);
     }
 
+    /**
+     * The enabled regions for the event form, each with the timezones of its
+     * country so the browser can suggest one from its own timezone.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function regionOptions(): array
+    {
+        return array_map(fn (array $r) => [
+            'code' => $r['code'], 'name' => $r['name'], 'flag' => $r['flag'], 'country' => $r['country'],
+            'timezone' => $r['timezone'], 'area' => $r['area'], 'default' => $r['default'],
+            'zones' => \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $r['country']),
+        ], Regions::enabled());
+    }
+
+    /** The region this organizer last ran an event in, if it is still on. */
+    private function suggestedRegion(Request $request): ?string
+    {
+        $last = Event::whereIn('user_id', $request->user()->manageableOwnerIds())->latest('id')->value('region');
+
+        return Regions::isEnabled($last) ? $last : null;
+    }
+
+    /**
+     * Settle the region and the timezone together.
+     *
+     * A region the organizer picked is kept, and a timezone that is not one
+     * of its country's is replaced by the region's own — an event "in
+     * Singapore" keeps Singapore time. When no region is sent (an older form,
+     * an edit that leaves it alone), the timezone says where the event is;
+     * failing that it stays where it was, then the organizer's last region,
+     * then the default.
+     */
+    private function settleRegion(array $data, Request $request, ?Event $event = null): array
+    {
+        $picked = Regions::find($data['region'] ?? null);
+        $timezone = $data['timezone'] ?? null;
+        $fits = fn (?array $r) => $r && in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $r['country']), true);
+        $current = Regions::find($event?->region);
+
+        $region = $picked
+            ?? ($fits($current) ? $current : null)
+            ?? Regions::forTimezone($timezone)
+            ?? $current
+            ?? Regions::find($this->suggestedRegion($request))
+            ?? Regions::default();
+
+        $data['region'] = $region['code'];
+
+        if ($picked && ! $fits($picked)) {
+            $data['timezone'] = $picked['timezone'];
+        }
+
+        return $data;
+    }
+
     /** Map validated input to the event's own columns (status derived from `publish`). */
     private function eventAttributes(array $data): array
     {
@@ -561,6 +628,7 @@ class EventController extends Controller
             'tables_per_ticket_type' => ($data['ticketing_mode'] ?? 'general') === 'tables' && ($data['tables_per_ticket_type'] ?? false),
             'visibility' => $data['visibility'],
             'timezone' => $data['timezone'],
+            'region' => $data['region'],
             'is_online' => $data['is_online'] ?? false,
             'venue_name' => $data['venue_name'] ?? null,
             'venue_address' => $data['venue_address'] ?? null,

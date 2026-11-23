@@ -15,9 +15,12 @@
     use App\Support\Url;
 
     $site = config('seo.site_name', 'DropRSVP');
-    $home = Url::to();
-    $browse = Url::to(Cities::ANY);
-    $help = Url::to('help');
+    // The region from the URL itself, not from the database: this page must
+    // render even when the database is the thing that is down.
+    $region = preg_match('/^[a-z]{2}-[a-z]{2}$/', (string) request()->segment(1)) ? request()->segment(1) : Url::LOCALE;
+    $home = Url::in($region);
+    $browse = Url::in($region, Cities::ANY);
+    $help = Url::in($region, 'help');
     // Never the raw query string: it can carry whatever was in the link.
     $requested = '/'.ltrim(request()->path(), '/');
 

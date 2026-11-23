@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { region } from '@/lib/routes';
 import { uploadImageWithToast } from '@/lib/upload';
 
 interface Hero { enabled: boolean; heading: string; subheading: string; image: string; cta_label: string; cta_url: string; align: 'left' | 'center' | 'right' }
@@ -46,7 +47,7 @@ export default function EventsPageSettings({ data: initial }: { data: Data }) {
                         <h1 className="text-2xl font-bold tracking-tight">Events page</h1>
                         <p className="text-sm text-muted-foreground">
                             The hero banner &amp; SEO block on the public{' '}
-                            <Link href="/en-my/all/" className="inline-flex items-center gap-1 text-primary hover:underline">browse events page <ExternalLink className="size-3" /></Link>.
+                            <Link href={`/${region()}/all/`} className="inline-flex items-center gap-1 text-primary hover:underline">browse events page <ExternalLink className="size-3" /></Link>.
                         </p>
                     </div>
                     <Button onClick={save} disabled={processing}><Save className="size-4" /> {processing ? 'Saving…' : 'Save'}</Button>

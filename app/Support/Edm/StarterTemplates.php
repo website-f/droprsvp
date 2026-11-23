@@ -2,6 +2,8 @@
 
 namespace App\Support\Edm;
 
+use App\Support\Url;
+
 /**
  * Built-in designs every account starts with, alongside its saved templates.
  *
@@ -15,7 +17,7 @@ final class StarterTemplates
     public static function all(): array
     {
         $root = ['props' => ['brandColor' => Renderer::DEFAULT_BRAND, 'backgroundColor' => '#f3f4f6', 'showLogo' => true]];
-        $browse = url('/en-my/all/');
+        $browse = Url::global('all');
 
         return [
             [

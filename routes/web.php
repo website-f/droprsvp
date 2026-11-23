@@ -84,13 +84,17 @@ use App\Http\Middleware\EnsureAboutYou;
 use App\Http\Middleware\EnsureOrganizerApproved;
 use App\Http\Middleware\EnsureOrganizerEdm;
 use App\Http\Middleware\EnsureSectionAccess;
+use App\Http\Middleware\SetRegion;
+use App\Support\Regions;
 use App\Support\SiteContent;
 use App\Support\Url;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Everything lives under a locale prefix (/en-my) so more locales (/en-sg, …)
-// can be added later. The bare root just redirects to the default locale home.
-Route::get('/', fn () => redirect(Url::to()))->name('home');
+// Everything lives under a region prefix (/en-my, /en-sg, …; Admin → Settings
+// → Regions). The bare root sends a visitor to the region they last browsed,
+// else their browser's country, else the default region.
+Route::get('/', fn (Request $request) => redirect(Url::in(Regions::preferred($request)['code'])))->name('home');
 
 // Global search autocomplete suggestions (JSON).
 Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:suggest')->name('search.suggest');
@@ -102,7 +106,7 @@ Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('
 // the sitemap and in-app links. Order matters: the literal paths are declared
 // before the {city} catch-alls so "blog"/"help"/"contact" win over a city slug.
 // ---------------------------------------------------------------------------
-Route::prefix(Url::LOCALE)->group(function () {
+Route::prefix('{region}')->where(['region' => Regions::PATTERN])->middleware(SetRegion::class)->group(function () {
     // Locale home = the marketing landing. Browse/discovery lives one level
     // deeper: /en-my/all/, /en-my/{city}/, /en-my/{city}/{category}/.
     Route::get('/', [HomeController::class, 'index'])->name('home.locale');
@@ -533,6 +537,7 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         // Central platform settings (fees, tax, general) — tabbed.
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
+        Route::post('settings/regions', [AdminSettingsController::class, 'saveRegions'])->name('settings.regions');
         // The role → section permission matrix (superadmin-only; guarded in the controller).
         Route::post('settings/permissions', [AdminSettingsController::class, 'savePermissions'])->name('settings.permissions');
 

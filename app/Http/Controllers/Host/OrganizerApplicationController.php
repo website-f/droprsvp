@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Host;
 
 use App\Http\Controllers\Controller;
+use App\Mail\OrganizerApplicationMail;
 use App\Mail\OrganizerApplicationReceivedMail;
+use App\Models\Setting;
 use App\Support\Dates;
 use App\Support\PlatformAlert;
 use App\Support\SocialLinks;
@@ -190,12 +192,41 @@ class OrganizerApplicationController extends Controller
             $data['socials'] = $links['socials'] ?: null;
         }
 
+        // Admin → Settings → "Approve organizers automatically": an application
+        // is approved the moment it is submitted, so a new organizer can
+        // create events straight away. Otherwise it waits for review.
+        $autoApprove = (bool) Setting::get('organizer_auto_approve', false);
+
         $profile = $request->user()->organizerProfile()->updateOrCreate(
             ['user_id' => $request->user()->id],
             // A fresh submission/appeal starts a new review cycle → unlock edits again
             // until the superadmin re-opens it.
-            [...$data, 'status' => 'pending', 'submitted_at' => now(), 'review_reason' => null, 'review_opened_at' => null],
+            [...$data, 'status' => $autoApprove ? 'approved' : 'pending', 'submitted_at' => now(), 'review_reason' => null,
+                'review_opened_at' => null, 'reviewed_at' => $autoApprove ? now() : null],
         );
+
+        if ($autoApprove) {
+            // As an admin's approval does: a public profile URL now, and the
+            // "you're approved" email.
+            $request->user()->ensureSlug();
+
+            try {
+                Mail::to($request->user()->email)->send(new OrganizerApplicationMail($profile->load('user'), true));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            PlatformAlert::raise(
+                type: 'organizer',
+                title: 'New organizer (approved automatically)',
+                body: $data['business_name'].' signed up to host events and was approved automatically.',
+                url: '/admin/organizers/'.$profile->id,
+                details: array_filter(['Business' => $data['business_name'], 'Email' => $data['email'] ?? $request->user()->email, 'Phone' => $data['phone'] ?? null]),
+                level: 'info',
+            );
+
+            return redirect()->route('host.events.index')->with('success', 'You’re approved — create your first event.');
+        }
 
         // Confirm receipt by email (non-fatal).
         try {

@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { CalendarDays, Flame, MapPin, Search, Tag } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface Suggestion { label: string; url: string; source?: string }
 interface Suggestions { hot: Suggestion[]; events: Suggestion[]; categories: Suggestion[]; cities: Suggestion[] }
@@ -86,7 +87,7 @@ export function SearchAutocomplete({ variant = 'compact', initial = '', placehol
         if (onSubmit) {
             onSubmit(term);
         } else {
-            router.get('/en-my/all/', term ? { q: term } : {});
+            router.get(`/${region()}/all/`, term ? { q: term } : {});
         }
     };
     const onKey = (e: React.KeyboardEvent) => {

@@ -18,18 +18,44 @@ namespace App\Support;
  */
 class Url
 {
-    /** The only content locale for now; path-prefixed for SEO + future i18n. */
+    /**
+     * The original region, and still the default one out of the box. The
+     * region of a URL is whichever is being served (Regions::current) — see
+     * path(); this constant is only the fallback.
+     */
     public const LOCALE = 'en-my';
 
-    /** Relative canonical path — Url::path('blog', $slug) → "/en-my/blog/my-post/". */
+    /** Relative canonical path in the current region — Url::path('blog', $slug) → "/en-my/blog/my-post/". */
     public static function path(string ...$segments): string
+    {
+        return self::pathIn(Regions::current()['code'], ...$segments);
+    }
+
+    /** The same, in a given region: Url::pathIn('en-sg', 'e', $slug). */
+    public static function pathIn(string $region, string ...$segments): string
     {
         $parts = array_filter(
             array_map(fn (string $s) => trim($s, '/'), $segments),
             fn (string $s) => $s !== '',
         );
 
-        return '/'.implode('/', [self::LOCALE, ...$parts]).'/';
+        return '/'.implode('/', [$region ?: self::LOCALE, ...$parts]).'/';
+    }
+
+    /** Absolute URL in a given region — an event's own page, whatever region is being browsed. */
+    public static function in(string $region, string ...$segments): string
+    {
+        return rtrim(url('/'), '/').self::pathIn($region, ...$segments);
+    }
+
+    /**
+     * Absolute URL in the DEFAULT region, for content that is not about a
+     * place (blog, help, CMS pages): reachable under every region, but one
+     * canonical home so search engines see one page, not one per region.
+     */
+    public static function global(string ...$segments): string
+    {
+        return self::in(Regions::default()['code'], ...$segments);
     }
 
     /**

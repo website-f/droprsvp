@@ -5,6 +5,7 @@ use App\Http\Middleware\ChatIpGuard;
 use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePasswordSet;
 use App\Http\Middleware\HandleAppearance;
+use App\Http\Middleware\ResetRegion;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleAuthEndpoints;
@@ -55,6 +56,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+        ]);
+
+        $middleware->web(prepend: [
+            ResetRegion::class,
         ]);
 
         $middleware->web(append: [

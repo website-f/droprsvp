@@ -36,7 +36,8 @@ class BlogController extends Controller
 
         $site = config('seo.site_name', 'DropRSVP');
         $title = $active ? "{$active->name} · Blog" : 'Blog';
-        $canonical = $active ? Url::to('blog').'?category='.$active->slug : Url::to('blog');
+        // The blog is the same in every region; its canonical home is the default one.
+        $canonical = $active ? Url::global('blog').'?category='.$active->slug : Url::global('blog');
 
         // Admin-set SEO for the index, falling back to the generated copy. Only
         // the unfiltered listing uses it: a category view is a different page
@@ -93,7 +94,7 @@ class BlogController extends Controller
 
         $seo = $post->seo;
         $description = $seo?->meta_description ?: ($post->excerpt ?: Str::limit(trim(strip_tags((string) $post->body)), 155));
-        $canonical = $seo?->canonical_url ?: Url::to('blog', $post->slug);
+        $canonical = $seo?->canonical_url ?: Url::global('blog', $post->slug);
         $cover = $post->cover_image ? $this->absolute($post->cover_image) : null;
         $wordCount = str_word_count(strip_tags((string) $post->body));
 

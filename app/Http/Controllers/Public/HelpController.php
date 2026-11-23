@@ -34,7 +34,7 @@ class HelpController extends Controller
         app(SeoManager::class)
             ->title($q !== '' ? "Help — “{$q}”" : 'Help center')
             ->description('Answers and guides for buying tickets, organizing events and managing your DropRSVP account.')
-            ->canonical(Url::to('help'))
+            ->canonical(Url::global('help'))
             ->breadcrumb([['name' => 'Home', 'url' => Url::to()], ['name' => 'Help center', 'url' => Url::to('help')]])
             // The article list as text. show() already did this per article, but
             // the index — the page that links to all of them — served an empty
@@ -56,7 +56,7 @@ class HelpController extends Controller
         abort_unless($article->status === 'published', 404);
 
         $description = $article->excerpt ?: Str::limit(trim(strip_tags((string) $article->body)), 155);
-        $canonical = Url::to('help', $article->slug);
+        $canonical = Url::global('help', $article->slug);
 
         app(SeoManager::class)
             ->title($article->title)

@@ -10,6 +10,7 @@ use App\Models\OrganizerPost;
 use App\Models\User;
 use App\Support\Chat\ChatLink;
 use App\Support\Cities;
+use App\Support\Regions;
 use App\Support\SeoManager;
 use App\Support\SeoTemplate;
 use App\Support\SocialLinks;
@@ -80,7 +81,8 @@ class OrganizerController extends Controller
         // served at. It used to be url("/o/{slug}") — the LEGACY path, which 301s
         // to Url::to('o', …), so the canonical pointed at a URL that redirects
         // somewhere else and the page named no valid canonical of its own.
-        $canonical = Url::to('o', $organizer->slug);
+        // An organizer may run events in several regions; their profile has one home.
+        $canonical = Url::global('o', $organizer->slug);
 
         // One house template for every organizer page, so each carries the same
         // shape of title and description instead of a name and a bio that may
@@ -400,7 +402,7 @@ class OrganizerController extends Controller
                 '@type' => 'PostalAddress',
                 'addressLocality' => $organizer->city,
                 'addressRegion' => Cities::stateForCity($organizer->city),
-                'addressCountry' => 'MY',
+                'addressCountry' => Regions::current()['country'],
             ]) : null,
             // Only their own site — never the phone or email, which are on the
             // profile for attendees to use, not for scrapers to harvest.

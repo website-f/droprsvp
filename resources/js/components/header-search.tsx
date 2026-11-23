@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import { CalendarDays, Flame, MapPin, Search, Tag } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { region } from '@/lib/routes';
 
 interface City { name: string; slug: string }
 interface Suggestion { label: string; url: string }
@@ -21,9 +22,9 @@ const EMPTY: Suggestions = { hot: [], events: [], categories: [], cities: [] };
 export function HeaderSearch({ className = '', onSubmitted }: { className?: string; onSubmitted?: () => void }) {
     const cities = ((usePage().props as { cities?: City[] }).cities ?? []) as City[];
     const [q, setQ] = useState('');
-    // Default the location to Kuala Lumpur (falling back to "Anywhere" only if KL
-    // isn't in the list), rather than starting country-wide.
-    const [city, setCity] = useState(() => (cities.some((c) => c.slug === 'kuala-lumpur') || cities.length === 0 ? 'kuala-lumpur' : 'all'));
+    // Default the location to Kuala Lumpur when the region has it (Malaysia),
+    // otherwise anywhere in the region.
+    const [city, setCity] = useState(() => (cities.some((c) => c.slug === 'kuala-lumpur') ? 'kuala-lumpur' : 'all'));
     const [open, setOpen] = useState(false);
     const [sug, setSug] = useState<Suggestions>(EMPTY);
     const [active, setActive] = useState(-1);
@@ -84,7 +85,7 @@ export function HeaderSearch({ className = '', onSubmitted }: { className?: stri
 
         setOpen(false);
         onSubmitted?.();
-        const base = city === 'all' ? '/en-my/all/' : `/en-my/${city}/`;
+        const base = city === 'all' ? `/${region()}/all/` : `/${region()}/${city}/`;
         router.get(base, q.trim() ? { q: q.trim() } : {});
     };
     const onKey = (e: React.KeyboardEvent) => {

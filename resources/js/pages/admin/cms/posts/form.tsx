@@ -11,6 +11,7 @@ import { CreatableSelect } from '@/components/ui/creatable-select';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { region } from '@/lib/routes';
 import { uploadImageWithToast } from '@/lib/upload';
 
 interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; published_at: string | null; seo: SeoData }
@@ -165,7 +166,7 @@ return;
                                 <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onPickCover(e.target.files?.[0])} />
                             </div>
                             {isEdit && published && data.slug && (
-                                <a href={`${baseUrl}/en-my/blog/${data.slug}/`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
+                                <a href={`${baseUrl}/${region()}/blog/${data.slug}/`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
                                     <ExternalLink className="size-3.5" /> View post
                                 </a>
                             )}
@@ -177,7 +178,7 @@ return;
                             slug={data.slug}
                             onSlug={(v) => setData('slug', v)}
                             fallbackTitle={data.title}
-                            baseUrl={`${baseUrl}/en-my/blog`}
+                            baseUrl={`${baseUrl}/${region()}/blog`}
                         />
                         {errors.slug && <p className="text-xs text-destructive">{errors.slug}</p>}
                     </>

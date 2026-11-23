@@ -4,6 +4,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { region } from '@/lib/routes';
 
 interface Appeal { status: string; reason: string | null; attachments: string[]; when: string | null }
 interface EventDetail {
@@ -65,7 +66,7 @@ return;
                     <Badge variant={statusVariant} className="capitalize">{event.status}</Badge>
                     <div className="ml-auto flex gap-2">
                         <Button asChild variant="outline" size="sm"><Link href={`/host/events/${event.slug}/edit`}><Pencil className="size-4" /> Edit event</Link></Button>
-                        <Button asChild variant="ghost" size="sm"><a href={`/en-my/e/${event.slug}/`} target="_blank" rel="noreferrer"><ExternalLink className="size-4" /> View</a></Button>
+                        <Button asChild variant="ghost" size="sm"><a href={`/${region()}/e/${event.slug}/`} target="_blank" rel="noreferrer"><ExternalLink className="size-4" /> View</a></Button>
                     </div>
                 </div>
 

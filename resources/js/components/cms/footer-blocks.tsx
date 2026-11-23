@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { ArrowRight, Mail } from 'lucide-react';
 import { Wordmark } from '@/components/brand';
 import { platformLabel, SocialIcon } from '@/components/social-icons';
+import { region } from '@/lib/routes';
 
 /**
  * The complete site footer as a single component. Rendered identically by the
@@ -51,7 +52,7 @@ export function Footer({
                     (`footerHeight`) so their text lines up across the footer —
                     otherwise the short headings float above the taller wordmark. */}
                 <div className="flex max-w-xs flex-col items-start">
-                    <Link href="/en-my/" aria-label="DropRSVP home" className="flex items-center" style={{ minHeight: footerHeight }}>
+                    <Link href={`/${region()}/`} aria-label="DropRSVP home" className="flex items-center" style={{ minHeight: footerHeight }}>
                         <Wordmark height={footerHeight} />
                     </Link>
                     {tagline && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{tagline}</p>}
@@ -101,14 +102,14 @@ export function Footer({
                             {posts.map((p) => (
                                 <Link
                                     key={p.slug}
-                                    href={`/en-my/blog/${p.slug}/`}
+                                    href={`/${region()}/blog/${p.slug}/`}
                                     title={p.title}
                                     className="line-clamp-2 max-w-[15rem] text-sm text-muted-foreground transition-colors hover:text-foreground"
                                 >
                                     {p.title}
                                 </Link>
                             ))}
-                            <Link href="/en-my/blog/" className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-foreground hover:underline">
+                            <Link href={`/${region()}/blog/`} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-foreground hover:underline">
                                 All posts <ArrowRight className="size-3.5" />
                             </Link>
                         </nav>

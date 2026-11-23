@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\Dates;
+use App\Support\Regions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +22,7 @@ class Event extends Model
         'table_choice', 'table_choice_limit', 'tables_per_ticket_type',
         'status', 'cancelled_reason', 'appeal_status', 'appeal_reason', 'appeal_attachments', 'appealed_at',
         'refund_policy', 'refund_policy_note',
-        'visibility', 'timezone', 'is_online', 'venue_name', 'venue_address', 'city',
+        'visibility', 'timezone', 'region', 'is_online', 'venue_name', 'venue_address', 'city',
         'online_url', 'latitude', 'longitude', 'starts_at', 'ends_at', 'capacity', 'published_at', 'boosted_until',
     ];
 
@@ -180,6 +181,15 @@ class Event extends Model
     public function seo(): MorphOne
     {
         return $this->morphOne(SeoMeta::class, 'seoable');
+    }
+
+    /**
+     * Events of one region (the one being browsed, by default) — what every
+     * public listing shows: an /en-sg/ visitor sees Singapore's events.
+     */
+    public function scopeInRegion(Builder $q, ?string $region = null): Builder
+    {
+        return $q->where('region', $region ?? Regions::current()['code']);
     }
 
     /** Public, published, currently-visible events. */

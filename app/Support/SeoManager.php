@@ -307,7 +307,7 @@ class SeoManager
         // ---- Open Graph ----
         $lines[] = $this->tag('property', 'og:type', $this->ogType);
         $lines[] = $this->tag('property', 'og:site_name', $site);
-        $lines[] = $this->tag('property', 'og:locale', config('seo.locale', 'en_US'));
+        $lines[] = $this->tag('property', 'og:locale', 'en_'.Regions::current()['country']);
         $lines[] = $this->tag('property', 'og:title', $ogTitle);
         if ($this->description) {
             $lines[] = $this->tag('property', 'og:description', $this->description);
@@ -384,7 +384,7 @@ class SeoManager
     protected function jsonLd(string $canonical): string
     {
         $site = config('seo.site_name', 'DropRSVP');
-        $lang = str_replace('_', '-', (string) config('seo.locale', 'en_US'));
+        $lang = 'en-'.Regions::current()['country'];
         $orgId = url('/#organization');
         $siteId = url('/#website');
 

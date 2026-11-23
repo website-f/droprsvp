@@ -130,7 +130,7 @@ class HomeController extends Controller
     /** Base query: upcoming published events with the counts the card needs. */
     private function upcoming()
     {
-        return Event::published()
+        return Event::published()->inRegion()
             ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
             ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
@@ -204,17 +204,17 @@ class HomeController extends Controller
         $followingIds = $viewer ? $viewer->following()->pluck('users.id') : collect();
 
         return User::query()
-            ->whereHas('events', fn ($q) => $q->published())
+            ->whereHas('events', fn ($q) => $q->published()->inRegion())
             // Eager-loaded, not fetched per row: this runs for six organizers on
             // every landing-page render.
             ->with('organizerProfile:id,user_id,business_name,poster')
-            ->withCount(['events as events_count' => fn ($q) => $q->published()])
+            ->withCount(['events as events_count' => fn ($q) => $q->published()->inRegion()])
             ->withCount('followers')
             ->orderByDesc('events_count')
             ->limit(6)
             ->get()
             ->map(function (User $u) use ($viewer, $followingIds) {
-                $next = $u->events()->published()
+                $next = $u->events()->published()->inRegion()
                     ->notEnded()
                     ->orderByRaw('starts_at is null, starts_at asc')
                     ->first(['slug']);
@@ -275,7 +275,7 @@ class HomeController extends Controller
      */
     private function citiesWithEvents(array $curated): array
     {
-        $counts = Event::published()
+        $counts = Event::published()->inRegion()
             ->whereNotNull('city')
             ->where('city', '!=', '')
             ->notEnded()

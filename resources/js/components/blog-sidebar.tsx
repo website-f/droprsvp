@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { CalendarDays, ChevronDown, Clock, FolderOpen, LayoutList, Newspaper, Ticket } from 'lucide-react';
 import { useState } from 'react';
+import { region } from '@/lib/routes';
 
 export interface BlogPostCard {
     title: string;
@@ -25,8 +26,8 @@ export interface BlogSidebarData {
 }
 export interface TocItem { id: string; text: string; level: number }
 
-export const postUrl = (slug: string) => `/en-my/blog/${slug}/`;
-export const categoryUrl = (slug: string | null) => (slug ? `/en-my/blog/?category=${slug}` : '/en-my/blog/');
+export const postUrl = (slug: string) => `/${region()}/blog/${slug}/`;
+export const categoryUrl = (slug: string | null) => (slug ? `/${region()}/blog/?category=${slug}` : `/${region()}/blog/`);
 
 /** A contents list is only worth showing once there's something to navigate. */
 export const hasContents = (toc?: TocItem[]) => !!toc && toc.length > 1;
@@ -148,7 +149,7 @@ function SidebarCta() {
             >
                 Create an event
             </Link>
-            <Link href="/en-my/all/" className="mt-3 block text-center text-xs text-background/70 underline-offset-2 hover:underline">
+            <Link href={`/${region()}/all/`} className="mt-3 block text-center text-xs text-background/70 underline-offset-2 hover:underline">
                 Or browse what&rsquo;s on
             </Link>
         </section>

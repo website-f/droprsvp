@@ -25,7 +25,7 @@ class ContactController extends Controller
         app(SeoManager::class)
             ->title('Contact us')
             ->description('Get in touch with the DropRSVP team — support, sales or a general enquiry.')
-            ->canonical(Url::to('contact'))
+            ->canonical(Url::global('contact'))
             ->breadcrumb([
                 ['name' => 'Home', 'url' => Url::to()],
                 ['name' => 'Contact us', 'url' => Url::to('contact')],

@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Event;
+use App\Support\Url;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -28,7 +29,7 @@ class WaitlistInvite extends Mailable
             with: [
                 'event' => $this->event,
                 'name' => $this->name,
-                'url' => rtrim((string) config('app.url'), '/').'/en-my/e/'.$this->event->slug.'#tickets',
+                'url' => Url::in($this->event->region ?: Url::LOCALE, 'e', $this->event->slug).'#tickets',
             ],
         );
     }

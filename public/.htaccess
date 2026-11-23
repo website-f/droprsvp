@@ -31,7 +31,7 @@
     #   * skip real files/dirs (assets, /build, /storage) and anything with a file
     #     extension, and URLs that already end in "/".
     #
-    # PUBLIC pages only (/en-my/...). This used to apply to every path, so app
+    # PUBLIC pages only — the region-prefixed ones (/en-my/..., /en-sg/...). This used to apply to every path, so app
     # screens — /host/events, /dashboard, /admin/... — were 301'd to a trailing
     # slash too, with no Cache-Control, which browsers cache permanently. Safari
     # then reuses that cached redirect for the app's own in-app requests and
@@ -39,7 +39,7 @@
     # answers with a full HTML page and Inertia shows it as a blank white modal.
     # App screens are noindexed and were never meant to be on the canonical
     # trailing-slash scheme (see App\Support\Url), so they are left alone.
-    RewriteCond %{REQUEST_URI} ^/en-my(/|$)
+    RewriteCond %{REQUEST_URI} ^/[a-z]{2}-[a-z]{2}(/|$)
     RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$
     RewriteCond %{HTTP:X-Inertia} !=true
     RewriteCond %{REQUEST_FILENAME} !-f

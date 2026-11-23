@@ -56,7 +56,7 @@ class DiscoverController extends Controller
         $when = trim((string) $request->query('when', ''));
         [$from, $to] = $this->whenRange($when);
 
-        $events = Event::published()
+        $events = Event::published()->inRegion()
             ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
             ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
@@ -130,7 +130,7 @@ class DiscoverController extends Controller
         // Featured organizer banners — upcoming published events that uploaded a wide
         // banner, respecting the current city/category filter. These become the hero
         // carousel slides (alongside the admin's own default banner).
-        $featured = Event::published()
+        $featured = Event::published()->inRegion()
             ->whereNotNull('banner_image')
             ->with('category:id,name,slug')
             ->when($cityName, fn ($query) => $query->where('city', $cityName))

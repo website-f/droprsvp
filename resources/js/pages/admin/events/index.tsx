@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface Row { title: string; slug: string; organizer: string | null; status: string; sold: number; revenue: number }
 interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
@@ -45,7 +46,7 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <Button asChild variant="outline" size="sm"><Link href={`/admin/all-events/${e.slug}`}>Manage</Link></Button>
-                                            {e.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/en-my/e/${e.slug}/`} target="_blank" rel="noreferrer" aria-label="View live"><ExternalLink className="size-3.5" /></a></Button>}
+                                            {e.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/${region()}/e/${e.slug}/`} target="_blank" rel="noreferrer" aria-label="View live"><ExternalLink className="size-3.5" /></a></Button>}
                                         </div>
                                     </td>
                                 </tr>

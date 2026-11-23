@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { IconPicker } from '@/components/ui/icon-picker';
 import { Label } from '@/components/ui/label';
 import { categoryIcon } from '@/lib/category-icons';
+import { region } from '@/lib/routes';
 
 interface Category { id: number; name: string; slug: string; icon: string | null; blurb: string | null; color: string | null; sort_order: number; events_count: number; content: string | null }
 interface PostCategory { id: number; name: string; slug: string; posts_count: number }
@@ -137,7 +138,7 @@ function Row({ category, first, last, onMove }: { category: Category; first: boo
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-xs">Page copy</Label>
                     <a
-                        href={`/en-my/all/${slug}/`}
+                        href={`/${region()}/all/${slug}/`}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"

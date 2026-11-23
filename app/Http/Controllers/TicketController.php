@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Support\Ics;
 use App\Support\Qr;
 use App\Support\SeoManager;
+use App\Support\Url;
 use Inertia\Inertia;
 
 class TicketController extends Controller
@@ -35,7 +36,7 @@ class TicketController extends Controller
                     'venue_name' => $event->venue_name,
                     'is_online' => $event->is_online,
                     'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
-                    'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
+                    'ics_url' => $event->status === 'published' ? route('events.ics', ['region' => $event->region ?: Url::LOCALE, 'event' => $event]) : null,
                 ] : [
                     'title' => 'Event no longer available',
                     'slug' => null,

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-{{-- The site's content locale is Malaysian English (matches the /en-my URL scheme); emit BCP-47 en-MY for SEO. --}}
-<html lang="en-MY" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+{{-- The content language of the region being served (BCP-47: en-MY, en-SG…), matching the /en-my, /en-sg URL. --}}
+<html lang="en-{{ \App\Support\Regions::current()['country'] }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">

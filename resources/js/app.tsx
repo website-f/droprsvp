@@ -1,4 +1,4 @@
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { FlashWatcher } from '@/components/flash-watcher';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
@@ -8,15 +8,27 @@ import { TrackingGuard } from '@/components/tracking-guard';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
-import { installSeoHeadSync } from '@/lib/seo-head';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { setRegion } from '@/lib/routes';
+import { installSeoHeadSync } from '@/lib/seo-head';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 // Swap the page's meta + JSON-LD into <head> on in-app navigation.
 installSeoHeadSync();
+
+// Keep link-building on the region of whichever page is showing (lib/routes).
+router.on('navigate', (event) => {
+    const region = (event.detail.page.props as { region?: { code?: string; country?: string } }).region;
+    setRegion(region?.code);
+
+    // <html lang> follows the region (en-MY, en-SG), as the server sets it on a full load.
+    if (region?.country) {
+        document.documentElement.lang = `en-${region.country}`;
+    }
+});
 
 createInertiaApp({
     // Append the brand — but not when the page's title already contains it (e.g. an

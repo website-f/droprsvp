@@ -9,6 +9,7 @@ import { Framed, SmartImage } from '@/components/smart-image';
 import { SocialIcon } from '@/components/social-icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
 interface EventCard {
     slug: string; title: string; cover_image: string | null; when: string | null; venue: string | null;
@@ -59,7 +60,7 @@ function EventGrid({ events }: { events: EventCard[] }) {
     return (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((e) => (
-                <Link key={e.slug} href={`/en-my/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
+                <Link key={e.slug} href={`/${region()}/e/${e.slug}/`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
                     <div className="relative w-full">
                         {e.cover_image
                             ? <Framed src={e.cover_image} alt={e.title} className={e.is_past ? 'opacity-70 grayscale' : ''} />
@@ -238,7 +239,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
         setLoadingMore(true);
 
         try {
-            const res = await fetch(`/en-my/o/${organizer.slug}/discussion?discuss_page=${dpage + 1}`, { headers: { Accept: 'application/json' } });
+            const res = await fetch(`/${region()}/o/${organizer.slug}/discussion?discuss_page=${dpage + 1}`, { headers: { Accept: 'application/json' } });
 
             if (res.ok) {
                 const data: DiscussionData = await res.json();
@@ -253,7 +254,7 @@ export default function OrganizerProfile({ organizer, upcoming, past, members, p
 
     const postDiscussion = (parentId: number | null) => {
         ask.transform((d) => ({ ...d, parent_id: parentId, as_organizer: asOrganizer }));
-        ask.post(`/en-my/o/${organizer.slug}/discussion`, { preserveScroll: true, onSuccess: () => {
+        ask.post(`/${region()}/o/${organizer.slug}/discussion`, { preserveScroll: true, onSuccess: () => {
             ask.reset(); setReplyTo(null); setAsOrganizer(false);
         } });
     };

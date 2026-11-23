@@ -13,6 +13,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { region } from '@/lib/routes';
 
 interface OrderView {
     reference: string; currency: string; total: number;
@@ -166,7 +167,7 @@ export default function CheckoutShow({ order, buyer, cities = [], customFields =
             <div className="min-h-screen bg-background text-foreground">
                 <header className="border-b border-border">
                     <div className="mx-auto max-w-3xl px-6 py-4">
-                        <Link href={`/en-my/e/${order.event.slug}/`} aria-label="DropRSVP"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
+                        <Link href={`/${region()}/e/${order.event.slug}/`} aria-label="DropRSVP"><Wordmark height={usePage().props.branding?.auth_height ?? 32} /></Link>
                     </div>
                 </header>
 

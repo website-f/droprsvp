@@ -13,6 +13,7 @@ use App\Services\CheckoutService;
 use App\Support\Dates;
 use App\Support\Ics;
 use App\Support\Mailer;
+use App\Support\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -233,7 +234,7 @@ class AccountController extends Controller
                 'is_online' => (bool) $event->is_online,
                 'cover_image' => $event->cover_image,
                 'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
-                'ics_url' => $event->status === 'published' ? route('events.ics', $event) : null,
+                'ics_url' => $event->status === 'published' ? route('events.ics', ['region' => $event->region ?: Url::LOCALE, 'event' => $event]) : null,
             ] : null,
             'tickets' => $order->tickets->map(fn ($t) => [
                 'qr_token' => $t->qr_token,
