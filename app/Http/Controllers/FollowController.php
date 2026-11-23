@@ -49,7 +49,7 @@ class FollowController extends Controller
                 'title' => $e->title,
                 'organizer' => $e->user?->name,
                 'cover_image' => $e->cover_image,
-                'when' => $e->nextStartsAt()?->copy()->setTimezone($e->timezone)->format('D, j M Y · g:i A'),
+                'when' => $e->displayDate(true),
             ]);
 
         return Inertia::render('following', [

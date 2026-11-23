@@ -258,6 +258,36 @@ class Event extends Model
     }
 
     /**
+     * The date to show for this event, in its own timezone.
+     *
+     * The next date of an event on several dates; otherwise its date — and
+     * when that one date runs over several days (an exhibition, a festival, a
+     * long block), the whole span: "Sun, 22 Nov – Sun, 13 Dec 2026". Showing
+     * only the start made an event that was still on look as if it was over.
+     */
+    public function displayDate(bool $withTime = false): ?string
+    {
+        $tz = $this->timezone ?: config('app.display_timezone', 'Asia/Kuala_Lumpur');
+        $next = $this->nextSession();
+        $start = ($next?->starts_at ?? $this->starts_at)?->copy()->setTimezone($tz);
+
+        if (! $start) {
+            return null;
+        }
+
+        $end = ($next ? $next->ends_at : $this->ends_at)?->copy()->setTimezone($tz);
+        $time = $withTime ? ' · '.$start->format('g:i A') : '';
+
+        if ($end && ! $end->isSameDay($start) && $end->gt($start)) {
+            $from = $start->format($start->year === $end->year ? 'D, j M' : 'D, j M Y');
+
+            return $from.' – '.$end->format('D, j M Y').$time;
+        }
+
+        return $start->format('D, j M Y').$time;
+    }
+
+    /**
      * "Every Sunday", "Every 2 weeks", "Every month" when the dates repeat on a
      * pattern, "5 dates" when they do not; null for a one-date event. Weekdays
      * are judged in the event's own timezone.

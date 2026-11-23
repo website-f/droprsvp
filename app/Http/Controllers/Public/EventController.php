@@ -180,7 +180,7 @@ class EventController extends Controller
                 'price_list' => $priced->map(fn ($t) => ['name' => $t->name, 'price' => $this->money($t)])->values()->all(),
                 // The NEXT date, for an event on several dates (every Sunday…):
                 // its first date passing must not make it look over.
-                'when' => $this->fmt($event, $event->nextStartsAt()),   // pre-formatted (no client TZ drift)
+                'when' => $event->displayDate(true),   // pre-formatted (no client TZ drift)
                 'repeat' => $event->repeatLabel(),
                 'sold_out' => $event->ticketTypes->isNotEmpty() && $event->ticketTypes->every(fn ($t) => $t->remaining() === 0),
                 'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
@@ -567,7 +567,7 @@ class EventController extends Controller
                 'slug' => $e->slug,
                 'title' => $e->title,
                 'cover_image' => $e->cover_image ? $this->absolute($e->cover_image) : null,
-                'when' => $e->nextStartsAt()?->copy()->setTimezone($e->timezone ?: config('app.timezone'))->format('D, j M Y'),
+                'when' => $e->displayDate(),
                 'venue' => $e->is_online ? 'Online' : ($e->venue_name ?: $e->city),
                 'price' => $this->priceLabel($e->ticketTypes->where('is_active', true)->values()),
                 'same_organizer' => $e->user_id === $event->user_id,

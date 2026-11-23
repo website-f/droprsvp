@@ -250,7 +250,7 @@ class HomeController extends Controller
             'title' => $event->title,
             'cover_image' => $event->cover_image,
             'category' => $event->category?->name,
-            'when' => $event->nextStartsAt()?->copy()->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->displayDate(),
             'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,

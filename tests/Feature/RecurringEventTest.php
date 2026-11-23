@@ -114,4 +114,30 @@ class RecurringEventTest extends TestCase
             ->where('orders.data.0.upcoming', true)
             ->where('orders.data.0.event.when', 'Sun, 29 Nov 2026 · 8:00 PM'));
     }
+
+    public function test_one_date_running_over_several_days_shows_its_whole_span(): void
+    {
+        $tz = 'Asia/Kuala_Lumpur';
+        $block = Event::create([
+            'user_id' => $this->event->user_id, 'title' => 'Art Week', 'slug' => 'art-week',
+            'status' => 'published', 'visibility' => 'public', 'timezone' => $tz,
+            'starts_at' => Carbon::parse('2026-11-22 08:30', $tz)->utc(),
+            'ends_at' => Carbon::parse('2026-12-13 10:00', $tz)->utc(),
+        ]);
+        $block->sessions()->create(['starts_at' => $block->starts_at, 'ends_at' => $block->ends_at]);
+
+        $this->assertSame('Sun, 22 Nov – Sun, 13 Dec 2026', $block->fresh()->displayDate());
+        $this->assertSame('Sun, 22 Nov – Sun, 13 Dec 2026 · 8:30 AM', $block->fresh()->displayDate(true));
+        $this->assertNull($block->fresh()->repeatLabel(), 'one continuous date is not a repeat');
+
+        // Across a new year, both years.
+        $block->sessions()->update(['ends_at' => Carbon::parse('2027-01-03 10:00', $tz)->utc()]);
+        $block->update(['ends_at' => Carbon::parse('2027-01-03 10:00', $tz)->utc()]);
+        $this->assertSame('Sun, 22 Nov 2026 – Sun, 3 Jan 2027', $block->fresh()->displayDate());
+
+        // A one-evening event stays a single date.
+        $this->assertSame('Sun, 29 Nov 2026', $this->event->fresh()->displayDate());
+
+        $this->get('/en-my/e/art-week/')->assertInertia(fn (Assert $page) => $page->where('event.when', 'Sun, 22 Nov 2026 – Sun, 3 Jan 2027 · 8:30 AM'));
+    }
 }

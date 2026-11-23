@@ -132,6 +132,7 @@ class DiscoverController extends Controller
         // carousel slides (alongside the admin's own default banner).
         $featured = Event::published()->inRegion()
             ->whereNotNull('banner_image')
+            ->with('sessions:id,event_id,starts_at,ends_at')
             ->with('category:id,name,slug')
             ->when($cityName, fn ($query) => $query->where('city', $cityName))
             ->when($categoryModel, fn ($query) => $query->where('category_id', $categoryModel->id))
@@ -147,7 +148,7 @@ class DiscoverController extends Controller
                 'banner_image' => $e->banner_image,
                 'category' => $e->category?->name,
                 'city' => $e->city,
-                'when' => $e->nextStartsAt()?->copy()->setTimezone($e->timezone)->format('D, j M Y'),
+                'when' => $e->displayDate(),
                 'venue' => $e->is_online ? 'Online' : $e->venue_name,
                 'url' => Url::path('e', $e->slug),
             ])->all();
@@ -375,7 +376,7 @@ class DiscoverController extends Controller
             'category' => $event->category?->name,
             'city' => $event->city,
             'boosted' => $event->isBoosted(),
-            'when' => $event->nextStartsAt()?->copy()->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->displayDate(),
             'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
