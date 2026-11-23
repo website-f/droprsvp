@@ -8,6 +8,8 @@ use App\Support\Cities;
 use App\Support\Dates;
 use App\Support\HtmlSanitizer;
 use App\Support\ReceiptTemplate;
+use App\Support\RegionalSettings;
+use App\Support\RegionVersions;
 use App\Support\SiteContent;
 use App\Support\Url;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -107,13 +109,31 @@ class SiteController extends Controller
         return back()->with('success', 'Blog sidebar saved.');
     }
 
-    public function homeSeo()
+    public function homeSeo(Request $request)
     {
+        $region = RegionalSettings::editing($request);
+
         return inertia('admin/site/home-seo', [
-            'seo' => SiteContent::homeSeo(),
+            ...$this->regionalSeo('home_seo', $region, SiteContent::homeSeo('')),
             // Shown in the preview when no custom image is set.
             'defaultImage' => url((string) config('seo.default_image')),
         ]);
+    }
+
+    /**
+     * The SEO editor's fields for the tab being edited: the default, or one
+     * country's own changes with the default as the placeholder for the rest.
+     */
+    private function regionalSeo(string $key, ?string $region, array $default): array
+    {
+        $own = $region ? RegionalSettings::own($key, $region) : $default;
+
+        return [
+            'seo' => array_replace(['title' => '', 'description' => '', 'keywords' => '', 'image' => ''], $own),
+            'inherited' => $region ? $default : null,
+            'region' => $region,
+            'regionTabs' => RegionalSettings::tabs($key, $region),
+        ];
     }
 
     public function saveHomeSeo(Request $request)
@@ -125,15 +145,16 @@ class SiteController extends Controller
             'image' => ['nullable', 'string', 'max:2048'],
         ]);
 
-        Setting::putArray('home_seo', $data);
+        $region = RegionalSettings::editing($request);
+        RegionalSettings::put('home_seo', $region, $data);
 
-        return back()->with('success', 'Homepage SEO saved.');
+        return back()->with('success', 'Homepage SEO saved'.($region ? ' for '.RegionVersions::names([$region]) : '').'.');
     }
 
-    public function blogSeo()
+    public function blogSeo(Request $request)
     {
         return inertia('admin/site/home-seo', [
-            'seo' => SiteContent::blogSeo(),
+            ...$this->regionalSeo('blog_seo', RegionalSettings::editing($request), SiteContent::blogSeo('')),
             'defaultImage' => url((string) config('seo.default_image')),
             // Same editor, different target — the fields are identical and one
             // screen is easier to keep consistent than two copies of it.
@@ -155,9 +176,10 @@ class SiteController extends Controller
             'image' => ['nullable', 'string', 'max:2048'],
         ]);
 
-        Setting::putArray('blog_seo', $data);
+        $region = RegionalSettings::editing($request);
+        RegionalSettings::put('blog_seo', $region, $data);
 
-        return back()->with('success', 'Blog SEO saved.');
+        return back()->with('success', 'Blog SEO saved'.($region ? ' for '.RegionVersions::names([$region]) : '').'.');
     }
 
     /** Dedicated rich-text editor for the home-page SEO text block. */

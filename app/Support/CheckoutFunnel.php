@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Support\Edm\Consent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Who started buying and did not finish — for the superadmin's analytics and
@@ -58,11 +59,13 @@ class CheckoutFunnel
      *
      * @return array<string,mixed>
      */
-    public static function summary(array $w, ?int $eventId = null, int $impressions = 0): array
+    public static function summary(array $w, ?int $eventId = null, int $impressions = 0, ?string $region = null): array
     {
         $scope = fn (Builder $q) => $q
             ->whereBetween('created_at', [$w['from'], $w['to']])
-            ->when($eventId !== null, fn ($x) => $x->where('event_id', $eventId));
+            ->when($eventId !== null, fn ($x) => $x->where('event_id', $eventId))
+            // One country's events (admin analytics' region filter).
+            ->when($region !== null, fn ($x) => $x->whereIn('event_id', DB::table('events')->where('region', $region)->select('id')));
 
         $started = $scope(Order::query())->count();
         $details = $scope(Order::query())->whereNotNull('buyer_email')->count();

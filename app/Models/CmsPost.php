@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRegions;
+use App\Support\Regions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,9 +13,10 @@ use Illuminate\Support\Facades\Cache;
 
 class CmsPost extends Model
 {
+    use HasRegions;
     use SoftDeletes;
 
-    protected $fillable = ['author_id', 'category_id', 'title', 'slug', 'excerpt', 'body', 'cover_image', 'status', 'published_at'];
+    protected $fillable = ['author_id', 'category_id', 'regions', 'title', 'slug', 'excerpt', 'body', 'cover_image', 'status', 'published_at'];
 
     protected function casts(): array
     {
@@ -29,8 +32,14 @@ class CmsPost extends Model
     {
         // The footer's "From the blog" list is cached and shared on every page,
         // so any edit has to drop it.
-        static::saved(fn () => Cache::forget(self::FOOTER_CACHE));
-        static::deleted(fn () => Cache::forget(self::FOOTER_CACHE));
+        // One list per region (a post can be for some regions only).
+        $forget = function () {
+            foreach (Regions::codes() as $code) {
+                Cache::forget(self::FOOTER_CACHE.':'.$code);
+            }
+        };
+        static::saved($forget);
+        static::deleted($forget);
     }
 
     private const FOOTER_CACHE = 'blog.footer-latest';
@@ -44,7 +53,8 @@ class CmsPost extends Model
      */
     public static function forFooter(int $limit = 3): array
     {
-        return Cache::remember(self::FOOTER_CACHE, now()->addMinutes(10), fn () => static::published()
+        return Cache::remember(self::FOOTER_CACHE.':'.Regions::current()['code'], now()->addMinutes(10), fn () => static::published()
+            ->shownIn()
             ->orderByDesc('published_at')
             ->limit($limit)
             ->get(['title', 'slug'])

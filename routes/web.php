@@ -501,6 +501,7 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::get('pages/{page:id}/preview', [CmsPageController::class, 'preview'])->name('pages.preview');
         Route::put('pages/{page:id}', [CmsPageController::class, 'update'])->name('pages.update');
         Route::delete('pages/{page:id}', [CmsPageController::class, 'destroy'])->name('pages.destroy');
+        Route::post('pages/{page:id}/versions', [CmsPageController::class, 'addVersion'])->name('pages.versions.store');
 
         // Navigation menu (what shows in the public site header).
         Route::get('menu', [MenuController::class, 'index'])->name('menu.index');
@@ -516,6 +517,7 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::get('help/{help:id}/edit', [AdminHelpController::class, 'edit'])->name('help.edit');
         Route::put('help/{help:id}', [AdminHelpController::class, 'update'])->name('help.update');
         Route::delete('help/{help:id}', [AdminHelpController::class, 'destroy'])->name('help.destroy');
+        Route::post('help/{help:id}/versions', [AdminHelpController::class, 'addVersion'])->name('help.versions.store');
 
         Route::get('posts', [CmsPostController::class, 'index'])->name('posts.index');
         Route::get('posts/create', [CmsPostController::class, 'create'])->name('posts.create');

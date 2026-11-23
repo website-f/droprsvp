@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\Setting;
+use App\Support\RegionalSettings;
+use App\Support\RegionVersions;
 use App\Support\SeoTemplate;
 use App\Support\Url;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class EventSeoController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $region = RegionalSettings::editing($request);
 
         $events = Event::query()
             ->when($q !== '', fn ($x) => $x->where('title', 'like', "%{$q}%"))
@@ -46,8 +48,14 @@ class EventSeoController extends Controller
             'events' => $events,
             'filters' => ['q' => $q],
             'baseUrl' => rtrim(Url::to('e'), '/'),
-            'templates' => SeoTemplate::allHouse(),
-            'defaults' => SeoTemplate::DEFAULTS,
+            // The Default tab, or one country's own templates with the default
+            // showing through wherever it left a field blank.
+            'templates' => $region
+                ? array_replace(array_fill_keys(array_keys(SeoTemplate::DEFAULTS), ''), RegionalSettings::own('seo_templates', $region))
+                : SeoTemplate::allHouse(''),
+            'defaults' => $region ? SeoTemplate::allHouse('') : SeoTemplate::DEFAULTS,
+            'region' => $region,
+            'regionTabs' => RegionalSettings::tabs('seo_templates', $region),
             'tokens' => SeoTemplate::chips(),
             'organizerTokens' => SeoTemplate::chips(SeoTemplate::ORGANIZER_TOKENS),
         ]);
@@ -69,14 +77,15 @@ class EventSeoController extends Controller
             'organizer_description' => ['nullable', 'string', 'max:400'],
         ]);
 
-        Setting::putArray('seo_templates', array_filter(
+        $region = RegionalSettings::editing($request);
+        RegionalSettings::put('seo_templates', $region, array_filter(
             array_map(fn ($v) => trim((string) $v), $data),
             fn ($v) => $v !== '',
         ));
 
         SeoTemplate::forget();
 
-        return back()->with('success', 'SEO templates saved.');
+        return back()->with('success', 'SEO templates saved'.($region ? ' for '.RegionVersions::names([$region]) : '').'.');
     }
 
     public function edit(Event $event)

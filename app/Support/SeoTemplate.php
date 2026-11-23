@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Event;
-use App\Models\Setting;
 use App\Models\User;
 
 /**
@@ -72,20 +71,25 @@ class SeoTemplate
      * Falls back to the shipped default, so clearing the field in the admin
      * restores the standard rather than leaving pages with no title at all.
      */
-    public static function house(string $key): string
+    /** @param  string|null  $region  null = this request's region; '' = the default alone */
+    public static function house(string $key, ?string $region = null): string
     {
+        // A country can override any of the four (Admin → SEO → its tab);
+        // what it leaves blank comes from the default.
+        $region ??= Regions::current()['code'] ?? '';
+
         // Memoised, because a page reads two of these and without it every
         // public event and organizer page costs an extra settings query.
         //
         // On the CONTAINER, not in a static: a static would outlive the request
         // and an Octane worker would then serve the templates it happened to
         // read first, never noticing an edit.
-        if (app()->bound(self::CACHE_KEY)) {
-            $saved = app(self::CACHE_KEY);
-        } else {
-            $saved = Setting::getArray('seo_templates', []);
-            app()->instance(self::CACHE_KEY, $saved);
+        $memo = app()->bound(self::CACHE_KEY) ? app(self::CACHE_KEY) : [];
+        if (! array_key_exists($region, $memo)) {
+            $memo[$region] = RegionalSettings::get('seo_templates', $region);
+            app()->instance(self::CACHE_KEY, $memo);
         }
+        $saved = $memo[$region];
 
         $value = trim((string) ($saved[$key] ?? ''));
 
@@ -99,10 +103,10 @@ class SeoTemplate
     }
 
     /** All four, for the admin editor. @return array<string,string> */
-    public static function allHouse(): array
+    public static function allHouse(?string $region = null): array
     {
         return collect(array_keys(self::DEFAULTS))
-            ->mapWithKeys(fn ($key) => [$key => self::house($key)])
+            ->mapWithKeys(fn ($key) => [$key => self::house($key, $region)])
             ->all();
     }
 
@@ -292,7 +296,7 @@ class SeoTemplate
     /** Render one of the house templates for an event. */
     public static function forEvent(string $key, Event $event): ?string
     {
-        return self::render(self::house($key), $event);
+        return self::render(self::house($key, $event->region ?: null), $event);
     }
 
     /** Render one of the house templates for an organizer. */

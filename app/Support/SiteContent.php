@@ -49,7 +49,8 @@ class SiteContent
      * Homepage SEO. The landing page itself is premade and not content-editable —
      * the superadmin can only tune its title / description / keywords here.
      */
-    public static function homeSeo(): array
+    /** @param  string|null  $region  null = this request's region; '' = the default alone */
+    public static function homeSeo(?string $region = null): array
     {
         $site = config('seo.site_name', 'DropRSVP');
 
@@ -64,7 +65,7 @@ class SiteContent
 
         // Only non-blank saved values override the defaults (a cleared title still
         // falls back to a sensible default rather than an empty <title>).
-        $saved = array_filter(Setting::getArray('home_seo', []), fn ($v) => filled($v));
+        $saved = array_filter(RegionalSettings::get('home_seo', $region), fn ($v) => filled($v));
 
         return array_replace($defaults, $saved);
     }
@@ -126,9 +127,9 @@ class SiteContent
      * per-entry SeoMeta; the listing had nothing editable at all and fell back
      * to a hardcoded title.
      */
-    public static function blogSeo(): array
+    public static function blogSeo(?string $region = null): array
     {
-        $saved = array_filter(Setting::getArray('blog_seo', []), fn ($v) => filled($v));
+        $saved = array_filter(RegionalSettings::get('blog_seo', $region), fn ($v) => filled($v));
 
         return array_replace(
             ['title' => '', 'description' => '', 'keywords' => '', 'image' => ''],

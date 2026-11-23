@@ -10,7 +10,11 @@ export interface AnalyticsPeriod { period: string; from: string; to: string; per
  * patching the current URL's query string, so it composes with the period
  * presets and any table filters already in the URL.
  */
-export function AudienceFilters({ path, city = '', source = '', cities, sources }: { path: string; city?: string; source?: string; cities: string[]; sources: { value: string; label: string }[] }) {
+export function AudienceFilters({ path, city = '', source = '', cities, sources, region = '', regions = [] }: {
+    path: string; city?: string; source?: string; cities: string[]; sources: { value: string; label: string }[];
+    /** Optional country filter (admin): shown when there is more than one region. */
+    region?: string; regions?: { value: string; label: string }[];
+}) {
     const nav = (patch: Record<string, string>) => {
         const params = new URLSearchParams(window.location.search);
 
@@ -28,6 +32,10 @@ export function AudienceFilters({ path, city = '', source = '', cities, sources 
 
     return (
         <div className="flex flex-wrap items-center gap-2">
+            {regions.length > 1 && (
+                // A different country has different cities: drop the city pick.
+                <div className="w-44"><AppSelect aria-label="Region" value={region || 'all'} onChange={(v) => nav({ region: v === 'all' ? '' : v, city: '', page: '' })} options={[{ value: 'all', label: 'All regions' }, ...regions]} /></div>
+            )}
             <div className="w-36"><AppSelect aria-label="City" value={city || 'all'} onChange={(v) => nav({ city: v === 'all' ? '' : v })} options={[{ value: 'all', label: 'All cities' }, ...cities.map((c) => ({ value: c, label: c }))]} /></div>
             <div className="w-36"><AppSelect aria-label="Traffic source" value={source || 'all'} onChange={(v) => nav({ source: v === 'all' ? '' : v })} options={[{ value: 'all', label: 'All sources' }, ...sources]} /></div>
         </div>

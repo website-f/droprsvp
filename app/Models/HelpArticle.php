@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRegions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class HelpArticle extends Model
 {
-    protected $fillable = ['category', 'title', 'slug', 'excerpt', 'body', 'sort', 'status', 'published_at'];
+    use HasRegions;
+
+    protected $fillable = ['parent_id', 'regions', 'category', 'title', 'slug', 'excerpt', 'body', 'sort', 'status', 'published_at'];
 
     protected function casts(): array
     {

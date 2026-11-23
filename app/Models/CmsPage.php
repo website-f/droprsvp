@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasRegions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,9 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CmsPage extends Model
 {
+    use HasRegions;
     use SoftDeletes;
 
-    protected $fillable = ['author_id', 'title', 'slug', 'body', 'layout', 'puck_data', 'editor', 'html', 'html_layout', 'html_trusted', 'status', 'published_at', 'builder_edited_at'];
+    protected $fillable = ['parent_id', 'regions', 'author_id', 'title', 'slug', 'body', 'layout', 'puck_data', 'editor', 'html', 'html_layout', 'html_trusted', 'status', 'published_at', 'builder_edited_at'];
 
     /** "builder" (Puck blocks) or "html" (a pasted document); see App\Support\PageHtml. */
     protected $attributes = ['editor' => 'builder', 'html_trusted' => false];

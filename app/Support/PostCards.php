@@ -10,7 +10,9 @@ class PostCards
 {
     public static function recent(int $limit = 12): array
     {
+        // Only the posts written for the region being browsed (or for all).
         return CmsPost::published()
+            ->shownIn()
             ->with('category:id,name')
             ->orderByDesc('published_at')
             ->limit($limit)

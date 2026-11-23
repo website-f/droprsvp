@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Mail\OrganizerApplicationMail;
 use App\Models\OrganizerProfile;
 use App\Support\Dates;
+use App\Support\RegionCatalog;
+use App\Support\Regions;
 use App\Support\SocialLinks;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -16,6 +18,9 @@ class OrganizerController extends Controller
     public function index(Request $request)
     {
         $status = in_array($request->query('status'), ['pending', 'appealed', 'approved', 'rejected', 'all'], true) ? $request->query('status') : 'pending';
+        // Organizers from one country only (ISO-2), or everyone.
+        $country = strtoupper((string) $request->query('country', ''));
+        $country = isset(RegionCatalog::COUNTRIES[$country]) ? $country : '';
 
         // An "appeal" is a rejected organizer who re-submitted: back to pending, but
         // with reviewed_at set from the earlier rejection. First-time pending has none.
@@ -23,6 +28,7 @@ class OrganizerController extends Controller
             ->when($status === 'pending', fn ($q) => $q->where('status', 'pending')->whereNull('reviewed_at'))
             ->when($status === 'appealed', fn ($q) => $q->where('status', 'pending')->whereNotNull('reviewed_at'))
             ->when(in_array($status, ['approved', 'rejected'], true), fn ($q) => $q->where('status', $status))
+            ->when($country !== '', fn ($q) => $q->where('country', $country))
             ->orderByRaw("case status when 'pending' then 0 when 'rejected' then 1 else 2 end")
             ->orderByDesc('submitted_at')
             ->paginate(12)
@@ -37,6 +43,7 @@ class OrganizerController extends Controller
                 'email' => $p->email ?: $p->user?->email,
                 'website' => $p->website,
                 'phone' => $p->phone,
+                'country' => $p->country ? ['code' => $p->country, 'name' => RegionCatalog::COUNTRIES[$p->country][0] ?? $p->country, 'flag' => Regions::flag($p->country)] : null,
                 'bio' => $p->bio,
                 'poster' => $p->poster,
                 'gallery' => $p->gallery ?? [],
@@ -48,13 +55,18 @@ class OrganizerController extends Controller
 
         return inertia('admin/organizers/index', [
             'applications' => $applications,
-            'filters' => ['status' => $status],
+            'filters' => ['status' => $status, 'country' => $country],
             'counts' => [
-                'pending' => OrganizerProfile::where('status', 'pending')->whereNull('reviewed_at')->count(),
-                'appealed' => OrganizerProfile::where('status', 'pending')->whereNotNull('reviewed_at')->count(),
-                'approved' => OrganizerProfile::where('status', 'approved')->count(),
-                'rejected' => OrganizerProfile::where('status', 'rejected')->count(),
+                'pending' => OrganizerProfile::where('status', 'pending')->whereNull('reviewed_at')->when($country !== '', fn ($q) => $q->where('country', $country))->count(),
+                'appealed' => OrganizerProfile::where('status', 'pending')->whereNotNull('reviewed_at')->when($country !== '', fn ($q) => $q->where('country', $country))->count(),
+                'approved' => OrganizerProfile::where('status', 'approved')->when($country !== '', fn ($q) => $q->where('country', $country))->count(),
+                'rejected' => OrganizerProfile::where('status', 'rejected')->when($country !== '', fn ($q) => $q->where('country', $country))->count(),
             ],
+            // The countries organizers have applied from, with how many each.
+            'countries' => OrganizerProfile::whereNotNull('status')->whereNotNull('country')
+                ->selectRaw('country, count(*) as total')->groupBy('country')->orderByDesc('total')->get()
+                ->map(fn ($r) => ['code' => $r->country, 'name' => RegionCatalog::COUNTRIES[$r->country][0] ?? $r->country, 'flag' => Regions::flag($r->country), 'total' => (int) $r->total])
+                ->values(),
         ]);
     }
 
@@ -82,6 +94,7 @@ class OrganizerController extends Controller
                 'website' => $organizer->website,
                 'socials' => SocialLinks::forDisplay($organizer->socials),
                 'phone' => $organizer->phone,
+                'country' => $organizer->country ? Regions::flag($organizer->country).' '.(RegionCatalog::COUNTRIES[$organizer->country][0] ?? $organizer->country) : null,
                 'bio' => $organizer->bio,
                 'poster' => $organizer->poster,
                 'gallery' => $organizer->gallery ?? [],

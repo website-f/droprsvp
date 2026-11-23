@@ -8,6 +8,7 @@ use App\Models\CmsPost;
 use App\Models\Event;
 use App\Support\Cities;
 use App\Support\Dates;
+use App\Support\Regions;
 use App\Support\SeoManager;
 use App\Support\SiteContent;
 use App\Support\TableOfContents;
@@ -26,7 +27,7 @@ class BlogController extends Controller
         $active = $categorySlug !== '' ? CmsCategory::where('slug', $categorySlug)->first() : null;
         abort_if($categorySlug !== '' && ! $active, 404);
 
-        $posts = CmsPost::published()
+        $posts = CmsPost::published()->shownIn()
             ->with('category:id,name,slug')
             ->when($active, fn ($q) => $q->where('category_id', $active->id))
             ->orderByDesc('published_at')
@@ -86,6 +87,14 @@ class BlogController extends Controller
         // published() also guards the date, so a scheduled post can't be reached
         // early by guessing its URL.
         abort_unless(CmsPost::published()->whereKey($post->id)->exists(), 404);
+
+        // A post for some regions only, reached through another: to its own.
+        if (! $post->isShownIn()) {
+            $home = collect($post->regions)->first(fn ($code) => Regions::isEnabled($code));
+            abort_unless($home, 404);
+
+            return redirect(Url::in($home, 'blog', $post->slug), 301);
+        }
         $post->load(['seo', 'category', 'author']);
 
         // Anchor the headings and resolve any inline [data-toc] block the author
@@ -94,7 +103,8 @@ class BlogController extends Controller
 
         $seo = $post->seo;
         $description = $seo?->meta_description ?: ($post->excerpt ?: Str::limit(trim(strip_tags((string) $post->body)), 155));
-        $canonical = $seo?->canonical_url ?: Url::global('blog', $post->slug);
+        // For every region: one canonical in the default region. For some: here.
+        $canonical = $seo?->canonical_url ?: (empty($post->regions) ? Url::global('blog', $post->slug) : Url::to('blog', $post->slug));
         $cover = $post->cover_image ? $this->absolute($post->cover_image) : null;
         $wordCount = str_word_count(strip_tags((string) $post->body));
 
@@ -147,7 +157,7 @@ class BlogController extends Controller
      */
     private function sidebar(?int $excludePostId = null, ?int $relatedToCategory = null): array
     {
-        $counts = CmsPost::published()
+        $counts = CmsPost::published()->shownIn()
             ->selectRaw('category_id, count(*) as total')
             ->whereNotNull('category_id')
             ->groupBy('category_id')
@@ -159,7 +169,7 @@ class BlogController extends Controller
             ->map(fn (CmsCategory $c) => ['name' => $c->name, 'slug' => $c->slug, 'count' => (int) $counts[$c->id]])
             ->all();
 
-        $recent = CmsPost::published()
+        $recent = CmsPost::published()->shownIn()
             ->with('category:id,name,slug')
             ->when($excludePostId, fn ($q) => $q->whereKeyNot($excludePostId))
             ->orderByDesc('published_at')
@@ -170,7 +180,7 @@ class BlogController extends Controller
 
         // More from the same category — the "related" rail on an article page.
         $related = $relatedToCategory
-            ? CmsPost::published()
+            ? CmsPost::published()->shownIn()
                 ->with('category:id,name,slug')
                 ->where('category_id', $relatedToCategory)
                 ->when($excludePostId, fn ($q) => $q->whereKeyNot($excludePostId))
@@ -184,7 +194,7 @@ class BlogController extends Controller
         // Events happening now, beside the articles. A reader who has just
         // finished a piece about an event is the likeliest person on the site to
         // want a ticket, and the blog had no route onward to one.
-        $activeEvents = Event::published()
+        $activeEvents = Event::published()->inRegion()
             ->notEnded()
             ->orderByRaw('starts_at is null, starts_at asc')
             ->limit(3)

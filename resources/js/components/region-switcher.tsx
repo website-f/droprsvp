@@ -1,10 +1,21 @@
 import { router, usePage } from '@inertiajs/react';
 import { Check, Globe, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
-export interface RegionOption { code: string; name: string; flag: string; country: string; default?: boolean }
+export interface RegionOption { code: string; name: string; flag: string; country: string; default?: boolean; zones?: string[] }
+
+/** Set once the region has been chosen — by hand, or detected on a first visit. */
+const CHOSEN = 'drsvp_region_chosen';
+const remember = () => {
+    try {
+        localStorage.setItem(CHOSEN, '1');
+    } catch {
+        /* private mode: detection may run again, which is harmless */
+    }
+};
 
 /** Pages that exist the same in every region — switching keeps you on them. */
 const SAME_IN_EVERY_REGION = ['all', 'blog', 'help', 'contact'];
@@ -51,6 +62,7 @@ export function RegionSwitcher({ className, label = false }: { className?: strin
 
     const pick = (code: string) => {
         setOpen(false);
+        remember();
 
         if (code !== region.code) {
             router.visit(regionHref(code));
@@ -114,4 +126,55 @@ export function RegionSwitcher({ className, label = false }: { className?: strin
             </Dialog>
         </>
     );
+}
+
+/**
+ * Detect the visitor's region on their first visit to a home or browse page:
+ * the region whose country their device's clock is in, if that region is on.
+ * Switches there once, says so, and never again — a region picked by hand
+ * (or this one, once made) is kept. Event, blog and other pages are left
+ * alone: whoever followed a link there wants that page, wherever they are.
+ */
+export function RegionAutoDetect() {
+    const { region, regions = [] } = usePage().props as { region?: RegionOption; regions?: RegionOption[] };
+
+    useEffect(() => {
+        if (!region || regions.length < 2) {
+            return;
+        }
+
+        try {
+            if (localStorage.getItem(CHOSEN)) {
+                return;
+            }
+        } catch {
+            return;
+        }
+
+        const [, first, second] = window.location.pathname.split('/');
+
+        // Only the generic landing — the default region's home or events
+        // page — adapts. Someone who followed a link to /en-sg/ meant it.
+        if (!region.default || first !== region.code || (second && second !== 'all')) {
+            return;
+        }
+
+        let zone = '';
+
+        try {
+            zone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+        } catch {
+            /* no Intl */
+        }
+
+        remember();
+        const here = regions.find((r) => r.zones?.includes(zone));
+
+        if (here && here.code !== region.code) {
+            toast.info(`Showing events in ${here.name}`, { description: 'Change the region any time from the flag in the header.' });
+            router.visit(regionHref(here.code), { replace: true });
+        }
+    }, [region, regions]);
+
+    return null;
 }

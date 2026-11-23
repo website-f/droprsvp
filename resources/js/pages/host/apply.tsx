@@ -11,12 +11,13 @@ import { uploadImageWithToast } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 
 interface Application {
-    business_name: string; email: string | null; links: LinkRow[]; phone: string | null; bio: string | null;
+    business_name: string; email: string | null; links: LinkRow[]; phone: string | null; bio: string | null; country?: string | null;
     poster: string | null; gallery: string[]; status: string | null; reason: string | null;
 }
 
 interface LinkRow { type: string; value: string }
 interface Platform { value: string; label: string; hosts: string[] }
+interface Country { code: string; name: string; flag: string; enabled: boolean }
 
 /** The platform a pasted link is on, from its host; null for any other site. */
 function detectPlatform(value: string, platforms: Platform[]): string | null {
@@ -35,11 +36,12 @@ function detectPlatform(value: string, platforms: Platform[]): string | null {
 const field = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-export default function OrganizerApply({ application, platforms }: { application: Application; platforms: Platform[] }) {
+export default function OrganizerApply({ application, platforms, countries = [] }: { application: Application; platforms: Platform[]; countries?: Country[] }) {
     const form = useForm({
         business_name: application.business_name ?? '',
         email: application.email ?? '',
         phone: application.phone ?? '',
+        country: application.country ?? '',
         links: (application.links?.length ? application.links : [{ type: 'website', value: '' }]) as LinkRow[],
         bio: application.bio ?? '',
         poster: application.poster ?? '',
@@ -175,6 +177,22 @@ export default function OrganizerApply({ application, platforms }: { application
                                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                             </div>
                         </div>
+                        {countries.length > 0 && (
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="country">Country you run events in</Label>
+                                <select id="country" className={field} value={data.country} onChange={(e) => setData('country', e.target.value)}>
+                                    {countries.some((c) => c.enabled) && (
+                                        <optgroup label="On DropRSVP">
+                                            {countries.filter((c) => c.enabled).map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+                                        </optgroup>
+                                    )}
+                                    <optgroup label="Other countries">
+                                        {countries.filter((c) => !c.enabled).map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+                                    </optgroup>
+                                </select>
+                                {errors.country && <p className="text-xs text-destructive">{errors.country}</p>}
+                            </div>
+                        )}
                         <div className="grid gap-1.5">
                             <Label>Website &amp; social media (optional)</Label>
                             <p className="-mt-0.5 text-xs text-muted-foreground">Add as many as you have. Paste a link or type your @handle.</p>

@@ -8,7 +8,7 @@ import { Footer } from '@/components/cms/footer-blocks';
 import type { FooterData } from '@/components/cms/footer-blocks';
 import { HeaderSearch } from '@/components/header-search';
 import { NotificationBell } from '@/components/notification-bell';
-import { RegionSwitcher } from '@/components/region-switcher';
+import { RegionAutoDetect, RegionSwitcher } from '@/components/region-switcher';
 import { SiteAnnouncement } from '@/components/site-announcement';
 import { Button } from '@/components/ui/button';
 import { region } from '@/lib/routes';
@@ -74,6 +74,7 @@ export function PublicHeader() {
 
                 <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:ml-0">
                     {/* In the menu on a phone, where the bar has no room for them. */}
+                    <RegionAutoDetect />
                     <RegionSwitcher className="hidden sm:flex" />
                     <AppearanceToggle className="hidden sm:inline-flex" />
                     {auth?.user && <MessagesButton />}

@@ -121,7 +121,7 @@ class HandleInertiaRequests extends Middleware
 
                 return Regions::current();
             },
-            'regions' => fn () => array_map(fn (array $r) => array_intersect_key($r, array_flip(['code', 'name', 'flag', 'country', 'default', 'timezone'])), Regions::enabled()),
+            'regions' => fn () => array_map(fn (array $r) => array_intersect_key($r, array_flip(['code', 'name', 'flag', 'country', 'default', 'timezone'])) + ['zones' => \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $r['country'])], Regions::enabled()),
             'cities' => fn () => Cities::all(),
         ];
     }

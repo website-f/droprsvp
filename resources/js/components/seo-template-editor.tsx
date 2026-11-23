@@ -32,11 +32,14 @@ export function SeoTemplateEditor({
     defaults,
     tokens,
     organizerTokens,
+    region = null,
 }: {
     templates: SeoTemplates;
     defaults: SeoTemplates;
     tokens: Token[];
     organizerTokens: Token[];
+    /** A country's tab: blank fields use `defaults` (the default templates). */
+    region?: string | null;
 }) {
     const form = useForm<SeoTemplates>({ ...templates });
     const refs = useRef<Partial<Record<Slot, HTMLInputElement | HTMLTextAreaElement | null>>>({});
@@ -133,11 +136,16 @@ export function SeoTemplateEditor({
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-2">
-                <Button size="sm" onClick={() => form.post('/admin/seo/templates', { preserveScroll: true })} disabled={!dirty || form.processing}>
+                <Button size="sm" onClick={() => {
+                    form.transform((d) => ({ ...d, region }));
+                    form.post('/admin/seo/templates', { preserveScroll: true });
+                }} disabled={!dirty || form.processing}>
                     <Save className="size-3.5" /> Save templates
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => form.setData({ ...defaults })}>
-                    <RotateCcw className="size-3.5" /> Reset to defaults
+                <Button size="sm" variant="ghost" onClick={() => form.setData(region
+                    ? { event_title: '', event_description: '', organizer_title: '', organizer_description: '' }
+                    : { ...defaults })}>
+                    <RotateCcw className="size-3.5" /> {region ? 'Use the default for all' : 'Reset to defaults'}
                 </Button>
             </div>
         </section>

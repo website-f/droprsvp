@@ -1,6 +1,8 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { ImageIcon, Loader2, Trash2, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { RegionSettingTabs } from '@/components/admin/region-versions';
+import type { RegionSettingTab } from '@/components/admin/region-versions';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { TagInput } from '@/components/ui/tag-input';
@@ -24,7 +26,11 @@ interface PageMeta { title: string; description: string; action: string; preview
  * rather than two copies that drift apart. `page` overrides the labels and the
  * endpoint; without it this is the homepage editor it has always been.
  */
-export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: HomeSeo; defaultImage: string; page?: PageMeta }) {
+export default function HomeSeoSettings({ seo, defaultImage, page, inherited = null, region = null, regionTabs = [] }: {
+    seo: HomeSeo; defaultImage: string; page?: PageMeta;
+    /** On a country's tab: the default values its blank fields fall back to. */
+    inherited?: HomeSeo | null; region?: string | null; regionTabs?: RegionSettingTab[];
+}) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const [baseUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
     const fileRef = useRef<HTMLInputElement>(null);
@@ -32,9 +38,12 @@ export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: Home
 
     const form = useForm<HomeSeo>({ title: seo.title ?? '', description: seo.description ?? '', keywords: seo.keywords ?? '', image: seo.image ?? '' });
     const { data, setData, processing } = form;
+    // What this tab really emits: its own value, else the default's.
+    const shown = (k: keyof HomeSeo) => data[k] || inherited?.[k] || '';
+    const action = page?.action ?? '/admin/site/home-seo';
 
     // What crawlers will actually use: the custom image, else the site default.
-    const shareImage = data.image || defaultImage;
+    const shareImage = shown('image') || defaultImage;
 
     const pickImage = async (file: File | undefined) => {
         if (!file) {
@@ -51,7 +60,10 @@ export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: Home
         }
     };
 
-    const save = () => form.post(page?.action ?? '/admin/site/home-seo', { preserveScroll: true });
+    const save = () => {
+        form.transform((d) => ({ ...d, region }));
+        form.post(action, { preserveScroll: true });
+    };
 
     return (
         <>
@@ -65,27 +77,28 @@ export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: Home
                     <Button onClick={save} disabled={processing}>Save changes</Button>
                 </div>
                 {flash?.success && <div className="mb-4 rounded-lg bg-secondary px-4 py-2 text-sm">{flash.success}</div>}
+                <RegionSettingTabs tabs={regionTabs} href={(code) => (code ? `${action}?region=${code}` : action)} />
 
                 <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
                     {/* Google snippet preview */}
                     <div className="mb-5 rounded-lg border border-border bg-muted/40 p-4">
                         <div className="truncate text-xs text-emerald-700 dark:text-emerald-400">{baseUrl || 'https://example.com'}</div>
-                        <div className="mt-0.5 truncate text-base text-blue-700 dark:text-blue-400">{data.title || 'Your homepage title'}</div>
-                        <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{data.description || 'Add a description to control how the homepage appears in search results.'}</div>
+                        <div className="mt-0.5 truncate text-base text-blue-700 dark:text-blue-400">{shown('title') || 'Your homepage title'}</div>
+                        <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{shown('description') || 'Add a description to control how the homepage appears in search results.'}</div>
                     </div>
 
                     <div className="grid gap-4">
                         <div className="grid gap-1.5">
                             <div className="flex items-center justify-between"><Label>Title</Label><Count value={data.title} max={60} /></div>
-                            <input className={field} value={data.title} onChange={(e) => setData('title', e.target.value)} placeholder="DropRSVP — Discover events near you" />
+                            <input className={field} value={data.title} onChange={(e) => setData('title', e.target.value)} placeholder={inherited?.title || 'DropRSVP — Discover events near you'} />
                         </div>
                         <div className="grid gap-1.5">
                             <div className="flex items-center justify-between"><Label>Description</Label><Count value={data.description} max={155} /></div>
-                            <textarea rows={3} className={area} value={data.description} onChange={(e) => setData('description', e.target.value)} placeholder="Find events happening near you and get tickets…" />
+                            <textarea rows={3} className={area} value={data.description} onChange={(e) => setData('description', e.target.value)} placeholder={inherited?.description || 'Find events happening near you and get tickets…'} />
                         </div>
                         <div className="grid gap-1.5">
                             <Label>Keywords</Label>
-                            <TagInput value={data.keywords} onChange={(v) => setData('keywords', v)} placeholder="Type a keyword, press Enter…" />
+                            <TagInput value={data.keywords} onChange={(v) => setData('keywords', v)} placeholder={inherited?.keywords ? `Default: ${inherited.keywords}` : 'Type a keyword, press Enter…'} />
                             <p className="text-xs text-muted-foreground">Type each keyword and press Enter. Rendered as the <code>meta keywords</code> tag. Leave blank to use the default.</p>
                         </div>
                     </div>
@@ -110,11 +123,11 @@ export default function HomeSeoSettings({ seo, defaultImage, page }: { seo: Home
                                 </div>
                                 <div className="border-t border-border px-3 py-2.5">
                                     <div className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{(baseUrl || 'https://example.com').replace(/^https?:\/\//, '')}</div>
-                                    <div className="mt-0.5 truncate text-sm font-semibold">{data.title || 'Your homepage title'}</div>
-                                    <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{data.description || 'Add a description above.'}</div>
+                                    <div className="mt-0.5 truncate text-sm font-semibold">{shown('title') || 'Your homepage title'}</div>
+                                    <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{shown('description') || 'Add a description above.'}</div>
                                 </div>
                             </div>
-                            {!data.image && <p className="mt-2 text-xs text-muted-foreground">Currently using the site default image.</p>}
+                            {!data.image && <p className="mt-2 text-xs text-muted-foreground">{inherited?.image ? 'Using the default tab’s image.' : 'Currently using the site default image.'}</p>}
                         </div>
 
                         <div className="grid content-start gap-3">

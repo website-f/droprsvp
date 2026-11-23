@@ -16,10 +16,12 @@ use App\Support\AnalyticsWindow;
 use App\Support\AnswerInsights;
 use App\Support\CheckoutFunnel;
 use App\Support\PlatformInsights;
+use App\Support\Regions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnalyticsController extends Controller
@@ -31,7 +33,11 @@ class AnalyticsController extends Controller
     public function index(Request $request)
     {
         $w = AnalyticsWindow::fromRequest($request);
-        $paid = Order::where('status', 'paid');
+        // One country's events only ('' = everywhere). Orders, tickets and
+        // views follow their event's region.
+        $region = $this->regionFilter($request);
+        $inRegion = fn ($q) => $region === '' ? $q : $q->whereIn('event_id', DB::table('events')->where('region', $region)->select('id'));
+        $paid = $inRegion(Order::where('status', 'paid'));
         // Sales-derived views (charts, demographics, top events) respect the window;
         // the headline KPI cards stay as platform-wide totals.
         $paidInWindow = (clone $paid)->whereNotNull('paid_at')->whereBetween('paid_at', [$w['from'], $w['to']]);
@@ -40,7 +46,7 @@ class AnalyticsController extends Controller
         $cities = Analytics::cityOptions((clone $paid));
         $city = in_array($request->query('city'), $cities, true) ? $request->query('city') : '';
         $source = array_key_exists($request->query('source'), Analytics::SOURCE_LABELS) ? $request->query('source') : '';
-        $audience = fn ($q) => Analytics::applyAudience($q, $city ?: null, $source ?: null);
+        $audience = fn ($q) => Analytics::applyAudience($inRegion($q), $city ?: null, $source ?: null);
         $paidInWindow = $audience($paidInWindow);
 
         $topEvents = (clone $paidInWindow)
@@ -50,25 +56,25 @@ class AnalyticsController extends Controller
             ->map(fn ($r) => ['name' => $r->event?->title ?? '—', 'value' => round((float) $r->revenue, 2)])
             ->all();
 
-        $impressionsInWindow = (int) EventDailyStat::whereBetween('stat_date', [$w['from_date'], $w['to_date']])->sum('impressions');
+        $impressionsInWindow = (int) $inRegion(EventDailyStat::whereBetween('stat_date', [$w['from_date'], $w['to_date']]))->sum('impressions');
 
         return inertia('admin/analytics', [
             // Where buyers drop out, and how many could be followed up.
-            'funnel' => CheckoutFunnel::summary($w, null, $impressionsInWindow),
+            'funnel' => CheckoutFunnel::summary($w, null, $impressionsInWindow, $region ?: null),
             'people' => PlatformInsights::users($w),
             'topCustomers' => PlatformInsights::topCustomers($w, $audience),
-            'topOrganizers' => PlatformInsights::topOrganizers($w),
+            'topOrganizers' => PlatformInsights::topOrganizers($w, region: $region ?: null),
             // Sales in the books vs sales GA has been sent, by which path.
             'gaTally' => GoogleAnalytics::tally($w),
             'kpis' => [
-                'events' => Event::count(),
-                'published' => Event::where('status', 'published')->count(),
+                'events' => Event::when($region !== '', fn ($q) => $q->where('region', $region))->count(),
+                'published' => Event::where('status', 'published')->when($region !== '', fn ($q) => $q->where('region', $region))->count(),
                 'users' => User::count(),
-                'tickets' => Ticket::whereIn('status', ['valid', 'checked_in'])->count(),
+                'tickets' => $inRegion(Ticket::whereIn('status', ['valid', 'checked_in']))->count(),
                 'revenue' => (float) (clone $paid)->sum(\DB::raw('total - refunded_amount')),
-                'impressions' => (int) EventDailyStat::sum('impressions'),
+                'impressions' => (int) $inRegion(EventDailyStat::query())->sum('impressions'),
             ],
-            'reach' => Analytics::reach(EventDailyStat::query(), $w),
+            'reach' => Analytics::reach($inRegion(EventDailyStat::query()), $w),
             'revenue' => Analytics::revenue($audience(Order::query()), $w),
             'topEvents' => $topEvents,
             'demographics' => [
@@ -88,6 +94,7 @@ class AnalyticsController extends Controller
                 'category' => $this->categoryFilter($request),
                 'city' => $city,
                 'source' => $source,
+                'region' => $region,
                 'period' => $w['period'],
                 'from' => $w['from_date'],
                 'to' => $w['to_date'],
@@ -98,8 +105,19 @@ class AnalyticsController extends Controller
                 ->map(fn ($c) => ['value' => (string) $c->id, 'label' => $c->name])->all(),
             'cityOptions' => $cities,
             'sourceOptions' => Analytics::sourceOptions(),
+            'regionOptions' => count(Regions::enabled()) > 1
+                ? array_map(fn ($r) => ['value' => $r['code'], 'label' => $r['flag'].' '.$r['name']], Regions::enabled())
+                : [],
             'exportUrl' => route('admin.analytics.export', $request->query()),
         ]);
+    }
+
+    /** Sanitised region filter ('' = every region). */
+    private function regionFilter(Request $request): string
+    {
+        $r = (string) $request->query('region', '');
+
+        return in_array($r, Regions::codes(), true) ? $r : '';
     }
 
     /**
@@ -260,7 +278,10 @@ class AnalyticsController extends Controller
             default => 'created_at',
         };
 
+        $region = $this->regionFilter($request);
+
         return Event::query()
+            ->when($region !== '', fn ($b) => $b->where('region', $region))
             ->when($q !== '', fn ($b) => $b->where('title', 'like', "%{$q}%"))
             ->when($status !== '', fn ($b) => $b->where('status', $status))
             ->when($category !== '', fn ($b) => $b->where('category_id', $category))

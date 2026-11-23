@@ -4,8 +4,9 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
-interface PageRow { id: number; title: string; slug: string; status: string; updated_at: string }
+interface PageRow { id: number; title: string; slug: string; status: string; updated_at: string; regions?: string | null; versions?: string[] }
 
 export default function PagesIndex({ pages }: { pages: PageRow[] }) {
     const confirm = useConfirm();
@@ -45,12 +46,18 @@ export default function PagesIndex({ pages }: { pages: PageRow[] }) {
                                         <td className="px-4 py-3">
                                             <div className="font-medium">{p.title}</div>
                                             <div className="text-xs text-muted-foreground">/{p.slug}</div>
+                                            {(p.regions || (p.versions?.length ?? 0) > 0) && (
+                                                <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
+                                                    {p.regions && <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">Only {p.regions}</span>}
+                                                    {p.versions?.map((v) => <span key={v} className="rounded-full border border-border px-2 py-0.5">{v} version</span>)}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3"><Badge variant={p.status === 'published' ? 'default' : 'secondary'} className="capitalize">{p.status}</Badge></td>
                                         <td className="px-4 py-3 text-muted-foreground">{p.updated_at}</td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-2">
-                                                {p.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/${p.slug}`} target="_blank" rel="noreferrer"><ExternalLink className="size-3.5" /></a></Button>}
+                                                {p.status === 'published' && <Button asChild variant="ghost" size="sm"><a href={`/${region()}/${p.slug}/`} target="_blank" rel="noreferrer"><ExternalLink className="size-3.5" /></a></Button>}
                                                 <Button asChild variant="outline" size="sm"><Link href={`/admin/cms/pages/${p.id}/edit`}><Pencil className="size-3.5" /> Edit</Link></Button>
                                                 <Button variant="ghost" size="sm" onClick={() => remove(p)}><Trash2 className="size-3.5" /></Button>
                                             </div>

@@ -8,10 +8,13 @@ use App\Mail\OrganizerApplicationReceivedMail;
 use App\Models\Setting;
 use App\Support\Dates;
 use App\Support\PlatformAlert;
+use App\Support\RegionCatalog;
+use App\Support\Regions;
 use App\Support\SocialLinks;
 use App\Support\WebsiteUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -43,6 +46,9 @@ class OrganizerApplicationController extends Controller
                 'email' => $profile?->email ?: $user->email,
                 'links' => $this->linksFor($profile),
                 'phone' => $profile?->phone,
+                // Where they run events, for the admin's country filter.
+                // Guessed from the visitor's region until they say.
+                'country' => $profile?->country ?: Regions::preferredCountry($request),
                 'bio' => $profile?->bio,
                 'poster' => $profile?->poster,
                 'gallery' => $profile?->gallery ?? [],
@@ -51,6 +57,7 @@ class OrganizerApplicationController extends Controller
                 // A pending-but-still-editable application is being resubmitted/edited.
                 'editing' => (bool) ($profile && $profile->status === 'pending'),
             ],
+            'countries' => Regions::countryOptions(),
             'platforms' => collect(SocialLinks::PLATFORMS)
                 ->map(fn ($p, $value) => ['value' => $value, 'label' => $p[0], 'hosts' => $p[1]])
                 ->values(),
@@ -163,6 +170,7 @@ class OrganizerApplicationController extends Controller
             // personal inbox.
             'email' => ['required', 'email', 'max:180'],
             'phone' => ['required', 'string', 'max:40'],
+            'country' => ['nullable', 'string', Rule::in(array_keys(RegionCatalog::COUNTRIES))],
             'website' => ['nullable', 'url', 'max:2048'],
             'links' => ['nullable', 'array', 'max:12'],
             'bio' => ['nullable', 'string', 'max:2000'],
@@ -186,6 +194,7 @@ class OrganizerApplicationController extends Controller
         }
 
         unset($data['links']);
+        $data['country'] = ($data['country'] ?? null) ?: ($request->user()->organizerProfile?->country ?: Regions::preferredCountry($request));
 
         if ($links !== null) {
             $data['website'] = $links['website'];

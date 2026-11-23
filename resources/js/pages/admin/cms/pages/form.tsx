@@ -1,7 +1,9 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import type {Data} from '@measured/puck';
 import { Code2, ExternalLink, LayoutTemplate, Loader2, Upload } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { RegionPicker, RegionVersionTabs } from '@/components/admin/region-versions';
+import type { RegionOption, VersionTab } from '@/components/admin/region-versions';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import type {PostCard} from '@/components/cms/puck-config';
 import { detectLayout, resolveLayout } from '@/components/html-content';
@@ -19,7 +21,10 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 // Heavy (pulls the Puck runtime) — only loaded when a built page is previewed.
 const PagePreview = lazy(() => import('@/components/cms/page-preview'));
 
-interface PageProp { id: number; title: string; slug: string; puck: Data | null; editor?: string; html?: string | null; html_layout?: HtmlLayout | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[] }
+interface PageProp {
+    parent_id?: number | null; address?: string | null; regions?: string[]; versions?: VersionTab[];
+    id: number; title: string; slug: string; puck: Data | null; editor?: string; html?: string | null; html_layout?: HtmlLayout | null; status: string; in_menu: boolean; builder_edited_at: string | null; seo: SeoData; posts?: PostCard[];
+}
 
 type Editor = 'builder' | 'html';
 
@@ -37,7 +42,7 @@ const EDITORS: { value: Editor; label: string; icon: typeof Code2 }[] = [
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, meta_keywords: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
 
-export default function PageForm({ page }: { page: PageProp | null }) {
+export default function PageForm({ page, regionOptions = [] }: { page: PageProp | null; regionOptions?: RegionOption[] }) {
     const isEdit = !!page;
     const [baseUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
 
@@ -53,8 +58,14 @@ export default function PageForm({ page }: { page: PageProp | null }) {
         html: page?.html ?? '',
         // '' = decide from the HTML; see components/html-content.
         html_layout: (page?.html_layout ?? '') as HtmlLayout | '',
+        // Main page: the regions it shows in (empty = all). Region version:
+        // the regions it is for.
+        regions: page?.regions ?? [],
     });
     const { data, setData, processing, errors } = form;
+    const isVersion = !!page?.parent_id;
+    const address = page?.address ?? data.slug;
+    const liveRegion = data.regions[0] ?? regionOptions.find((r) => r.default)?.code ?? 'en-my';
     // The HTML editor, so "Insert image" can put the tag where the cursor is.
     const htmlRef = useRef<HTMLTextAreaElement>(null);
     // How the pasted HTML will actually be shown: the choice, or what Auto detects.
@@ -142,8 +153,8 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                                     description="Adds this page to the site navigation when you publish."
                                 />
                             </div>
-                            {isEdit && published && data.slug && (
-                                <a href={`${baseUrl}/${data.slug}`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
+                            {isEdit && published && address && (
+                                <a href={`${baseUrl}/${liveRegion}/${address}/`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
                                     <ExternalLink className="size-3.5" /> View live page
                                 </a>
                             )}
@@ -152,16 +163,52 @@ export default function PageForm({ page }: { page: PageProp | null }) {
                         <SeoFields
                             seo={data.seo}
                             onChange={(patch) => setData('seo', { ...data.seo, ...patch })}
-                            slug={data.slug}
-                            onSlug={(v) => setData('slug', v)}
+                            slug={isVersion ? address ?? '' : data.slug}
+                            onSlug={(v) => !isVersion && setData('slug', v)}
                             fallbackTitle={data.title}
                             baseUrl={baseUrl}
                         />
                         {errors.slug && <p className="text-xs text-destructive">{errors.slug}</p>}
+
+                        {regionOptions.length > 1 && (
+                            <SettingsCard title={isVersion ? 'This version is for' : 'Shown in'}>
+                                <p className="text-sm text-muted-foreground">
+                                    {isVersion
+                                        ? 'Visitors in these regions see this version. Everyone else sees the main one.'
+                                        : 'Where this page appears. Regions with their own version see that instead.'}
+                                </p>
+                                <RegionPicker
+                                    options={regionOptions}
+                                    value={data.regions}
+                                    onChange={(v) => setData('regions', v)}
+                                    allowAll={!isVersion}
+                                    taken={(page?.versions ?? []).filter((t) => !t.main && !t.active).flatMap((t) => t.regions)}
+                                />
+                                {(errors as Record<string, string | undefined>).regions && <p className="text-xs text-destructive">{(errors as Record<string, string | undefined>).regions}</p>}
+                                {isVersion && page && (
+                                    <Button type="button" variant="ghost" size="sm" className="justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                        onClick={() => {
+                                            if (window.confirm('Delete this region version? Its regions will see the main page again.')) {
+                                                router.delete(`/admin/cms/pages/${page.id}`);
+                                            }
+                                        }}>
+                                        Delete this version
+                                    </Button>
+                                )}
+                            </SettingsCard>
+                        )}
                     </>
                 }
             >
                 <div className="grid gap-4">
+                    {isEdit && page?.versions && (
+                        <RegionVersionTabs
+                            tabs={page.versions}
+                            options={regionOptions}
+                            editHref={(id) => `/admin/cms/pages/${id}/edit`}
+                            addUrl={`/admin/cms/pages/${page.versions.find((t) => t.main)?.id ?? page.id}/versions`}
+                        />
+                    )}
                     <div>
                         <input
                             aria-label="Page title"

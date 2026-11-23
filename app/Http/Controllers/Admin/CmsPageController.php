@@ -9,6 +9,7 @@ use App\Support\Dates;
 use App\Support\HtmlSanitizer;
 use App\Support\PageHtml;
 use App\Support\PostCards;
+use App\Support\RegionVersions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -21,16 +22,19 @@ class CmsPageController extends Controller
     public function index()
     {
         return inertia('admin/cms/pages/index', [
-            'pages' => CmsPage::whereNotIn('slug', self::SYSTEM_SLUGS)->latest()->get()->map(fn ($p) => [
+            // Main pages only; their region versions are tabs inside each.
+            'pages' => CmsPage::main()->whereNotIn('slug', self::SYSTEM_SLUGS)->with('versions:id,parent_id,regions')->latest()->get()->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
                 'updated_at' => Dates::display($p->updated_at, 'j M Y'),
+                'regions' => $p->regions ? RegionVersions::names($p->regions) : null,
+                'versions' => $p->versions->map(fn ($v) => RegionVersions::names((array) $v->regions))->values(),
             ]),
         ]);
     }
 
     public function create()
     {
-        return inertia('admin/cms/pages/form', ['page' => null]);
+        return inertia('admin/cms/pages/form', ['page' => null, 'regionOptions' => RegionVersions::options()]);
     }
 
     public function store(Request $request)
@@ -38,6 +42,7 @@ class CmsPageController extends Controller
         $data = $this->validated($request, null);
 
         $page = new CmsPage($this->pageAttributes($data));
+        $page->regions = $data['regions'] ?? null;
         $page->author_id = $request->user()->id;
         $page->html_trusted = $this->trusts($request);
         $page->slug = $this->uniqueSlug(($data['slug'] ?? '') ?: $data['title'], null);
@@ -55,13 +60,45 @@ class CmsPageController extends Controller
 
     public function edit(CmsPage $page)
     {
-        if (in_array($page->slug, self::SYSTEM_SLUGS, true)) {
+        if (in_array($page->addressSlug(), self::SYSTEM_SLUGS, true)) {
             return redirect()->route('admin.site.legal');
         }
 
         $page->load('seo');
 
-        return inertia('admin/cms/pages/form', ['page' => $this->formPayload($page)]);
+        return inertia('admin/cms/pages/form', ['page' => $this->formPayload($page), 'regionOptions' => RegionVersions::options()]);
+    }
+
+    /**
+     * Start a region version of a page — the tab for, say, Singapore: a copy
+     * of the page (content and SEO) for the regions picked, to change from
+     * there. A draft until it is published, so nothing changes for visitors
+     * while it is being written.
+     */
+    public function addVersion(Request $request, CmsPage $page)
+    {
+        abort_if($page->parent_id !== null, 404);
+        $data = $request->validate(RegionVersions::rules(required: true) + ['from' => ['nullable', 'integer']]);
+        RegionVersions::assertFree($page, $data['regions']);
+
+        // A copy of the main page, or of another version when asked.
+        $source = ! empty($data['from']) ? ($page->versions()->find($data['from']) ?? $page) : $page;
+        $source->loadMissing('seo');
+
+        $version = $source->replicate(['slug', 'regions', 'parent_id', 'status', 'published_at']);
+        $version->parent_id = $page->id;
+        $version->regions = $data['regions'];
+        $version->slug = null;
+        $version->status = 'draft';
+        $version->author_id = $request->user()->id;
+        $version->save();
+
+        if ($source->seo) {
+            $version->seo()->create($source->seo->only($source->seo->getFillable()));
+        }
+
+        return redirect()->route('admin.cms.pages.edit', $version->id)
+            ->with('success', 'Version for '.RegionVersions::names($data['regions']).' created as a draft — edit it, then publish.');
     }
 
     public function update(Request $request, CmsPage $page)
@@ -72,21 +109,49 @@ class CmsPageController extends Controller
         $page->fill($this->pageAttributes($data));
         $page->html_trusted = $this->trusts($request);
 
+        // Which regions see this page (a main page: empty = all), or which a
+        // region version is for (at least one, and none another version has).
+        if ($page->parent_id) {
+            $regions = $request->validate(RegionVersions::rules(required: true))['regions'];
+            RegionVersions::assertFree($page->parent, $regions, $page->id);
+            $page->regions = $regions;
+        } else {
+            $page->regions = $data['regions'] ?? null;
+        }
+
         // Back to the builder: body is the builder's text snapshot again, not
         // the pasted page's (which stays in `html` in case they switch back).
         if ($wasHtml && ! $page->usesHtml()) {
             $page->body = $this->plainTextFromPuck($page->puck_data ?? []);
         }
-        $page->slug = $this->uniqueSlug(($data['slug'] ?? '') ?: $data['title'], $page->id);
+        // A region version has no address of its own: it shares its page's.
+        if (! $page->parent_id) {
+            $page->slug = $this->uniqueSlug(($data['slug'] ?? '') ?: $data['title'], $page->id);
+        }
         $page->save();
         $page->seo()->updateOrCreate([], $this->seoAttributes($data));
-        $this->syncMenu($data, $page);
 
-        return redirect()->route('admin.cms.pages.index')->with('success', 'Page updated.');
+        if (! $page->parent_id) {
+            $this->syncMenu($data, $page);
+        }
+
+        return $page->parent_id
+            ? redirect()->route('admin.cms.pages.edit', $page->id)->with('success', 'Version for '.RegionVersions::names((array) $page->regions).' saved.')
+            : redirect()->route('admin.cms.pages.index')->with('success', 'Page updated.');
     }
 
     public function destroy(CmsPage $page)
     {
+        // Deleting a region version leaves the page itself; that region gets
+        // the main version again.
+        if ($page->parent_id) {
+            $main = $page->parent_id;
+            $page->seo()->delete();
+            $page->forceDelete();
+
+            return redirect()->route('admin.cms.pages.edit', $main)->with('success', 'Version deleted — those regions show the main page again.');
+        }
+
         $page->delete();
 
         return redirect()->route('admin.cms.pages.index')->with('success', 'Page deleted.');
@@ -95,7 +160,7 @@ class CmsPageController extends Controller
     /** Full-screen Puck "Drop Builder". */
     public function builder(CmsPage $page)
     {
-        if (in_array($page->slug, self::SYSTEM_SLUGS, true)) {
+        if (in_array($page->addressSlug(), self::SYSTEM_SLUGS, true)) {
             return redirect()->route('admin.site.legal');
         }
 
@@ -103,7 +168,7 @@ class CmsPageController extends Controller
             'page' => [
                 'id' => $page->id,
                 'title' => $page->title,
-                'slug' => $page->slug,
+                'slug' => $page->addressSlug(),
                 'status' => $page->status,
                 'data' => $page->puck_data,
                 'posts' => PostCards::recent(),
@@ -172,6 +237,7 @@ class CmsPageController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:180'],
             'slug' => ['nullable', 'string', 'max:180', Rule::unique('cms_pages', 'slug')->ignore($ignoreId)],
+            ...RegionVersions::rules(),
             // Builder content is owned by the Puck builder (saveBuilder) and this
             // form never touches puck_data. HTML mode is edited right here: a
             // whole document pasted in, styles and all.
@@ -371,7 +437,12 @@ class CmsPageController extends Controller
             'layout' => $page->layout,
             'status' => $page->status,
             'builder_edited_at' => optional($page->builder_edited_at)->diffForHumans(),
-            'in_menu' => MenuItem::where('location', 'header')->where('url', '/'.$page->slug)->exists(),
+            'in_menu' => MenuItem::where('location', 'header')->where('url', '/'.$page->addressSlug())->exists(),
+            // Region versions: which this is, and the tabs for all of them.
+            'parent_id' => $page->parent_id,
+            'address' => $page->addressSlug(),
+            'regions' => array_values((array) $page->regions),
+            'versions' => RegionVersions::tabs($page),
             'seo' => [
                 'seo_title' => $page->seo?->seo_title,
                 'meta_description' => $page->seo?->meta_description,

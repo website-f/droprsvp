@@ -7,6 +7,7 @@ use App\Models\CmsCategory;
 use App\Models\CmsPost;
 use App\Support\Dates;
 use App\Support\HtmlSanitizer;
+use App\Support\RegionVersions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -21,13 +22,17 @@ class CmsPostController extends Controller
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
                 'category' => $p->category?->name, 'updated_at' => Dates::display($p->updated_at, 'j M Y'),
                 'published_at' => Dates::display($p->published_at, 'j M Y, g:i A'),
+                // null = every region.
+                'regions' => $p->regions ? array_values($p->regions) : null,
+                'region_names' => $p->regions ? RegionVersions::names($p->regions) : null,
             ]),
+            'regionOptions' => RegionVersions::options(),
         ]);
     }
 
     public function create()
     {
-        return inertia('admin/cms/posts/form', ['post' => null, 'categories' => $this->categories()]);
+        return inertia('admin/cms/posts/form', ['post' => null, 'categories' => $this->categories(), 'regionOptions' => RegionVersions::options()]);
     }
 
     public function store(Request $request)
@@ -48,7 +53,7 @@ class CmsPostController extends Controller
     {
         $post->load(['seo', 'category']);
 
-        return inertia('admin/cms/posts/form', ['post' => $this->formPayload($post), 'categories' => $this->categories()]);
+        return inertia('admin/cms/posts/form', ['post' => $this->formPayload($post), 'categories' => $this->categories(), 'regionOptions' => RegionVersions::options()]);
     }
 
     public function update(Request $request, CmsPost $post)
@@ -97,6 +102,8 @@ class CmsPostController extends Controller
             'seo.og_title' => ['nullable', 'string', 'max:120'],
             'seo.og_description' => ['nullable', 'string', 'max:320'],
             'seo.og_image' => ['nullable', 'string', 'max:2048'],
+            // The countries the post is for; none = all of them.
+            ...RegionVersions::rules(),
         ]);
     }
 
@@ -115,6 +122,7 @@ class CmsPostController extends Controller
             'cover_image' => $data['cover_image'] ?? null,
             'status' => $status,
             'published_at' => $publishedAt,
+            'regions' => $data['regions'] ?? null,
         ];
     }
 
@@ -203,6 +211,7 @@ class CmsPostController extends Controller
             'status' => $post->status,
             // "YYYY-MM-DDTHH:mm" — the DateTimePicker's value format.
             'published_at' => $post->published_at?->format('Y-m-d\TH:i'),
+            'regions' => array_values((array) $post->regions),
             'seo' => [
                 'seo_title' => $post->seo?->seo_title,
                 'meta_description' => $post->seo?->meta_description,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\HelpArticle;
+use App\Support\Regions;
 use App\Support\SeoManager;
 use App\Support\Url;
 use Illuminate\Http\Request;
@@ -18,13 +19,12 @@ class HelpController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
 
-        $articles = HelpArticle::published()
-            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
-                ->where('title', 'like', "%{$q}%")
-                ->orWhere('excerpt', 'like', "%{$q}%")
-                ->orWhere('body', 'like', "%{$q}%")))
-            ->orderBy('category')->orderBy('sort')->orderBy('title')
-            ->get(['category', 'title', 'slug', 'excerpt']);
+        // What this region sees — each article's version for it — then searched.
+        $needle = mb_strtolower($q);
+        $articles = $this->shown()
+            ->filter(fn (HelpArticle $a) => $q === '' || str_contains(mb_strtolower($a->title.' '.$a->excerpt.' '.strip_tags((string) $a->body)), $needle))
+            ->sortBy([['category', 'asc'], ['sort', 'asc'], ['title', 'asc']])
+            ->values();
 
         $categories = $articles->groupBy('category')->map(fn ($items, $name) => [
             'name' => $name,
@@ -50,13 +50,42 @@ class HelpController extends Controller
         ]);
     }
 
-    /** A single help article. */
+    /**
+     * The help articles a visitor in this region gets: for each main article,
+     * the version written for their region, else the article itself (unless
+     * it is only for other regions). `slug` is always the main one's — the
+     * address is shared.
+     */
+    private function shown()
+    {
+        $region = Regions::current()['code'];
+
+        return HelpArticle::published()->main()
+            ->with(['versions' => fn ($q) => $q->published()])
+            ->get()
+            ->map(function (HelpArticle $main) use ($region) {
+                $shown = $main->versions->first(fn (HelpArticle $v) => in_array($region, (array) $v->regions, true))
+                    ?? ($main->isShownIn($region) ? $main : null);
+
+                return $shown?->setAttribute('slug', $main->slug);
+            })
+            ->filter()
+            ->values();
+    }
+
+    /** A single help article — the version of it for the region being browsed. */
     public function show(HelpArticle $article)
     {
-        abort_unless($article->status === 'published', 404);
+        $main = $article;
+        abort_unless($main->status === 'published' && $main->parent_id === null, 404);
+        $article = $main->versionFor();
+        abort_unless($article, 404);
 
         $description = $article->excerpt ?: Str::limit(trim(strip_tags((string) $article->body)), 155);
-        $canonical = Url::global('help', $article->slug);
+        // Shared by every region: one canonical in the default region. A
+        // regional version, or an article for some regions only: here.
+        $regional = $article->isNot($main) || ! empty($main->regions);
+        $canonical = $regional ? Url::to('help', $main->slug) : Url::global('help', $main->slug);
 
         app(SeoManager::class)
             ->title($article->title)
@@ -84,12 +113,11 @@ class HelpController extends Controller
                 'category' => $article->category,
                 'body' => $article->body,
             ],
-            'related' => HelpArticle::published()
-                ->where('category', $article->category)
-                ->where('id', '!=', $article->id)
-                ->orderBy('sort')->limit(5)
-                ->get(['title', 'slug'])
-                ->map(fn ($a) => ['title' => $a->title, 'slug' => $a->slug]),
+            'related' => $this->shown()
+                ->filter(fn (HelpArticle $a) => $a->category === $article->category && $a->slug !== $main->slug)
+                ->sortBy('sort')->take(5)
+                ->map(fn ($a) => ['title' => $a->title, 'slug' => $a->slug])
+                ->values(),
         ]);
     }
 

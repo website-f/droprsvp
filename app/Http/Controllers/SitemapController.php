@@ -9,7 +9,9 @@ use App\Models\EventCategory;
 use App\Models\HelpArticle;
 use App\Models\User;
 use App\Support\Cities;
+use App\Support\Regions;
 use App\Support\Url;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
@@ -106,19 +108,56 @@ class SitemapController extends Controller
         };
     }
 
-    /** The fixed landing pages, plus anything built in the page builder. */
+    /**
+     * The fixed landing pages in every region (each country has its own home,
+     * events, blog and help pages), plus the page-builder pages at each
+     * address they are served from.
+     */
     private function pages(): array
     {
-        $urls = [
-            $this->url(Url::to()),
-            $this->url(Url::to(Cities::ANY)),
-            $this->url(Url::to('blog')),
-            $this->url(Url::to('help')),
-            $this->url(Url::to('contact')),
-        ];
+        $urls = [];
+        foreach (Regions::codes() as $region) {
+            $urls[] = $this->url(Url::in($region));
+            $urls[] = $this->url(Url::in($region, Cities::ANY));
+            $urls[] = $this->url(Url::in($region, 'blog'));
+            $urls[] = $this->url(Url::in($region, 'help'));
+        }
+        $urls[] = $this->url(Url::global('contact'));
 
-        foreach (CmsPage::published()->get(['slug', 'updated_at']) as $p) {
-            $urls[] = $this->url(Url::to($p->slug), $p->updated_at);
+        $pages = CmsPage::published()->main()->with(['versions' => fn ($q) => $q->published()])->get(['id', 'slug', 'regions', 'updated_at']);
+        foreach ($pages as $p) {
+            $urls = [...$urls, ...$this->regional($p, $p->slug, fn (array $segments) => $segments)];
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Where a region-aware record (page, help article) is served from: once at
+     * the global address when it shows everywhere, else at each region it is
+     * for — plus each region a version of it covers.
+     *
+     * @param  callable(list<string>): list<string>  $path  segments for the address
+     */
+    private function regional(Model $main, string $slug, callable $path): array
+    {
+        $urls = [];
+        $enabled = Regions::codes();
+        $covered = [];
+
+        foreach ($main->versions as $version) {
+            foreach (array_intersect((array) $version->regions, $enabled) as $region) {
+                $covered[] = $region;
+                $urls[] = $this->url(Url::in($region, ...$path([$slug])), $version->updated_at);
+            }
+        }
+
+        if (empty($main->regions)) {
+            $urls[] = $this->url(Url::global(...$path([$slug])), $main->updated_at);
+        } else {
+            foreach (array_diff(array_intersect($main->regions, $enabled), $covered) as $region) {
+                $urls[] = $this->url(Url::in($region, ...$path([$slug])), $main->updated_at);
+            }
         }
 
         return $urls;
@@ -148,23 +187,36 @@ class SitemapController extends Controller
             ->whereHas('events', fn ($q) => $q->published())
             ->orderByDesc('updated_at')
             ->get(['slug', 'updated_at'])
-            ->map(fn ($o) => $this->url(Url::to('o', $o->slug), $o->updated_at))
+            ->map(fn ($o) => $this->url(Url::global('o', $o->slug), $o->updated_at))
             ->all();
     }
 
     private function posts(): array
     {
+        // A post for every region once, at the global address; a post for
+        // some countries at each of theirs.
+        $enabled = Regions::codes();
+
         return CmsPost::published()
             ->orderByDesc('updated_at')
-            ->get(['slug', 'cover_image', 'updated_at'])
-            ->map(fn ($p) => $this->url(Url::to('blog', $p->slug), $p->updated_at, $p->cover_image))
+            ->get(['slug', 'regions', 'cover_image', 'updated_at'])
+            ->flatMap(fn ($p) => empty($p->regions)
+                ? [$this->url(Url::global('blog', $p->slug), $p->updated_at, $p->cover_image)]
+                : array_map(fn ($r) => $this->url(Url::in($r, 'blog', $p->slug), $p->updated_at, $p->cover_image), array_values(array_intersect($p->regions, $enabled))))
             ->all();
     }
 
     private function categories(): array
     {
-        return EventCategory::orderBy('name')->get(['slug', 'updated_at'])
-            ->map(fn ($c) => $this->url(Url::to(Cities::ANY, $c->slug), $c->updated_at))
+        // Each category in the regions that have published events in it.
+        $categories = EventCategory::orderBy('name')->get(['id', 'slug', 'updated_at'])->keyBy('id');
+        $enabled = Regions::codes();
+
+        return Event::published()->whereNotNull('category_id')->select(['region', 'category_id'])->distinct()->get()
+            ->filter(fn ($e) => isset($categories[$e->category_id]) && in_array($e->region ?: Url::LOCALE, $enabled, true))
+            ->sortBy(fn ($e) => ($e->region ?: Url::LOCALE).' '.$categories[$e->category_id]->slug)
+            ->map(fn ($e) => $this->url(Url::in($e->region ?: Url::LOCALE, Cities::ANY, $categories[$e->category_id]->slug), $categories[$e->category_id]->updated_at))
+            ->values()
             ->all();
     }
 
@@ -179,11 +231,16 @@ class SitemapController extends Controller
 
     private function help(): array
     {
-        return HelpArticle::where('status', 'published')
+        $urls = [];
+        $articles = HelpArticle::where('status', 'published')->main()
+            ->with(['versions' => fn ($q) => $q->where('status', 'published')])
             ->orderByDesc('updated_at')
-            ->get(['slug', 'updated_at'])
-            ->map(fn ($a) => $this->url(Url::to('help', $a->slug), $a->updated_at))
-            ->all();
+            ->get(['id', 'slug', 'regions', 'updated_at']);
+        foreach ($articles as $a) {
+            $urls = [...$urls, ...$this->regional($a, $a->slug, fn (array $segments) => ['help', ...$segments])];
+        }
+
+        return $urls;
     }
 
     /** @return array{loc:string,lastmod:?string,image:?string} */

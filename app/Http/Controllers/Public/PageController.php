@@ -22,7 +22,7 @@ class PageController extends Controller
     public function legacyRedirect(Request $request)
     {
         $slug = trim($request->path(), '/');
-        abort_unless($slug !== '' && CmsPage::published()->where('slug', $slug)->exists(), 404);
+        abort_unless($slug !== '' && CmsPage::published()->main()->where('slug', $slug)->exists(), 404);
 
         return redirect(Url::to($slug), 301);
     }
@@ -34,12 +34,20 @@ class PageController extends Controller
      */
     public function show(Request $request, string $slug)
     {
-        $page = CmsPage::published()->with('seo')->where('slug', $slug)->first();
+        // The page at this address, then the version of it for the region
+        // being browsed (the Singapore pricing page…), else the main one —
+        // unless the main one is only for other regions.
+        $main = CmsPage::published()->main()->where('slug', $slug)->first();
+        $page = $main?->versionFor();
         abort_if(! $page, 404);
 
+        $page->loadMissing('seo');
         $seo = $page->seo;
         $description = $seo?->meta_description ?: Str::limit(trim(strip_tags((string) $page->body)), 155);
-        $canonical = $seo?->canonical_url ?: Url::global($page->slug);
+        // One page for every region points search engines at the default
+        // region; a regional version is its own page in its region.
+        $regional = $page->isNot($main) || ! empty($main->regions);
+        $canonical = $seo?->canonical_url ?: ($regional ? Url::to($slug) : Url::global($slug));
 
         app(SeoManager::class)
             ->title($seo?->seo_title ?: $page->title)

@@ -98,11 +98,12 @@ class PlatformInsights
     }
 
     /** Organizers ranked by takings in the window. @return list<array<string,mixed>> */
-    public static function topOrganizers(array $w, int $limit = 10): array
+    public static function topOrganizers(array $w, int $limit = 10, ?string $region = null): array
     {
         $rows = Order::query()
             ->join('events', 'events.id', '=', 'orders.event_id')
             ->where('orders.status', 'paid')
+            ->when($region !== null, fn ($q) => $q->where('events.region', $region))
             ->whereBetween('orders.paid_at', [$w['from'], $w['to']])
             ->selectRaw('events.user_id as uid, COUNT(DISTINCT orders.event_id) as events, COUNT(*) as orders, SUM(orders.total - orders.refunded_amount) as revenue, SUM(orders.fees) as fees')
             ->groupBy('events.user_id')

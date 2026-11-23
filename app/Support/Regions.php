@@ -157,6 +157,16 @@ final class Regions
             return $r;
         }
 
+        // The visitor's country as the host's network sees it, where it says
+        // (Cloudflare, CloudFront and most CDNs add one of these).
+        foreach (['CF-IPCountry', 'CloudFront-Viewer-Country', 'X-Country-Code', 'X-Geo-Country'] as $header) {
+            $country = strtolower(trim((string) $request->header($header)));
+
+            if (strlen($country) === 2 && ($r = self::find('en-'.$country))) {
+                return $r;
+            }
+        }
+
         foreach ($request->getLanguages() as $lang) {
             $parts = preg_split('/[-_]/', $lang);
 
@@ -187,6 +197,30 @@ final class Regions
     }
 
     /** "🇸🇬" from "SG". */
+    /**
+     * Every country for a picker: the ones with a region on the site first,
+     * then the rest A–Z.
+     *
+     * @return list<array{code: string, name: string, flag: string, enabled: bool}>
+     */
+    public static function countryOptions(): array
+    {
+        $enabled = array_column(self::enabled(), 'country');
+        $all = [];
+        foreach (RegionCatalog::COUNTRIES as $code => [$name]) {
+            $all[] = ['code' => $code, 'name' => $name, 'flag' => self::flag($code), 'enabled' => in_array($code, $enabled, true)];
+        }
+        usort($all, fn ($a, $b) => [! $a['enabled'], $a['name']] <=> [! $b['enabled'], $b['name']]);
+
+        return $all;
+    }
+
+    /** The country of a code a visitor's request suggests (ISO-2, upper case). */
+    public static function preferredCountry(Request $request): string
+    {
+        return self::preferred($request)['country'];
+    }
+
     public static function flag(string $country): string
     {
         $country = strtoupper($country);

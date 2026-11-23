@@ -1,6 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import { CalendarClock, ExternalLink, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { RegionPicker } from '@/components/admin/region-versions';
+import type { RegionOption } from '@/components/admin/region-versions';
 import { EditorShell, SettingsCard } from '@/components/cms/editor-shell';
 import { RichEditor } from '@/components/rich-editor';
 import { SeoFields  } from '@/components/seo-fields';
@@ -14,7 +16,7 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { region } from '@/lib/routes';
 import { uploadImageWithToast } from '@/lib/upload';
 
-interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; published_at: string | null; seo: SeoData }
+interface PostProp { id: number; title: string; slug: string; excerpt: string | null; body: string | null; cover_image: string | null; category: string | null; status: string; published_at: string | null; seo: SeoData; regions?: string[] }
 type Status = 'draft' | 'published' | 'scheduled';
 
 const emptySeo = (): SeoData => ({ seo_title: null, meta_description: null, focus_keyphrase: null, meta_keywords: null, canonical_url: null, robots_index: true, robots_follow: true, og_title: null, og_description: null, og_image: null });
@@ -34,7 +36,7 @@ const STATUS_META: Record<Status, { label: string; tone: 'default' | 'secondary'
     draft: { label: 'Draft', tone: 'secondary' },
 };
 
-export default function PostForm({ post, categories }: { post: PostProp | null; categories: string[] }) {
+export default function PostForm({ post, categories, regionOptions = [] }: { post: PostProp | null; categories: string[]; regionOptions?: RegionOption[] }) {
     const isEdit = !!post;
     const [baseUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
 
@@ -48,6 +50,8 @@ export default function PostForm({ post, categories }: { post: PostProp | null; 
         status: (post?.status as Status) ?? 'draft',
         published_at: post?.published_at ?? '',
         seo: post?.seo ?? emptySeo(),
+        // The countries this post is for; empty = every region.
+        regions: post?.regions ?? [],
     });
     const { data, setData, processing, errors } = form;
     useUnsavedChanges(form.isDirty && !processing);
@@ -134,6 +138,14 @@ return;
                             </div>
                         </SettingsCard>
 
+                        {regionOptions.length > 1 && (
+                            <SettingsCard title="Shown in">
+                                <p className="text-sm text-muted-foreground">Which countries’ blog lists this post. Visitors elsewhere don’t see it.</p>
+                                <RegionPicker options={regionOptions} value={data.regions} onChange={(v) => setData('regions', v)} allowAll />
+                                {(errors as Record<string, string | undefined>).regions && <p className="text-xs text-destructive">{(errors as Record<string, string | undefined>).regions}</p>}
+                            </SettingsCard>
+                        )}
+
                         <SettingsCard title="Post">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="category">Category</Label>
@@ -166,7 +178,7 @@ return;
                                 <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onPickCover(e.target.files?.[0])} />
                             </div>
                             {isEdit && published && data.slug && (
-                                <a href={`${baseUrl}/${region()}/blog/${data.slug}/`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
+                                <a href={`${baseUrl}/${data.regions[0] ?? region()}/blog/${data.slug}/`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
                                     <ExternalLink className="size-3.5" /> View post
                                 </a>
                             )}

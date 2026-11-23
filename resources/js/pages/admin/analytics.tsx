@@ -16,7 +16,7 @@ interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
 interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number; abandoned: number }
 interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
-interface Filters { q: string; sort: string; dir: string; status: string; category: string; city: string; source: string; period: string; from: string; to: string; periodLabel: string }
+interface Filters { q: string; sort: string; dir: string; status: string; category: string; city: string; source: string; region?: string; period: string; from: string; to: string; periodLabel: string }
 interface People {
     kpis: { total: number; new: number; organizers: number; customers: number; customers_window: number; repeat: number; repeat_rate: number };
     signups: { date: string; signups: number }[];
@@ -42,6 +42,7 @@ interface Props {
     categoryOptions: { value: string; label: string }[];
     cityOptions: string[];
     sourceOptions: { value: string; label: string }[];
+    regionOptions?: { value: string; label: string }[];
     exportUrl: string;
 }
 
@@ -78,7 +79,7 @@ function Th({ label, k, activeSort, onSort, className = '' }: { label: string; k
     );
 }
 
-export default function AdminAnalytics({ funnel, people, topCustomers, topOrganizers, gaTally, kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, exportUrl }: Props) {
+export default function AdminAnalytics({ funnel, people, topCustomers, topOrganizers, gaTally, kpis, reach, revenue, topEvents, demographics, events, filters, statusOptions, categoryOptions, cityOptions, sourceOptions, regionOptions = [], exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
     const [metric, setMetric] = useState<ReachMetric>('both');
 
@@ -94,6 +95,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
         ...(filters.category ? { category: filters.category } : {}),
         ...(filters.city ? { city: filters.city } : {}),
         ...(filters.source ? { source: filters.source } : {}),
+        ...(filters.region ? { region: filters.region } : {}),
         ...(filters.sort !== 'created_at' ? { sort: filters.sort } : {}),
         ...(filters.dir !== 'desc' ? { dir: filters.dir } : {}),
     };
@@ -130,7 +132,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                         <p className="text-sm text-muted-foreground">Everything happening across DropRSVP.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <AudienceFilters path="/admin/analytics" city={filters.city} source={filters.source} cities={cityOptions} sources={sourceOptions} />
+                        <AudienceFilters path="/admin/analytics" city={filters.city} source={filters.source} cities={cityOptions} sources={sourceOptions} region={filters.region} regions={regionOptions} />
                         <AnalyticsToolbar path="/admin/analytics" filters={filters} extra={extra} />
                     </div>
                 </div>

@@ -3,8 +3,9 @@ import { ExternalLink, LifeBuoy, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { region } from '@/lib/routes';
 
-interface Row { id: number; slug: string; title: string; category: string; status: string; updated_at: string }
+interface Row { id: number; slug: string; title: string; category: string; status: string; updated_at: string; regions?: string | null; versions?: string[] }
 
 export default function HelpIndex({ articles }: { articles: Row[] }) {
     const confirm = useConfirm();
@@ -40,11 +41,17 @@ export default function HelpIndex({ articles }: { articles: Row[] }) {
                                     <div className="min-w-0">
                                         <p className="truncate font-medium">{a.title}</p>
                                         <p className="text-xs text-muted-foreground">{a.category} · updated {a.updated_at}</p>
+                                        {(a.regions || (a.versions?.length ?? 0) > 0) && (
+                                            <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
+                                                {a.regions && <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">Only {a.regions}</span>}
+                                                {a.versions?.map((v) => <span key={v} className="rounded-full border border-border px-2 py-0.5">{v} version</span>)}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                         <Badge variant={a.status === 'published' ? 'default' : 'secondary'}>{a.status}</Badge>
                                         {a.status === 'published' && (
-                                            <Button asChild variant="ghost" size="sm" title="View live"><a href={`/help/${a.slug}`} target="_blank" rel="noopener"><ExternalLink className="size-4" /></a></Button>
+                                            <Button asChild variant="ghost" size="sm" title="View live"><a href={`/${region()}/help/${a.slug}/`} target="_blank" rel="noopener"><ExternalLink className="size-4" /></a></Button>
                                         )}
                                         <Button asChild variant="outline" size="sm"><Link href={`/admin/cms/help/${a.id}/edit`}><Pencil className="size-4" /></Link></Button>
                                         <Button variant="ghost" size="sm" onClick={() => remove(a)}><Trash2 className="size-4 text-destructive" /></Button>

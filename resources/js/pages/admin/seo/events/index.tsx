@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCircle2, Pencil, Search } from 'lucide-react';
 import { useState } from 'react';
+import { RegionSettingTabs } from '@/components/admin/region-versions';
+import type { RegionSettingTab } from '@/components/admin/region-versions';
 import { SeoTemplateEditor   } from '@/components/seo-template-editor';
 import type {SeoTemplates, Token} from '@/components/seo-template-editor';
 import { Badge } from '@/components/ui/badge';
@@ -16,13 +18,15 @@ interface Props {
     defaults: SeoTemplates;
     tokens: Token[];
     organizerTokens: Token[];
+    region?: string | null;
+    regionTabs?: RegionSettingTab[];
 }
 
-export default function EventsSeoIndex({ events, filters, baseUrl, templates, defaults, tokens, organizerTokens }: Props) {
+export default function EventsSeoIndex({ events, filters, baseUrl, templates, defaults, tokens, organizerTokens, region = null, regionTabs = [] }: Props) {
     const [q, setQ] = useState(filters.q);
     const search = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/admin/seo/events', q ? { q } : {}, { preserveState: true, preserveScroll: true });
+        router.get('/admin/seo/events', { ...(q ? { q } : {}), ...(region ? { region } : {}) }, { preserveState: true, preserveScroll: true });
     };
 
     return (
@@ -35,7 +39,8 @@ export default function EventsSeoIndex({ events, filters, baseUrl, templates, de
                 </div>
 
                 <div className="mt-5">
-                    <SeoTemplateEditor templates={templates} defaults={defaults} tokens={tokens} organizerTokens={organizerTokens} />
+                    <RegionSettingTabs tabs={regionTabs} href={(code) => (code ? `/admin/seo/events?region=${code}` : '/admin/seo/events')} />
+                    <SeoTemplateEditor key={region ?? 'default'} templates={templates} defaults={defaults} tokens={tokens} organizerTokens={organizerTokens} region={region} />
                 </div>
 
                 <form onSubmit={search} className="my-5 flex gap-2">
