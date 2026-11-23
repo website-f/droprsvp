@@ -34,7 +34,7 @@ class EventController extends Controller
         $user = $request->user();
 
         $events = Event::whereIn('user_id', $user->manageableOwnerIds())
-            ->with('user:id,name')
+            ->with(['user:id,name', 'sessions:id,event_id,starts_at,ends_at'])
             // PAID orders only. Counting every row included abandoned carts — an
             // order is created the moment someone opens checkout — so an event
             // with one sale reported "3 orders" and the organizer could not
@@ -53,7 +53,10 @@ class EventController extends Controller
                 // The public registration link, built server-side so it carries
                 // the canonical host and trailing slash rather than whatever the
                 // browser happens to be on.
-                $e->setAttribute('public_url', Url::to('e', $e->slug));
+                $e->setAttribute('public_url', Url::in($e->region ?: Url::LOCALE, 'e', $e->slug));
+                // An event on several dates shows its next one, and the pattern.
+                $e->setAttribute('next_starts_at', $e->nextStartsAt()?->toIso8601String());
+                $e->setAttribute('repeat', $e->repeatLabel());
                 unset($e->user);
 
                 return $e;

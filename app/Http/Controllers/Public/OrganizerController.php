@@ -33,7 +33,7 @@ class OrganizerController extends Controller
         $profile = $organizer->organizerProfile;
 
         $events = $organizer->events()->published()
-            ->with(['ticketTypes:id,event_id,kind,price,is_active', 'category:id,name,slug'])
+            ->with(['ticketTypes:id,event_id,kind,price,is_active', 'category:id,name,slug', 'sessions:id,event_id,starts_at,ends_at'])
             ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
             ->withAvg('reviews as reviews_avg', 'rating')
@@ -365,13 +365,14 @@ class OrganizerController extends Controller
             'slug' => $event->slug,
             'title' => $event->title,
             'cover_image' => $event->cover_image,
-            'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->nextStartsAt()?->copy()->setTimezone($event->timezone)->format('D, j M Y'),
+            'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,
-            'is_past' => $event->starts_at !== null && $event->starts_at->isPast(),
+            'is_past' => $event->hasEnded(),
         ];
     }
 

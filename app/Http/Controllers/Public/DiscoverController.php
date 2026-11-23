@@ -57,7 +57,7 @@ class DiscoverController extends Controller
         [$from, $to] = $this->whenRange($when);
 
         $events = Event::published()->inRegion()
-            ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
+            ->with(['sessions:id,event_id,starts_at,ends_at', 'category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
             ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
             ->withAvg('reviews as reviews_avg', 'rating')
@@ -147,7 +147,7 @@ class DiscoverController extends Controller
                 'banner_image' => $e->banner_image,
                 'category' => $e->category?->name,
                 'city' => $e->city,
-                'when' => $e->starts_at?->setTimezone($e->timezone)->format('D, j M Y'),
+                'when' => $e->nextStartsAt()?->copy()->setTimezone($e->timezone)->format('D, j M Y'),
                 'venue' => $e->is_online ? 'Online' : $e->venue_name,
                 'url' => Url::path('e', $e->slug),
             ])->all();
@@ -375,7 +375,8 @@ class DiscoverController extends Controller
             'category' => $event->category?->name,
             'city' => $event->city,
             'boosted' => $event->isBoosted(),
-            'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->nextStartsAt()?->copy()->setTimezone($event->timezone)->format('D, j M Y'),
+            'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),

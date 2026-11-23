@@ -1,6 +1,6 @@
 import type {FormDataConvertible} from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Trash2 } from 'lucide-react';
+import { ArmchairIcon, ArrowLeft, ImagePlus, LayoutGrid, Maximize2, Plus, Repeat2, Trash2 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ArtworkPreview } from '@/components/artwork-preview';
@@ -126,6 +126,79 @@ function readImageMeta(file: File): Promise<{ w: number; h: number; size: number
 }
 
 const emptySession = (): SessionRow => ({ title: '', starts_at: '', ends_at: '', capacity: '' });
+
+/*
+ * Repeating dates. The pickers hold the event's local wall time as
+ * "YYYY-MM-DDTHH:mm" (no timezone), so the arithmetic is done on calendar
+ * days in UTC — no daylight-saving shift can move a date.
+ */
+type Repeat = 'day' | 'week' | 'fortnight' | 'month';
+const REPEAT_LABEL: Record<Repeat, string> = { day: 'Every day', week: 'Every week', fortnight: 'Every 2 weeks', month: 'Every month' };
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const splitLocal = (v: string) => {
+    const [d, t = '00:00'] = v.split('T');
+    const [y, m, day] = d.split('-').map(Number);
+
+    return y && m && day ? { date: new Date(Date.UTC(y, m - 1, day)), time: t.slice(0, 5) } : null;
+};
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+/** "20:00" → "8:00 PM". */
+const time12 = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+
+    return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
+const shortDay = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** The dates from `start` to `until` (inclusive) on a pattern, capped at 104. */
+function repeatDates(start: Date, until: Date, every: Repeat): Date[] {
+    const out: Date[] = [];
+
+    for (let i = 0; out.length < 104; i++) {
+        const d = new Date(start);
+
+        if (every === 'month') {
+            d.setUTCMonth(start.getUTCMonth() + i);
+
+            // The 31st has no place in a short month: skip it rather than roll over.
+            if (d.getUTCDate() !== start.getUTCDate()) {
+                continue;
+            }
+        } else {
+            d.setUTCDate(start.getUTCDate() + i * (every === 'day' ? 1 : every === 'week' ? 7 : 14));
+        }
+
+        if (d > until) {
+            break;
+        }
+
+        out.push(d);
+    }
+
+    return out;
+}
+
+/** One session per date: the first one's times (end the same evening, or the next morning) and capacity. */
+function sessionsFrom(first: SessionRow, dates: Date[]): SessionRow[] {
+    const start = splitLocal(first.starts_at);
+    const end = first.ends_at ? splitLocal(first.ends_at) : null;
+    // How many days after its start a date ends (0 = same day; 1 = past midnight).
+    const overnight = end && start ? Math.max(0, Math.min(1, Math.round((end.date.getTime() - start.date.getTime()) / 86400000))) : 0;
+
+    return dates.map((d, i) => {
+        const endDay = new Date(d);
+        endDay.setUTCDate(d.getUTCDate() + overnight);
+
+        return {
+            ...(i === 0 && first.id ? { id: first.id } : {}),
+            title: first.title,
+            starts_at: `${ymd(d)}T${start?.time ?? '00:00'}`,
+            ends_at: end ? `${ymd(endDay)}T${end.time}` : '',
+            capacity: first.capacity,
+        };
+    });
+}
 interface DiscountRow {
     id?: number; code: string; kind: 'percent' | 'fixed'; value: string;
     min_subtotal: string; max_redemptions: string; starts_at: string; ends_at: string;
@@ -319,6 +392,56 @@ return;
     };
 
     const removeGalleryImage = (i: number) => setData('gallery', data.gallery.filter((_, idx) => idx !== i));
+
+    // The "Repeat…" panel: repeat the first date on a pattern until a day.
+    const [repeatOpen, setRepeatOpen] = useState(false);
+    const [repeatEvery, setRepeatEvery] = useState<Repeat>('week');
+    const [repeatUntil, setRepeatUntil] = useState('');
+    const firstStart = data.sessions[0]?.starts_at ? splitLocal(data.sessions[0].starts_at) : null;
+    const untilDate = repeatUntil ? splitLocal(`${repeatUntil}T00:00`)?.date ?? null : null;
+    const repeatPreview = firstStart && untilDate && untilDate >= firstStart.date ? repeatDates(firstStart.date, untilDate, repeatEvery) : [];
+    const applyRepeat = () => {
+        if (!data.sessions[0] || repeatPreview.length === 0) {
+            return;
+        }
+
+        setData('sessions', sessionsFrom(data.sessions[0], repeatPreview));
+        setRepeatOpen(false);
+        toast.success(`${repeatPreview.length} dates created — ${REPEAT_LABEL[repeatEvery].toLowerCase()}.`);
+    };
+
+    /**
+     * A date that runs non-stop for most of a week or more is almost always a
+     * weekly event typed as one long block (start on the first Sunday, end on
+     * the last). Offered as weekly dates instead, keeping its times.
+     */
+    const longBlock = (row: SessionRow) => {
+        const a = row.starts_at ? splitLocal(row.starts_at) : null;
+        const b = row.ends_at ? splitLocal(row.ends_at) : null;
+
+        if (!a || !b) {
+            return null;
+        }
+
+        const days = Math.round((b.date.getTime() - a.date.getTime()) / 86400000);
+
+        return days >= 6 ? { days, start: a, end: b, weekday: WEEKDAYS[a.date.getUTCDay()] } : null;
+    };
+    const splitWeekly = (i: number) => {
+        const row = data.sessions[i];
+        const block = longBlock(row);
+
+        if (!block) {
+            return;
+        }
+
+        // Each week: the block's start time to its end time, on the start's weekday.
+        const dates = repeatDates(block.start.date, block.end.date, 'week');
+        const sameDayEnd = `${row.starts_at.slice(0, 10)}T${block.end.time}`;
+        const made = sessionsFrom({ ...row, ends_at: block.end.time > block.start.time ? sameDayEnd : '' }, dates);
+        setData('sessions', [...data.sessions.slice(0, i), ...made, ...data.sessions.slice(i + 1)]);
+        toast.success(`Every ${block.weekday}: ${made.length} dates created.`);
+    };
 
     const patchSession = (i: number, key: keyof SessionRow, val: string) =>
         setData('sessions', data.sessions.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
@@ -662,9 +785,44 @@ form.post('/host/events', options);
                 <section className="mb-6 rounded-xl border border-border bg-card p-5">
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Dates & sessions</h2>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setData('sessions', [...data.sessions, emptySession()])}><Plus className="size-3.5" /> Add session</Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" size="sm" disabled={!firstStart} title={firstStart ? 'Repeat the first date' : 'Set the first date first'} onClick={() => setRepeatOpen((v) => !v)}><Repeat2 className="size-3.5" /> Repeat…</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setData('sessions', [...data.sessions, emptySession()])}><Plus className="size-3.5" /> Add session</Button>
+                        </div>
                     </div>
-                    {data.sessions.length === 0 && <p className="text-sm text-muted-foreground">Add at least one date. Add more for a recurring or multi-session event.</p>}
+                    {data.sessions.length === 0 && <p className="text-sm text-muted-foreground">Add at least one date. For an event that repeats — every Sunday, say — set the first date, then press Repeat.</p>}
+
+                    {repeatOpen && firstStart && (
+                        <div className="mb-4 grid gap-3 rounded-lg border border-border bg-muted/40 p-3">
+                            <div className="text-sm font-medium">Repeat the first date ({shortDay(firstStart.date)}, {time12(firstStart.time)})</div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="grid gap-1.5">
+                                    <Label>How often</Label>
+                                    <AppSelect
+                                        value={repeatEvery}
+                                        onChange={(v) => setRepeatEvery(v as Repeat)}
+                                        options={(Object.keys(REPEAT_LABEL) as Repeat[]).map((k) => ({
+                                            value: k,
+                                            label: k === 'week' || k === 'fortnight' ? `${REPEAT_LABEL[k]} on ${WEEKDAYS[firstStart.date.getUTCDay()]}` : REPEAT_LABEL[k],
+                                        }))}
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="repeat-until">Until</Label>
+                                    <input id="repeat-until" type="date" className={field} min={ymd(firstStart.date)} value={repeatUntil} onChange={(e) => setRepeatUntil(e.target.value)} />
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {repeatPreview.length > 0
+                                    ? `${repeatPreview.length} date${repeatPreview.length === 1 ? '' : 's'}: ${repeatPreview.slice(0, 4).map(shortDay).join(', ')}${repeatPreview.length > 4 ? `, … ${shortDay(repeatPreview[repeatPreview.length - 1])}` : ''}. Same times and capacity as the first. This replaces the dates below.`
+                                    : 'Pick the last date. Each date keeps the first one’s times; tickets are for the event, so every date is open to them.'}
+                            </p>
+                            <div className="flex gap-2">
+                                <Button type="button" size="sm" disabled={repeatPreview.length < 2} onClick={applyRepeat}>Create {repeatPreview.length > 1 ? `${repeatPreview.length} dates` : 'dates'}</Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => setRepeatOpen(false)}>Cancel</Button>
+                            </div>
+                        </div>
+                    )}
                     <div className="grid gap-4">
                         {data.sessions.map((s, i) => (
                             <div key={i} className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
@@ -684,6 +842,21 @@ form.post('/host/events', options);
                                 <div className="flex items-end">
                                     <Button type="button" variant="ghost" size="icon" onClick={() => setData('sessions', data.sessions.filter((_, idx) => idx !== i))}><Trash2 className="size-4" /></Button>
                                 </div>
+                                {(() => {
+                                    const block = longBlock(s);
+
+                                    return block ? (
+                                        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm sm:col-span-4">
+                                            <p>
+                                                This date runs <strong>non-stop for {block.days} days</strong>, {shortDay(block.start.date)} {time12(block.start.time)} to {shortDay(block.end.date)} {time12(block.end.time)} — so from the second day on, the event looks like it has already started.
+                                                If it happens <strong>every {block.weekday}</strong> instead:
+                                            </p>
+                                            <Button type="button" size="sm" className="mt-2" onClick={() => splitWeekly(i)}>
+                                                <Repeat2 className="size-3.5" /> Make it every {block.weekday}, {time12(block.start.time)}{block.end.time > block.start.time ? `–${time12(block.end.time)}` : ''}, until {shortDay(block.end.date)}
+                                            </Button>
+                                        </div>
+                                    ) : null;
+                                })()}
                             </div>
                         ))}
                     </div>

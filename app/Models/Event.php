@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Support\Dates;
 use App\Support\Regions;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -228,6 +229,67 @@ class Event extends Model
     }
 
     /** The same rule as scopeNotEnded(), for one already-loaded event. */
+    /**
+     * The next date this event happens on — what to show and act on.
+     *
+     * An event with several dates (every Sunday for a month) has its FIRST
+     * date in starts_at, so once that had passed every page showed a date in
+     * the past and the event looked over while most of it was still to come.
+     * This is the earliest date that has not finished yet; when all are over,
+     * the last one; with no dates of its own, the event's start.
+     */
+    public function nextSession(): ?EventSession
+    {
+        $sessions = $this->relationLoaded('sessions') ? $this->sessions : $this->sessions()->get();
+
+        if ($sessions->count() < 2) {
+            return null;
+        }
+
+        $now = now();
+
+        return $sessions->sortBy('starts_at')->first(fn (EventSession $s) => ($s->ends_at ?? $s->starts_at?->copy()->addHours(3))?->gt($now))
+            ?? $sessions->sortBy('starts_at')->last();
+    }
+
+    public function nextStartsAt(): ?CarbonInterface
+    {
+        return $this->nextSession()?->starts_at ?? $this->starts_at;
+    }
+
+    /**
+     * "Every Sunday", "Every 2 weeks", "Every month" when the dates repeat on a
+     * pattern, "5 dates" when they do not; null for a one-date event. Weekdays
+     * are judged in the event's own timezone.
+     */
+    public function repeatLabel(): ?string
+    {
+        $sessions = ($this->relationLoaded('sessions') ? $this->sessions : $this->sessions()->get())
+            ->filter(fn (EventSession $s) => $s->starts_at)->sortBy('starts_at')->values();
+
+        if ($sessions->count() < 2) {
+            return null;
+        }
+
+        $tz = $this->timezone ?: config('app.display_timezone', 'Asia/Kuala_Lumpur');
+        $local = $sessions->map(fn (EventSession $s) => $s->starts_at->copy()->setTimezone($tz));
+        $gaps = $local->slice(1)->values()->map(fn ($d, $i) => (int) round($local[$i]->copy()->startOfDay()->diffInDays($d->copy()->startOfDay())))->unique()->values();
+
+        if ($gaps->count() === 1 && in_array($gaps[0], [1, 7, 14], true)) {
+            return match ($gaps[0]) {
+                1 => 'Every day',
+                7 => 'Every '.$local[0]->format('l'),
+                14 => 'Every other '.$local[0]->format('l'),
+            };
+        }
+
+        if ($local->every(fn ($d) => $d->day === $local[0]->day)) {
+            return 'Every month on the '.$local[0]->format('jS');
+        }
+
+        return $sessions->count().' dates';
+    }
+
     public function hasEnded(): bool
     {
         if ($this->ends_at) {

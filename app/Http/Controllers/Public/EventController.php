@@ -117,8 +117,8 @@ class EventController extends Controller
         }
         // When it starts and ends, as machine-readable meta beside the JSON-LD.
         $tz = $event->timezone ?: config('app.timezone');
-        if ($event->starts_at) {
-            $manager->meta('event:start_time', $event->starts_at->setTimezone($tz)->toIso8601String(), true);
+        if ($event->nextStartsAt()) {
+            $manager->meta('event:start_time', $event->nextStartsAt()->copy()->setTimezone($tz)->toIso8601String(), true);
         }
         if ($event->ends_at) {
             $manager->meta('event:end_time', $event->ends_at->setTimezone($tz)->toIso8601String(), true);
@@ -178,7 +178,10 @@ class EventController extends Controller
                 // ticket box further down — "Free", "RM 25.00", "RM 25.00 – RM 80.00".
                 'price_label' => $this->priceLabel($priced),
                 'price_list' => $priced->map(fn ($t) => ['name' => $t->name, 'price' => $this->money($t)])->values()->all(),
-                'when' => $this->fmt($event, $event->starts_at),   // pre-formatted (no client TZ drift)
+                // The NEXT date, for an event on several dates (every Sunday…):
+                // its first date passing must not make it look over.
+                'when' => $this->fmt($event, $event->nextStartsAt()),   // pre-formatted (no client TZ drift)
+                'repeat' => $event->repeatLabel(),
                 'sold_out' => $event->ticketTypes->isNotEmpty() && $event->ticketTypes->every(fn ($t) => $t->remaining() === 0),
                 'google_url' => $event->status === 'published' ? Ics::googleUrl($event) : null,
                 'ics_url' => $event->status === 'published' ? route('events.ics', ['region' => $event->region ?: Url::LOCALE, 'event' => $event]) : null,
@@ -226,6 +229,7 @@ class EventController extends Controller
                     'label' => $this->fmt($event, $s->starts_at),
                     'starts_at' => optional($s->starts_at)->toIso8601String(),
                     'ends_at' => optional($s->ends_at)->toIso8601String(),
+                    'past' => ($s->ends_at ?? $s->starts_at?->copy()->addHours(3))?->isPast() ?? false,
                 ]),
                 'ticket_types' => $event->ticketTypes->map(fn ($t) => [
                     'id' => $t->id,
@@ -544,6 +548,7 @@ class EventController extends Controller
     private function relatedEvents(Event $event): array
     {
         $upcoming = fn () => Event::published()->inRegion($event->region ?: Url::LOCALE)->notEnded()
+            ->with('sessions:id,event_id,starts_at,ends_at')
             ->where('id', '!=', $event->id)
             ->with('ticketTypes:id,event_id,kind,price,currency,is_active')
             ->orderByRaw('starts_at is null, starts_at asc');
@@ -562,7 +567,7 @@ class EventController extends Controller
                 'slug' => $e->slug,
                 'title' => $e->title,
                 'cover_image' => $e->cover_image ? $this->absolute($e->cover_image) : null,
-                'when' => $e->starts_at?->setTimezone($e->timezone ?: config('app.timezone'))->format('D, j M Y'),
+                'when' => $e->nextStartsAt()?->copy()->setTimezone($e->timezone ?: config('app.timezone'))->format('D, j M Y'),
                 'venue' => $e->is_online ? 'Online' : ($e->venue_name ?: $e->city),
                 'price' => $this->priceLabel($e->ticketTypes->where('is_active', true)->values()),
                 'same_organizer' => $e->user_id === $event->user_id,
@@ -718,8 +723,11 @@ class EventController extends Controller
     private function eventSchema(Event $event, string $description, ?string $cover, string $url, string $organizer, float $ratingAvg, int $ratingCount, Collection $priced, bool $ended): array
     {
         $timezone = $event->timezone ?: config('app.timezone');
-        $starts = $event->starts_at?->setTimezone($timezone);
-        $ends = $event->ends_at?->setTimezone($timezone);
+        // For an event on several dates, the next one — not the whole span,
+        // which would read to Google as one event lasting weeks.
+        $next = $event->nextSession();
+        $starts = ($next?->starts_at ?? $event->starts_at)?->copy()->setTimezone($timezone);
+        $ends = ($next ? $next->ends_at : $event->ends_at)?->copy()->setTimezone($timezone);
 
         $images = array_values(array_filter(array_merge(
             [$cover, $event->banner_image ? $this->absolute($event->banner_image) : null],

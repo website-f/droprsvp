@@ -23,6 +23,8 @@ interface HostEvent {
     visibility: string;
     appeal_status?: string | null;
     starts_at: string | null;
+    next_starts_at?: string | null;
+    repeat?: string | null;
     ticket_types_count: number;
     sessions_count: number;
     orders_count: number;
@@ -170,7 +172,7 @@ export default function EventsIndex({ events }: { events: HostEvent[] }) {
                                             {e.mine === false && <Badge variant="outline" className="shrink-0">Shared{e.owner_name ? ` · ${e.owner_name}` : ''}</Badge>}
                                         </div>
                                         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                            <span className="flex items-center gap-1"><CalendarDays className="size-3.5" /> {formatDate(e.starts_at)}</span>
+                                            <span className="flex items-center gap-1"><CalendarDays className="size-3.5" /> {e.repeat ? `${e.repeat} · next ${formatDate(e.next_starts_at ?? e.starts_at)}` : formatDate(e.starts_at)}</span>
                                             <span className="flex items-center gap-1"><Ticket className="size-3.5" /> {e.ticket_types_count} ticket type{e.ticket_types_count === 1 ? '' : 's'}</span>
                                             <span className="capitalize">{e.visibility}</span>
                                             <span>{e.orders_count} order{e.orders_count === 1 ? '' : 's'}</span>

@@ -92,7 +92,9 @@ class QueryBudgetTest extends TestCase
             '/en-my/' => 20,
             '/en-my/all/' => 14,
             '/en-my/kuala-lumpur/' => 14,
-            '/en-my/e/event-0/' => 24,
+            // +1: the related events' dates in one batched query, so their cards
+            // show an event's NEXT date when it runs on several (RecurringEventTest).
+            '/en-my/e/event-0/' => 25,
             '/en-my/o/host-one/' => 18,
             '/en-my/blog/' => 8,
             '/en-my/help/' => 4,

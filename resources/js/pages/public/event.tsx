@@ -37,7 +37,9 @@ interface EventView {
     seating_enabled: boolean; seating: SeatMapSection[];
     /** Buyers choose their table at checkout; `left` is null when every buyer may. */
     table_choice: { left: number | null } | null;
-    sessions: Array<{ id: number; title: string | null; label: string | null }>;
+    sessions: Array<{ id: number; title: string | null; label: string | null; past?: boolean }>;
+    /** "Every Sunday" when the dates repeat; null for a one-date event. */
+    repeat?: string | null;
     ticket_types: TicketTypeView[];
     /** Over: the page stays, but says so and stops selling. */
     has_ended: boolean;
@@ -298,7 +300,10 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                         <div className="mt-6 grid gap-3 text-sm">
                             {event.when && (
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <CalendarDays className="size-5 text-muted-foreground" /><span>{event.when}</span>
+                                    <CalendarDays className="size-5 text-muted-foreground" />
+                                    {event.repeat && !event.has_ended
+                                        ? <span><span className="font-medium">{event.repeat}</span> · next {event.when}</span>
+                                        : <span>{event.when}</span>}
                                     {event.status === 'published' && !event.has_ended && event.google_url && event.ics_url && (
                                         <AddToCalendar googleUrl={event.google_url} icsUrl={event.ics_url} label="Add to calendar" />
                                     )}
@@ -398,11 +403,14 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                             : <p className="text-sm text-muted-foreground">No description yet.</p>}
                                         {event.sessions.length > 1 && (
                                             <div>
-                                                <h3 className="mb-2 text-sm font-semibold">Dates</h3>
+                                                <h3 className="mb-2 text-sm font-semibold">{event.repeat ? `Dates · ${event.repeat}` : 'Dates'}</h3>
                                                 <ul className="grid gap-2">
-                                                    {event.sessions.map((s) => (
-                                                        <li key={s.id} className="flex items-center gap-3 rounded-lg border border-border px-4 py-2 text-sm">
-                                                            <Clock className="size-4 text-muted-foreground" /><span>{s.label}{s.title ? ` — ${s.title}` : ''}</span>
+                                                    {/* Coming up first; the ones already held are dimmed at the end. */}
+                                                    {[...event.sessions.filter((s) => !s.past), ...event.sessions.filter((s) => s.past)].map((s) => (
+                                                        <li key={s.id} className={`flex items-center gap-3 rounded-lg border border-border px-4 py-2 text-sm ${s.past ? 'opacity-50' : ''}`}>
+                                                            <Clock className="size-4 shrink-0 text-muted-foreground" />
+                                                            <span className="min-w-0 flex-1">{s.label}{s.title ? ` — ${s.title}` : ''}</span>
+                                                            {s.past && <span className="shrink-0 text-xs text-muted-foreground">Done</span>}
                                                         </li>
                                                     ))}
                                                 </ul>

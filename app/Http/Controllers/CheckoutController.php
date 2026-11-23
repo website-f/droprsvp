@@ -497,7 +497,7 @@ class CheckoutController extends Controller
             'event' => [
                 'title' => $event?->title ?? 'Event no longer available',
                 'slug' => $event?->slug,
-                'when' => $event?->starts_at?->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
+                'when' => $event?->nextStartsAt()?->copy()->setTimezone($event->timezone)->format('D, j M Y · g:i A'),
                 'venue_name' => $event?->venue_name,
                 'is_online' => (bool) $event?->is_online,
                 // For the "hear from this organizer" opt-in.

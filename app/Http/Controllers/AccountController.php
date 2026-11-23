@@ -31,6 +31,7 @@ class AccountController extends Controller
                 'event:id,title,slug,timezone,starts_at,ends_at,venue_name,venue_address,city,online_url,status,subtitle,is_online,cover_image',
                 'tickets:id,order_id,ticket_type_id,qr_token,attendee_name,status',
                 'tickets.ticketType:id,name',
+                'event.sessions:id,event_id,starts_at,ends_at',
             ])
             ->latest()
             ->paginate(10)
@@ -92,7 +93,8 @@ class AccountController extends Controller
 
         $order->loadMissing('event');
         // Only before the event starts (an undated event stays cancellable).
-        abort_if($order->event && $order->event->starts_at && $order->event->starts_at->isPast(), 422);
+        // Not once it has begun — for an event on several dates, its next date.
+        abort_if($order->event && $order->event->nextStartsAt()?->isPast(), 422);
 
         if (! app(CheckoutService::class)->cancelFree($order)) {
             return back()->with('flash_error', 'This registration can no longer be cancelled.');
@@ -162,7 +164,7 @@ class AccountController extends Controller
         abort_unless($ticket->status === 'valid', 422); // checked-in / voided tickets can't move
 
         // Only while the event is still ahead of us.
-        abort_if($ticket->event && $ticket->event->starts_at && $ticket->event->starts_at->isPast(), 422);
+        abort_if($ticket->event && $ticket->event->nextStartsAt()?->isPast(), 422);
 
         $data = $request->validate([
             'to_name' => ['required', 'string', 'max:120'],
@@ -221,15 +223,17 @@ class AccountController extends Controller
             'placed_on' => Dates::display($order->created_at, 'j M Y'),
             // Free registrations can be self-cancelled up until the event starts.
             'can_cancel' => $order->status === 'paid' && (float) $order->total <= 0
-                && (! $event || ! $event->starts_at || $event->starts_at->isFuture()),
-            // Tickets can be transferred while the event is still ahead.
-            'upcoming' => ! $event || ! $event->starts_at || $event->starts_at->isFuture(),
+                && (! $event || ! $event->nextStartsAt() || $event->nextStartsAt()->isFuture()),
+            // Tickets can be transferred while the event is still ahead (its
+            // next date, for an event on several).
+            'upcoming' => ! $event || ! $event->nextStartsAt() || $event->nextStartsAt()->isFuture(),
             'event' => $event ? [
                 'title' => $event->title,
                 'slug' => $event->slug,
-                'when' => $event->starts_at
-                    ? $event->starts_at->copy()->setTimezone($event->timezone)->format('D, j M Y · g:i A')
+                'when' => $event->nextStartsAt()
+                    ? $event->nextStartsAt()->copy()->setTimezone($event->timezone)->format('D, j M Y · g:i A')
                     : null,
+                'repeat' => $event->repeatLabel(),
                 'venue_name' => $event->venue_name,
                 'is_online' => (bool) $event->is_online,
                 'cover_image' => $event->cover_image,

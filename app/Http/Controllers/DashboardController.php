@@ -63,10 +63,13 @@ class DashboardController extends Controller
             'eventOptions' => $user->events()->latest('starts_at')->get(['slug', 'title'])
                 ->map(fn ($e) => ['value' => $e->slug, 'label' => $e->title])->values(),
             'sales_by_day' => $this->sales((clone $paid), $w),
+            // Not finished yet — an event on several dates stays here until its
+            // last one, rather than dropping off once the first has passed.
             'upcoming' => $user->events()
                 ->where('status', 'published')
                 ->whereNotNull('starts_at')
-                ->where('starts_at', '>=', now())
+                ->notEnded()
+                ->with('sessions:id,event_id,starts_at,ends_at')
                 ->orderBy('starts_at')
                 ->withCount(['tickets as sold_count' => fn ($q) => $q->whereIn('status', ['valid', 'checked_in'])])
                 ->limit(5)
@@ -74,7 +77,7 @@ class DashboardController extends Controller
                 ->map(fn ($e) => [
                     'title' => $e->title,
                     'slug' => $e->slug,
-                    'when' => $e->starts_at?->setTimezone($e->timezone)->format('D, j M · g:i A'),
+                    'when' => $e->nextStartsAt()?->copy()->setTimezone($e->timezone)->format('D, j M · g:i A'),
                     'sold' => $e->sold_count,
                 ]),
             'calendar' => $user->events()

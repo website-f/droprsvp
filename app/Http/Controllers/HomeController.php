@@ -131,7 +131,7 @@ class HomeController extends Controller
     private function upcoming()
     {
         return Event::published()->inRegion()
-            ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active'])
+            ->with(['category:id,name,slug', 'ticketTypes:id,event_id,kind,price,is_active', 'sessions:id,event_id,starts_at,ends_at'])
             ->withCount(['tickets as participants_count' => fn ($q) => $q->live()])
             ->withCount('reviews')
             ->withAvg('reviews as reviews_avg', 'rating')
@@ -250,7 +250,8 @@ class HomeController extends Controller
             'title' => $event->title,
             'cover_image' => $event->cover_image,
             'category' => $event->category?->name,
-            'when' => $event->starts_at?->setTimezone($event->timezone)->format('D, j M Y'),
+            'when' => $event->nextStartsAt()?->copy()->setTimezone($event->timezone)->format('D, j M Y'),
+            'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
