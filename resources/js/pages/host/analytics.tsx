@@ -7,11 +7,12 @@ import { MetricToggle, PALETTE, RevenueBars, TrendChart } from '@/components/cha
 import type { ReachMetric } from '@/components/charts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 
 interface Reach { date: string; impressions: number; clicks: number }
-interface EventRow { slug: string; title: string; status: string; impressions: number; sold: number; revenue: number }
+interface EventRow { slug: string; title: string; status: string; impressions: number; sold: number; revenue: number; currency?: string }
 interface Props {
-    kpis: { events: number; impressions: number; clicks: number; tickets: number; revenue: number };
+    kpis: { events: number; impressions: number; clicks: number; tickets: number; revenue: number; currency?: string };
     reach: Reach[];
     revenue: { date: string; revenue: number }[];
     events: EventRow[];
@@ -69,7 +70,7 @@ export default function HostAnalytics({ kpis, reach, revenue, events, filters, c
                     <Kpi icon={Eye} label="Impressions" value={kpis.impressions.toLocaleString()} tint={PALETTE[5]} />
                     <Kpi icon={MousePointerClick} label="Clicks" value={kpis.clicks.toLocaleString()} tint={PALETTE[2]} />
                     <Kpi icon={Ticket} label="Tickets sold" value={kpis.tickets.toLocaleString()} tint={PALETTE[3]} />
-                    <Kpi icon={Wallet} label="Revenue" value={`RM ${kpis.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} tint={PALETTE[6]} />
+                    <Kpi icon={Wallet} label="Revenue" value={money(kpis.revenue, kpis.currency)} tint={PALETTE[6]} />
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -80,7 +81,7 @@ export default function HostAnalytics({ kpis, reach, revenue, events, filters, c
                         </div>
                         <TrendChart data={reach} metric={metric} />
                     </section>
-                    <Panel title={`Revenue · ${filters.periodLabel}`}><RevenueBars data={revenue} /></Panel>
+                    <Panel title={`Revenue · ${filters.periodLabel}`}><RevenueBars data={revenue} currency={kpis.currency} /></Panel>
                 </div>
 
                 {/* Per-event list */}
@@ -100,7 +101,7 @@ export default function HostAnalytics({ kpis, reach, revenue, events, filters, c
                                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1"><Eye className="size-3.5" /> {e.impressions.toLocaleString()}</span>
                                             <span className="flex items-center gap-1"><Ticket className="size-3.5" /> {e.sold.toLocaleString()} sold</span>
-                                            <span className="flex items-center gap-1"><Wallet className="size-3.5" /> RM {e.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            <span className="flex items-center gap-1"><Wallet className="size-3.5" /> {money(e.revenue, e.currency)}</span>
                                         </div>
                                     </div>
                                     <Button asChild variant="outline" size="sm" className="shrink-0">

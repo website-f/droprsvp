@@ -15,6 +15,7 @@ use App\Support\Analytics;
 use App\Support\AnalyticsWindow;
 use App\Support\AnswerInsights;
 use App\Support\CheckoutFunnel;
+use App\Support\CountryRates;
 use App\Support\PlatformInsights;
 use App\Support\Regions;
 use Illuminate\Database\Eloquent\Builder;
@@ -230,6 +231,7 @@ class AnalyticsController extends Controller
 
         return inertia('admin/analytics/event', [
             'data' => $data,
+            'currency' => CountryRates::forEvent($event)['currency'],
             'money' => [
                 'event' => $payouts->eventStatement($event),
                 'organizer' => $event->user ? $payouts->organizerStatement($event->user) : null,

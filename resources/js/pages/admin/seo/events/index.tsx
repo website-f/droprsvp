@@ -3,13 +3,15 @@ import { CheckCircle2, Pencil, Search } from 'lucide-react';
 import { useState } from 'react';
 import { RegionSettingTabs } from '@/components/admin/region-versions';
 import type { RegionSettingTab } from '@/components/admin/region-versions';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { SeoTemplateEditor   } from '@/components/seo-template-editor';
 import type {SeoTemplates, Token} from '@/components/seo-template-editor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface Row { slug: string; title: string; status: string; customised: boolean; preview_title: string; preview_desc: string }
-interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
+interface Paginated extends Paginator { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
 interface Props {
     events: Paginated;
     filters: { q: string };
@@ -82,12 +84,7 @@ export default function EventsSeoIndex({ events, filters, baseUrl, templates, de
                     </ul>
                 )}
 
-                {(events.prev_page_url || events.next_page_url) && (
-                    <div className="mt-8 flex justify-between">
-                        <Button asChild variant="outline" disabled={!events.prev_page_url}>{events.prev_page_url ? <Link href={events.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <Button asChild variant="outline" disabled={!events.next_page_url}>{events.next_page_url ? <Link href={events.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={events} noun="events" preserveScroll={false} className="mt-8" />
             </div>
         </>
     );

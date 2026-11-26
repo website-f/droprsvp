@@ -3,11 +3,14 @@ import { ArrowLeftRight, CalendarDays, MapPin, Send, Ticket as TicketIcon, Video
 import { useState } from 'react';
 import { AddToCalendar } from '@/components/add-to-calendar';
 import { useConfirm } from '@/components/confirm-dialog';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface TicketRow { qr_token: string; attendee_name: string | null; type: string | null; status: string }
@@ -16,9 +19,7 @@ interface OrderRow {
     reference: string; status: string; total: number; currency: string; placed_on: string | null;
     can_cancel: boolean; upcoming: boolean; event: EventRow | null; tickets: TicketRow[];
 }
-interface Paginated { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null }
-
-const money = (n: number, ccy: string) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: ccy }).format(n);
+interface Paginated extends Paginator { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null }
 
 export default function MyTickets({ orders }: { orders: Paginated }) {
     const confirm = useConfirm();
@@ -154,16 +155,7 @@ export default function MyTickets({ orders }: { orders: Paginated }) {
                     </div>
                 )}
 
-                {(orders.prev_page_url || orders.next_page_url) && (
-                    <div className="mt-8 flex justify-between">
-                        <Button asChild variant="outline" disabled={!orders.prev_page_url}>
-                            {orders.prev_page_url ? <Link href={orders.prev_page_url}>← Newer</Link> : <span>← Newer</span>}
-                        </Button>
-                        <Button asChild variant="outline" disabled={!orders.next_page_url}>
-                            {orders.next_page_url ? <Link href={orders.next_page_url}>Older →</Link> : <span>Older →</span>}
-                        </Button>
-                    </div>
-                )}
+                <Pagination paginator={orders} prevLabel="Newer" nextLabel="Older" noun="orders" preserveScroll={false} className="mt-8" />
             </div>
 
             <Dialog open={!!transferFor} onOpenChange={(v) => !v && setTransferFor(null)}>

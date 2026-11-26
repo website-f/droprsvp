@@ -14,6 +14,7 @@ import type {SeatMapSeat, SeatMapSection} from '@/components/seat-map';
 import { SmartImage } from '@/components/smart-image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { currencySymbol, money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface TicketTypeView {
@@ -46,6 +47,8 @@ interface EventView {
     /** "Free", "RM 25.00", "RM 25.00 – RM 80.00" — null when there is nothing to price. */
     price_label: string | null;
     price_list: { name: string; price: string }[];
+    /** The currency the event sells in ("MYR", "SGD"…). */
+    currency?: string;
 }
 /** An upcoming event to send the visitor on to. */
 interface RelatedEvent { slug: string; title: string; cover_image: string | null; when: string | null; venue: string | null; price: string | null; same_organizer: boolean }
@@ -71,7 +74,7 @@ function priceLabel(t: TicketTypeView): string {
         return 'Donation';
     }
 
-    return `${t.currency} ${t.price.toFixed(2)}`;
+    return money(t.price, t.currency);
 }
 
 /** Read-only star row. */
@@ -727,7 +730,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                                     </span>
                                                     <span className="mt-0.5 block text-xs text-muted-foreground">
                                                         {[
-                                                            offer.min_subtotal ? `On orders over RM${offer.min_subtotal.toFixed(2)}` : null,
+                                                            offer.min_subtotal ? `On orders over ${currencySymbol(event.currency)}${offer.min_subtotal.toFixed(2)}` : null,
                                                             offer.ends_at ? `Ends ${offer.ends_at}` : null,
                                                             offer.remaining !== null && offer.remaining <= 20 ? `${offer.remaining} left` : null,
                                                         ].filter(Boolean).join(' · ') || 'Applied at checkout'}
@@ -758,7 +761,7 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                                     {t.description && <div className="text-xs text-muted-foreground">{t.description}</div>}
                                                     <div className="mt-1 flex items-baseline gap-2">
                                                         {t.kind === 'paid' && t.compare_at_price && t.compare_at_price > t.price && (
-                                                            <span className="text-xs text-muted-foreground line-through">{t.currency} {t.compare_at_price.toFixed(2)}</span>
+                                                            <span className="text-xs text-muted-foreground line-through">{money(t.compare_at_price, t.currency)}</span>
                                                         )}
                                                         <span className="text-sm font-semibold">{priceLabel(t)}</span>
                                                         {t.kind === 'paid' && t.compare_at_price && t.compare_at_price > t.price && (
@@ -768,11 +771,11 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                                                     {t.group_min && t.group_price != null && (
                                                         (qty[t.id] || 0) >= t.group_min ? (
                                                             <div className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-[#2ec4b6]/15 px-2 py-0.5 text-xs font-medium text-[#1f8f85] dark:text-[#5fe0d4]">
-                                                                <Users className="size-3" /> Group price: {t.currency} {t.group_price.toFixed(2)} each
+                                                                <Users className="size-3" /> Group price: {money(t.group_price, t.currency)} each
                                                             </div>
                                                         ) : (
                                                             <div className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground">
-                                                                <Users className="size-3" /> Buy {t.group_min}+ for {t.currency} {t.group_price.toFixed(2)} each
+                                                                <Users className="size-3" /> Buy {t.group_min}+ for {money(t.group_price, t.currency)} each
                                                             </div>
                                                         )
                                                     )}
@@ -806,12 +809,12 @@ export default function PublicEvent({ event, participants, discussion, reviews, 
                             {count > 0 && (
                                 <div className="mt-4 flex items-center justify-between text-sm">
                                     <span className="text-muted-foreground">{count} {event.seating_enabled ? 'seat' : 'ticket'}{count > 1 ? 's' : ''}</span>
-                                    <span className="font-semibold">RM {total.toFixed(2)}</span>
+                                    <span className="font-semibold">{money(total, event.currency)}</span>
                                 </div>
                             )}
 
                             <Button className="mt-4 w-full" size="lg" onClick={getTickets} disabled={count === 0 || submitting}>
-                                <Ticket className="size-4" /> {count === 0 ? (event.seating_enabled ? 'Select seats' : 'Get tickets') : `Checkout · RM ${total.toFixed(2)}`}
+                                <Ticket className="size-4" /> {count === 0 ? (event.seating_enabled ? 'Select seats' : 'Get tickets') : `Checkout · ${money(total, event.currency)}`}
                             </Button>
                             <p className="mt-2 text-center text-xs text-muted-foreground">Secure checkout · powered by DropRSVP</p>
                             </>)}

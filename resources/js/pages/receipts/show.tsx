@@ -10,7 +10,7 @@ interface Receipt {
     number: string;
     date: string | null;
     status: string;
-    seller: { name: string; detail: string | null; logo: string | null; address?: string | null; tax_number?: string | null };
+    seller: { name: string; detail: string | null; logo: string | null; fallback_logo?: string | null; address?: string | null; tax_number?: string | null };
     party_label: string;
     party: { name: string | null; detail: string | null };
     context: string | null;
@@ -43,9 +43,12 @@ export default function ReceiptShow({ receipt, pdfUrl }: { receipt: Receipt; pdf
                     {/* Header */}
                     <div className="flex flex-col gap-6 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-center gap-3">
-                            {receipt.seller.logo
+                            {receipt.seller.logo && receipt.kind === 'order'
                                 ? <img src={receipt.seller.logo} alt="" className="size-12 rounded-xl border border-border object-cover" />
-                                : <span className="flex size-12 items-center justify-center rounded-xl bg-foreground text-sm font-bold text-background">{initials(receipt.seller.name)}</span>}
+                                : receipt.seller.logo || receipt.seller.fallback_logo
+                                    // The site's wordmark (it's wide) when the seller has none — or is the site.
+                                    ? <img src={receipt.seller.logo || receipt.seller.fallback_logo || ''} alt="" className="h-10 w-auto max-w-40 object-contain dark:invert" />
+                                    : <span className="flex size-12 items-center justify-center rounded-xl bg-foreground text-sm font-bold text-background">{initials(receipt.seller.name)}</span>}
                             <div>
                                 <div className="text-lg font-bold tracking-tight">{receipt.seller.name}</div>
                                 {receipt.seller.detail && <div className="text-sm text-muted-foreground">{receipt.seller.detail}</div>}

@@ -1,6 +1,10 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArmchairIcon, Banknote, Flame, Globe, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Store, Users } from 'lucide-react';
+import { ArmchairIcon, Banknote, CreditCard, Flame, Globe, Landmark, LifeBuoy, Megaphone, Percent, ReceiptText, Send, Settings2, ShieldCheck, Store, Users } from 'lucide-react';
 import { useState } from 'react';
+import { AirwallexSettings } from '@/components/admin/airwallex-settings';
+import type { AirwallexForm } from '@/components/admin/airwallex-settings';
+import { CountryRatesSettings } from '@/components/admin/country-rates-settings';
+import type { Rate } from '@/components/admin/country-rates-settings';
 import { RegionsSettings } from '@/components/admin/regions-settings';
 import type { CatalogCountry } from '@/components/admin/regions-settings';
 import { AppSelect } from '@/components/ui/app-select';
@@ -22,7 +26,7 @@ interface SettingsData {
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 const area = 'w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-type Tab = 'payments' | 'tax' | 'ticketing' | 'organizers' | 'regions' | 'search' | 'general';
+type Tab = 'payments' | 'tax' | 'rates' | 'airwallex' | 'ticketing' | 'organizers' | 'regions' | 'search' | 'general';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
@@ -35,9 +39,10 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 interface PermissionSection { key: string; label: string }
-export default function Settings({ settings, rolePermissions, permissionSections, regions, regionCatalog = [], regionAreas = [], regionEvents = {} }: {
+export default function Settings({ settings, rolePermissions, permissionSections, regions, regionCatalog = [], regionAreas = [], regionEvents = {}, countryRates = { foreign: {}, countries: {} }, airwallex, airwallexWebhook = '' }: {
     settings: SettingsData; rolePermissions: { staff: string[] }; permissionSections: PermissionSection[];
     regions: { enabled: string[]; default: string }; regionCatalog?: CatalogCountry[]; regionAreas?: string[]; regionEvents?: Record<string, number>;
+    countryRates?: { foreign: Rate; countries: Record<string, Rate> }; airwallex?: AirwallexForm; airwallexWebhook?: string;
 }) {
     const flash = usePage().props.flash as { success?: string } | undefined;
     const isSuperadmin = !!usePage().props.auth?.is_superadmin;
@@ -74,6 +79,8 @@ export default function Settings({ settings, rolePermissions, permissionSections
     const TABS: { key: Tab; label: string; icon: typeof Banknote }[] = [
         { key: 'payments', label: 'Payments & fees', icon: Banknote },
         { key: 'tax', label: 'Tax', icon: Percent },
+        { key: 'rates', label: 'Country rates', icon: Landmark },
+        { key: 'airwallex', label: 'Airwallex', icon: CreditCard },
         { key: 'ticketing', label: 'Ticketing', icon: ArmchairIcon },
         { key: 'organizers', label: 'Organizers', icon: Store },
         { key: 'regions', label: 'Regions', icon: Globe },
@@ -90,7 +97,10 @@ export default function Settings({ settings, rolePermissions, permissionSections
                         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
                         <p className="text-sm text-muted-foreground">Platform fees, tax and general configuration.</p>
                     </div>
-                    <Button onClick={() => form.post('/admin/settings', { preserveScroll: true })} disabled={processing}>Save changes</Button>
+                    {/* These tabs save on their own. */}
+                    {!['rates', 'airwallex', 'regions'].includes(tab) && (
+                        <Button onClick={() => form.post('/admin/settings', { preserveScroll: true })} disabled={processing}>Save changes</Button>
+                    )}
                 </div>
                 {flash?.success && <div className="mb-4 rounded-lg bg-secondary px-4 py-2 text-sm">{flash.success}</div>}
 
@@ -158,6 +168,19 @@ export default function Settings({ settings, rolePermissions, permissionSections
                                 <Switch checked={data.tax_inclusive} onCheckedChange={(v) => setData("tax_inclusive", v)} />
                             </div>
                         </div>
+                    )}
+
+                    {tab === 'rates' && (
+                        <CountryRatesSettings
+                            initial={countryRates}
+                            catalog={regionCatalog}
+                            defaults={{ fee_percent: settings.fee_percent, fee_flat: settings.fee_flat, tax_percent: settings.tax_percent, tax_label: settings.tax_label }}
+                            airwallexOn={!!airwallex?.configured}
+                        />
+                    )}
+
+                    {tab === 'airwallex' && airwallex && (
+                        <AirwallexSettings initial={airwallex} webhookUrl={airwallexWebhook} />
                     )}
 
                     {tab === 'ticketing' && (

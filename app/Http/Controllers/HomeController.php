@@ -7,6 +7,7 @@ use App\Models\EventCategory;
 use App\Models\Order;
 use App\Models\User;
 use App\Support\Cities;
+use App\Support\CountryRates;
 use App\Support\EventFaces;
 use App\Support\PostCards;
 use App\Support\SeoManager;
@@ -254,6 +255,9 @@ class HomeController extends Controller
             'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
+            // Home-country events always sell in ringgit (CHIP); skipping the rates
+            // lookup there keeps listing pages within their query budget.
+            'currency' => CountryRates::countryOf($event->region) === CountryRates::HOME ? 'MYR' : CountryRates::forEvent($event)['currency'],
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
             'faces' => $faces[$event->id] ?? [],

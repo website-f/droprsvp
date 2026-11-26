@@ -13,6 +13,7 @@ import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface OrderView {
@@ -186,7 +187,7 @@ export default function CheckoutShow({ order, buyer, cities = [], customFields =
                                 {order.items.map((i, idx) => (
                                     <div key={idx} className="flex justify-between gap-3">
                                         <span className="text-muted-foreground">{i.quantity} × {i.name}</span>
-                                        <span className="shrink-0">RM {i.line_total.toFixed(2)}</span>
+                                        <span className="shrink-0">{money(i.line_total, order.currency)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -215,13 +216,13 @@ export default function CheckoutShow({ order, buyer, cities = [], customFields =
 
                             {!isFree && (
                                 <div className="grid gap-1.5 text-sm">
-                                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>RM {order.subtotal.toFixed(2)}</span></div>
-                                    {order.discount > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span>− RM {order.discount.toFixed(2)}</span></div>}
-                                    {order.tax > 0 && <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>RM {order.tax.toFixed(2)}</span></div>}
+                                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(order.subtotal, order.currency)}</span></div>
+                                    {order.discount > 0 && <div className="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Discount</span><span>− {money(order.discount, order.currency)}</span></div>}
+                                    {order.tax > 0 && <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(order.tax, order.currency)}</span></div>}
                                 </div>
                             )}
                             <div className="mt-2 flex justify-between font-semibold">
-                                <span>Total</span><span>{isFree ? 'Free' : `RM ${order.total.toFixed(2)}`}</span>
+                                <span>Total</span><span>{isFree ? 'Free' : money(order.total, order.currency)}</span>
                             </div>
                         </div>
                         <p className="mt-3 text-center text-xs text-muted-foreground">Ref {order.reference}</p>
@@ -411,7 +412,7 @@ export default function CheckoutShow({ order, buyer, cities = [], customFields =
                         )}
 
                         <Button type="submit" size="lg" className="mt-6 w-full" disabled={form.processing}>
-                            <Lock className="size-4" /> {isFree ? 'Complete registration' : `Pay RM ${order.total.toFixed(2)}`}
+                            <Lock className="size-4" /> {isFree ? 'Complete registration' : `Pay ${money(order.total, order.currency)}`}
                         </Button>
                         <p className="mt-2 text-center text-xs text-muted-foreground">
                             {isFree

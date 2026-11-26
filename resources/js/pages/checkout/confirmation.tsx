@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { PurchaseEvent } from '@/components/analytics-events';
 import { Wordmark } from '@/components/brand';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface OrderView {
@@ -11,7 +12,7 @@ interface OrderView {
     buyer_name?: string; buyer_email?: string;
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean };
     items: Array<{ name: string; quantity: number; line_total: number }>;
-    tickets?: Array<{ qr_token: string; attendee_name: string | null; status: string }>;
+    tickets?: Array<{ qr_token: string; attendee_name: string | null; status: string; qr?: string }>;
 }
 
 export default function CheckoutConfirmation({ order, analytics }: { order: OrderView; analytics: Record<string, unknown> | null }) {
@@ -80,22 +81,27 @@ export default function CheckoutConfirmation({ order, analytics }: { order: Orde
                             {order.items.map((i, idx) => (
                                 <div key={idx} className="flex justify-between">
                                     <span className="text-muted-foreground">{i.quantity} × {i.name}</span>
-                                    <span>RM {i.line_total.toFixed(2)}</span>
+                                    <span>{money(i.line_total, order.currency)}</span>
                                 </div>
                             ))}
                         </div>
                         <div className="my-4 h-px bg-border" />
-                        <div className="flex justify-between font-semibold"><span>Total paid</span><span>RM {order.total.toFixed(2)}</span></div>
+                        <div className="flex justify-between font-semibold"><span>Total paid</span><span>{money(order.total, order.currency)}</span></div>
                     </div>
 
                     {paid && order.tickets && order.tickets.length > 0 && (
                         <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                            <div className="mb-3 flex items-center gap-2 font-semibold"><Ticket className="size-4" /> Your tickets ({order.tickets.length})</div>
-                            <ul className="grid gap-2">
-                                {order.tickets.map((t) => (
-                                    <li key={t.qr_token} className="flex items-center justify-between rounded-lg border border-border px-4 py-2 text-sm">
-                                        <span>{t.attendee_name ?? 'Guest'}</span>
-                                        <Link href={`/tickets/${t.qr_token}`} className="font-medium underline underline-offset-4">View ticket</Link>
+                            <div className="mb-1 flex items-center gap-2 font-semibold"><Ticket className="size-4" /> Your tickets ({order.tickets.length})</div>
+                            {order.tickets.length > 1 && (
+                                <p className="mb-3 text-sm text-muted-foreground">One QR code per person — each guest shows their own at the door. Forward each ticket’s link to the person it’s for.</p>
+                            )}
+                            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {order.tickets.map((t, i) => (
+                                    <li key={t.qr_token} className="flex flex-col items-center gap-2 rounded-xl border border-border p-4 text-sm">
+                                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ticket {i + 1} of {order.tickets!.length}</div>
+                                        {t.qr && <div className="rounded-lg bg-white p-2 [&_svg]:block [&_svg]:size-32" dangerouslySetInnerHTML={{ __html: t.qr }} />}
+                                        <span className="font-medium">{t.attendee_name ?? 'Guest'}</span>
+                                        <Link href={`/tickets/${t.qr_token}`} className="font-medium underline underline-offset-4">Open ticket</Link>
                                     </li>
                                 ))}
                             </ul>

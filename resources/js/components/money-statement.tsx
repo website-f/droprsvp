@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { CalendarClock, CheckCircle2, ExternalLink } from 'lucide-react';
+import { money } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
 export interface FeeRate { percent: number; flat: number; label: string; custom: boolean }
@@ -19,10 +20,8 @@ export interface OrganizerStatement {
     payouts: { reference: string; amount: number; status: string; method: string | null; requested_on: string | null; paid_on: string | null }[];
 }
 
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 /** One line of a statement: label (and how it was worked out) on the left, amount on the right. */
-function Line({ label, hint, amount, sign, strong, muted }: { label: string; hint?: string; amount: number; sign?: '−' | '='; strong?: boolean; muted?: boolean }) {
+function Line({ label, hint, amount, sign, strong, muted, currency }: { label: string; hint?: string; amount: number; sign?: '−' | '='; strong?: boolean; muted?: boolean; currency?: string }) {
     return (
         <div className={cn('flex items-baseline justify-between gap-4 py-2', strong && 'border-t border-border pt-3', muted && 'text-muted-foreground')}>
             <div className="min-w-0">
@@ -32,7 +31,7 @@ function Line({ label, hint, amount, sign, strong, muted }: { label: string; hin
                 </div>
                 {hint && <div className={cn('text-xs text-muted-foreground', sign && 'ml-[1.125rem]')}>{hint}</div>}
             </div>
-            <div className={cn('shrink-0 text-right text-sm tabular-nums', strong && 'text-base font-bold')}>{sign === '−' && amount > 0 ? `− ${rm(amount)}` : rm(amount)}</div>
+            <div className={cn('shrink-0 text-right text-sm tabular-nums', strong && 'text-base font-bold')}>{sign === '−' && amount > 0 ? `− ${money(amount, currency)}` : money(amount, currency)}</div>
         </div>
     );
 }
@@ -49,11 +48,12 @@ const STATUS: Record<string, string> = {
  * organizer's share for this event, then where their payout stands across
  * every event they host.
  */
-export function MoneyStatement({ event, organizer }: { event: EventStatement; organizer: OrganizerStatement | null }) {
+/** `currency` is the event's; the organizer's payout balances stay in ringgit. */
+export function MoneyStatement({ event, organizer, currency }: { event: EventStatement; organizer: OrganizerStatement | null; currency?: string }) {
     const salesHint = [
         `${event.orders} order${event.orders === 1 ? '' : 's'}`,
-        event.discounts > 0 ? `after ${rm(event.discounts)} of discounts` : null,
-        event.tax > 0 ? `includes ${rm(event.tax)} tax` : null,
+        event.discounts > 0 ? `after ${money(event.discounts, currency)} of discounts` : null,
+        event.tax > 0 ? `includes ${money(event.tax, currency)} tax` : null,
     ].filter(Boolean).join(' · ');
 
     return (
@@ -77,16 +77,17 @@ export function MoneyStatement({ event, organizer }: { event: EventStatement; or
                     </div>
 
                     <div className="mt-3 divide-y-0">
-                        <Line label="Ticket sales" hint={salesHint} amount={event.sales} />
-                        <Line sign="−" label="Refunds" hint={event.refunded_orders > 0 ? `${event.refunded_orders} order${event.refunded_orders === 1 ? '' : 's'} fully refunded` : undefined} amount={event.refunds} muted={event.refunds === 0} />
-                        <Line sign="=" label="Net sales" amount={event.net_sales} strong />
+                        <Line label="Ticket sales" hint={salesHint} amount={event.sales} currency={currency} />
+                        <Line sign="−" label="Refunds" hint={event.refunded_orders > 0 ? `${event.refunded_orders} order${event.refunded_orders === 1 ? '' : 's'} fully refunded` : undefined} amount={event.refunds} currency={currency} muted={event.refunds === 0} />
+                        <Line sign="=" label="Net sales" amount={event.net_sales} currency={currency} strong />
                         <Line
                             sign="−"
                             label={`Platform fee${event.fee.custom ? ' (custom rate)' : ''}`}
                             hint={`${event.fee.label} per paid order · ${event.paying_orders} paid order${event.paying_orders === 1 ? '' : 's'} · works out to ${event.effective_rate}% of net sales`}
                             amount={event.fees}
+                            currency={currency}
                         />
-                        <Line sign="=" label="Organizer's share" hint="What this event owes the organizer" amount={event.organizer_share} strong />
+                        <Line sign="=" label="Organizer's share" hint="What this event owes the organizer" amount={event.organizer_share} currency={currency} strong />
                     </div>
 
                     {event.ticket_types.length > 0 && (
@@ -106,9 +107,9 @@ export function MoneyStatement({ event, organizer }: { event: EventStatement; or
                                         <tr key={t.name} className="border-b border-border/60 last:border-0">
                                             <td className="py-2 pr-3">{t.name}</td>
                                             <td className="py-2 pr-3 text-right tabular-nums">{t.tickets}</td>
-                                            <td className="py-2 pr-3 text-right tabular-nums">{rm(t.sales)}</td>
-                                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{rm(t.fees)}</td>
-                                            <td className="py-2 text-right font-medium tabular-nums">{rm(t.net)}</td>
+                                            <td className="py-2 pr-3 text-right tabular-nums">{money(t.sales, currency)}</td>
+                                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{money(t.fees, currency)}</td>
+                                            <td className="py-2 text-right font-medium tabular-nums">{money(t.net, currency)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -138,17 +139,17 @@ export function MoneyStatement({ event, organizer }: { event: EventStatement; or
                         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                             <div className="rounded-xl border border-border p-3">
                                 <div className="text-xs text-muted-foreground">Requested, to pay</div>
-                                <div className="mt-1 font-semibold tabular-nums">{rm(organizer.requested)}</div>
+                                <div className="mt-1 font-semibold tabular-nums">{money(organizer.requested)}</div>
                                 <div className="text-[11px] text-muted-foreground">Waiting on you</div>
                             </div>
                             <div className="rounded-xl border border-border p-3">
                                 <div className="text-xs text-muted-foreground">Ready to request</div>
-                                <div className="mt-1 font-semibold tabular-nums">{rm(organizer.available)}</div>
+                                <div className="mt-1 font-semibold tabular-nums">{money(organizer.available)}</div>
                                 <div className="text-[11px] text-muted-foreground">Events have ended</div>
                             </div>
                             <div className="rounded-xl border border-border p-3">
                                 <div className="text-xs text-muted-foreground">Still clearing</div>
-                                <div className="mt-1 font-semibold tabular-nums">{rm(organizer.clearing)}</div>
+                                <div className="mt-1 font-semibold tabular-nums">{money(organizer.clearing)}</div>
                                 <div className="text-[11px] text-muted-foreground">Released when events end</div>
                             </div>
                         </div>
@@ -169,7 +170,7 @@ export function MoneyStatement({ event, organizer }: { event: EventStatement; or
                                             </div>
                                             <div className="flex shrink-0 items-center gap-2">
                                                 <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium capitalize', STATUS[p.status] ?? 'bg-muted text-muted-foreground')}>{p.status}</span>
-                                                <span className="tabular-nums">{rm(p.amount)}</span>
+                                                <span className="tabular-nums">{money(p.amount)}</span>
                                             </div>
                                         </li>
                                     ))}

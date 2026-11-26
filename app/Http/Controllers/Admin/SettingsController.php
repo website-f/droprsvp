@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Setting;
+use App\Services\Payments\Airwallex;
+use App\Services\Payments\AirwallexGateway;
+use App\Support\CountryRates;
 use App\Support\PlatformFee;
 use App\Support\RegionCatalog;
 use App\Support\Regions;
@@ -12,6 +15,7 @@ use App\Support\RolePermissions;
 use App\Support\SiteContent;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Central, superadmin-editable platform settings — fees, tax and general config.
@@ -49,6 +53,11 @@ class SettingsController extends Controller
             ])->values(),
             'regionAreas' => RegionCatalog::AREAS,
             'regionEvents' => Event::query()->selectRaw('region, count(*) as n')->groupBy('region')->pluck('n', 'region'),
+            // Fees, tax and currency per country, on top of the defaults above.
+            'countryRates' => CountryRates::raw(),
+            // Airwallex (payments outside Malaysia). Secrets never leave the server.
+            'airwallex' => Airwallex::forForm(),
+            'airwallexWebhook' => route('webhooks.airwallex'),
             // Role → admin-section permission matrix (superadmin edits this).
             'rolePermissions' => RolePermissions::matrix(),
             'permissionSections' => RolePermissions::sectionList(),
@@ -80,6 +89,89 @@ class SettingsController extends Controller
         Regions::forget();
 
         return back()->with('flash_success', count($data['enabled']).' region'.(count($data['enabled']) === 1 ? '' : 's').' on · '.Regions::default()['name'].' is the default.');
+    }
+
+    /**
+     * Fees, tax and currency per country: one set for "all other countries"
+     * and any number of countries of their own (added one by one, or the same
+     * rates applied to several at once). Blank fields inherit.
+     */
+    public function saveCountryRates(Request $request)
+    {
+        abort_unless($request->user()->hasRole('superadmin'), 403);
+
+        $rate = fn (string $p) => [
+            "{$p}.fee_percent" => ['nullable', 'numeric', 'min:0', 'max:100'],
+            "{$p}.fee_flat" => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            "{$p}.tax_percent" => ['nullable', 'numeric', 'min:0', 'max:100'],
+            "{$p}.tax_label" => ['nullable', 'string', 'max:20'],
+            "{$p}.currency" => ['nullable', 'string', 'size:3', 'alpha'],
+            "{$p}.gateway" => ['nullable', 'in:auto,chip,airwallex'],
+        ];
+
+        $data = $request->validate([
+            'foreign' => ['array'],
+            ...$rate('foreign'),
+            'countries' => ['array', 'max:300'],
+            'countries.*' => ['array'],
+            ...$rate('countries.*'),
+        ]);
+
+        $unknown = array_diff(array_map('strtoupper', array_keys($data['countries'] ?? [])), array_keys(RegionCatalog::COUNTRIES));
+        if ($unknown) {
+            throw ValidationException::withMessages(['countries' => 'Unknown country: '.implode(', ', $unknown).'.']);
+        }
+        if (isset(($data['countries'] ?? [])[CountryRates::HOME]['gateway']) && $data['countries'][CountryRates::HOME]['gateway'] === 'airwallex') {
+            throw ValidationException::withMessages(['countries' => 'Malaysia always pays through CHIP.']);
+        }
+
+        CountryRates::save($data);
+
+        return back()->with('flash_success', 'Country rates saved.');
+    }
+
+    /** Airwallex credentials (encrypted at rest; blank secrets keep the saved ones). */
+    public function saveAirwallex(Request $request)
+    {
+        abort_unless($request->user()->hasRole('superadmin'), 403);
+
+        $data = $request->validate([
+            'enabled' => ['boolean'],
+            'env' => ['required', 'in:sandbox,production'],
+            'client_id' => ['nullable', 'string', 'max:120'],
+            'account_id' => ['nullable', 'string', 'max:120'],
+            'api_key' => ['nullable', 'string', 'max:500'],
+            'webhook_secret' => ['nullable', 'string', 'max:500'],
+            'api_version' => ['nullable', 'string', 'max:20', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+            'clear_api_key' => ['boolean'],
+            'clear_webhook_secret' => ['boolean'],
+        ]);
+
+        Airwallex::save($data);
+        CountryRates::forget();
+
+        if ($request->boolean('enabled') && ! Airwallex::configured()) {
+            return back()->with('flash_warning', 'Saved, but Airwallex stays off until the client ID, API key and account ID are all filled in.');
+        }
+
+        return back()->with('flash_success', Airwallex::configured()
+            ? 'Airwallex saved — events outside Malaysia now take payment through it.'
+            : 'Airwallex settings saved.');
+    }
+
+    /** Sign in to Airwallex with the saved keys, to check them. */
+    public function testAirwallex(Request $request, AirwallexGateway $gateway)
+    {
+        abort_unless($request->user()->hasRole('superadmin'), 403);
+
+        $c = Airwallex::config();
+        if ($c['client_id'] === '' || $c['api_key'] === '') {
+            return back()->with('flash_error', 'Save a client ID and API key first.');
+        }
+
+        $result = $gateway->test();
+
+        return back()->with($result['ok'] ? 'flash_success' : 'flash_error', $result['message']);
     }
 
     /** Save the role → section permission matrix. Superadmin only. */
@@ -151,6 +243,7 @@ class SettingsController extends Controller
         Setting::put('tax_percent', $data['tax_percent']);
         Setting::put('tax_label', $data['tax_label'] ?? 'SST');
         Setting::put('tax_inclusive', $request->boolean('tax_inclusive') ? '1' : '0');
+        CountryRates::forget();
         Setting::put('support_email', $data['support_email'] ?? '');
         Setting::put('trending_keywords', $data['trending_keywords'] ?? '');
         Setting::put('organizer_auto_approve', $request->boolean('organizer_auto_approve') ? '1' : '0');

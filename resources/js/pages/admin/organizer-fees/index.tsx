@@ -12,6 +12,8 @@ import type {
     FeeRate,
     FeeTarget,
 } from '@/components/admin/organizer-fee-dialog';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,7 +26,7 @@ interface Row {
     fees_earned: number;
     fee: FeeRate;
 }
-interface Paginated {
+interface Paginated extends Paginator {
     data: Row[];
     prev_page_url: string | null;
     next_page_url: string | null;
@@ -268,36 +270,7 @@ export default function OrganizerFees({
                     </table>
                 </ResponsiveTable>
 
-                {(organizers.prev_page_url || organizers.next_page_url) && (
-                    <div className="mt-6 flex justify-between">
-                        <Button
-                            asChild
-                            variant="outline"
-                            disabled={!organizers.prev_page_url}
-                        >
-                            {organizers.prev_page_url ? (
-                                <Link href={organizers.prev_page_url}>
-                                    ← Previous
-                                </Link>
-                            ) : (
-                                <span>← Previous</span>
-                            )}
-                        </Button>
-                        <Button
-                            asChild
-                            variant="outline"
-                            disabled={!organizers.next_page_url}
-                        >
-                            {organizers.next_page_url ? (
-                                <Link href={organizers.next_page_url}>
-                                    Next →
-                                </Link>
-                            ) : (
-                                <span>Next →</span>
-                            )}
-                        </Button>
-                    </div>
-                )}
+                <Pagination paginator={organizers} noun="organizers" preserveScroll={false} className="mt-6" />
             </div>
 
             <OrganizerFeeDialog

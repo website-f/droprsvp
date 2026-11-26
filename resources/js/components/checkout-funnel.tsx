@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { ArrowRight, MailWarning, ShoppingCart, UserRoundX, Wallet } from 'lucide-react';
 import { PALETTE } from '@/components/charts';
+import { money } from '@/lib/money';
 
 export interface FunnelStep { key: string; label: string; value: number }
 export interface FunnelSummary {
@@ -24,7 +25,6 @@ export interface FunnelSummary {
     };
 }
 
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const COLORS = [PALETTE[5], PALETTE[0], PALETTE[1], PALETTE[6]];
 
 /**
@@ -32,7 +32,7 @@ const COLORS = [PALETTE[5], PALETTE[0], PALETTE[1], PALETTE[6]];
  * and the abandoned-checkout numbers underneath. Shared by the platform and
  * per-event analytics pages; `abandonedHref` links through to the contact list.
  */
-export function CheckoutFunnel({ data, abandonedHref, title = 'Checkout funnel' }: { data: FunnelSummary; abandonedHref?: string; title?: string }) {
+export function CheckoutFunnel({ data, abandonedHref, title = 'Checkout funnel', currency }: { data: FunnelSummary; abandonedHref?: string; title?: string; currency?: string }) {
     // The views step is usually an order of magnitude larger than the rest, so
     // bars are scaled to "checkout started" when there are views, keeping the
     // later steps readable; the views bar is simply drawn full.
@@ -81,7 +81,7 @@ export function CheckoutFunnel({ data, abandonedHref, title = 'Checkout funnel' 
                 <Tile icon={UserRoundX} tint={PALETTE[3]} label="People who didn’t pay" value={a.people.toLocaleString()} hint={`${a.orders.toLocaleString()} unpaid checkouts`} />
                 <Tile icon={MailWarning} tint={PALETTE[1]} label="Filled in details, didn’t pay" value={a.details.toLocaleString()} hint={`${a.started.toLocaleString()} left before the form`} />
                 <Tile icon={ShoppingCart} tint={PALETTE[0]} label="Reachable for follow-up" value={a.reachable.toLocaleString()} hint={`${a.anonymous.toLocaleString()} anonymous guests · ${a.recovered} came back & paid`} />
-                <Tile icon={Wallet} tint={PALETTE[6]} label="Value left behind" value={rm(a.lost_value)} hint={`${a.tickets.toLocaleString()} tickets`} />
+                <Tile icon={Wallet} tint={PALETTE[6]} label="Value left behind" value={money(a.lost_value, currency)} hint={`${a.tickets.toLocaleString()} tickets`} />
             </div>
         </section>
     );

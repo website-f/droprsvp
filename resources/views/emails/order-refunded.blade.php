@@ -9,7 +9,7 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fa;border-radius:12px;margin:14px 0;">
         <tr><td style="padding:16px 18px;font-size:14px;line-height:1.7;color:#3f3f46;">
             <div>🔖&nbsp; Order {{ $order->reference }}</div>
-            <div>💳&nbsp; Refunded: RM {{ number_format((float) $order->total, 2) }}</div>
+            <div>💳&nbsp; Refunded: {{ \App\Support\CountryRates::money((float) $order->total, $order->currency) }}</div>
         </td></tr>
     </table>
 

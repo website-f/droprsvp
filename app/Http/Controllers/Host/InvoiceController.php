@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Order;
 use App\Models\Payout;
+use App\Support\CountryRates;
 use App\Support\Dates;
 use Illuminate\Http\Request;
 
@@ -43,6 +44,7 @@ class InvoiceController extends Controller
                 'when' => $e->starts_at?->setTimezone($e->timezone)->format('j M Y'),
                 'invoices' => (int) $e->invoices_count,
                 'revenue' => round((float) ($e->revenue ?? 0), 2),
+                'currency' => CountryRates::forEvent($e)['currency'],
             ]);
 
         return inertia('host/invoices/index', [
@@ -108,7 +110,7 @@ class InvoiceController extends Controller
         $gross = (float) $event->orders()->where('status', 'paid')->sum(\DB::raw('total - fees - refunded_amount'));
 
         return inertia('host/invoices/event', [
-            'event' => ['slug' => $event->slug, 'title' => $event->title, 'gross' => round($gross, 2)],
+            'event' => ['slug' => $event->slug, 'title' => $event->title, 'gross' => round($gross, 2), 'currency' => CountryRates::forEvent($event)['currency']],
             'orders' => $orders,
             'byType' => $byType,
         ]);

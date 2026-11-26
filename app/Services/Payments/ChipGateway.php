@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  * RSA-SHA256 signature over the raw body, verified with the account public key.
  * Test vs live is decided by the secret key, so there is one base URL.
  */
-class ChipGateway implements PaymentGateway
+class ChipGateway implements ConfirmsPayments, PaymentGateway
 {
     private const BASE = 'https://gate.chip-in.asia/api/v1';
 
@@ -106,6 +106,11 @@ class ChipGateway implements PaymentGateway
             // here — no second API call needed on the webhook path.
             'payment' => PaymentMethod::fromChip($data),
         ];
+    }
+
+    public function settlement(Order $order): array
+    {
+        return ['payment_ref' => $order->payment_ref, 'payment' => $this->paymentDetails($order->payment_ref)];
     }
 
     /** True when the purchase for this order is settled at CHIP (return-page fallback). */

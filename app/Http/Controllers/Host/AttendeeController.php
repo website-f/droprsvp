@@ -142,7 +142,12 @@ class AttendeeController extends Controller
         if ($request->boolean('auto') || $this->door()->isIn($event, $ticket)) {
             $result = $request->boolean('auto')
                 ? $this->door()->checkIn($event, $ticket, $request->user()->id, 'scan')
-                : ['result' => 'already', 'message' => $event->daily_checkin ? 'Already checked in today.' : 'Already checked in.'];
+                : [
+                    'result' => 'already',
+                    // The same pass scanned twice in a row: it is in, once.
+                    'recent' => $ticket->checked_in_at !== null && $ticket->checked_in_at->gt(now()->subMinutes(2)),
+                    'message' => $event->daily_checkin ? 'Already checked in today.' : 'Already checked in.',
+                ];
 
             return response()->json([
                 ...$result,

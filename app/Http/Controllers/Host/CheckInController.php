@@ -49,7 +49,7 @@ class CheckInController extends Controller
             $door = app(CheckInService::class)->checkIn($event, $ticket, $request->user()->id, 'scan');
             $result = match ($door['result']) {
                 'ok' => ['ok' => true, 'name' => $ticket->attendee_name ?: 'Guest', 'message' => $door['message']],
-                'already' => ['ok' => false, 'already' => true, 'name' => $ticket->attendee_name, 'message' => $door['message']],
+                'already' => ['ok' => false, 'already' => true, 'recent' => (bool) ($door['recent'] ?? false), 'name' => $ticket->attendee_name, 'message' => $door['message']],
                 default => ['ok' => false, 'name' => $ticket->attendee_name, 'message' => "Ticket is not valid ({$ticket->status})."],
             };
         }

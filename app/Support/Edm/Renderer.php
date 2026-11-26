@@ -3,6 +3,7 @@
 namespace App\Support\Edm;
 
 use App\Models\Event;
+use App\Support\CountryRates;
 use App\Support\PageHtml;
 use App\Support\SiteContent;
 use App\Support\Url;
@@ -313,7 +314,7 @@ final class Renderer
             ->format('D, j M Y · g:ia');
         $where = $event->is_online ? 'Online' : collect([$event->venue_name, $event->city])->filter()->implode(', ');
         $prices = $event->ticketTypes->where('is_active', true)->pluck('price')->map(fn ($v) => (float) $v);
-        $price = $prices->isEmpty() ? null : ($prices->max() <= 0 ? 'Free' : 'From RM '.number_format($prices->filter(fn ($v) => $v > 0)->min(), 2));
+        $price = $prices->isEmpty() ? null : ($prices->max() <= 0 ? 'Free' : 'From '.CountryRates::money($prices->filter(fn ($v) => $v > 0)->min(), CountryRates::forEvent($event)['currency']));
         $image = self::imageUrl($event->cover_image ?: $event->banner_image);
         $label = trim((string) ($p['buttonLabel'] ?? '')) ?: 'Get tickets';
 

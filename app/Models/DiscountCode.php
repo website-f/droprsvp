@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CountryRates;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -89,10 +90,10 @@ class DiscountCode extends Model
     }
 
     /** "20% off" / "RM10 off" — how the discount reads to a buyer. */
-    public function offerLabel(): string
+    public function offerLabel(?string $currency = null): string
     {
         return $this->kind === 'fixed'
-            ? 'RM'.rtrim(rtrim(number_format((float) $this->value, 2), '0'), '.').' off'
+            ? CountryRates::symbol($currency ?? CountryRates::forEvent($this->event)['currency']).rtrim(rtrim(number_format((float) $this->value, 2), '0'), '.').' off'
             : rtrim(rtrim(number_format((float) $this->value, 2), '0'), '.').'% off';
     }
 

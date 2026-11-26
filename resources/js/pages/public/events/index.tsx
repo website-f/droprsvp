@@ -2,6 +2,8 @@ import { Link, router } from '@inertiajs/react';
 import { CalendarDays, ChevronRight, MapPin, Rocket, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { PageTitle } from '@/components/page-title';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { contentClass } from '@/components/rich-editor';
 import { SearchAutocomplete } from '@/components/search-autocomplete';
@@ -9,9 +11,10 @@ import { Framed } from '@/components/smart-image';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { ANY, lp, region } from '@/lib/routes';
 
-interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; has_free: boolean; participants: number; faces: string[]; rating: number | null; rating_count: number }
+interface Card { slug: string; title: string; cover_image: string | null; category: string | null; city: string | null; boosted?: boolean; when: string | null; venue: string | null; from_price: number | null; currency?: string; has_free: boolean; participants: number; faces: string[]; rating: number | null; rating_count: number }
 interface Featured { slug: string; title: string; subtitle: string | null; banner_image: string; category: string | null; city: string | null; when: string | null; venue: string | null; url: string }
 interface Hero { enabled: boolean; heading: string; subheading: string; image: string; cta_label: string; cta_url: string; align: 'left' | 'center' | 'right' }
 interface SeoText { enabled: boolean; heading: string; body: string }
@@ -19,7 +22,7 @@ interface Crumb { name: string; url: string }
 
 const AVATAR_TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#ff6584', '#3b82f6'];
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
-interface Paginated { data: Card[]; prev_page_url: string | null; next_page_url: string | null }
+interface Paginated extends Paginator { data: Card[]; prev_page_url: string | null; next_page_url: string | null }
 interface Category { name: string; slug: string }
 interface City { name: string; slug: string }
 interface Active { city: string | null; city_name: string | null; category: string | null; category_name: string | null }
@@ -179,7 +182,7 @@ function pathFor(citySlug: string | null, catSlug: string | null): string {
 
 function priceLabel(c: Card): string {
     if (c.from_price !== null) {
-return `From RM ${c.from_price.toFixed(2)}`;
+return `From ${money(c.from_price, c.currency)}`;
 }
 
     if (c.has_free) {
@@ -309,12 +312,7 @@ export default function Discover({ events, categories, cities, active, filters, 
                         </div>
                     )}
 
-                    {(events.prev_page_url || events.next_page_url) && (
-                        <div className="mt-10 flex justify-between">
-                            <Button asChild variant="outline" disabled={!events.prev_page_url}>{events.prev_page_url ? <Link href={events.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                            <Button asChild variant="outline" disabled={!events.next_page_url}>{events.next_page_url ? <Link href={events.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
-                        </div>
-                    )}
+                    <Pagination paginator={events} noun="events" preserveScroll={false} className="mt-10" />
 
                     {/* Admin-authored SEO content, per category */}
                     {categoryContent.length > 0 && (

@@ -15,7 +15,9 @@ use App\Models\SeatSection;
 use App\Models\Setting;
 use App\Models\TicketType;
 use App\Models\User;
+use App\Services\Payments\AirwallexGateway;
 use App\Services\Payments\PaymentGateway;
+use App\Support\CountryRates;
 use App\Support\PlatformFee;
 use App\Support\Profile;
 use App\Support\Tracking;
@@ -131,9 +133,11 @@ class CheckoutService
             // else the global rate. A discount applied later re-prices via
             // reprice(); the fee is frozen on the order from here, so a later
             // rate change never moves an order that already exists.
-            $fees = PlatformFee::on($subtotal, $event->user);
-            $taxPercent = (float) Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
-            $tax = round($subtotal * $taxPercent / 100, 2);
+            // Fee, tax, currency and gateway follow the event's country
+            // (Settings → Country rates); Malaysia is the platform default.
+            $rates = CountryRates::forEvent($event);
+            $fees = PlatformFee::on($subtotal, $event->user, $rates['country']);
+            $tax = round($subtotal * $rates['tax_percent'] / 100, 2);
 
             $order = Order::create([
                 'reference' => $this->uniqueReference(),
@@ -146,7 +150,10 @@ class CheckoutService
                 // Buyer-facing total: tickets + tax. The commission is deliberately
                 // absent — it is deducted from the organizer, not added here.
                 'total' => round($subtotal + $tax, 2),
-                'currency' => $currency,
+                // The country's currency — what the event page showed and what
+                // its gateway charges (CHIP: ringgit; Airwallex: local).
+                'currency' => $rates['currency'] ?: $currency,
+                'gateway' => $rates['gateway'],
             ]);
             $order->items()->createMany($lines);
 
@@ -197,9 +204,9 @@ class CheckoutService
         // Commission + tax follow the discounted ticket spend, at the same rate
         // the order opened on (the event owner's, custom or global). The
         // commission still does not reach the buyer's total — see start().
-        $fees = PlatformFee::on($taxable, $order->event?->user);
-        $taxPercent = (float) Setting::get('tax_percent', config('droprsvp.tax_percent', 0));
-        $tax = round($taxable * $taxPercent / 100, 2);
+        $rates = CountryRates::forEvent($order->event);
+        $fees = PlatformFee::on($taxable, $order->event?->user, $rates['country']);
+        $tax = round($taxable * $rates['tax_percent'] / 100, 2);
 
         $order->update([
             'discount' => $discount,
@@ -416,6 +423,12 @@ class CheckoutService
 
             // Move the money at the gateway before touching local records; a failure
             // rolls the whole transaction back (nothing recorded, nothing released).
+            // An Airwallex order is refunded at Airwallex, whichever gateway
+            // the caller was handed (the app default is CHIP).
+            if ($gateway && $locked->gateway === 'airwallex' && ! $gateway instanceof AirwallexGateway) {
+                $gateway = app(AirwallexGateway::class);
+            }
+
             if ($gateway && ! $gateway->refund($locked, $amt)) {
                 return ['ok' => false, 'full' => false, 'amount' => 0.0, 'reason' => 'gateway'];
             }

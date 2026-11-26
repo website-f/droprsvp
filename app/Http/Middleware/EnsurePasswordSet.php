@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Impersonation;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,13 +25,20 @@ class EnsurePasswordSet
         'password.set', 'password.set.save', 'logout',
         'checkout.confirmation', 'checkout.analytics.ack', 'checkout.analytics.claim',
         'tickets.show', 'account.tickets',
+        // An admin viewing as this buyer must always be able to leave.
+        'impersonate.stop',
     ];
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        if ($user && $user->must_set_password && ! $request->routeIs(...self::OPEN)) {
+        // A superadmin "viewing as" a guest-created buyer is not that buyer: they
+        // must see the site as it is, never be made to pick the buyer's password,
+        // and "Back to my account" must reach its route. This gate used to send
+        // every request — the way out included — to /set-password, trapping
+        // the admin in the borrowed account.
+        if ($user && $user->must_set_password && ! Impersonation::active($request) && ! $request->routeIs(...self::OPEN)) {
             if ($request->expectsJson()) {
                 return $next($request);
             }

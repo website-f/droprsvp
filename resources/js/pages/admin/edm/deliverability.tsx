@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Check, ClipboardCopy, Inbox, ListChecks, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
-import { EDM_CRUMB, EdmHeader, Pager, Section, StatusPill } from '@/components/edm/ui';
+import { EDM_CRUMB, EdmHeader, Section, StatusPill } from '@/components/edm/ui';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Button } from '@/components/ui/button';
 
@@ -21,7 +23,7 @@ interface Props {
         pipe: string;
     };
     bounceTotals: Record<string, number>;
-    bounces: { data: Bounce[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number };
+    bounces: { data: Bounce[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number } & Paginator;
     filters: { type: string };
 }
 
@@ -234,7 +236,7 @@ export default function EdmDeliverability({ checklist, dns, domain, blocklists, 
                             </tbody>
                         </table>
                     </ResponsiveTable>
-                    <Pager prev={bounces.prev_page_url} next={bounces.next_page_url} page={bounces.current_page} last={bounces.last_page} />
+                    <Pagination paginator={bounces} noun="bounces" className="border-t border-border p-3" />
                 </Section>
             </div>
         </>

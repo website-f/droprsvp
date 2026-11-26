@@ -172,7 +172,8 @@ class RegionsTest extends TestCase
         $this->actingAs($host)->put(route('host.events.update', $event), [
             'title' => 'Marina Bay Trivia Night', 'visibility' => 'public', 'timezone' => 'Asia/Singapore',
             'ticketTypes' => [['name' => 'Entry', 'kind' => 'free', 'price' => '0', 'min_per_order' => 1, 'max_per_order' => 5, 'is_active' => true]],
-            'sessions' => [], 'gallery' => [], 'sections' => [],
+            // A published event keeps a date (it is required once live).
+            'sessions' => [['starts_at' => now()->addWeek()->format('Y-m-d').'T19:00']], 'gallery' => [], 'sections' => [],
         ])->assertSessionHasNoErrors();
 
         $this->assertSame('en-sg', $event->fresh()->region);

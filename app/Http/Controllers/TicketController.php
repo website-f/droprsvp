@@ -48,6 +48,36 @@ class TicketController extends Controller
                 ],
             ],
             'qr' => Qr::svg($ticket->qr_token),
+            // One QR per person. Someone who bought three tickets holds three
+            // passes, and each guest scans their own — so the pass page shows
+            // all of them (this one first in the pager), not just the one link
+            // they happened to open. Only passes still held by the same
+            // person: a ticket transferred to a friend is theirs now.
+            'passes' => $this->passesHeldWith($ticket),
         ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function passesHeldWith(Ticket $ticket): array
+    {
+        $passes = $ticket->order_id
+            ? Ticket::where('order_id', $ticket->order_id)
+                ->where(fn ($q) => $ticket->attendee_email
+                    ? $q->where('attendee_email', $ticket->attendee_email)
+                    : $q->whereNull('attendee_email'))
+                ->with(['ticketType:id,name', 'seatingTable:id,name'])
+                ->orderBy('id')
+                ->get()
+            : collect([$ticket]);
+
+        return $passes->map(fn (Ticket $t) => [
+            'qr_token' => $t->qr_token,
+            'attendee_name' => $t->attendee_name,
+            'status' => $t->status,
+            'type' => $t->ticketType?->name,
+            'table' => $t->seatingTable?->name,
+            'seat' => $t->seat_label,
+            'qr' => Qr::svg($t->qr_token),
+        ])->values()->all();
     }
 }

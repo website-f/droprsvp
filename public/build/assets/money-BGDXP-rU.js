@@ -1,0 +1,1 @@
+var e={MYR:`RM`,SGD:`S$`,USD:`US$`,AUD:`A$`,EUR:`€`,GBP:`£`,IDR:`Rp`,THB:`฿`,PHP:`₱`,VND:`₫`,JPY:`¥`,INR:`₹`};function t(t){let n=(t||`MYR`).toUpperCase();return e[n]??n}function n(e,n){let r=Number(e??0);return`${t(n)} ${r.toLocaleString(void 0,{minimumFractionDigits:2,maximumFractionDigits:2})}`}export{n,t};

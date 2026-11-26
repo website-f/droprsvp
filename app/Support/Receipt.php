@@ -35,6 +35,9 @@ class Receipt
                 // organizer who signed up with Google got their Google selfie
                 // on every invoice.)
                 'logo' => $profile?->poster ?: $organizer?->avatar,
+                // Shown instead when the organizer has no logo of their own, so
+                // no receipt goes out unbranded.
+                'fallback_logo' => self::platformLogo(),
                 'address' => $profile?->business_address,
                 'tax_number' => $profile?->tax_number,
             ],
@@ -68,6 +71,12 @@ class Receipt
         ];
     }
 
+    /** The site's wordmark (Admin → Appearance → Branding), as a path. */
+    public static function platformLogo(): string
+    {
+        return (string) (SiteContent::branding()['logo_full'] ?? '/logo-full.png');
+    }
+
     /** An organizer's payout receipt, issued by DropRSVP. */
     public static function forPayout(Payout $payout): array
     {
@@ -83,7 +92,8 @@ class Receipt
             'seller' => [
                 'name' => config('app.name'),
                 'detail' => 'Organizer payouts',
-                'logo' => null,
+                // Issued by the platform itself: its own logo.
+                'logo' => self::platformLogo(),
             ],
             'party_label' => 'Paid to',
             'party' => [

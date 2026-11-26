@@ -9,11 +9,12 @@ import { Framed, SmartImage } from '@/components/smart-image';
 import { SocialIcon } from '@/components/social-icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface EventCard {
     slug: string; title: string; cover_image: string | null; when: string | null; venue: string | null;
-    from_price: number | null; has_free: boolean; participants: number; rating: number | null; is_past: boolean;
+    from_price: number | null; currency?: string; has_free: boolean; participants: number; rating: number | null; is_past: boolean;
 }
 interface Organizer {
     id: number; slug: string; name: string; avatar: string | null; bio: string | null; website: string | null;
@@ -50,7 +51,7 @@ const TINTS = ['#6c63ff', '#2ec4b6', '#f5a524', '#3b82f6', '#ff6584', '#a855f7']
 
 function priceLabel(e: EventCard): string {
     if (e.from_price !== null) {
-        return `From RM ${e.from_price.toFixed(2)}`;
+        return `From ${money(e.from_price, e.currency)}`;
     }
 
     return e.has_free ? 'Free' : '';

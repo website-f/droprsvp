@@ -15,6 +15,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\EventDuplicator;
 use App\Support\Cities;
+use App\Support\CountryRates;
 use App\Support\CustomFields;
 use App\Support\HtmlSanitizer;
 use App\Support\PlatformFee;
@@ -81,6 +82,9 @@ class EventController extends Controller
             'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
             // Drives the price hint + inline warning on paid ticket tiers.
             'platformFee' => PlatformFee::toArray($request->user()),
+            // The fee and currency in each region, so prices are labelled in
+            // the right currency as soon as the organizer picks the region.
+            'feesByRegion' => $this->feesByRegion($request->user()),
         ]);
     }
 
@@ -89,7 +93,7 @@ class EventController extends Controller
         $data = $this->settleRegion($this->validated($request), $request);
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
         $data = $this->sessionsToUtc($data);
-        $this->assertTicketPricesCoverTheFee($data, $request->user());
+        $this->assertTicketPricesCoverTheFee($data, $request->user(), CountryRates::countryOf($data['region'] ?? null));
         // Before the event row exists: a bad promo payload must not leave a
         // half-created event behind.
         $this->assertDiscountCodesAreValid($data['discounts'] ?? [], null);
@@ -145,7 +149,8 @@ class EventController extends Controller
             'ticketingModes' => SettingsController::ticketingModes(),
             'isSuperadmin' => (bool) $request->user()->hasRole('superadmin'),
             // Drives the price hint + inline warning on paid ticket tiers.
-            'platformFee' => PlatformFee::toArray($event->user),
+            'platformFee' => PlatformFee::toArray($event->user, CountryRates::countryOf($event->region)),
+            'feesByRegion' => $this->feesByRegion($event->user),
         ]);
     }
 
@@ -153,11 +158,11 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
-        $data = $this->settleRegion($this->validated($request), $request, $event);
+        $data = $this->settleRegion($this->validated($request, $event), $request, $event);
         $data = $this->sessionsToUtc($data);
         // The floor follows the EVENT's owner, not whoever is editing — an admin
         // editing on someone's behalf must not be measured against their own rate.
-        $this->assertTicketPricesCoverTheFee($data, $event->user);
+        $this->assertTicketPricesCoverTheFee($data, $event->user, CountryRates::countryOf($data['region'] ?? $event->region));
         $data['ticketing_mode'] = $this->resolveMode($request, $data);
         $this->assertDiscountCodesAreValid($data['discounts'] ?? [], $event);
         $event->fill($this->eventAttributes($data))->save();
@@ -353,8 +358,15 @@ class EventController extends Controller
         return $data;
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Event $event = null): array
     {
+        // A live event must say when it is. Drafts may be saved without a date
+        // while the organizer is still working on them, but publishing — or
+        // saving an event that is already published — needs at least one date
+        // with a start: listings, reminders and expiry all run on it, and
+        // organizers were publishing events with the date left blank.
+        $needsDate = $request->boolean('publish') || $event?->status === 'published';
+
         return $request->validate([
             'title' => ['required', 'string', 'max:180'],
             'subtitle' => ['nullable', 'string', 'max:200'],
@@ -425,7 +437,7 @@ class EventController extends Controller
             'capacity' => ['nullable', 'integer', 'min:0'],
             'publish' => ['boolean'],
 
-            'sessions' => ['array'],
+            'sessions' => $needsDate ? ['required', 'array', 'min:1'] : ['array'],
             'sessions.*.id' => ['nullable', 'integer'],
             'sessions.*.title' => ['nullable', 'string', 'max:120'],
             'sessions.*.starts_at' => ['required', 'date'],
@@ -464,7 +476,12 @@ class EventController extends Controller
             'ticketTypes.*.sales_start' => ['nullable', 'date'],
             'ticketTypes.*.sales_end' => ['nullable', 'date', 'after_or_equal:ticketTypes.*.sales_start'],
             'ticketTypes.*.is_active' => ['boolean'],
-        ] + CustomFields::rules());
+        ] + CustomFields::rules(), [
+            'sessions.required' => 'Add the date and time of the event before publishing.',
+            'sessions.min' => 'Add the date and time of the event before publishing.',
+            'sessions.*.starts_at.required' => 'Pick when the event starts.',
+            'sessions.*.ends_at.after_or_equal' => 'The event can’t end before it starts.',
+        ]);
     }
 
     /**
@@ -482,9 +499,10 @@ class EventController extends Controller
      * Kept out of validated() because it needs the event's owner, which the
      * rules array has no access to.
      */
-    private function assertTicketPricesCoverTheFee(array $data, User $organizer): void
+    private function assertTicketPricesCoverTheFee(array $data, User $organizer, ?string $country = null): void
     {
-        $minimum = PlatformFee::minimumTicketPrice($organizer);
+        $minimum = PlatformFee::minimumTicketPrice($organizer, $country);
+        $cur = CountryRates::symbol($country ? CountryRates::for($country)['currency'] : 'MYR');
 
         if ($minimum <= 0) {
             return;
@@ -502,19 +520,19 @@ class EventController extends Controller
             // The group price is a price a ticket sells at too, so the same floor applies.
             if (self::groupPriced($type) && (float) $type['group_price'] < $minimum) {
                 $errors["ticketTypes.{$i}.group_price"] = sprintf(
-                    'This is below the RM%s platform fee on your account. Make the group price RM%s or more.',
-                    number_format($minimum, 2),
+                    'This is below the %1$s%2$s platform fee on your account. Make the group price %1$s%2$s or more.',
+                    $cur,
                     number_format($minimum, 2),
                 );
             }
 
             if ($price > 0 && $price < $minimum) {
                 $errors["ticketTypes.{$i}.price"] = sprintf(
-                    'This is below the RM%s platform fee on your account, so you would receive '
-                    .'RM%s per sale. Price it at RM%s or more, or make it a free ticket.',
+                    'This is below the %1$s%2$s platform fee on your account, so you would receive '
+                    .'%1$s%3$s per sale. Price it at %1$s%2$s or more, or make it a free ticket.',
+                    $cur,
                     number_format($minimum, 2),
-                    number_format(PlatformFee::organizerNet($price, $organizer), 2),
-                    number_format($minimum, 2),
+                    number_format(PlatformFee::organizerNet($price, $organizer, $country), 2),
                 );
             }
         }
@@ -552,6 +570,14 @@ class EventController extends Controller
             'timezone' => $r['timezone'], 'area' => $r['area'], 'default' => $r['default'],
             'zones' => \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $r['country']),
         ], Regions::enabled());
+    }
+
+    /** @return array<string, array<string, mixed>> region code => PlatformFee::toArray() there */
+    private function feesByRegion(User $organizer): array
+    {
+        return collect(Regions::enabled())
+            ->mapWithKeys(fn (array $r) => [$r['code'] => PlatformFee::toArray($organizer, $r['country'])])
+            ->all();
     }
 
     /** The region this organizer last ran an event in, if it is still on. */
@@ -700,6 +726,8 @@ class EventController extends Controller
                 'sales_end' => $row['sales_end'] ?? null,
                 'is_active' => $row['is_active'] ?? true,
                 'sort_order' => $i,
+                // Priced in the event's country's currency (CountryRates).
+                'currency' => CountryRates::forEvent($event)['currency'],
             ];
             $model = ! empty($row['id'])
                 ? $event->ticketTypes()->whereKey($row['id'])->first()
@@ -817,7 +845,7 @@ class EventController extends Controller
             $section = ! empty($row['id']) ? $event->seatSections()->whereKey($row['id'])->first() : null;
             $attrs = [
                 'name' => $row['name'], 'color' => $row['color'] ?? '#6c63ff', 'kind' => $kind,
-                'price' => $price, 'currency' => 'MYR',
+                'price' => $price, 'currency' => CountryRates::forEvent($event)['currency'],
                 'rows' => $rowsN, 'cols' => $colsN, 'capacity' => $capacity, 'sort_order' => $i,
                 'x' => (int) ($row['x'] ?? 20), 'y' => (int) ($row['y'] ?? 20),
                 'width' => isset($row['width']) ? (int) $row['width'] : null,
@@ -840,7 +868,7 @@ class EventController extends Controller
 
             $ttAttrs = [
                 'seat_section_id' => $section->id, 'name' => $section->name,
-                'kind' => $price > 0 ? 'paid' : 'free', 'price' => $price, 'currency' => 'MYR',
+                'kind' => $price > 0 ? 'paid' : 'free', 'price' => $price, 'currency' => CountryRates::forEvent($event)['currency'],
                 'quantity' => $qty, 'min_per_order' => 1, 'max_per_order' => max(1, min(20, (int) $qty)),
                 'is_active' => true, 'sort_order' => $i,
             ];

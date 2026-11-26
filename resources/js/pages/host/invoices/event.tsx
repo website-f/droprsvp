@@ -1,16 +1,16 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, Receipt } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 
 interface TypeLine { name: string; quantity: number; unit_price: number }
 interface OrderRow { reference: string; buyer: string; email: string | null; tickets: number; types: TypeLine[]; total: number; currency: string; status: string; date: string | null }
 interface TypeTotal { name: string; sold: number; gross: number }
-interface Paginated { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
-interface Props { event: { slug: string; title: string; gross: number }; orders: Paginated; byType: TypeTotal[] }
-
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+interface Paginated extends Paginator { data: OrderRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Props { event: { slug: string; title: string; gross: number; currency?: string }; orders: Paginated; byType: TypeTotal[] }
 
 export default function EventInvoices({ event, orders, byType }: Props) {
     return (
@@ -26,7 +26,7 @@ export default function EventInvoices({ event, orders, byType }: Props) {
                     </div>
                     <div className="rounded-xl border border-border bg-card px-4 py-2 text-right">
                         <div className="text-xs uppercase tracking-wide text-muted-foreground">Gross revenue</div>
-                        <div className="text-lg font-bold tabular-nums">{rm(event.gross)}</div>
+                        <div className="text-lg font-bold tabular-nums">{money(event.gross, event.currency)}</div>
                     </div>
                 </div>
 
@@ -41,7 +41,7 @@ export default function EventInvoices({ event, orders, byType }: Props) {
                                     <span className="font-medium">{t.name}</span>
                                     <span className="flex items-center gap-4 text-muted-foreground">
                                         <span className="tabular-nums">{t.sold} sold</span>
-                                        <span className="font-semibold tabular-nums text-foreground">{rm(t.gross)}</span>
+                                        <span className="font-semibold tabular-nums text-foreground">{money(t.gross, event.currency)}</span>
                                     </span>
                                 </li>
                             ))}
@@ -96,7 +96,7 @@ export default function EventInvoices({ event, orders, byType }: Props) {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-right tabular-nums">{o.tickets}</td>
-                                            <td className="px-4 py-3 text-right font-medium tabular-nums">{rm(o.total)}</td>
+                                            <td className="px-4 py-3 text-right font-medium tabular-nums">{money(o.total, o.currency)}</td>
                                             <td className="px-4 py-3"><Badge variant={o.status === 'paid' ? 'default' : 'secondary'} className="capitalize">{o.status}</Badge></td>
                                             <td className="px-4 py-3 text-right">
                                                 <a href={`/my/orders/${o.reference}/receipt`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><Download className="size-4" /> Invoice</a>
@@ -106,15 +106,7 @@ export default function EventInvoices({ event, orders, byType }: Props) {
                                 </tbody>
                             </table>
                         </ResponsiveTable>
-                        {(orders.prev_page_url || orders.next_page_url) && (
-                            <div className="mt-6 flex items-center justify-between gap-2 text-sm">
-                                <span className="text-muted-foreground">Page {orders.current_page} of {orders.last_page} · {orders.total} invoices</span>
-                                <div className="flex gap-2">
-                                    <Button asChild variant="outline" size="sm" disabled={!orders.prev_page_url}>{orders.prev_page_url ? <Link href={orders.prev_page_url} preserveScroll>← Prev</Link> : <span>← Prev</span>}</Button>
-                                    <Button asChild variant="outline" size="sm" disabled={!orders.next_page_url}>{orders.next_page_url ? <Link href={orders.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                                </div>
-                            </div>
-                        )}
+                        <Pagination paginator={orders} noun="invoices" className="mt-6" />
                     </>
                 )}
             </div>

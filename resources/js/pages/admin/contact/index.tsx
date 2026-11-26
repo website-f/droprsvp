@@ -1,5 +1,7 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Check, Download, Mail, Phone, RotateCcw } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -7,7 +9,7 @@ interface Message {
     id: number; name: string; email: string; phone: string | null;
     category: string; message: string; handled: boolean; at: string;
 }
-interface Paginated { data: Message[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Paginated extends Paginator { data: Message[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 interface Props { messages: Paginated; unhandled: number; filters: { status: string } }
 
 const CATEGORY_TINT: Record<string, string> = { support: '#3b82f6', sales: '#2ec4b6', enquiry: '#a855f7' };
@@ -68,13 +70,7 @@ export default function ContactInbox({ messages, unhandled, filters }: Props) {
                     </ul>
                 )}
 
-                {(messages.prev_page_url || messages.next_page_url) && (
-                    <div className="mt-8 flex items-center justify-between gap-2">
-                        <Button asChild variant="outline" size="sm" disabled={!messages.prev_page_url}>{messages.prev_page_url ? <Link href={messages.prev_page_url} preserveScroll>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <span className="text-sm text-muted-foreground">Page {messages.current_page} of {messages.last_page} · {messages.total} total</span>
-                        <Button asChild variant="outline" size="sm" disabled={!messages.next_page_url}>{messages.next_page_url ? <Link href={messages.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={messages} noun="messages" className="mt-8" />
             </div>
         </>
     );

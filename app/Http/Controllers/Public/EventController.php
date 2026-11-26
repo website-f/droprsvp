@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\TableAssignmentService;
 use App\Support\Chat\ChatLink;
 use App\Support\Cities;
+use App\Support\CountryRates;
 use App\Support\HtmlSanitizer;
 use App\Support\Ics;
 use App\Support\Regions;
@@ -74,6 +75,7 @@ class EventController extends Controller
         // crawler text and the JSON-LD, so they are worked out once here.
         $ended = $event->hasEnded();
         $priced = $this->pricedTicketTypes($event, $ended);
+        $currency = $this->currencyOf($event);
 
         // Ratings (shown on the page + as aggregateRating in JSON-LD).
         $ratingCount = (int) $event->reviews()->count();
@@ -176,8 +178,9 @@ class EventController extends Controller
                 'has_ended' => $ended,
                 // What a ticket costs, stated in the header rather than only in the
                 // ticket box further down — "Free", "RM 25.00", "RM 25.00 – RM 80.00".
-                'price_label' => $this->priceLabel($priced),
-                'price_list' => $priced->map(fn ($t) => ['name' => $t->name, 'price' => $this->money($t)])->values()->all(),
+                'price_label' => $this->priceLabel($priced, $currency),
+                'price_list' => $priced->map(fn ($t) => ['name' => $t->name, 'price' => $this->money($t, $currency)])->values()->all(),
+                'currency' => $currency,
                 // The NEXT date, for an event on several dates (every Sunday…):
                 // its first date passing must not make it look over.
                 'when' => $event->displayDate(true),   // pre-formatted (no client TZ drift)
@@ -205,7 +208,7 @@ class EventController extends Controller
                     'color' => $sec->color,
                     'kind' => $sec->kind,
                     'price' => (float) $sec->price,
-                    'currency' => $sec->currency,
+                    'currency' => $currency,
                     'rows' => $sec->rows,
                     'cols' => $sec->cols,
                     'curve' => (int) $sec->curve,
@@ -241,7 +244,7 @@ class EventController extends Controller
                     // "Buy 3 or more, RM15 each" — the checkout prices it the same way.
                     'group_min' => $t->hasGroupPrice() ? (int) $t->group_min : null,
                     'group_price' => $t->hasGroupPrice() ? (float) $t->group_price : null,
-                    'currency' => $t->currency,
+                    'currency' => $currency,
                     'on_sale' => ! $ended && $t->isOnSale(),
                     'sold_out' => $t->remaining() === 0,
                     'min_per_order' => $t->min_per_order,
@@ -253,7 +256,7 @@ class EventController extends Controller
             // private partner code can never reach the page payload.
             'offers' => $event->discountCodes->map(fn ($code) => [
                 'code' => $code->code,
-                'label' => $code->offerLabel(),
+                'label' => $code->offerLabel($currency),
                 'min_subtotal' => $code->min_subtotal !== null ? (float) $code->min_subtotal : null,
                 'ends_at' => $code->ends_at?->setTimezone($event->timezone)->format('j M Y'),
                 // What is left when the organizer capped it — the scarcity is
@@ -477,8 +480,20 @@ class EventController extends Controller
         return $event->ticketTypes()->orderBy('sort_order')->get();
     }
 
+    /**
+     * What an event sells in now (its country's currency) — older ticket
+     * types may still carry the MYR they were created with. Home-country
+     * events are always ringgit (CHIP), which spares the page the rates lookup.
+     */
+    private function currencyOf(Event $event): string
+    {
+        return CountryRates::countryOf($event->region) === CountryRates::HOME
+            ? 'MYR'
+            : CountryRates::forEvent($event)['currency'];
+    }
+
     /** One ticket's price as the page shows it: "Free", "Donation", "RM 25.00". */
-    private function money(TicketType $type): string
+    private function money(TicketType $type, string $currency): string
     {
         if ($type->kind === 'donation') {
             return 'Donation';
@@ -488,12 +503,7 @@ class EventController extends Controller
             return 'Free';
         }
 
-        return $this->currency($type->currency).' '.number_format((float) $type->price, 2);
-    }
-
-    private function currency(?string $code): string
-    {
-        return ($code ?: 'MYR') === 'MYR' ? 'RM' : (string) $code;
+        return CountryRates::money((float) $type->price, $currency);
     }
 
     /**
@@ -501,7 +511,7 @@ class EventController extends Controller
      * "Free – RM 80.00" when there are free and paid tickets. Null when the
      * event has no tickets to price.
      */
-    private function priceLabel(Collection $types): ?string
+    private function priceLabel(Collection $types, string $currency): ?string
     {
         if ($types->isEmpty()) {
             return null;
@@ -513,8 +523,7 @@ class EventController extends Controller
             return $types->every(fn ($t) => $t->kind === 'donation') ? 'Donation' : 'Free';
         }
 
-        $symbol = $this->currency($paid->first()->currency);
-        $format = fn (float $amount) => $symbol.' '.number_format($amount, 2);
+        $format = fn (float $amount) => CountryRates::money($amount, $currency);
         $low = (float) $paid->min(fn ($t) => (float) $t->price);
         $high = (float) $paid->max(fn ($t) => (float) $t->price);
 
@@ -569,7 +578,7 @@ class EventController extends Controller
                 'cover_image' => $e->cover_image ? $this->absolute($e->cover_image) : null,
                 'when' => $e->displayDate(),
                 'venue' => $e->is_online ? 'Online' : ($e->venue_name ?: $e->city),
-                'price' => $this->priceLabel($e->ticketTypes->where('is_active', true)->values()),
+                'price' => $this->priceLabel($e->ticketTypes->where('is_active', true)->values(), $this->currencyOf($e)),
                 'same_organizer' => $e->user_id === $event->user_id,
             ])
             ->values()
@@ -666,10 +675,11 @@ class EventController extends Controller
 
         // ---- tickets: what it costs and whether you can still get in ------------
         // Seat-section types are listed below by their section instead.
-        $tickets = $priced->whereNull('seat_section_id')->map(function ($t) use ($ended) {
+        $currency = $this->currencyOf($event);
+        $tickets = $priced->whereNull('seat_section_id')->map(function ($t) use ($ended, $currency) {
             $price = $t->kind === 'free' || (float) $t->price <= 0
                 ? 'Free'
-                : ($t->currency ?: 'MYR').' '.number_format((float) $t->price, 2);
+                : $currency.' '.number_format((float) $t->price, 2);
             $remaining = $t->remaining();
             $state = match (true) {
                 $ended => 'Event ended',
@@ -686,7 +696,7 @@ class EventController extends Controller
         // Reserved-seating events sell by section rather than ticket type.
         $sections = $event->seating_enabled
             ? $event->seatSections->where('kind', '!=', 'stage')->map(fn ($sec) => '<li><strong>'.e($sec->name).'</strong> — '
-                .e((float) $sec->price > 0 ? ($sec->currency ?: 'MYR').' '.number_format((float) $sec->price, 2) : 'Free')
+                .e((float) $sec->price > 0 ? $currency.' '.number_format((float) $sec->price, 2) : 'Free')
                 .($sec->ticketType && $sec->ticketType->remaining() === 0 ? ' (Sold out)' : '').'</li>')
             : collect();
 
@@ -786,7 +796,7 @@ class EventController extends Controller
             // say "from RM25" without reading every ticket type.
             $schema['offers'] = array_merge([array_filter([
                 '@type' => 'AggregateOffer',
-                'priceCurrency' => $priced->first()?->currency ?: 'MYR',
+                'priceCurrency' => $this->currencyOf($event),
                 'lowPrice' => number_format($prices->min(), 2, '.', ''),
                 'highPrice' => number_format($prices->max(), 2, '.', ''),
                 'offerCount' => count($offers),
@@ -817,15 +827,17 @@ class EventController extends Controller
      */
     private function offerSchema(Event $event, string $url, Collection $priced, bool $ended): array
     {
+        $currency = $this->currencyOf($event);
+
         return $priced
-            ->map(function ($t) use ($event, $url, $ended) {
+            ->map(function ($t) use ($event, $url, $ended, $currency) {
                 $remaining = $t->remaining();
 
                 return array_filter([
                     '@type' => 'Offer',
                     'name' => $t->name,
                     'price' => number_format((float) $t->price, 2, '.', ''),
-                    'priceCurrency' => $t->currency ?: 'MYR',
+                    'priceCurrency' => $currency,
                     'availability' => match (true) {
                         $ended => null,
                         $remaining === 0 => 'https://schema.org/SoldOut',

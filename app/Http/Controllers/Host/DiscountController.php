@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DiscountCode;
 use App\Models\Event;
 use App\Models\Order;
+use App\Support\CountryRates;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class DiscountController extends Controller
         $this->authorize('update', $event);
 
         return inertia('host/events/discounts', [
-            'event' => ['title' => $event->title, 'slug' => $event->slug, 'currency' => 'MYR'],
+            'event' => ['title' => $event->title, 'slug' => $event->slug, 'currency' => CountryRates::forEvent($event)['currency']],
             'codes' => $event->discountCodes()->latest()->get()->map(fn (DiscountCode $c) => $this->row($c)),
         ]);
     }

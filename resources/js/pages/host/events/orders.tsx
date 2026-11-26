@@ -4,6 +4,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 
 interface OrderRow { reference: string; buyer: string | null; email: string | null; tickets: number; total: number; currency: string; status: string; notes: string | null; date: string | null }
 interface Props { event: { title: string; slug: string }; orders: OrderRow[] }
@@ -13,7 +14,7 @@ export default function Orders({ event, orders }: Props) {
     const confirm = useConfirm();
 
     const refund = async (o: OrderRow) => {
-        if (await confirm({ title: `Refund ${o.reference}?`, description: `${o.currency} ${o.total.toFixed(2)} will be refunded and the tickets voided.`, confirmText: 'Refund', destructive: true })) {
+        if (await confirm({ title: `Refund ${o.reference}?`, description: `${money(o.total, o.currency)} will be refunded and the tickets voided.`, confirmText: 'Refund', destructive: true })) {
             router.post(`/host/events/${event.slug}/orders/${o.reference}/refund`, {}, { preserveScroll: true });
         }
     };
@@ -53,7 +54,7 @@ export default function Orders({ event, orders }: Props) {
                                             {o.notes && <div className="mt-1 max-w-md rounded-md bg-muted/60 px-2 py-1 text-xs text-foreground/80"><span className="font-medium">Note:</span> {o.notes}</div>}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">{o.tickets}</td>
-                                        <td className="px-4 py-3 font-medium whitespace-nowrap">{o.currency} {o.total.toFixed(2)}</td>
+                                        <td className="px-4 py-3 font-medium whitespace-nowrap">{money(o.total, o.currency)}</td>
                                         <td className="px-4 py-3"><Badge variant={o.status === 'refunded' ? 'destructive' : 'default'} className="capitalize">{o.status}</Badge></td>
                                         <td className="px-4 py-3 text-right">
                                             {o.status === 'paid'

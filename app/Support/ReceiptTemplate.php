@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Http;
 
 /**
  * The superadmin-editable receipt / invoice template — branding, content and
@@ -48,16 +49,24 @@ class ReceiptTemplate
      * came out unbranded while the on-screen receipt — which reads the seller's
      * logo directly — showed it. Two views of one document disagreeing.
      */
-    public static function resolved(?string $fallbackLogo = null): array
+    public static function resolved(?string $fallbackLogo = null, ?string $lastResort = null): array
     {
         $t = self::get();
 
-        $source = $t['show_logo'] && $t['logo'] !== '' ? $t['logo'] : $fallbackLogo;
+        // The admin's template logo, else the seller's, else the site's own —
+        // the first that can actually be read. Receipts used to come out with
+        // no logo at all when the seller had none, or when theirs lived under
+        // /storage on a host without the public/storage symlink.
+        $candidates = [$t['show_logo'] && $t['logo'] !== '' ? $t['logo'] : null, $fallbackLogo, $lastResort];
+        $t['logo'] = '';
+        $t['show_logo'] = false;
 
-        if ($source) {
-            $uri = self::logoDataUri($source);
-            $t['logo'] = $uri ?? '';
-            $t['show_logo'] = $uri !== null;
+        foreach (array_filter($candidates) as $source) {
+            if ($uri = self::logoDataUri((string) $source)) {
+                $t['logo'] = $uri;
+                $t['show_logo'] = true;
+                break;
+            }
         }
 
         return $t;
@@ -81,18 +90,46 @@ class ReceiptTemplate
         Setting::putArray('receipt_template', $out);
     }
 
-    /** Turn a local /uploads or /storage logo path into a base64 data URI, or null. */
-    private static function logoDataUri(string $url): ?string
+    /**
+     * A logo as a base64 data URI (dompdf cannot fetch URLs on shared hosting),
+     * or null when it cannot be read.
+     *
+     * Our own files are read from disk: public/, or storage/app/public for a
+     * /storage/... path (which only resolves under public/ when the storage
+     * symlink exists — often not on cPanel). Anything else (a Google avatar)
+     * is fetched once, briefly.
+     */
+    public static function logoDataUri(string $url): ?string
     {
-        $path = parse_url($url, PHP_URL_PATH) ?: $url;
-        $file = public_path(ltrim($path, '/'));
-        if (! is_file($file)) {
+        $remote = (bool) preg_match('#^https?://#i', $url);
+        $path = ltrim((string) (parse_url($url, PHP_URL_PATH) ?: $url), '/');
+        $sameSite = ! $remote || parse_url($url, PHP_URL_HOST) === parse_url((string) config('app.url'), PHP_URL_HOST);
+        $mimes = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'webp' => 'image/webp', 'gif' => 'image/gif', 'svg' => 'image/svg+xml'];
+
+        if ($sameSite && $path !== '') {
+            $files = [public_path($path), str_starts_with($path, 'storage/') ? storage_path('app/public/'.substr($path, 8)) : null];
+            foreach (array_filter($files) as $file) {
+                if (is_file($file)) {
+                    $mime = $mimes[strtolower(pathinfo($file, PATHINFO_EXTENSION))] ?? 'image/png';
+
+                    return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($file));
+                }
+            }
+        }
+
+        if (! $remote) {
             return null;
         }
 
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        $mime = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'webp' => 'image/webp', 'gif' => 'image/gif', 'svg' => 'image/svg+xml'][$ext] ?? 'image/png';
+        try {
+            $res = Http::timeout(4)->get($url);
+            $type = strtolower(trim(explode(';', (string) $res->header('Content-Type'))[0]));
 
-        return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($file));
+            return $res->successful() && in_array($type, $mimes, true) && strlen($res->body()) < 2_000_000
+                ? 'data:'.$type.';base64,'.base64_encode($res->body())
+                : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

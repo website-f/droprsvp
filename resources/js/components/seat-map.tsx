@@ -1,6 +1,7 @@
 import { Minus, Plus, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { boxSize, contentBounds, HEADER, SEAT, seatsInnerSize, seatXY } from '@/lib/seat-layout';
 
 export interface SeatMapSeat { id: number; label: string; row: string; number: number; taken: boolean }
@@ -10,8 +11,6 @@ export interface SeatMapSection {
     x: number; y: number; width: number | null; height: number | null;
     remaining: number | null; on_sale: boolean; seats: SeatMapSeat[];
 }
-
-const rm = (n: number) => `RM ${n.toFixed(2)}`;
 
 /**
  * Buyer-facing seat map — renders the organizer's real venue layout. Seated
@@ -64,7 +63,7 @@ export function SeatMap({ sections, selected, onToggleSeat, gaQty, onGaChange }:
                             return (
                                 <div key={section.id} className="absolute rounded-lg border" style={{ left: section.x, top: section.y, width: b.w, height: b.h, backgroundColor: `${section.color}12`, borderColor: `${section.color}55` }}>
                                     <div className="flex h-6 items-center gap-1 px-2 text-[11px] font-semibold" style={{ color: section.color }}>
-                                        <span className="size-2 rounded-full" style={{ backgroundColor: section.color }} /> {section.name} · {section.price > 0 ? rm(section.price) : 'Free'}
+                                        <span className="size-2 rounded-full" style={{ backgroundColor: section.color }} /> {section.name} · {section.price > 0 ? money(section.price, section.currency) : 'Free'}
                                     </div>
 
                                     {section.kind === 'ga' ? (
@@ -109,7 +108,7 @@ export function SeatMap({ sections, selected, onToggleSeat, gaQty, onGaChange }:
                 <div className="grid gap-2">
                     {gaSections.map((s) => (
                         <div key={s.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
-                            <span className="flex items-center gap-2 font-medium"><span className="size-3 rounded-full" style={{ backgroundColor: s.color }} /> {s.name} · {s.price > 0 ? rm(s.price) : 'Free'}</span>
+                            <span className="flex items-center gap-2 font-medium"><span className="size-3 rounded-full" style={{ backgroundColor: s.color }} /> {s.name} · {s.price > 0 ? money(s.price, s.currency) : 'Free'}</span>
                             <div className="flex items-center gap-2">
                                 <Button type="button" variant="outline" size="icon" className="size-8" disabled={(gaQty[s.id] || 0) <= 0} onClick={() => onGaChange(s.id, (gaQty[s.id] || 0) - 1)} aria-label="Decrease"><Minus className="size-3.5" /></Button>
                                 <span className="w-6 text-center tabular-nums">{gaQty[s.id] || 0}</span>

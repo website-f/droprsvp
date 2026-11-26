@@ -1,9 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Camera, CheckCircle2, ScanLine, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
-interface ScanResult { ok: boolean; already?: boolean; name?: string | null; message: string }
+interface ScanResult { ok: boolean; already?: boolean; recent?: boolean; name?: string | null; message: string }
 interface Props {
     event: { title: string; slug: string };
     stats: { total: number; checked_in: number };
@@ -20,19 +21,54 @@ export default function CheckIn({ event, stats, recent, scan }: Props) {
     const inputRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
+    // Double-scan safeguards. A ref, not state: two reads in the same instant
+    // (a camera frame and a scanner's Enter, or a scanner that sends Enter
+    // twice) both see the lock — state would only update after a re-render,
+    // which is how a second request slipped through and left the page stuck.
+    const busyRef = useRef(false);
+    const lastRef = useRef<{ token: string; at: number }>({ token: '', at: 0 });
+
     const check = (raw: string) => {
         const val = raw.trim();
+        const now = Date.now();
 
-        if (!val || busy) {
-return;
-}
+        if (!val || busyRef.current) {
+            return;
+        }
 
+        // The same code again within 5s is the same person still at the
+        // scanner: it was already counted, so don't ask the server twice.
+        if (val === lastRef.current.token && now - lastRef.current.at < 5000) {
+            setToken('');
+
+            return;
+        }
+
+        lastRef.current = { token: val, at: now };
+        busyRef.current = true;
         setBusy(true);
+
+        let cancel: (() => void) | null = null;
+        // Never hang on a slow network: give up after 12s so the next guest
+        // can be scanned (scanning this one again is safe — it counts once).
+        const timer = setTimeout(() => {
+            cancel?.();
+            toast.error('The network is slow — that scan didn’t finish. Scan the ticket again.');
+            lastRef.current = { token: '', at: 0 };
+        }, 12000);
+
         router.post(`/host/events/${event.slug}/checkin`, { token: val }, {
             preserveScroll: true,
+            onCancelToken: (token) => {
+                cancel = () => token.cancel();
+            },
             onFinish: () => {
- setBusy(false); setToken(''); inputRef.current?.focus(); 
-},
+                clearTimeout(timer);
+                busyRef.current = false;
+                setBusy(false);
+                setToken('');
+                inputRef.current?.focus();
+            },
         });
     };
 
@@ -110,15 +146,22 @@ return;
                 </div>
 
                 {/* Last scan result */}
-                {scan && (
-                    <div className={`mb-4 flex items-center gap-3 rounded-xl border p-4 ${scan.ok ? 'border-foreground bg-foreground text-background' : scan.already ? 'border-border bg-muted' : 'border-destructive/40 bg-destructive/10'}`}>
-                        {scan.ok ? <CheckCircle2 className="size-6 shrink-0" /> : <XCircle className={`size-6 shrink-0 ${scan.already ? '' : 'text-destructive'}`} />}
-                        <div>
-                            {scan.name && <div className="font-semibold">{scan.name}</div>}
-                            <div className={`text-sm ${scan.ok ? 'opacity-90' : scan.already ? 'text-muted-foreground' : 'text-destructive'}`}>{scan.message}</div>
+                {scan && (() => {
+                    // Scanned twice in a row (just now): it's in — show it as in,
+                    // not as a warning the door staff have to stop and read.
+                    const good = scan.ok || (scan.already && scan.recent);
+
+                    return (
+                        <div className={`mb-4 flex items-center gap-3 rounded-xl border p-4 ${good ? 'border-foreground bg-foreground text-background' : scan.already ? 'border-border bg-muted' : 'border-destructive/40 bg-destructive/10'}`}>
+                            {good ? <CheckCircle2 className="size-6 shrink-0" /> : <XCircle className={`size-6 shrink-0 ${scan.already ? '' : 'text-destructive'}`} />}
+                            <div>
+                                {scan.name && <div className="font-semibold">{scan.name}</div>}
+                                {scan.already && scan.recent && <div className="text-sm font-semibold">Checked in — scanned twice, counted once</div>}
+                                <div className={`text-sm ${good ? 'opacity-90' : scan.already ? 'text-muted-foreground' : 'text-destructive'}`}>{scan.message}</div>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Scan input */}
                 <form onSubmit={(e) => {

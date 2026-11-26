@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Support\Cities;
 use App\Support\Dates;
 use App\Support\HtmlSanitizer;
+use App\Support\Receipt;
 use App\Support\ReceiptTemplate;
 use App\Support\RegionalSettings;
 use App\Support\RegionVersions;
@@ -347,6 +348,6 @@ class SiteController extends Controller
             'currency' => 'MYR', 'subtotal' => 250.0, 'tax' => 15.0, 'total' => 265.0,
         ];
 
-        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved($receipt['seller']['logo'] ?? null)])->stream('receipt-preview.pdf');
+        return Pdf::loadView('receipts.pdf', ['receipt' => $receipt, 'style' => ReceiptTemplate::resolved($receipt['seller']['logo'] ?? null, Receipt::platformLogo())])->stream('receipt-preview.pdf');
     }
 }

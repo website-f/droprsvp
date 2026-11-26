@@ -8,15 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { currencySymbol, money } from '@/lib/money';
 
 interface Code {
     id: number; code: string; kind: 'percent' | 'fixed'; value: number; min_subtotal: number | null;
     max_redemptions: number | null; is_active: boolean; is_public: boolean; starts_at: string | null; ends_at: string | null;
     stats: { redemptions: number; revenue: number; discount_given: number };
 }
-interface EventInfo { title: string; slug: string; currency: string }
+interface EventInfo { title: string; slug: string; currency?: string }
 
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 type FormData = { code: string; kind: 'percent' | 'fixed'; value: string; min_subtotal: string; max_redemptions: string; starts_at: string; ends_at: string; is_active: boolean; is_public: boolean };
@@ -58,7 +58,7 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
         }
     };
 
-    const label = (c: Code) => c.kind === 'percent' ? `${c.value}% off` : `${rm(c.value)} off`;
+    const label = (c: Code) => c.kind === 'percent' ? `${c.value}% off` : `${money(c.value, event.currency)} off`;
 
     return (
         <>
@@ -93,7 +93,7 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
                                             {c.is_public && <Badge variant="secondary"><Eye className="size-3" /> On event page</Badge>}
                                         </div>
                                         <div className="mt-1 text-xs text-muted-foreground">
-                                            {c.min_subtotal ? `Min spend ${rm(c.min_subtotal)} · ` : ''}
+                                            {c.min_subtotal ? `Min spend ${money(c.min_subtotal, event.currency)} · ` : ''}
                                             {c.max_redemptions ? `${c.stats.redemptions}/${c.max_redemptions} used` : `${c.stats.redemptions} used`}
                                             {c.ends_at ? ` · ends ${c.ends_at}` : ''}
                                         </div>
@@ -105,8 +105,8 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
                                 </div>
                                 <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
                                     <div><div className="flex items-center justify-center gap-1 text-xs text-muted-foreground"><Ticket className="size-3" /> Redemptions</div><div className="mt-0.5 text-lg font-bold tabular-nums">{c.stats.redemptions}</div></div>
-                                    <div><div className="flex items-center justify-center gap-1 text-xs text-muted-foreground"><Tag className="size-3" /> Discount given</div><div className="mt-0.5 text-lg font-bold tabular-nums">{rm(c.stats.discount_given)}</div></div>
-                                    <div><div className="flex items-center justify-center gap-1 text-xs text-muted-foreground"><TrendingUp className="size-3" /> Revenue</div><div className="mt-0.5 text-lg font-bold tabular-nums">{rm(c.stats.revenue)}</div></div>
+                                    <div><div className="flex items-center justify-center gap-1 text-xs text-muted-foreground"><Tag className="size-3" /> Discount given</div><div className="mt-0.5 text-lg font-bold tabular-nums">{money(c.stats.discount_given, event.currency)}</div></div>
+                                    <div><div className="flex items-center justify-center gap-1 text-xs text-muted-foreground"><TrendingUp className="size-3" /> Revenue</div><div className="mt-0.5 text-lg font-bold tabular-nums">{money(c.stats.revenue, event.currency)}</div></div>
                                 </div>
                             </li>
                         ))}
@@ -132,14 +132,14 @@ export default function Discounts({ event, codes }: { event: EventInfo; codes: C
                                 <AppSelect value={form.data.kind} onChange={(v) => form.setData('kind', v as 'percent' | 'fixed')} options={[{ value: 'percent', label: 'Percentage' }, { value: 'fixed', label: 'Fixed amount' }]} />
                             </div>
                             <div className="grid gap-1.5">
-                                <Label htmlFor="value">{form.data.kind === 'percent' ? 'Percent off' : 'Amount off (RM)'}</Label>
+                                <Label htmlFor="value">{form.data.kind === 'percent' ? 'Percent off' : `Amount off (${currencySymbol(event.currency)})`}</Label>
                                 <input id="value" type="number" step="0.01" min="0.01" className={field} value={form.data.value} onChange={(e) => form.setData('value', e.target.value)} placeholder={form.data.kind === 'percent' ? '10' : '5.00'} />
                                 {form.errors.value && <p className="text-xs text-destructive">{form.errors.value}</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="grid gap-1.5">
-                                <Label htmlFor="min_subtotal">Min spend (RM)</Label>
+                                <Label htmlFor="min_subtotal">Min spend ({currencySymbol(event.currency)})</Label>
                                 <input id="min_subtotal" type="number" step="0.01" min="0" className={field} value={form.data.min_subtotal} onChange={(e) => form.setData('min_subtotal', e.target.value)} placeholder="Optional" />
                             </div>
                             <div className="grid gap-1.5">

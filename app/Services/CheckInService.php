@@ -33,7 +33,11 @@ class CheckInService
     }
 
     /**
-     * @return array{result: 'ok'|'already'|'invalid', message: string}
+     * `recent` marks an "already" that happened in the last two minutes: the
+     * same pass scanned twice (a shaky hand, two phones at one door). It is in
+     * — once — and the door should show it as in rather than as a warning.
+     *
+     * @return array{result: 'ok'|'already'|'invalid', message: string, recent?: bool}
      */
     public function checkIn(Event $event, Ticket $ticket, ?int $userId, string $via = 'scan'): array
     {
@@ -54,8 +58,9 @@ class CheckInService
 
             if (! $claimed) {
                 $ticket->refresh();
+                $recent = $ticket->checked_in_at !== null && $ticket->checked_in_at->gt(now()->subMinutes(2));
 
-                return ['result' => 'already', 'message' => 'Already checked in'.$this->at($event, $ticket->checked_in_at, true).'.'];
+                return ['result' => 'already', 'recent' => $recent, 'message' => 'Already checked in'.$this->at($event, $ticket->checked_in_at, true).'.'];
             }
 
             $this->record($event, $ticket, $day, $now, $userId, $via);
@@ -79,8 +84,9 @@ class CheckInService
             });
         } catch (UniqueConstraintViolationException) {
             $first = CheckIn::where('ticket_id', $ticket->id)->where('day', $day)->value('checked_in_at');
+            $first = $first ? CarbonImmutable::parse($first) : null;
 
-            return ['result' => 'already', 'message' => 'Already checked in today'.$this->at($event, $first ? CarbonImmutable::parse($first) : null).'.'];
+            return ['result' => 'already', 'recent' => $first !== null && $first->gt(now()->subMinutes(2)), 'message' => 'Already checked in today'.$this->at($event, $first).'.'];
         }
 
         $days = CheckIn::where('ticket_id', $ticket->id)->count();

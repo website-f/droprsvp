@@ -6,20 +6,19 @@ import { EventCalendar  } from '@/components/event-calendar';
 import type {CalendarEvent} from '@/components/event-calendar';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 import { dashboard } from '@/routes';
 
 interface Props {
-    stats: { events: number; published: number; tickets_sold: number; checked_in: number; revenue: number; orders: number; average_order: number };
+    stats: { events: number; published: number; tickets_sold: number; checked_in: number; revenue: number; orders: number; average_order: number; currency?: string };
     filters: AnalyticsPeriod & { event: string };
     eventOptions: { value: string; label: string }[];
     sales_by_day: Array<{ label: string; total: number }>;
     upcoming: Array<{ title: string; slug: string; when: string | null; sold: number }>;
     calendar: CalendarEvent[];
-    recent_orders: Array<{ reference: string; buyer: string | null; event: string | null; total: number; at: string | null }>;
+    recent_orders: Array<{ reference: string; buyer: string | null; event: string | null; total: number; currency?: string; at: string | null }>;
 }
-
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function StatCard({ icon: Icon, label, value, hint }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; hint?: string }) {
     return (
@@ -115,8 +114,8 @@ export default function Dashboard({ stats, filters, eventOptions, sales_by_day, 
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-                    <StatCard icon={Wallet} label="Revenue" value={rm(stats.revenue)} hint="After refunds" />
-                    <StatCard icon={Receipt} label="Orders" value={String(stats.orders)} hint={stats.orders > 0 ? `${rm(stats.average_order)} average` : undefined} />
+                    <StatCard icon={Wallet} label="Revenue" value={money(stats.revenue, stats.currency)} hint="After refunds" />
+                    <StatCard icon={Receipt} label="Orders" value={String(stats.orders)} hint={stats.orders > 0 ? `${money(stats.average_order, stats.currency)} average` : undefined} />
                     <StatCard icon={Ticket} label="Tickets sold" value={String(stats.tickets_sold)} />
                     <StatCard icon={CheckCircle2} label="Checked in" value={String(stats.checked_in)} />
                     <StatCard icon={CalendarDays} label="Events" value={`${stats.published}/${stats.events}`} hint="Published / all" />
@@ -128,7 +127,7 @@ export default function Dashboard({ stats, filters, eventOptions, sales_by_day, 
                     <div className="flex h-40 items-end gap-[2px] sm:gap-1">
                         {sales_by_day.map((d, i) => (
                             <div key={i} className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
-                                <div className="w-full rounded-t bg-foreground/80 transition-colors group-hover:bg-foreground" style={{ height: `${Math.round((d.total / peak) * 100)}%`, minHeight: d.total > 0 ? 3 : 0 }} title={`${d.label}: ${rm(d.total)}`} />
+                                <div className="w-full rounded-t bg-foreground/80 transition-colors group-hover:bg-foreground" style={{ height: `${Math.round((d.total / peak) * 100)}%`, minHeight: d.total > 0 ? 3 : 0 }} title={`${d.label}: ${money(d.total, stats.currency)}`} />
                                 <span className="h-3 truncate text-[9px] text-muted-foreground">{i % labelEvery === 0 ? d.label.split(' ')[0] : ''}</span>
                             </div>
                         ))}
@@ -174,7 +173,7 @@ export default function Dashboard({ stats, filters, eventOptions, sales_by_day, 
                                             <div className="font-medium">{o.buyer ?? 'Guest'}</div>
                                             <div className="text-xs text-muted-foreground">{o.event} · {o.at}</div>
                                         </div>
-                                        <span className="font-semibold whitespace-nowrap">RM {o.total.toFixed(2)}</span>
+                                        <span className="font-semibold whitespace-nowrap">{money(o.total, o.currency)}</span>
                                     </li>
                                 ))}
                             </ul>

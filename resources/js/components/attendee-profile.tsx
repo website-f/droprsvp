@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { money } from '@/lib/money';
 
 export interface AttendeeRow {
     id: number; token: string; name: string; email: string | null; phone: string | null;
@@ -82,8 +83,6 @@ export function AttendeeProfile({
             toast.error(`Couldn't copy the ${what.toLowerCase()}`);
         }
     };
-
-    const money = (n: number | null | undefined) => `${order?.currency ?? 'MYR'} ${(n ?? 0).toFixed(2)}`;
 
     // The profile line under the name: "Female · 27 · Kajang, Selangor".
     const summary = [
@@ -196,12 +195,12 @@ export function AttendeeProfile({
                                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                                     <Detail label="Reference" value={row.order_ref} mono />
                                     <Detail label="Purchased" value={row.purchased_at} />
-                                    <Detail label="Paid" value={order?.total != null ? money(order.total) : null} />
+                                    <Detail label="Paid" value={order?.total != null ? money(order.total, order.currency) : null} />
                                     <Detail label="Tickets in order" value={order ? String(order.tickets) : null} />
                                     {order?.code && (
                                         <Detail
                                             label="Promo code"
-                                            value={`${order.code}${order.discount ? ` (−${money(order.discount)})` : ''}`}
+                                            value={`${order.code}${order.discount ? ` (−${money(order.discount, order.currency)})` : ''}`}
                                             icon={<Tag className="size-3" />}
                                         />
                                     )}

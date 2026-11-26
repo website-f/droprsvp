@@ -220,6 +220,7 @@ class CheckoutFunnel
                 'details' => $g->where('recovered', false)->where('stage', 'details')->count(),
                 'recovered' => $g->where('recovered', true)->count(),
                 'lost_value' => round((float) $g->where('recovered', false)->sum('value'), 2),
+                'currency' => $g->first()['currency'] ?? 'MYR',
             ])
             ->sortByDesc('people')
             ->take($limit)

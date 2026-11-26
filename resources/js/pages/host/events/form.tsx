@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch, SwitchField } from '@/components/ui/switch';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { currencySymbol } from '@/lib/money';
 import { imageError, uploadImage, uploadImageWithToast } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 
@@ -214,9 +215,9 @@ const emptyDiscount = (): DiscountRow => ({
 
 const emptyTicket = (): TicketRow => ({ name: '', description: '', kind: 'paid', price: '0', compare_at_price: '', group_min: '', group_price: '', quantity: '', min_per_order: '1', max_per_order: '10', sales_start: '', sales_end: '', is_active: true });
 
-interface PlatformFeeInfo { percent: number; flat: number; label: string; custom: boolean; min_ticket_price: number }
+interface PlatformFeeInfo { percent: number; flat: number; label: string; custom: boolean; min_ticket_price: number; currency?: string }
 
-export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false, platformFee, regions = [], suggestedRegion = null }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean; platformFee?: PlatformFeeInfo; regions?: RegionOption[]; suggestedRegion?: string | null }) {
+export default function EventForm({ event, categories, cities = [], seatTemplates = [], ticketingModes = { general: true, reserved: true, tables: true }, isSuperadmin = false, platformFee: accountFee, feesByRegion = {}, regions = [], suggestedRegion = null }: { event: EventProp | null; categories: Category[]; cities?: City[]; seatTemplates?: SeatTemplate[]; ticketingModes?: TicketingModes; isSuperadmin?: boolean; platformFee?: PlatformFeeInfo; feesByRegion?: Record<string, PlatformFeeInfo>; regions?: RegionOption[]; suggestedRegion?: string | null }) {
     const isEdit = !!event;
     // A mode is offered if the platform allows it (superadmins always see all).
     const modeAllowed = (m: TicketingMode) => m === 'general' || isSuperadmin || ticketingModes[m];
@@ -253,7 +254,11 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
         props: (event?.props ?? []).map((p): PropRow => ({ id: p.id, kind: p.kind, label: p.label ?? '', color: p.color ?? '#6c63ff', pos_x: p.pos_x, pos_y: p.pos_y, width: p.width, height: p.height, rotation: p.rotation ?? 0 })),
         publish: false,
         custom_fields: ((event?.custom_fields ?? []) as CustomField[]),
-        sessions: (event?.sessions ?? []).map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: s.starts_at_local ?? dt(s.starts_at), ends_at: s.ends_at_local ?? dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' })),
+        // A new event starts with one empty date row, so the date fields are
+        // in front of the organizer rather than behind "Add session".
+        sessions: event?.sessions?.length
+            ? event.sessions.map((s): SessionRow => ({ id: s.id, title: s.title ?? '', starts_at: s.starts_at_local ?? dt(s.starts_at), ends_at: s.ends_at_local ?? dt(s.ends_at), capacity: s.capacity != null ? String(s.capacity) : '' }))
+            : [emptySession()],
         discounts: (event?.discount_codes ?? []).map((d): DiscountRow => ({
             id: d.id, code: d.code, kind: d.kind, value: String(d.value),
             min_subtotal: d.min_subtotal != null ? String(d.min_subtotal) : '',
@@ -274,6 +279,9 @@ export default function EventForm({ event, categories, cities = [], seatTemplate
     const states = useMemo<string[]>(() => [...new Set(cities.map((c) => c.state))], [cities]);
     // Malaysia has the state → city picker; elsewhere the city is typed.
     const isMalaysia = (regions.find((r) => r.code === data.region)?.country ?? 'MY') === 'MY';
+    // The fee and currency where this event happens (Settings → Country rates).
+    const platformFee = (data.region ? feesByRegion[data.region] : undefined) ?? accountFee;
+    const cur = currencySymbol(platformFee?.currency);
     const citiesFor = (state: string) => (state ? cities.filter((c) => c.state === state) : []);
     const [stateValue, setStateValue] = useState(
         () => cities.find((c) => c.name === (event?.city ?? ''))?.state ?? '',
@@ -484,7 +492,10 @@ return;
     };
 
     const save = (publish: boolean) => {
-        form.transform((d) => ({ ...d, publish }));
+        // A draft may be saved before the date is known: drop untouched date
+        // rows. Publishing sends them all, and the server insists on a start
+        // and an end.
+        form.transform((d) => ({ ...d, publish, sessions: publish ? d.sessions : d.sessions.filter((s) => s.starts_at || s.ends_at) }));
 
         const options = {
             preserveScroll: true,
@@ -791,6 +802,7 @@ form.post('/host/events', options);
                         </div>
                     </div>
                     {data.sessions.length === 0 && <p className="text-sm text-muted-foreground">Add at least one date. For an event that repeats — every Sunday, say — set the first date, then press Repeat.</p>}
+                    {errors.sessions && <p className="mb-3 text-sm text-destructive">{errors.sessions}</p>}
 
                     {repeatOpen && firstStart && (
                         <div className="mb-4 grid gap-3 rounded-lg border border-border bg-muted/40 p-3">
@@ -827,13 +839,14 @@ form.post('/host/events', options);
                         {data.sessions.map((s, i) => (
                             <div key={i} className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
                                 <div className="grid gap-1.5">
-                                    <Label>Starts</Label>
+                                    <Label>Starts <span aria-hidden className="text-destructive">*</span></Label>
                                     <DateTimePicker value={s.starts_at} onChange={(v) => patchSession(i, 'starts_at', v)} />
-                                    {errors[`sessions.${i}.starts_at` as keyof typeof errors] && <p className="text-xs text-destructive">Required</p>}
+                                    {errors[`sessions.${i}.starts_at` as keyof typeof errors] && <p className="text-xs text-destructive">{errors[`sessions.${i}.starts_at` as keyof typeof errors]}</p>}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <Label>Ends</Label>
                                     <DateTimePicker value={s.ends_at} onChange={(v) => patchSession(i, 'ends_at', v)} />
+                                    {errors[`sessions.${i}.ends_at` as keyof typeof errors] && <p className="text-xs text-destructive">{errors[`sessions.${i}.ends_at` as keyof typeof errors]}</p>}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <Label>Capacity</Label>
@@ -991,7 +1004,7 @@ form.post('/host/events', options);
                                     <div className="rounded-lg bg-muted/40 p-3">
                                         <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
                                             <div className="grid gap-1.5">
-                                                <Label>{t.kind === 'donation' ? 'Suggested amount (RM)' : 'Selling price (RM)'}</Label>
+                                                <Label>{t.kind === 'donation' ? `Suggested amount (${cur})` : `Selling price (${cur})`}</Label>
                                                 <input type="number" min={0} step="0.01" className={field} value={t.price} onChange={(e) => patchTicket(i, 'price', e.target.value)} />
                                                 {/* Buyers pay the ticket price alone — the platform fee comes out
                                                     of the organizer's takings, so a price under it would pay them
@@ -1003,13 +1016,13 @@ form.post('/host/events', options);
 
                                                     return below ? (
                                                         <p className="text-xs text-destructive">
-                                                            Below the RM{platformFee.min_ticket_price.toFixed(2)} platform fee on your account —
-                                                            you would receive RM{net.toFixed(2)} per sale. Price it at RM{platformFee.min_ticket_price.toFixed(2)} or more.
+                                                            Below the {cur}{platformFee.min_ticket_price.toFixed(2)} platform fee on your account —
+                                                            you would receive {cur}{net.toFixed(2)} per sale. Price it at {cur}{platformFee.min_ticket_price.toFixed(2)} or more.
                                                         </p>
                                                     ) : (
                                                         <p className="text-xs text-muted-foreground">
                                                             Buyers pay this exactly. Platform fee is {platformFee.label}, taken from your payout
-                                                            {price > 0 ? ` — you keep RM${(price - Math.max(price * platformFee.percent / 100, platformFee.flat)).toFixed(2)}` : ''}.
+                                                            {price > 0 ? ` — you keep ${cur}${(price - Math.max(price * platformFee.percent / 100, platformFee.flat)).toFixed(2)}` : ''}.
                                                         </p>
                                                     );
                                                 })()}
@@ -1017,7 +1030,7 @@ form.post('/host/events', options);
                                             </div>
                                             {t.kind === 'paid' && (
                                                 <div className="grid gap-1.5">
-                                                    <Label>Normal price (RM) <span className="font-normal text-muted-foreground">— optional</span></Label>
+                                                    <Label>Normal price ({cur}) <span className="font-normal text-muted-foreground">— optional</span></Label>
                                                     <input type="number" min={0} step="0.01" className={field} value={t.compare_at_price} onChange={(e) => patchTicket(i, 'compare_at_price', e.target.value)} placeholder="e.g. 50.00" />
                                                 </div>
                                             )}
@@ -1033,7 +1046,7 @@ form.post('/host/events', options);
                                                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
                                                     <span>Buy</span>
                                                     <input type="number" min={2} className={cn(field, 'h-9 w-20')} value={t.group_min} onChange={(e) => patchTicket(i, 'group_min', e.target.value)} placeholder="3" aria-label="Group size" />
-                                                    <span>or more, and each ticket is RM</span>
+                                                    <span>or more, and each ticket is {cur}</span>
                                                     <input type="number" min={0} step="0.01" className={cn(field, 'h-9 w-28')} value={t.group_price} onChange={(e) => patchTicket(i, 'group_price', e.target.value)} placeholder="15.00" aria-label="Group price per ticket" />
                                                 </div>
                                                 {(() => {
@@ -1050,10 +1063,10 @@ form.post('/host/events', options);
                                                     }
 
                                                     if (each >= price) {
-                                                        return <p className="mt-1.5 text-xs text-destructive">Make the group price lower than the selling price (RM{price.toFixed(2)}), or it won’t apply.</p>;
+                                                        return <p className="mt-1.5 text-xs text-destructive">Make the group price lower than the selling price ({cur}{price.toFixed(2)}), or it won’t apply.</p>;
                                                     }
 
-                                                    return <p className="mt-1.5 text-xs text-muted-foreground">{min} tickets cost RM{(min * each).toFixed(2)} instead of RM{(min * price).toFixed(2)}. Buyers see the deal on the event page.</p>;
+                                                    return <p className="mt-1.5 text-xs text-muted-foreground">{min} tickets cost {cur}{(min * each).toFixed(2)} instead of {cur}{(min * price).toFixed(2)}. Buyers see the deal on the event page.</p>;
                                                 })()}
                                                 {errors[`ticketTypes.${i}.group_price` as keyof typeof errors] && <p className="mt-1 text-xs text-destructive">{String(errors[`ticketTypes.${i}.group_price` as keyof typeof errors])}</p>}
                                             </div>
@@ -1177,11 +1190,11 @@ form.post('/host/events', options);
                                         <AppSelect
                                             value={d.kind}
                                             onChange={(v) => updateDiscount(i, { kind: v as DiscountRow['kind'] })}
-                                            options={[{ value: 'percent', label: 'Percent (%)' }, { value: 'fixed', label: 'Amount (RM)' }]}
+                                            options={[{ value: 'percent', label: 'Percent (%)' }, { value: 'fixed', label: `Amount (${cur})` }]}
                                         />
                                     </div>
                                     <div className="grid gap-1.5">
-                                        <Label htmlFor={`discount-value-${i}`} className="text-xs">{d.kind === 'percent' ? 'Percent off' : 'RM off'}</Label>
+                                        <Label htmlFor={`discount-value-${i}`} className="text-xs">{d.kind === 'percent' ? 'Percent off' : `${cur} off`}</Label>
                                         <input
                                             id={`discount-value-${i}`}
                                             type="number" step="0.01" min="0.01" max={d.kind === 'percent' ? 100 : undefined}
@@ -1196,7 +1209,7 @@ form.post('/host/events', options);
 
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                     <div className="grid gap-1.5">
-                                        <Label htmlFor={`discount-min-${i}`} className="text-xs">Min spend (RM)</Label>
+                                        <Label htmlFor={`discount-min-${i}`} className="text-xs">Min spend ({cur})</Label>
                                         <input id={`discount-min-${i}`} type="number" step="0.01" min="0" className={field} value={d.min_subtotal} placeholder="Any" onChange={(e) => updateDiscount(i, { min_subtotal: e.target.value })} />
                                     </div>
                                     <div className="grid gap-1.5">

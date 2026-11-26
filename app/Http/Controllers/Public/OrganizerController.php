@@ -10,6 +10,7 @@ use App\Models\OrganizerPost;
 use App\Models\User;
 use App\Support\Chat\ChatLink;
 use App\Support\Cities;
+use App\Support\CountryRates;
 use App\Support\Regions;
 use App\Support\SeoManager;
 use App\Support\SeoTemplate;
@@ -369,6 +370,9 @@ class OrganizerController extends Controller
             'repeat' => $event->repeatLabel(),
             'venue' => $event->is_online ? 'Online' : $event->venue_name,
             'from_price' => $paid->isNotEmpty() ? $paid->min() : null,
+            // Home-country events always sell in ringgit (CHIP); skipping the rates
+            // lookup there keeps listing pages within their query budget.
+            'currency' => CountryRates::countryOf($event->region) === CountryRates::HOME ? 'MYR' : CountryRates::forEvent($event)['currency'],
             'has_free' => $active->whereIn('kind', ['free', 'donation'])->isNotEmpty(),
             'participants' => (int) ($event->participants_count ?? 0),
             'rating' => ($event->reviews_count ?? 0) > 0 ? round((float) $event->reviews_avg, 1) : null,

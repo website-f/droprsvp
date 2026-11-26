@@ -8,6 +8,8 @@ import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
 import { GaTally } from '@/components/ga-tally';
 import type { GaTallyData } from '@/components/ga-tally';
+import type { Paginator } from '@/components/pagination';
+import { Pagination } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
@@ -15,7 +17,7 @@ import { Button } from '@/components/ui/button';
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
 interface EventRow { slug: string; title: string; status: string; when: string | null; impressions: number; clicks: number; ctr: number; sold: number; revenue: number; abandoned: number }
-interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Paginated extends Paginator { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 interface Filters { q: string; sort: string; dir: string; status: string; category: string; city: string; source: string; region?: string; period: string; from: string; to: string; periodLabel: string }
 interface People {
     kpis: { total: number; new: number; organizers: number; customers: number; customers_window: number; repeat: number; repeat_rate: number };
@@ -321,15 +323,7 @@ export default function AdminAnalytics({ funnel, people, topCustomers, topOrgani
                         </table>
                     </ResponsiveTable>
 
-                    {(events.prev_page_url || events.next_page_url) && (
-                        <div className="flex items-center justify-between gap-2 border-t border-border p-3 text-sm">
-                            <span className="text-muted-foreground">Page {events.current_page} of {events.last_page}</span>
-                            <div className="flex gap-2">
-                                <Button asChild variant="outline" size="sm" disabled={!events.prev_page_url}>{events.prev_page_url ? <Link href={events.prev_page_url} preserveScroll>← Prev</Link> : <span>← Prev</span>}</Button>
-                                <Button asChild variant="outline" size="sm" disabled={!events.next_page_url}>{events.next_page_url ? <Link href={events.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                            </div>
-                        </div>
-                    )}
+                    <Pagination paginator={events} noun="events" className="border-t border-border p-3" />
                 </section>
             </div>
         </>

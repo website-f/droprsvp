@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArmchairIcon, ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Download, LayoutGrid, MessageSquareText, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
+import { ArmchairIcon, ArrowLeft, CheckCircle2, ChevronRight, Download, LayoutGrid, MessageSquareText, RotateCcw, ScanLine, Search, Ticket as TicketIcon, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AttendeeFacets } from '@/components/attendee-facets';
@@ -7,6 +7,8 @@ import type { Facet } from '@/components/attendee-facets';
 import { AttendeeProfile } from '@/components/attendee-profile';
 import type { AttendeeRow } from '@/components/attendee-profile';
 import { useConfirm } from '@/components/confirm-dialog';
+import { Pagination } from '@/components/pagination';
+import type { PaginatorLink } from '@/components/pagination';
 import { QrScanner  } from '@/components/qr-scanner';
 import type {ScanFeedback} from '@/components/qr-scanner';
 import { ResponsiveTable } from '@/components/responsive-table';
@@ -19,6 +21,7 @@ type Row = AttendeeRow;
 interface Paginated<T> {
     data: T[]; current_page: number; last_page: number; total: number;
     from: number | null; to: number | null; prev_page_url: string | null; next_page_url: string | null;
+    links?: PaginatorLink[];
 }
 interface Filters { q: string; status: string; type: string; facets?: Record<string, string> }
 interface TypeCount { id: number | null; name: string; total: number; checked_in: number }
@@ -32,7 +35,7 @@ interface Props {
     stats: Stats;
     openScanner?: boolean;
 }
-interface ScanResponse { result: 'ok' | 'already' | 'valid' | 'invalid' | 'notfound'; message: string; ticket?: Row; stats?: Stats }
+interface ScanResponse { result: 'ok' | 'already' | 'valid' | 'invalid' | 'notfound'; message: string; recent?: boolean; ticket?: Row; stats?: Stats }
 
 const STATUS_BADGE: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     checked_in: 'default', valid: 'secondary', void: 'destructive', refunded: 'destructive',
@@ -65,6 +68,9 @@ export default function Attendees({ event, tickets, filters, ticketTypes, facets
     const [pending, setPending] = useState<Row | null>(null); // valid ticket awaiting manual confirm
     const confirm = useConfirm();
     const [working, setWorking] = useState(false);
+    // A ref as well as state: two reads in the same instant both see this
+    // lock, where `working` only changes after a re-render.
+    const scanLock = useRef(false);
 
     const base = `/host/events/${event.slug}/attendees`;
 
@@ -151,19 +157,25 @@ p.set('type', filters.type);
 
     // A code was read from the camera (or typed manually).
     const onDecode = async (raw: string) => {
-        if (working) {
+        if (working || scanLock.current) {
             return;
         }
 
+        scanLock.current = true;
         setWorking(true);
 
         try {
-            const res = await postJson<ScanResponse>(`${base}/scan`, { token: raw, auto });
+            // A hung request must not freeze the door: give up after 12s.
+            const res = await postJson<ScanResponse>(`${base}/scan`, { token: raw, auto }, { timeoutMs: 12000 });
             mergeTicket(res.ticket, res.stats);
             const name = res.ticket?.name;
 
             if (res.result === 'ok') {
                 setFeedback({ tone: 'ok', title: 'Checked in', subtitle: [name, res.ticket?.type].filter(Boolean).join(' · ') });
+                setPending(null);
+            } else if (res.result === 'already' && res.recent) {
+                // The same pass scanned twice in a row: it is in, once.
+                setFeedback({ tone: 'ok', title: 'Checked in', subtitle: [name, res.message].filter(Boolean).join(' · ') });
                 setPending(null);
             } else if (res.result === 'already') {
                 setFeedback({ tone: 'warn', title: name ? `${name} — already in` : 'Already checked in', subtitle: res.message });
@@ -175,9 +187,14 @@ p.set('type', filters.type);
                 setFeedback({ tone: 'error', title: res.result === 'notfound' ? 'Not found' : 'Invalid', subtitle: res.message });
                 setPending(null);
             }
-        } catch {
-            setFeedback({ tone: 'error', title: 'Scan failed', subtitle: 'Please try again.' });
+        } catch (err) {
+            setFeedback({
+                tone: 'error',
+                title: (err as { timeout?: boolean }).timeout ? 'No answer — network is slow' : 'Scan failed',
+                subtitle: 'Scan the ticket again. It is safe: a ticket only ever checks in once.',
+            });
         } finally {
+            scanLock.current = false;
             setWorking(false);
         }
     };
@@ -190,10 +207,15 @@ p.set('type', filters.type);
     };
 
     const checkIn = async (id: number, fromScanner = false) => {
+        if (scanLock.current) {
+            return;
+        }
+
+        scanLock.current = true;
         setWorking(true);
 
         try {
-            const res = await postJson<{ ticket: Row; stats: Stats }>(`${base}/${id}/check-in`);
+            const res = await postJson<{ ticket: Row; stats: Stats }>(`${base}/${id}/check-in`, undefined, { timeoutMs: 12000 });
             mergeTicket(res.ticket, res.stats);
 
             if (fromScanner) {
@@ -213,6 +235,7 @@ p.set('type', filters.type);
                 toast.error(message);
             }
         } finally {
+            scanLock.current = false;
             setWorking(false);
         }
     };
@@ -458,19 +481,7 @@ p.set('type', filters.type);
                 )}
 
                 {/* Pagination */}
-                {tickets.last_page > 1 && (
-                    <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{tickets.from}–{tickets.to} of {tickets.total}</span>
-                        <div className="flex gap-2">
-                            <Button asChild={!!tickets.prev_page_url} variant="outline" size="sm" disabled={!tickets.prev_page_url}>
-                                {tickets.prev_page_url ? <Link href={tickets.prev_page_url} preserveScroll><ChevronLeft className="size-4" /> Prev</Link> : <span><ChevronLeft className="size-4" /> Prev</span>}
-                            </Button>
-                            <Button asChild={!!tickets.next_page_url} variant="outline" size="sm" disabled={!tickets.next_page_url}>
-                                {tickets.next_page_url ? <Link href={tickets.next_page_url} preserveScroll>Next <ChevronRight className="size-4" /></Link> : <span>Next <ChevronRight className="size-4" /></span>}
-                            </Button>
-                        </div>
-                    </div>
-                )}
+                <Pagination paginator={tickets} noun="attendees" className="mt-4" />
             </div>
 
             {/* Everything checkout learned about this person. */}

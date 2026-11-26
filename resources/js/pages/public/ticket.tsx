@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarDays, Download, MapPin, Video } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, MapPin, Video } from 'lucide-react';
+import { useState } from 'react';
 import { AddToCalendar } from '@/components/add-to-calendar';
 import { LogoMark } from '@/components/brand';
 import { Badge } from '@/components/ui/badge';
@@ -17,9 +18,25 @@ interface TicketView {
     event: { title: string; slug: string; when: string | null; venue_name: string | null; is_online: boolean; google_url: string | null; ics_url: string | null };
 }
 
+/** One person's pass from the same order: each guest has their own QR. */
+interface Pass { qr_token: string; attendee_name: string | null; status: string; type: string | null; table: string | null; seat: string | null; qr: string }
+
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
-export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: string }) {
+export default function TicketPass({ ticket: opened, qr: openedQr, passes = [] }: { ticket: TicketView; qr: string; passes?: Pass[] }) {
+    // Every pass this person holds from the order, starting on the one opened.
+    const all: Pass[] = passes.length ? passes : [{ ...opened, qr: openedQr }];
+    const [index, setIndex] = useState(() => Math.max(0, all.findIndex((p) => p.qr_token === opened.qr_token)));
+    const pass = all[index] ?? all[0];
+    // The address follows the pass on screen, so copying the link shares
+    // this guest's ticket — not the one that happened to be opened.
+    const go = (i: number) => {
+        setIndex(i);
+        window.history.replaceState(window.history.state, '', `/tickets/${all[i].qr_token}`);
+    };
+    const ticket = { ...opened, ...pass };
+    const qr = pass.qr;
+    const many = all.length > 1;
     const checkedIn = ticket.status === 'checked_in';
     const voided = ticket.status === 'void' || ticket.status === 'refunded';
 
@@ -39,10 +56,28 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                     </div>
                 </div>
 
+                {many && (
+                    <div className="mb-4 w-full max-w-sm print:hidden">
+                        <div className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card p-1.5">
+                            <button type="button" aria-label="Previous ticket" disabled={index === 0} onClick={() => go(index - 1)}
+                                className="flex size-9 items-center justify-center rounded-xl hover:bg-accent disabled:opacity-30"><ChevronLeft className="size-4" /></button>
+                            <div className="text-center text-sm">
+                                <div className="font-semibold">Ticket {index + 1} of {all.length}</div>
+                                <div className="text-xs text-muted-foreground">One QR per person</div>
+                            </div>
+                            <button type="button" aria-label="Next ticket" disabled={index === all.length - 1} onClick={() => go(index + 1)}
+                                className="flex size-9 items-center justify-center rounded-xl hover:bg-accent disabled:opacity-30"><ChevronRight className="size-4" /></button>
+                        </div>
+                        <div className="mt-2 flex justify-center gap-1.5" aria-hidden>
+                            {all.map((p, i) => <span key={p.qr_token} className={`size-1.5 rounded-full ${i === index ? 'bg-foreground' : 'bg-foreground/20'}`} />)}
+                        </div>
+                    </div>
+                )}
+
                 <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
                     {/* Header */}
                     <div className="bg-foreground px-6 py-5 text-background">
-                        <div className="text-xs uppercase tracking-widest opacity-70">Admit one</div>
+                        <div className="text-xs uppercase tracking-widest opacity-70">Admit one{many ? ` · ${index + 1} of ${all.length}` : ''}</div>
                         <div className="mt-1 text-lg font-bold leading-tight">{ticket.event.title}</div>
                     </div>
 
@@ -85,7 +120,7 @@ export default function TicketPass({ ticket, qr }: { ticket: TicketView; qr: str
                             />
                         )}
                         <div className="font-mono text-[11px] tracking-wide text-muted-foreground">{ticket.qr_token}</div>
-                        <p className="text-center text-xs text-muted-foreground">Show this at the door to check in.</p>
+                        <p className="text-center text-xs text-muted-foreground">{many ? 'Each guest shows their own code at the door. Share this ticket’s link with the person it’s for.' : 'Show this at the door to check in.'}</p>
                     </div>
                 </div>
 

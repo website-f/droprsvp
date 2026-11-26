@@ -22,7 +22,7 @@ class SeatingTest extends TestCase
 
         $this->actingAs($host)->post('/host/events', [
             'title' => 'Big Concert', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
-            'seating_enabled' => true, 'sections' => [$section], 'ticketTypes' => [], 'sessions' => [], 'publish' => true,
+            'seating_enabled' => true, 'sections' => [$section], 'ticketTypes' => [], 'sessions' => [['starts_at' => now()->addWeek()->format('Y-m-d').'T19:00']], 'publish' => true,
         ])->assertRedirect();
 
         return Event::where('title', 'Big Concert')->firstOrFail();
@@ -112,7 +112,7 @@ class SeatingTest extends TestCase
 
         $this->actingAs($host)->post('/host/events', [
             'title' => 'Arena Show', 'visibility' => 'public', 'timezone' => 'Asia/Kuala_Lumpur',
-            'seating_enabled' => true, 'ticketTypes' => [], 'sessions' => [], 'publish' => true,
+            'seating_enabled' => true, 'ticketTypes' => [], 'sessions' => [['starts_at' => now()->addWeek()->format('Y-m-d').'T19:00']], 'publish' => true,
             'sections' => [
                 ['name' => 'STAGE', 'kind' => 'stage', 'color' => '#111', 'x' => 40, 'y' => 10, 'width' => 300, 'height' => 48],
                 ['name' => 'Balcony', 'kind' => 'seated', 'price' => 80, 'rows' => 2, 'cols' => 4, 'x' => 60, 'y' => 200, 'row_label_start' => 'D', 'curve' => 60],

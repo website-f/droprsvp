@@ -1,13 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ExternalLink, Search } from 'lucide-react';
 import { useState } from 'react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
-interface Row { title: string; slug: string; organizer: string | null; status: string; sold: number; revenue: number }
-interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
+interface Row { title: string; slug: string; organizer: string | null; status: string; sold: number; revenue: number; currency?: string }
+interface Paginated extends Paginator { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
 
 export default function AdminEvents({ events, filters }: { events: Paginated; filters: { q: string } }) {
     const [q, setQ] = useState(filters.q);
@@ -42,7 +45,7 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                                     <td className="px-4 py-3 text-muted-foreground">{e.organizer ?? '—'}</td>
                                     <td className="px-4 py-3"><Badge variant={e.status === 'published' ? 'default' : e.status === 'cancelled' ? 'destructive' : 'secondary'} className="capitalize">{e.status}</Badge></td>
                                     <td className="px-4 py-3 text-muted-foreground">{e.sold}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap">RM {e.revenue.toFixed(2)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap">{money(e.revenue, e.currency)}</td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <Button asChild variant="outline" size="sm"><Link href={`/admin/all-events/${e.slug}`}>Manage</Link></Button>
@@ -55,12 +58,7 @@ export default function AdminEvents({ events, filters }: { events: Paginated; fi
                     </table>
                 </ResponsiveTable>
 
-                {(events.prev_page_url || events.next_page_url) && (
-                    <div className="mt-6 flex justify-between">
-                        <Button asChild variant="outline" disabled={!events.prev_page_url}>{events.prev_page_url ? <Link href={events.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <Button asChild variant="outline" disabled={!events.next_page_url}>{events.next_page_url ? <Link href={events.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={events} noun="events" preserveScroll={false} className="mt-6" />
             </div>
         </>
     );

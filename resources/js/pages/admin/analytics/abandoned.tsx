@@ -6,10 +6,13 @@ import { whatsappUrl } from '@/components/attendee-profile';
 import { PALETTE, SeriesBars } from '@/components/charts';
 import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
+import type { Paginator } from '@/components/pagination';
+import { Pagination } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { money } from '@/lib/money';
 
 interface Row {
     key: number;
@@ -34,8 +37,8 @@ interface Row {
     last_at_label: string | null;
     recovered: boolean;
 }
-interface ByEvent { event: string; slug: string | null; people: number; details: number; recovered: number; lost_value: number }
-interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface ByEvent { event: string; slug: string | null; people: number; details: number; recovered: number; lost_value: number; currency?: string }
+interface Paginated extends Paginator { data: Row[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 interface Filters { period: string; from: string; to: string; periodLabel: string; event: string; stage: string; q: string; recovered: string }
 interface Props {
     summary: FunnelSummary;
@@ -49,7 +52,6 @@ interface Props {
 }
 
 const PATH = '/admin/analytics/abandoned';
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function AbandonedCheckouts({ summary, trend, byEvent, rows, event, filters, stageOptions, exportUrl }: Props) {
     const [q, setQ] = useState(filters.q);
@@ -126,7 +128,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                                                 <td className="px-3 py-2 text-right tabular-nums">{e.people}</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{e.details}</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{e.recovered}</td>
-                                                <td className="px-3 py-2 text-right tabular-nums">{rm(e.lost_value)}</td>
+                                                <td className="px-3 py-2 text-right tabular-nums">{money(e.lost_value, e.currency)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -207,7 +209,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                                                 <Badge tone={r.stage === 'details' ? 'amber' : undefined}>{r.stage === 'details' ? 'Filled details' : 'Left at checkout'}</Badge>
                                             </td>
                                             <td className="max-w-[220px] px-3 py-2">
-                                                <div className="font-medium tabular-nums">{rm(r.value)}</div>
+                                                <div className="font-medium tabular-nums">{money(r.value, r.currency)}</div>
                                                 <div className="truncate text-xs text-muted-foreground" title={r.items}>{r.items}</div>
                                             </td>
                                             <td className="px-3 py-2 text-right tabular-nums">{r.attempts}</td>
@@ -230,15 +232,7 @@ export default function AbandonedCheckouts({ summary, trend, byEvent, rows, even
                         </table>
                     </ResponsiveTable>
 
-                    {(rows.prev_page_url || rows.next_page_url) && (
-                        <div className="flex items-center justify-between gap-2 border-t border-border p-3 text-sm">
-                            <span className="text-muted-foreground">Page {rows.current_page} of {rows.last_page}</span>
-                            <div className="flex gap-2">
-                                <Button asChild variant="outline" size="sm" disabled={!rows.prev_page_url}>{rows.prev_page_url ? <Link href={rows.prev_page_url} preserveScroll>← Prev</Link> : <span>← Prev</span>}</Button>
-                                <Button asChild variant="outline" size="sm" disabled={!rows.next_page_url}>{rows.next_page_url ? <Link href={rows.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                            </div>
-                        </div>
-                    )}
+                    <Pagination paginator={rows} noun="checkouts" className="border-t border-border p-3" />
                 </section>
 
                 <p className="mt-3 text-xs text-muted-foreground">

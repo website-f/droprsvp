@@ -2,7 +2,9 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Activity, Ban, Flag, Gauge, Loader2, Megaphone, MessagesSquare, Settings2, ShieldAlert, Trash2, UserX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
-import { EdmHeader, field, Pager, Section, Stat } from '@/components/edm/ui';
+import { EdmHeader, field, Section, Stat } from '@/components/edm/ui';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,7 +21,7 @@ interface ContextMessage { id: number; sender: string; reported_user: boolean; b
 interface Props {
     tab: Tab;
     stats: { messages_today: number; conversations_week: number; open_reports: number; suspended: number; ip_bans: number; polls_per_second: number };
-    reports: { data: Report[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number } | null;
+    reports: { data: Report[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number } & Paginator | null;
     reportStatus: 'open' | 'dismissed' | 'actioned';
     suspended: { id: number; name: string; email: string; reason: string | null; until: string | null }[] | null;
     ipBans: { id: number; ip: string; reason: string | null; automatic: boolean; active: boolean; until: string | null; when: string }[] | null;
@@ -125,7 +127,7 @@ function Reports({ reports, status }: { reports: NonNullable<Props['reports']>; 
                     ))}
                 </ul>
             )}
-            <Pager prev={reports.prev_page_url} next={reports.next_page_url} page={reports.current_page} last={reports.last_page} />
+            <Pagination paginator={reports} noun="reports" className="border-t border-border p-3" />
             <ReviewDialog report={open} onClose={() => setOpen(null)} />
         </Section>
     );

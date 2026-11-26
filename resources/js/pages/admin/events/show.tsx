@@ -1,9 +1,11 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Ban, ExternalLink, Pencil, RotateCcw } from 'lucide-react';
 import { useConfirm } from '@/components/confirm-dialog';
+import { contentClass } from '@/components/rich-editor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface Appeal { status: string; reason: string | null; attachments: string[]; when: string | null }
@@ -12,7 +14,7 @@ interface EventDetail {
     status: string; cancelled_reason: string | null; appeal: Appeal | null; visibility: string; category: string | null; city: string | null;
     is_online: boolean; venue_name: string | null; venue_address: string | null; when: string | null;
     organizer: { name: string | null; email: string | null };
-    sold: number; revenue: number;
+    sold: number; revenue: number; currency?: string;
     ticket_types: { name: string; kind: string; price: number; quantity: number | null }[];
 }
 
@@ -91,13 +93,13 @@ return;
                         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Performance</h2>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="rounded-lg border border-border p-4"><div className="text-2xl font-bold">{event.sold}</div><div className="text-xs text-muted-foreground">Tickets sold</div></div>
-                            <div className="rounded-lg border border-border p-4"><div className="text-2xl font-bold">RM {event.revenue.toFixed(2)}</div><div className="text-xs text-muted-foreground">Revenue</div></div>
+                            <div className="rounded-lg border border-border p-4"><div className="text-2xl font-bold">{money(event.revenue, event.currency)}</div><div className="text-xs text-muted-foreground">Revenue</div></div>
                         </div>
                         <div className="mt-4 grid gap-1.5">
                             {event.ticket_types.map((t, i) => (
                                 <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
                                     <span>{t.name} <span className="text-xs capitalize text-muted-foreground">· {t.kind}</span></span>
-                                    <span className="font-medium">{t.kind === 'free' ? 'Free' : `RM ${t.price.toFixed(2)}`}</span>
+                                    <span className="font-medium">{t.kind === 'free' ? 'Free' : money(t.price, event.currency)}</span>
                                 </div>
                             ))}
                         </div>
@@ -107,7 +109,13 @@ return;
                 {event.description && (
                     <section className="mt-6 rounded-xl border border-border bg-card p-5">
                         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Description</h2>
-                        <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/80">{event.description}</p>
+                        {/* Authored in the rich editor, so it is HTML (sanitised on save) —
+                            rendered as the public page renders it, not as raw tags.
+                            Old plain-text descriptions keep their line breaks. */}
+                        <div
+                            className={`${contentClass} text-sm ${/<[a-z][\s\S]*>/i.test(event.description) ? '' : 'whitespace-pre-line'}`}
+                            dangerouslySetInnerHTML={{ __html: event.description }}
+                        />
                     </section>
                 )}
 

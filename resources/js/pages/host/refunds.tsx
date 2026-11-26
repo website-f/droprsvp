@@ -1,19 +1,21 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Check, Undo2, X } from 'lucide-react';
 import { useState } from 'react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { currencySymbol, money } from '@/lib/money';
 
 interface RefundRow {
     id: number; status: string; amount: number; approved_amount: number | null; reason: string | null;
-    decision_note: string | null; requester: string; reference: string | null; remaining: number; event: string | null; when: string | null;
+    decision_note: string | null; requester: string; reference: string | null; remaining: number; currency?: string | null; event: string | null; when: string | null;
 }
-interface Paginated { data: RefundRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
+interface Paginated extends Paginator { data: RefundRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
 interface Props { requests: Paginated; pending: number }
 
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const input = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 export default function HostRefunds({ requests, pending }: Props) {
@@ -72,14 +74,14 @@ return;
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className="font-semibold tabular-nums">{rm(r.amount)}</span>
+                                            <span className="font-semibold tabular-nums">{money(r.amount, r.currency)}</span>
                                             {badge(r.status)}
                                             <span className="text-xs text-muted-foreground">{r.when}</span>
                                         </div>
                                         <div className="mt-0.5 text-sm">{r.requester} · <span className="text-muted-foreground">{r.event}</span></div>
                                         <div className="text-xs text-muted-foreground">{r.reference}</div>
                                         {r.reason && <p className="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground/80">“{r.reason}”</p>}
-                                        {r.status === 'approved' && r.approved_amount !== null && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">Refunded {rm(r.approved_amount)}.</p>}
+                                        {r.status === 'approved' && r.approved_amount !== null && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">Refunded {money(r.approved_amount, r.currency)}.</p>}
                                         {r.status === 'declined' && r.decision_note && <p className="mt-2 text-xs text-muted-foreground">Declined: {r.decision_note}</p>}
                                     </div>
                                     {r.status === 'pending' && (
@@ -96,15 +98,7 @@ return;
                     </ul>
                 )}
 
-                {(requests.prev_page_url || requests.next_page_url) && (
-                    <div className="mt-6 flex items-center justify-between gap-2 text-sm">
-                        <span className="text-muted-foreground">Page {requests.current_page} of {requests.last_page}</span>
-                        <div className="flex gap-2">
-                            <Button asChild variant="outline" size="sm" disabled={!requests.prev_page_url}>{requests.prev_page_url ? <Link href={requests.prev_page_url} preserveScroll>← Prev</Link> : <span>← Prev</span>}</Button>
-                            <Button asChild variant="outline" size="sm" disabled={!requests.next_page_url}>{requests.next_page_url ? <Link href={requests.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                        </div>
-                    </div>
-                )}
+                <Pagination paginator={requests} noun="requests" className="mt-6" />
             </div>
 
             {/* Approve */}
@@ -112,11 +106,11 @@ return;
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Approve refund</DialogTitle>
-                        <DialogDescription>Refund {approve?.requester} for “{approve?.event}”. You can refund the full amount or a partial sum (up to {approve ? rm(approve.remaining) : ''}).</DialogDescription>
+                        <DialogDescription>Refund {approve?.requester} for “{approve?.event}”. You can refund the full amount or a partial sum (up to {approve ? money(approve.remaining, approve.currency) : ''}).</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={submitApprove} className="grid gap-3">
                         <div className="grid gap-1.5">
-                            <Label htmlFor="amount">Refund amount (RM)</Label>
+                            <Label htmlFor="amount">Refund amount ({currencySymbol(approve?.currency)})</Label>
                             <input id="amount" type="number" step="0.01" min="0.01" max={approve?.remaining} className={input}
                                 value={approveForm.data.amount} onChange={(e) => approveForm.setData('amount', e.target.value)} />
                             {approveForm.errors.amount && <p className="text-xs text-destructive">{approveForm.errors.amount}</p>}

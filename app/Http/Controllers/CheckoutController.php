@@ -8,13 +8,15 @@ use App\Models\EventDailyStat;
 use App\Models\Order;
 use App\Services\CheckoutService;
 use App\Services\GoogleAnalytics;
-use App\Services\Payments\ChipGateway;
-use App\Services\Payments\PaymentGateway;
+use App\Services\Payments\AirwallexGateway;
+use App\Services\Payments\ConfirmsPayments;
+use App\Services\Payments\Gateways;
 use App\Services\TableAssignmentService;
 use App\Support\Cities;
 use App\Support\CustomFields;
 use App\Support\Edm\Consent;
 use App\Support\Profile;
+use App\Support\Qr;
 use App\Support\SeoTemplate;
 use App\Support\Tracking;
 use Illuminate\Http\Request;
@@ -216,7 +218,7 @@ class CheckoutController extends Controller
     }
 
     /** Capture buyer details and hand off to the payment gateway (or settle free orders). */
-    public function pay(Request $request, Order $order, PaymentGateway $gateway)
+    public function pay(Request $request, Order $order, Gateways $gateways)
     {
         $this->authorizeOrderAccess($order, $request);
         abort_unless($order->status === 'pending', 410);
@@ -342,6 +344,15 @@ class CheckoutController extends Controller
         // Hand off to the payment gateway. If it's unreachable or errors, don't blow
         // up with a 500 mid-checkout — send the buyer back with a clear, retryable
         // message (surfaced as a toast by FlashWatcher).
+        $gateway = $gateways->forOrder($order);
+
+        // CHIP takes ringgit only. A foreign-currency order meant for CHIP means
+        // Airwallex was switched off after the order opened: say so plainly
+        // rather than charge the wrong currency.
+        if (! $gateway instanceof AirwallexGateway && strtoupper((string) $order->currency) !== 'MYR') {
+            return back()->with('flash_error', 'Online payment isn’t available for this country right now. Please try again later or contact the organizer.');
+        }
+
         try {
             $redirectUrl = $gateway->createCheckout($order);
         } catch (\Throwable $e) {
@@ -370,15 +381,15 @@ class CheckoutController extends Controller
     }
 
     /** Where the real gateway redirects the buyer back to. */
-    public function return(Request $request, PaymentGateway $gateway)
+    public function return(Request $request, Gateways $gateways)
     {
         $reference = $request->query('reference_number') ?? $request->query('reference');
         $order = $reference ? Order::where('reference', $reference)->first() : null;
 
         // The webhook is the source of truth, but it can lag the redirect — so if
         // the order is still pending, confirm directly with the gateway.
-        if ($order && $order->status === 'pending' && $gateway instanceof ChipGateway && $gateway->isPaid($order)) {
-            $this->checkout->markPaid($order, $order->payment_ref, $gateway->paymentDetails($order->payment_ref));
+        if ($order && $order->status === 'pending') {
+            $this->reconcile($order, $gateways);
         }
 
         if (! $order) {
@@ -394,8 +405,23 @@ class CheckoutController extends Controller
         return redirect()->route('checkout.confirmation', $order);
     }
 
+    /** Ask the order's gateway whether it is paid, and settle it if so. */
+    private function reconcile(Order $order, Gateways $gateways): bool
+    {
+        $gateway = $gateways->forOrder($order);
+
+        if (! $gateway instanceof ConfirmsPayments || ! $order->payment_ref || ! $gateway->isPaid($order)) {
+            return false;
+        }
+
+        $settled = $gateway->settlement($order);
+        $this->checkout->markPaid($order, $settled['payment_ref'] ?? $order->payment_ref, $settled['payment'] ?? []);
+
+        return true;
+    }
+
     /** Order confirmation with the issued tickets. */
-    public function confirmation(Request $request, Order $order, PaymentGateway $gateway)
+    public function confirmation(Request $request, Order $order, Gateways $gateways)
     {
         // Confirmation exposes buyer PII + the tickets' QR tokens, so it's gated
         // to the authenticated owner/organizer or the session that checked out.
@@ -407,8 +433,7 @@ class CheckoutController extends Controller
         // orders, so an old abandoned link never costs an API call per visit.
         if ($order->status === 'pending' && $order->payment_ref
             && $order->created_at?->gt(now()->subHours(2))
-            && $gateway instanceof ChipGateway && $gateway->isPaid($order)) {
-            $this->checkout->markPaid($order, $order->payment_ref, $gateway->paymentDetails($order->payment_ref));
+            && $this->reconcile($order, $gateways)) {
             $order->refresh();
         }
 
@@ -513,6 +538,8 @@ class CheckoutController extends Controller
                 'qr_token' => $t->qr_token,
                 'attendee_name' => $t->attendee_name,
                 'status' => $t->status,
+                // Each ticket's own code, shown right here — one per person.
+                'qr' => Qr::svg($t->qr_token, 160),
             ]) : null,
         ], fn ($v) => $v !== null);
     }

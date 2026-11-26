@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Order;
+use App\Support\CountryRates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -29,7 +30,7 @@ class OrderPlacedAdminMail extends Mailable
         $event = $this->order->event?->title ?: 'an event';
 
         return new Envelope(
-            subject: 'New order · '.$event.' · '.$this->order->currency.' '.number_format((float) $this->order->total, 2),
+            subject: 'New order · '.$event.' · '.CountryRates::money((float) $this->order->total, $this->order->currency),
             // Replying to the notification should reach the buyer, not the robot.
             replyTo: $this->order->buyer_email
                 ? [new Address($this->order->buyer_email, $this->order->buyer_name ?: 'Buyer')]

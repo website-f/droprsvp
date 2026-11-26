@@ -91,23 +91,6 @@ export const pct = (n: number | null | undefined) => (n === null || n === undefi
 
 export const field = 'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
-/** Pagination footer shared by the EDM lists. */
-export function Pager({ prev, next, page, last }: { prev: string | null; next: string | null; page: number; last: number }) {
-    if (!prev && !next) {
-        return null;
-    }
-
-    return (
-        <div className="flex items-center justify-between gap-2 border-t border-border p-3 text-sm">
-            <span className="text-muted-foreground">Page {page} of {last}</span>
-            <div className="flex gap-2">
-                {prev ? <Link href={prev} preserveScroll className="rounded-lg border border-border px-3 py-1.5 hover:bg-accent">← Prev</Link> : <span className="rounded-lg border border-border px-3 py-1.5 opacity-40">← Prev</span>}
-                {next ? <Link href={next} preserveScroll className="rounded-lg border border-border px-3 py-1.5 hover:bg-accent">Next →</Link> : <span className="rounded-lg border border-border px-3 py-1.5 opacity-40">Next →</span>}
-            </div>
-        </div>
-    );
-}
-
 export const EDM_CRUMB = { title: 'EDM', href: '/admin/edm' };
 
 export const HOST_EDM_CRUMB = { title: 'Email marketing', href: '/host/edm' };

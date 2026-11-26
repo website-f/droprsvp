@@ -9,10 +9,11 @@ import { BarsChart, DonutChart, MetricToggle, PALETTE, TrendChart } from '@/comp
 import type { ReachMetric } from '@/components/charts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 
 interface Slice { name: string; value: number }
 interface Props {
-    event: { slug: string; title: string; status: string };
+    event: { slug: string; title: string; status: string; currency?: string };
     kpis: { impressions: number; clicks: number; ctr: number; sold: number; revenue: number; conversion: number };
     trend: { date: string; impressions: number; clicks: number }[];
     demographics: { gender: Slice[]; age: Slice[]; city: Slice[]; source: Slice[] };
@@ -70,7 +71,7 @@ export default function EventAnalytics({ event, kpis, trend, demographics, answe
                     <Kpi icon={Percent} label="Click rate" value={`${kpis.ctr}%`} tint={PALETTE[2]} />
                     <Kpi icon={Ticket} label="Tickets sold" value={kpis.sold.toLocaleString()} tint={PALETTE[4]} />
                     <Kpi icon={TrendingUp} label="Conversion" value={`${kpis.conversion}%`} tint={PALETTE[3]} />
-                    <Kpi icon={Wallet} label="Revenue" value={`RM ${kpis.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} tint={PALETTE[6]} />
+                    <Kpi icon={Wallet} label="Revenue" value={money(kpis.revenue, event.currency)} tint={PALETTE[6]} />
                 </div>
 
                 {/* Trend */}

@@ -3,14 +3,16 @@ import { Ban, Download, RotateCcw, Search, UserMinus, Users } from 'lucide-react
 import { useState } from 'react';
 import { PALETTE } from '@/components/charts';
 import { useConfirm } from '@/components/confirm-dialog';
-import { EDM_CRUMB, EdmHeader, Pager, Stat } from '@/components/edm/ui';
+import { EDM_CRUMB, EdmHeader, Stat } from '@/components/edm/ui';
+import type { Paginator } from '@/components/pagination';
+import { Pagination } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 /** `joined`: on an organizer's list, how many of their events this person bought a ticket for (0 = can't be emailed). */
 interface Row { id: number; email: string; name: string | null; source: string; detail?: string | null; since: string | null; suppressed: boolean; joined?: number | null }
-interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Paginated extends Paginator { data: Row[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 type Status = 'subscribed' | 'unsubscribed' | 'suppressed';
 
 interface Props {
@@ -177,7 +179,7 @@ export default function EdmSubscribers({ base = '/admin/edm', canSuppress = true
                         </table>
                     </ResponsiveTable>
 
-                    <Pager prev={subscribers.prev_page_url} next={subscribers.next_page_url} page={subscribers.current_page} last={subscribers.last_page} />
+                    <Pagination paginator={subscribers} noun="subscribers" className="border-t border-border p-3" />
                 </section>
             </div>
         </>

@@ -35,6 +35,7 @@ class AccountController extends Controller
             ])
             ->latest()
             ->paginate(10)
+            ->withQueryString()
             ->through(fn (Order $o) => $this->payload($o));
 
         return Inertia::render('account/tickets', [
@@ -53,6 +54,7 @@ class AccountController extends Controller
             ->withCount(['refundRequests as pending_refunds' => fn ($q) => $q->where('status', 'pending')])
             ->latest()
             ->paginate(12)
+            ->withQueryString()
             ->through(fn (Order $o) => [
                 'reference' => $o->reference,
                 'event' => $o->event?->title,

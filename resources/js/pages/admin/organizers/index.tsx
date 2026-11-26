@@ -1,7 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowRight, Globe, Phone } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 interface Application {
     id: number; name: string | null; email: string | null; business_name: string | null; website: string | null;
@@ -9,7 +10,7 @@ interface Application {
     country?: { code: string; name: string; flag: string } | null;
 }
 interface CountryCount { code: string; name: string; flag: string; total: number }
-interface Paginated { data: Application[]; prev_page_url: string | null; next_page_url: string | null }
+interface Paginated extends Paginator { data: Application[]; prev_page_url: string | null; next_page_url: string | null }
 interface Props {
     applications: Paginated; filters: { status: string; country?: string };
     counts: { pending: number; appealed: number; approved: number; rejected: number }; countries?: CountryCount[];
@@ -83,12 +84,7 @@ export default function OrganizersIndex({ applications, filters, counts, countri
                     </div>
                 )}
 
-                {(applications.prev_page_url || applications.next_page_url) && (
-                    <div className="mt-8 flex justify-between">
-                        <Button asChild variant="outline" disabled={!applications.prev_page_url}>{applications.prev_page_url ? <Link href={applications.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <Button asChild variant="outline" disabled={!applications.next_page_url}>{applications.next_page_url ? <Link href={applications.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={applications} noun="applications" preserveScroll={false} className="mt-8" />
             </div>
         </>
     );

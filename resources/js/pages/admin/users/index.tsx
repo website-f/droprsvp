@@ -1,6 +1,8 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Check, Copy, Download, Eye, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +14,7 @@ interface Row {
     id: number; name: string; email: string; phone: string | null; gender: string | null; age_band: string | null;
     city: string | null; country: string | null; roles: string[]; events: number; profile_complete: boolean; is_superadmin: boolean;
 }
-interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
+interface Paginated extends Paginator { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
 interface Filters { q: string; role: string; country: string; age: string }
 interface Props { users: Paginated; filters: Filters; countries: string[]; ageBands: string[] }
 
@@ -171,12 +173,7 @@ export default function AdminUsers({ users, filters, countries, ageBands }: Prop
                     </table>
                 </ResponsiveTable>
 
-                {(users.prev_page_url || users.next_page_url) && (
-                    <div className="mt-6 flex justify-between">
-                        <Button asChild variant="outline" disabled={!users.prev_page_url}>{users.prev_page_url ? <Link href={users.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <Button asChild variant="outline" disabled={!users.next_page_url}>{users.next_page_url ? <Link href={users.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={users} noun="users" preserveScroll={false} className="mt-6" />
             </div>
 
             {/* Add user — creates an account with a temporary password they must change on first login. */}

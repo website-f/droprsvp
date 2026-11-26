@@ -1,7 +1,9 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { ArrowDownRight, ArrowUpRight, Banknote, Coins, Crown, Download, Landmark, Megaphone, Percent, Receipt, RotateCcw, Search, Ticket, Wallet, X } from 'lucide-react';
 import { useState } from 'react';
 import { DonutChart, RevenueBars } from '@/components/charts';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { PaymentBadge  } from '@/components/payment-badge';
 import type {PaymentInfo} from '@/components/payment-badge';
 import { ResponsiveTable } from '@/components/responsive-table';
@@ -20,7 +22,7 @@ interface Txn {
     receipt: string | null;
     payment: PaymentInfo | null;
 }
-interface Paginated { data: Txn[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
+interface Paginated extends Paginator { data: Txn[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number; total: number }
 interface Option { value: string; label: string; hint?: string }
 interface Filters { q: string; type: string; direction: string; event: string; organizer: string; method: string; from: string; to: string }
 
@@ -290,13 +292,7 @@ export default function Finance({ kpis, trend, breakdown, transactions, filters,
                     </p>
                 )}
 
-                {(transactions.prev_page_url || transactions.next_page_url) && (
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                        <Button asChild variant="outline" disabled={!transactions.prev_page_url}>{transactions.prev_page_url ? <Link href={transactions.prev_page_url} preserveScroll>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <span className="text-center text-xs text-muted-foreground">Page {transactions.current_page} of {transactions.last_page} · {transactions.total} transactions</span>
-                        <Button asChild variant="outline" disabled={!transactions.next_page_url}>{transactions.next_page_url ? <Link href={transactions.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={transactions} noun="transactions" className="mt-4" />
             </div>
         </>
     );

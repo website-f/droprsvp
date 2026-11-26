@@ -24,21 +24,21 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fa;border-radius:12px;margin:16px 0;">
         <tr><td style="padding:16px 18px;font-size:14px;line-height:1.8;color:#3f3f46;">
             @foreach ($order->items as $item)
-                <div>{{ $item->quantity }} × {{ $item->name }} — {{ $order->currency }} {{ number_format((float) $item->line_total, 2) }}</div>
+                <div>{{ $item->quantity }} × {{ $item->name }} — {{ \App\Support\CountryRates::money((float) $item->line_total, $order->currency) }}</div>
             @endforeach
 
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e4e4e7;">
-                <div>Subtotal: {{ $order->currency }} {{ number_format((float) $order->subtotal, 2) }}</div>
+                <div>Subtotal: {{ \App\Support\CountryRates::money((float) $order->subtotal, $order->currency) }}</div>
                 @if ((float) $order->discount > 0)
-                    <div>Discount: − {{ $order->currency }} {{ number_format((float) $order->discount, 2) }}</div>
+                    <div>Discount: − {{ \App\Support\CountryRates::money((float) $order->discount, $order->currency) }}</div>
                 @endif
                 @if ((float) $order->tax > 0)
-                    <div>Tax: {{ $order->currency }} {{ number_format((float) $order->tax, 2) }}</div>
+                    <div>Tax: {{ \App\Support\CountryRates::money((float) $order->tax, $order->currency) }}</div>
                 @endif
-                <div><strong>Buyer paid: {{ $order->currency }} {{ number_format((float) $order->total, 2) }}</strong></div>
+                <div><strong>Buyer paid: {{ \App\Support\CountryRates::money((float) $order->total, $order->currency) }}</strong></div>
                 {{-- The commission is ours, withheld from the organizer's payout —
                      it is not part of what the buyer was charged. --}}
-                <div style="color:#71717a;">Platform fee (from organizer): {{ $order->currency }} {{ number_format((float) $order->fees, 2) }}</div>
+                <div style="color:#71717a;">Platform fee (from organizer): {{ \App\Support\CountryRates::money((float) $order->fees, $order->currency) }}</div>
             </div>
         </td></tr>
     </table>

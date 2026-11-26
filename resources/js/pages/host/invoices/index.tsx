@@ -1,13 +1,16 @@
 import { Head, Link } from '@inertiajs/react';
 import { Banknote, CalendarDays, ChevronRight, Download, FileText } from 'lucide-react';
 import { useState } from 'react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 
 interface Payout { reference: string; amount: number; currency: string; status: string; requested_at: string | null; paid_at: string | null }
-interface EventRow { slug: string; title: string; status: string; when: string | null; invoices: number; revenue: number }
-interface Paginated { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
+interface EventRow { slug: string; title: string; status: string; when: string | null; invoices: number; revenue: number; currency?: string }
+interface Paginated extends Paginator { data: EventRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
 interface Props { payouts: Payout[]; events: Paginated }
 
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -57,7 +60,7 @@ export default function HostInvoices({ payouts, events }: Props) {
                                                     <div className="text-xs text-muted-foreground">{e.when ?? 'No date'} · <span className="capitalize">{e.status}</span></div>
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums">{e.invoices}</td>
-                                                <td className="px-4 py-3 text-right font-medium tabular-nums">{rm(e.revenue)}</td>
+                                                <td className="px-4 py-3 text-right font-medium tabular-nums">{money(e.revenue, e.currency)}</td>
                                                 <td className="px-4 py-3 text-right">
                                                     <Button asChild size="sm" variant="outline">
                                                         <Link href={`/host/invoices/events/${e.slug}`}>Open invoices <ChevronRight className="size-3.5" /></Link>
@@ -68,15 +71,7 @@ export default function HostInvoices({ payouts, events }: Props) {
                                     </tbody>
                                 </table>
                             </ResponsiveTable>
-                            {(events.prev_page_url || events.next_page_url) && (
-                                <div className="mt-6 flex items-center justify-between gap-2 text-sm">
-                                    <span className="text-muted-foreground">Page {events.current_page} of {events.last_page}</span>
-                                    <div className="flex gap-2">
-                                        <Button asChild variant="outline" size="sm" disabled={!events.prev_page_url}>{events.prev_page_url ? <Link href={events.prev_page_url} preserveScroll>← Prev</Link> : <span>← Prev</span>}</Button>
-                                        <Button asChild variant="outline" size="sm" disabled={!events.next_page_url}>{events.next_page_url ? <Link href={events.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                                    </div>
-                                </div>
-                            )}
+                            <Pagination paginator={events} noun="events" className="mt-6" />
                         </>
                     )
                 )}

@@ -1,4 +1,5 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { money } from '@/lib/money';
 
 /**
  * Themed, responsive Recharts wrappers used across the organizer + superadmin
@@ -98,7 +99,7 @@ return <Empty height={height} />;
 }
 
 /** Revenue per day (vertical bars). */
-export function RevenueBars({ data, height = 260 }: { data: { date: string; revenue: number }[]; height?: number }) {
+export function RevenueBars({ data, height = 260, currency }: { data: { date: string; revenue: number }[]; height?: number; currency?: string }) {
     'use no memo';
 
     return (
@@ -107,7 +108,7 @@ export function RevenueBars({ data, height = 260 }: { data: { date: string; reve
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="date" tick={axisTick} tickLine={false} axisLine={false} minTickGap={24} />
                 <YAxis tick={axisTick} tickLine={false} axisLine={false} width={52} />
-                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--muted-foreground)' }} formatter={(v) => [`RM ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 'Revenue']} cursor={{ fill: 'var(--muted)', opacity: 0.4 }} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--muted-foreground)' }} formatter={(v) => [money(Number(v), currency), 'Revenue']} cursor={{ fill: 'var(--muted)', opacity: 0.4 }} />
                 <Bar dataKey="revenue" fill={PALETTE[6]} radius={[6, 6, 0, 0]} />
             </BarChart>
         </ResponsiveContainer>

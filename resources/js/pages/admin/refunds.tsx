@@ -1,14 +1,16 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { CircleDollarSign, Clock, Undo2, XCircle } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 
 interface RefundRow {
-    id: number; status: string; amount: number; approved_amount: number | null; reference: string | null;
+    id: number; status: string; amount: number; approved_amount: number | null; reference: string | null; currency?: string | null;
     event: string | null; organizer: string | null; requester: string; when: string | null; decided: string | null;
 }
-interface Paginated { data: RefundRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
+interface Paginated extends Paginator { data: RefundRow[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
 interface Props { requests: Paginated; filters: { status: string }; stats: { pending: number; approved: number; declined: number; refunded_total: number } }
 
 const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -75,8 +77,8 @@ export default function AdminRefunds({ requests, filters, stats }: Props) {
                                         <div className="truncate">{r.event ?? '—'}</div>
                                         <div className="text-xs text-muted-foreground">{r.organizer ?? '—'}</div>
                                     </td>
-                                    <td className="px-4 py-3 text-right tabular-nums">{rm(r.amount)}</td>
-                                    <td className="px-4 py-3 text-right font-medium tabular-nums">{r.approved_amount !== null ? rm(r.approved_amount) : '—'}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{money(r.amount, r.currency)}</td>
+                                    <td className="px-4 py-3 text-right font-medium tabular-nums">{r.approved_amount !== null ? money(r.approved_amount, r.currency) : '—'}</td>
                                     <td className="px-4 py-3">{badge(r.status)}</td>
                                 </tr>
                             ))}
@@ -84,15 +86,7 @@ export default function AdminRefunds({ requests, filters, stats }: Props) {
                     </table>
                 </ResponsiveTable>
 
-                {(requests.prev_page_url || requests.next_page_url) && (
-                    <div className="mt-6 flex items-center justify-between gap-2 text-sm">
-                        <span className="text-muted-foreground">Page {requests.current_page} of {requests.last_page}</span>
-                        <div className="flex gap-2">
-                            <Button asChild variant="outline" size="sm" disabled={!requests.prev_page_url}>{requests.prev_page_url ? <Link href={requests.prev_page_url} preserveScroll>← Prev</Link> : <span>← Prev</span>}</Button>
-                            <Button asChild variant="outline" size="sm" disabled={!requests.next_page_url}>{requests.next_page_url ? <Link href={requests.next_page_url} preserveScroll>Next →</Link> : <span>Next →</span>}</Button>
-                        </div>
-                    </div>
-                )}
+                <Pagination paginator={requests} noun="requests" className="mt-6" />
             </div>
         </>
     );

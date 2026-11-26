@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Check, Coins, Crown } from 'lucide-react';
 import { useState } from 'react';
-import { EdmHeader, HOST_EDM_CRUMB, Pager, Section } from '@/components/edm/ui';
+import { EdmHeader, HOST_EDM_CRUMB, Section } from '@/components/edm/ui';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Button } from '@/components/ui/button';
 
@@ -10,7 +12,7 @@ interface Props {
     credits: { allowance: number; allowance_used: number; allowance_left: number; credits: number; available: number; premium: boolean; period: string };
     packs: { key: string; name: string; credits: number; price: number }[];
     premiumAllowance: number;
-    ledger: { data: Entry[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number };
+    ledger: { data: Entry[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number } & Paginator;
     purchases: { reference: string; credits: number; amount: number; status: string; when: string | null }[];
 }
 
@@ -117,7 +119,7 @@ export default function HostEdmCredits({ credits, packs, premiumAllowance, ledge
                             </tbody>
                         </table>
                     </ResponsiveTable>
-                    <Pager prev={ledger.prev_page_url} next={ledger.next_page_url} page={ledger.current_page} last={ledger.last_page} />
+                    <Pagination paginator={ledger} noun="entries" className="border-t border-border p-3" />
                 </Section>
             </div>
         </>

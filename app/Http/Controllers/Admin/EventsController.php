@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
 use App\Models\Event;
+use App\Support\CountryRates;
 use App\Support\Dates;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
 
 class EventsController extends Controller
@@ -29,6 +31,7 @@ class EventsController extends Controller
                 'status' => $e->status,
                 'sold' => $e->sold,
                 'revenue' => (float) ($e->revenue ?? 0),
+                'currency' => CountryRates::forEvent($e)['currency'],
             ]);
 
         return inertia('admin/events/index', ['events' => $events, 'filters' => ['q' => $q]]);
@@ -46,7 +49,7 @@ class EventsController extends Controller
                 'slug' => $event->slug,
                 'title' => $event->title,
                 'subtitle' => $event->subtitle,
-                'description' => $event->description,
+                'description' => $event->description ? HtmlSanitizer::clean($event->description) : null,
                 'cover_image' => $event->cover_image,
                 'status' => $event->status,
                 'cancelled_reason' => $event->cancelled_reason,
@@ -66,6 +69,7 @@ class EventsController extends Controller
                 'organizer' => ['name' => $event->user?->name, 'email' => $event->user?->email],
                 'sold' => $sold,
                 'revenue' => $revenue,
+                'currency' => CountryRates::forEvent($event)['currency'],
                 'ticket_types' => $event->ticketTypes->map(fn ($t) => [
                     'name' => $t->name, 'kind' => $t->kind, 'price' => (float) $t->price, 'quantity' => $t->quantity,
                 ]),

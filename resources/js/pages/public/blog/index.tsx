@@ -2,11 +2,12 @@ import { Link } from '@inertiajs/react';
 import {   BlogSidebar, categoryUrl, postUrl } from '@/components/blog-sidebar';
 import type {BlogPostCard, BlogSidebarData} from '@/components/blog-sidebar';
 import { PageTitle } from '@/components/page-title';
+import type { Paginator } from '@/components/pagination';
+import { Pagination } from '@/components/pagination';
 import { PublicFooter, PublicHeader } from '@/components/public-header';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
-interface Paginated { data: BlogPostCard[]; prev_page_url: string | null; next_page_url: string | null }
+interface Paginated extends Paginator { data: BlogPostCard[]; prev_page_url: string | null; next_page_url: string | null }
 interface Seo { title: string }
 
 export default function BlogIndex({ posts, sidebar, activeCategory }: {
@@ -71,16 +72,7 @@ export default function BlogIndex({ posts, sidebar, activeCategory }: {
                                 </div>
                             )}
 
-                            {(posts.prev_page_url || posts.next_page_url) && (
-                                <div className="mt-10 flex justify-between">
-                                    <Button asChild variant="outline" disabled={!posts.prev_page_url}>
-                                        {posts.prev_page_url ? <Link href={posts.prev_page_url}>← Newer</Link> : <span>← Newer</span>}
-                                    </Button>
-                                    <Button asChild variant="outline" disabled={!posts.next_page_url}>
-                                        {posts.next_page_url ? <Link href={posts.next_page_url}>Older →</Link> : <span>Older →</span>}
-                                    </Button>
-                                </div>
-                            )}
+                            <Pagination paginator={posts} prevLabel="Newer" nextLabel="Older" noun="posts" preserveScroll={false} className="mt-10" />
                         </div>
 
                         <BlogSidebar sidebar={sidebar} activeCategory={activeCategory} />

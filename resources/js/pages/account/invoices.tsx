@@ -1,19 +1,20 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Download, FileText, Receipt, Undo2 } from 'lucide-react';
 import { useState } from 'react';
+import { Pagination } from '@/components/pagination';
+import type { Paginator } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 
 interface Row {
     reference: string; event: string | null; total: number; refunded_amount: number; currency: string;
     status: string; date: string | null; can_refund: boolean; refund_pending: boolean;
 }
-interface Paginated { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
-
-const money = (n: number, ccy: string) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: ccy }).format(n);
+interface Paginated extends Paginator { data: Row[]; prev_page_url: string | null; next_page_url: string | null }
 
 export default function MyInvoices({ orders }: { orders: Paginated }) {
     const [refundFor, setRefundFor] = useState<Row | null>(null);
@@ -81,12 +82,7 @@ export default function MyInvoices({ orders }: { orders: Paginated }) {
                     </div>
                 )}
 
-                {(orders.prev_page_url || orders.next_page_url) && (
-                    <div className="mt-4 flex justify-between">
-                        <Button asChild variant="outline" disabled={!orders.prev_page_url}>{orders.prev_page_url ? <Link href={orders.prev_page_url}>← Previous</Link> : <span>← Previous</span>}</Button>
-                        <Button asChild variant="outline" disabled={!orders.next_page_url}>{orders.next_page_url ? <Link href={orders.next_page_url}>Next →</Link> : <span>Next →</span>}</Button>
-                    </div>
-                )}
+                <Pagination paginator={orders} noun="invoices" preserveScroll={false} className="mt-4" />
             </div>
 
             <Dialog open={!!refundFor} onOpenChange={(v) => !v && setRefundFor(null)}>

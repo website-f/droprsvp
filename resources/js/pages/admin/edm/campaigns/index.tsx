@@ -6,11 +6,13 @@ import { statusBadge } from '@/components/edm/campaign';
 import type { CampaignSummary, ThrottleStatus } from '@/components/edm/campaign';
 import { NewCampaignDialog } from '@/components/edm/new-campaign-dialog';
 import type { StarterChoice, TemplateChoice } from '@/components/edm/new-campaign-dialog';
-import { EDM_CRUMB, EdmHeader, Pager, pct, Stat } from '@/components/edm/ui';
+import { EDM_CRUMB, EdmHeader, pct, Stat } from '@/components/edm/ui';
+import type { Paginator } from '@/components/pagination';
+import { Pagination } from '@/components/pagination';
 import { ResponsiveTable } from '@/components/responsive-table';
 import { Button } from '@/components/ui/button';
 
-interface Paginated { data: CampaignSummary[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
+interface Paginated extends Paginator { data: CampaignSummary[]; prev_page_url: string | null; next_page_url: string | null; current_page: number; last_page: number }
 
 interface Props {
     campaigns: Paginated;
@@ -146,7 +148,7 @@ export default function EdmCampaigns({ base = '/admin/edm', campaigns, stats, th
                         </table>
                     </ResponsiveTable>
 
-                    <Pager prev={campaigns.prev_page_url} next={campaigns.next_page_url} page={campaigns.current_page} last={campaigns.last_page} />
+                    <Pagination paginator={campaigns} noun="campaigns" className="border-t border-border p-3" />
                 </section>
 
                 <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">

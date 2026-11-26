@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\RefundRequest;
 use App\Services\CheckoutService;
 use App\Services\Payments\PaymentGateway;
+use App\Support\CountryRates;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +27,7 @@ class RefundController extends Controller
             ->orderByRaw("case status when 'pending' then 0 else 1 end")
             ->latest()
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (RefundRequest $r) => $this->row($r));
 
         return inertia('host/refunds', [
@@ -83,7 +85,7 @@ class RefundController extends Controller
                 : 'This refund could no longer be processed.');
         }
 
-        $this->notifyBuyer($refundRequest, 'Refund approved', 'Your refund of RM'.number_format($result['amount'], 2)." for “{$order->event->title}” was approved.", 'success');
+        $this->notifyBuyer($refundRequest, 'Refund approved', 'Your refund of '.CountryRates::money((float) $result['amount'], $order->currency)." for “{$order->event->title}” was approved.", 'success');
 
         return back()->with('flash_success', 'Refund approved.');
     }
@@ -138,6 +140,7 @@ class RefundController extends Controller
             'requester' => $r->requester?->name ?? 'Guest',
             'reference' => $r->order?->reference,
             'remaining' => $r->order ? $r->order->remainingRefundable() : 0,
+            'currency' => $r->order?->currency,
             'event' => $r->order?->event?->title,
             'when' => $r->created_at?->diffForHumans(),
         ];

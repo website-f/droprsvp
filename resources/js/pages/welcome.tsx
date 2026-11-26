@@ -13,6 +13,7 @@ import { Framed, SmartImage } from '@/components/smart-image';
 import { AppSelect } from '@/components/ui/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { money } from '@/lib/money';
 import { region } from '@/lib/routes';
 import { dashboard } from '@/routes';
 
@@ -24,6 +25,7 @@ interface FeaturedEvent {
     when: string | null;
     venue: string | null;
     from_price: number | null;
+    currency?: string;
     has_free: boolean;
     participants: number;
     faces: string[];
@@ -31,14 +33,12 @@ interface FeaturedEvent {
     rating_count: number;
 }
 
-const money = (n: number) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR', maximumFractionDigits: 0 }).format(n);
-
 /** Client-side slug matching Laravel's Str::slug for our ASCII city names. */
 const citySlug = (name: string) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 function priceLabel(e: FeaturedEvent) {
     if (e.from_price != null) {
-return `From ${money(e.from_price)}`;
+return `From ${money(e.from_price, e.currency)}`;
 }
 
     if (e.has_free) {

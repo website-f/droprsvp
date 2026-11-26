@@ -32,6 +32,7 @@ class RefundController extends Controller
                 'amount' => (float) $r->amount,
                 'approved_amount' => $r->approved_amount !== null ? (float) $r->approved_amount : null,
                 'reference' => $r->order?->reference,
+                'currency' => $r->order?->currency,
                 'event' => $r->order?->event?->title,
                 'organizer' => $r->order?->event?->user?->name,
                 'requester' => $r->requester?->name ?? 'Guest',

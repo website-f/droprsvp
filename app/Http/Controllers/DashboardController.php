@@ -55,6 +55,8 @@ class DashboardController extends Controller
                 'revenue' => $revenue,
                 'orders' => $orders,
                 'average_order' => $orders > 0 ? round($revenue / $orders, 2) : 0.0,
+                // One currency when every sale was in it; mixed totals stay in the platform default.
+                'currency' => ($ccys = (clone $paid)->distinct()->pluck('currency'))->count() === 1 ? $ccys->first() : 'MYR',
             ],
             'filters' => [
                 'period' => $w['period'], 'from' => $w['from_date'], 'to' => $w['to_date'], 'periodLabel' => $w['label'],
@@ -103,6 +105,7 @@ class DashboardController extends Controller
                     'buyer' => $o->buyer_name,
                     'event' => $o->event?->title,
                     'total' => (float) $o->total,
+                    'currency' => $o->currency,
                     'at' => optional($o->paid_at)->format('j M, g:i A'),
                 ]),
         ]);

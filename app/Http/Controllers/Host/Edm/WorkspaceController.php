@@ -76,6 +76,7 @@ class WorkspaceController extends Controller
                 ->with('campaign:id,name')
                 ->latest('id')
                 ->paginate(20)
+                ->withQueryString()
                 ->through(fn (EdmCreditEntry $e) => [
                     'id' => $e->id,
                     'pool' => $e->pool,

@@ -198,6 +198,7 @@ Route::get('orders/{order}', [CheckoutController::class, 'confirmation'])->name(
 Route::post('orders/{order}/analytics/claim', [CheckoutController::class, 'analyticsClaim'])->middleware('throttle:30,1')->name('checkout.analytics.claim');
 Route::post('orders/{order}/analytics/ack', [CheckoutController::class, 'analyticsAck'])->middleware('throttle:30,1')->name('checkout.analytics.ack');
 Route::post('webhooks/chip', [WebhookController::class, 'chip'])->name('webhooks.chip');
+Route::post('webhooks/airwallex', [WebhookController::class, 'airwallex'])->name('webhooks.airwallex');
 Route::post('webhooks/chip-send', [WebhookController::class, 'chipSend'])->name('webhooks.chip-send');
 Route::post('webhooks/promotions', [WebhookController::class, 'promotions'])->name('promotions.webhook');
 Route::post('webhooks/edm-credits', [WebhookController::class, 'edmCredits'])->name('edm-credits.webhook');
@@ -540,6 +541,9 @@ Route::middleware(['auth', 'verified', EnsureAboutYou::class])->group(function (
         Route::get('settings', [AdminSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [AdminSettingsController::class, 'update'])->name('settings.save');
         Route::post('settings/regions', [AdminSettingsController::class, 'saveRegions'])->name('settings.regions');
+        Route::post('settings/country-rates', [AdminSettingsController::class, 'saveCountryRates'])->name('settings.country-rates');
+        Route::post('settings/airwallex', [AdminSettingsController::class, 'saveAirwallex'])->name('settings.airwallex');
+        Route::post('settings/airwallex/test', [AdminSettingsController::class, 'testAirwallex'])->name('settings.airwallex.test');
         // The role → section permission matrix (superadmin-only; guarded in the controller).
         Route::post('settings/permissions', [AdminSettingsController::class, 'savePermissions'])->name('settings.permissions');
 

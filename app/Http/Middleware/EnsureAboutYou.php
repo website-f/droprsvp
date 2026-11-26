@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Impersonation;
 use App\Support\Profile;
 use Closure;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ class EnsureAboutYou
             && $user->profile_completed_at === null
             && ! $user->hasAnyRole(['organizer', 'superadmin', 'staff'])
             && $request->isMethod('GET')
+            // Not while an admin is viewing as them (see EnsurePasswordSet).
+            && ! Impersonation::active($request)
             && ! $request->expectsJson()
             && ! $request->routeIs('profile.about-you')) {
             // Someone who already has everything the form would ask for is

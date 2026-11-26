@@ -11,6 +11,7 @@ import { CheckoutFunnel } from '@/components/checkout-funnel';
 import type { FunnelSummary } from '@/components/checkout-funnel';
 import { MoneyStatement } from '@/components/money-statement';
 import type { EventStatement, OrganizerStatement } from '@/components/money-statement';
+import { money } from '@/lib/money';
 
 interface Slice { name: string; value: number }
 interface Reach { date: string; impressions: number; clicks: number }
@@ -22,8 +23,6 @@ interface Data {
     answers?: AnswerQuestion[];
     funnel: FunnelSummary;
 }
-
-const rm = (n: number) => `RM ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function Kpi({ icon: Icon, label, value, tint }: { icon: typeof Eye; label: string; value: string; tint: string }) {
     return (
@@ -44,7 +43,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     );
 }
 
-export default function AdminEventAnalytics({ data, money, filters, cityOptions, sourceOptions }: { data: Data; money: { event: EventStatement; organizer: OrganizerStatement | null }; filters: AnalyticsPeriod; cityOptions: string[]; sourceOptions: { value: string; label: string }[] }) {
+export default function AdminEventAnalytics({ data, money: statement, currency, filters, cityOptions, sourceOptions }: { data: Data; money: { event: EventStatement; organizer: OrganizerStatement | null }; currency?: string; filters: AnalyticsPeriod; cityOptions: string[]; sourceOptions: { value: string; label: string }[] }) {
     const [metric, setMetric] = useState<ReachMetric>('both');
 
     return (
@@ -70,14 +69,15 @@ export default function AdminEventAnalytics({ data, money, filters, cityOptions,
                     <Kpi icon={Percent} label="CTR" value={`${data.kpis.ctr}%`} tint={PALETTE[2]} />
                     <Kpi icon={Ticket} label="Tickets sold" value={data.kpis.sold.toLocaleString()} tint={PALETTE[3]} />
                     <Kpi icon={Percent} label="Conversion" value={`${data.kpis.conversion}%`} tint={PALETTE[4]} />
-                    <Kpi icon={Wallet} label="Revenue" value={rm(data.kpis.revenue)} tint={PALETTE[6]} />
+                    <Kpi icon={Wallet} label="Revenue" value={money(data.kpis.revenue, currency)} tint={PALETTE[6]} />
                 </div>
 
-                <MoneyStatement event={money.event} organizer={money.organizer} />
+                <MoneyStatement event={statement.event} organizer={statement.organizer} currency={currency} />
 
                 <div className="mt-6">
                     <CheckoutFunnel
                         data={data.funnel}
+                        currency={currency}
                         title={`Checkout funnel · ${filters.periodLabel}`}
                         abandonedHref={`/admin/analytics/abandoned?${new URLSearchParams({ ...(filters.period === 'custom' ? { period: 'custom', from: filters.from, to: filters.to } : { period: filters.period }), event: data.event.slug }).toString()}`}
                     />

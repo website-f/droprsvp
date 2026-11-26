@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Services\CheckoutService;
 use App\Services\Edm\CreditPurchases;
 use App\Services\MembershipService;
+use App\Services\Payments\AirwallexGateway;
 use App\Services\Payments\ChipSendGateway;
 use App\Services\Payments\PaymentGateway;
 use App\Services\PayoutService;
@@ -30,6 +31,25 @@ class WebhookController extends Controller
 
         if (! empty($parsed['reference']) && $parsed['paid']) {
             $order = Order::where('reference', $parsed['reference'])->first();
+            if ($order) {
+                $checkout->markPaid($order, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
+            }
+        }
+
+        return response('ok', 200);
+    }
+
+    /** Airwallex: payment_intent.succeeded / checkout_session.completed for ticket orders. */
+    public function airwallex(Request $request, AirwallexGateway $gateway, CheckoutService $checkout): Response
+    {
+        $parsed = $gateway->parseWebhook($request);
+
+        if ($parsed === null) {
+            return response('invalid signature', 400);
+        }
+
+        if (! empty($parsed['reference']) && $parsed['paid']) {
+            $order = Order::where('reference', $parsed['reference'])->where('gateway', 'airwallex')->first();
             if ($order) {
                 $checkout->markPaid($order, $parsed['payment_ref'] ?? null, $parsed['payment'] ?? []);
             }
